@@ -3,7 +3,7 @@
 let shzStream=null,shzRaf=null;
 async function shazam(){
   $("shz").classList.add("on");
-  $("shzRes").innerHTML='<div class="call" style="font-size:24px">Počúvam…</div><div class="lookSub">Drž mobil smerom k zvuku</div>';
+  $("shzRes").innerHTML='<div class="big" style="font-size:24px">Počúvam…</div><div class="lookSub">Drž mobil smerom k zvuku</div>';
   const cv=$("shzWave"),c=cv.getContext("2d");let an=null,buf=null;
   try{
     shzStream=await navigator.mediaDevices.getUserMedia({audio:true});
@@ -31,20 +31,20 @@ function shzDone(){
   const C=343; // rýchlosť zvuku m/s
   const cands=enrich(Date.now()).filter(a=>a.alt!=null).map(a=>{const sl=Math.hypot(a.dist,a.alt);return {a,sl,score:(a.alt<3000?2.5:1)/(sl*sl)}}).filter(x=>x.sl<25000).sort((x,y)=>y.score-x.score);
   if(!cands.length){
-    $("shzRes").innerHTML='<div class="call" style="font-size:22px">Nič blízko nelieta 🤷</div><div class="lookSub">Hučí asi diaľnica, vietor alebo sused s vysávačom. 🚗</div>';return;
+    $("shzRes").innerHTML='<div class="big" style="font-size:22px">Nič blízko nelieta 🤷</div><div class="lookSub">Hučí asi diaľnica, vietor alebo sused s vysávačom. 🚗</div>';return;
   }
   const {a,sl}=cands[0],delay=sl/C,m=S.meta.get(a.hex);
   // kde bolo lietadlo, keď z neho vyšiel zvuk, ktorý práve počuješ
   const back=a.spd!=null?a.spd/3.6*delay:0;
   grantAch("shazam");if(window.dailyEvent)dailyEvent("shazam");
   $("shzRes").innerHTML=`<div class="lbl" style="margin-top:4px"><span>Počuješ</span></div>
-    <div class="call" style="font-size:30px">${esc(titleOf(a))}</div>
-    <div class="type">${esc(typeName(a,m))}${airlineOf(a)?" · "+esc(airlineOf(a)):""}</div>
-    <div class="grid"><div><b>${nf(sl/1000,1)} km</b><span>od tvojich uší</span></div><div><b>${nf(delay)} s</b><span>trvá zvuku cesta k tebe</span></div></div>
-    <div class="quip">🤯 Zvuk je pomalší ako lietadlo. Počuješ ho tam, kde bolo pred ${nf(delay)} sekundami – odvtedy preletelo ďalších ${nf(back/1000,1)} km. Pozri sa ${a.trk!=null?"viac na "+dirL(a.trk):"pred zvuk"}!</div>`;
+    <div class="big" style="font-size:30px">${esc(titleOf(a))}</div>
+    <div class="sub">${esc(typeName(a,m))}${airlineOf(a)?" · "+esc(airlineOf(a)):""}</div>
+    <div class="grid2" style="margin-top:10px"><div><b>${nf(sl/1000,1)} km</b><span>od tvojich uší</span></div><div><b>${nf(delay)} s</b><span>trvá zvuku cesta k tebe</span></div></div>
+    <div class="qbox">🤯 Zvuk je pomalší ako lietadlo. Počuješ ho tam, kde bolo pred ${nf(delay)} sekundami – odvtedy preletelo ďalších ${nf(back/1000,1)} km. Pozri sa ${a.trk!=null?"viac na "+dirL(a.trk):"pred zvuk"}!</div>`;
   ping("u");
 }
-$("b-shazam").onclick=shazam;
+$("b-shazam").onclick=shazam;$("b-shazam2").onclick=shazam;
 $("shzClose").onclick=()=>{shzStop();$("shz").classList.remove("on")};
 
 /* ============ 🗺️ Mapa trasy ============ */
@@ -194,12 +194,16 @@ HOOKS.view.push(v=>{if(v==="col"){renderDaily();renderDuel()}});
 /* ============ 📲 Inštalácia na plochu + offline ============ */
 let installEvt=null;
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
-addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)){$("installBar").style.display="";$("installTxt").textContent="📲 Nainštaluj si appku na plochu"}});
+const visits=(LS.get("ctl_visits",0)|0)+1;LS.set("ctl_visits",visits);
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)&&visits>=2){$("installBar").style.display="";$("installTxt").textContent="📲 Pridať na plochu"}});
 function installHint(){
-  if(standalone()||LS.get("ctl_noinst",false))return;
-  if(/iPhone|iPad/.test(navigator.userAgent)){$("installBar").style.display="";$("installTxt").textContent="📲 Na plochu: ťukni Zdieľať ⬆️ → Pridať na plochu";$("b-install").style.display="none"}
+  if(standalone()||LS.get("ctl_noinst",false)||visits<2)return;
+  if(/iPhone|iPad/.test(navigator.userAgent)){$("installBar").style.display="";$("installTxt").textContent="📲 Na plochu"}
 }
-$("b-install").onclick=async()=>{if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").style.display="none"}};
+$("installBar").onclick=async()=>{
+  if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").style.display="none"}
+  else toast("📲 Pridaj si appku na plochu","Ťukni na Zdieľať ⬆️ a potom „Pridať na plochu“");
+};
 $("b-installX").onclick=e=>{e.stopPropagation();LS.set("ctl_noinst",true);$("installBar").style.display="none"};
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 

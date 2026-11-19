@@ -1,6 +1,6 @@
 // Offline obal appky. Vždy najprv skúša sieť, aby si mal najnovšiu verziu.
-const V="cotoleti-v5";
-const SHELL=["./","index.html","js/core.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/main.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
+const V="cotoleti-v6";
+const SHELL=["./","index.html","js/core.js","js/ui.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/social.js","js/wrapped.js","js/main.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{

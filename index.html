@@ -3,442 +3,543 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#070b18">
+<meta name="theme-color" content="#05070f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Čo to letí?">
-<meta name="description" content="Namier mobil na oblohu a zisti, čo ti práve letí nad hlavou, odkiaľ a kam. Zbieraj vzácne lietadlá.">
+<meta name="description" content="Pozri hore. Zisti, čo ti práve letí nad hlavou, koľko ľudí v tom sedí a zamávaj im spolu s celým Slovenskom.">
 <meta property="og:title" content="Čo to letí? ✈️ Pozri hore.">
+<meta property="og:description" content="Každé lietadlo nad tebou naživo – odkiaľ, kam a koľko ľudí v ňom sedí. Zamávaj mu s celým Slovenskom 👋">
 <meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og.png">
 <meta property="og:url" content="https://slovakiana.github.io/cotoleti-app/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="manifest.webmanifest">
-<meta property="og:description" content="Zisti, čo ti práve letí nad hlavou, odkiaľ a kam. AR obloha, zbieranie vzácnych lietadiel, slovenské hlášky.">
 <title>Čo to letí? ✈️</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
 <style>
 :root{
-  --bg:#070b18;--bg2:#0d1430;--card:rgba(255,255,255,.06);--line:rgba(255,255,255,.10);
-  --txt:#f2f5ff;--mut:#97a3c7;--mint:#6dffc7;--pink:#ff4fd8;--sky:#4fc3ff;--gold:#ffcf4f;--red:#ff4f6d;
+  --bg:#05070f;--txt:#f4f7ff;--mut:rgba(235,240,255,.62);--mut2:rgba(235,240,255,.42);
+  --mint:#6dffc7;--sky:#4fc3ff;--pink:#ff4fd8;--gold:#ffcf4f;--red:#ff4f6d;--violet:#a78bff;
+  --glass:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
+  --gline:rgba(255,255,255,.16);
+  --gshadow:inset 0 1px 0 rgba(255,255,255,.22),0 18px 50px rgba(0,0,0,.38);
   --disp:'Unbounded',system-ui,sans-serif;--body:'Inter',-apple-system,system-ui,sans-serif;
+  --r:28px;--top:env(safe-area-inset-top);--bot:env(safe-area-inset-bottom);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{overflow-x:hidden}
-#fx{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:59}
-html,body{margin:0;min-height:100%;background:var(--bg);color:var(--txt);font:16px/1.45 var(--body)}
-body{padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 92px);overflow-x:hidden}
-body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
-  background:radial-gradient(40% 30% at 20% 10%,var(--g1,rgba(79,195,255,.25)),transparent 70%),
-             radial-gradient(35% 30% at 85% 30%,var(--g2,rgba(255,79,216,.18)),transparent 70%),
-             radial-gradient(50% 40% at 50% 100%,rgba(109,255,199,.12),transparent 70%),var(--bg);
-  animation:drift 18s ease-in-out infinite alternate}
-@keyframes drift{to{transform:translate3d(-4%,3%,0) rotate(3deg)}}
-.stars{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.6;
-  background-image:radial-gradient(1px 1px at 10% 20%,#fff,transparent),radial-gradient(1px 1px at 70% 15%,#fff,transparent),
-  radial-gradient(1.5px 1.5px at 40% 60%,#fff,transparent),radial-gradient(1px 1px at 85% 75%,#fff,transparent),
-  radial-gradient(1px 1px at 25% 85%,#fff,transparent),radial-gradient(1px 1px at 55% 35%,#fff,transparent);animation:tw 4s ease-in-out infinite alternate}
-@keyframes tw{to{opacity:.25}}
-header{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}
-.logo{font:900 22px/1 var(--disp);letter-spacing:-.02em}
-.logo span{background:linear-gradient(90deg,var(--mint),var(--sky),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
-.pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);padding:6px 10px;border-radius:99px;max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
+html{overflow-x:hidden;background:var(--bg)}
+html,body{margin:0;min-height:100%;color:var(--txt);font:16px/1.45 var(--body)}
+body{padding:0 0 calc(var(--bot) + 110px);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button{font:600 16px var(--body);border:0;cursor:pointer;color:inherit;background:none}
+a{color:var(--sky);text-decoration:none}
+input,select{font:inherit;background:rgba(0,0,0,.28);color:var(--txt);border:1px solid var(--gline);border-radius:14px;padding:11px 12px}
+#fx{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:90}
+.cf{position:absolute;top:-10px;width:9px;height:14px;animation:fall 1.6s ease-in forwards}
+@keyframes fall{to{transform:translate3d(var(--dx),105vh,0) rotate(720deg);opacity:.8}}
+
+/* pozadie celej appky = farba oblohy */
+#bg{position:fixed;inset:0;z-index:-2;background:var(--skyGrad,linear-gradient(#05070f,#0d1430));transition:background 2s}
+#bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,var(--bg) 62%)}
+
+/* sklo */
+.glass{background:var(--glass);border:1px solid var(--gline);box-shadow:var(--gshadow);backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);border-radius:var(--r)}
+.wrap{padding:0 14px}
+
+/* horná lišta */
+#top{position:absolute;left:0;right:0;top:0;z-index:30;padding:calc(var(--top) + 10px) 16px 10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+#top>*{pointer-events:auto}
+.logo{font:900 19px/1 var(--disp);letter-spacing:-.02em;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+.pill{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:99px;max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut2);flex:none}
 .dot.live{background:var(--mint);box-shadow:0 0 10px var(--mint);animation:pulse 1.6s infinite}
-@keyframes pulse{50%{opacity:.4}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px;margin-bottom:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-.lbl{font:600 11px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:8px}
-.rar{font:700 10px/1 var(--body);letter-spacing:.1em;padding:5px 8px;border-radius:99px;border:1px solid currentColor}
-.hero{position:relative;overflow:hidden}
-.hero.overhead{border-color:var(--mint);box-shadow:0 0 0 1px var(--mint),0 0 40px rgba(109,255,199,.25)}
-.hero.emerg{border-color:var(--red);box-shadow:0 0 30px rgba(255,79,109,.4)}
-.photo{margin:12px -16px 0;height:170px;background:#000 center/cover no-repeat;position:relative;display:none}
+@keyframes pulse{50%{opacity:.35}}
+
+/* scéna s oblohou */
+#stage{position:relative;height:min(46vh,400px);min-height:320px;padding-top:var(--top)}
+#sky{position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation}
+.stageTxt{position:absolute;left:16px;width:42%;top:calc(var(--top) + 58px);pointer-events:none;text-shadow:0 2px 16px rgba(0,0,0,.45)}
+.pax{font:700 13px/1.3 var(--body);color:rgba(255,255,255,.88)}
+.pax b{font:900 clamp(26px,8vw,34px)/1.05 var(--disp);letter-spacing:-.03em;display:block;color:#fff;margin:2px 0}
+.live{font-size:12px;color:rgba(255,255,255,.85);margin-top:10px;font-weight:600;line-height:1.35}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 12px 12px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip.gold{border-color:rgba(255,207,79,.55)}
+.chip .x{opacity:.6;margin-left:2px}
+
+/* hlavná karta */
+#hero{position:relative;margin:-34px 12px 12px;padding:18px 18px 16px;z-index:5;transition:box-shadow .4s,border-color .4s}
+#hero.overhead{border-color:rgba(109,255,199,.7);box-shadow:var(--gshadow),0 0 0 1px rgba(109,255,199,.5),0 0 60px rgba(109,255,199,.25)}
+#hero.emerg{border-color:var(--red)}
+.kick{display:flex;align-items:center;gap:8px;font:700 11px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.kick .sp{flex:1}
+.rar{font:700 10px/1 var(--body);letter-spacing:.08em;padding:5px 8px;border-radius:99px;border:1px solid currentColor}
+.lookup{display:none;font:900 11px/1 var(--disp);color:#04140e;background:var(--mint);padding:6px 9px;border-radius:99px;letter-spacing:0;animation:bob 1s infinite}
+#hero.overhead .lookup{display:inline-block}#hero.overhead .rar{display:none}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.big{font:900 clamp(30px,9.5vw,42px)/1.02 var(--disp);letter-spacing:-.035em;margin:12px 0 4px;overflow-wrap:anywhere}
+.sub{color:var(--mut);font-size:15px}
+.quip{margin-top:10px;font-size:14.5px;color:rgba(255,255,255,.88)}
+.quip:empty{display:none}
+.st3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.st3 div{background:rgba(0,0,0,.2);border-radius:18px;padding:10px 10px 9px}
+.st3 b{display:block;font:800 18px/1.15 var(--disp);letter-spacing:-.02em;white-space:nowrap}
+.st3 span{display:block;font-size:11.5px;color:var(--mut);margin-top:3px;line-height:1.25}
+.dir{display:flex;align-items:center;gap:12px;margin-top:10px;background:rgba(0,0,0,.2);border-radius:20px;padding:10px 12px}
+.compass{width:52px;height:52px;flex:none;border-radius:50%;border:1px solid var(--gline);position:relative;background:radial-gradient(circle,rgba(109,255,199,.15),transparent 70%)}
+.compass svg{position:absolute;inset:0;transition:transform .35s ease-out}
+.compass .n{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--mut)}
+.dirT{flex:1;min-width:0}
+.dirT b{display:block;font-size:15.5px}
+.dirT span{display:block;font-size:12.5px;color:var(--mut)}
+.gauge{height:4px;border-radius:2px;background:rgba(255,255,255,.1);margin-top:6px;overflow:hidden}
+.gauge i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--mint));transition:width .6s}
+.eta{display:none;margin-top:8px;font-size:13.5px;font-weight:600;color:var(--mint)}
+.eta.on{display:block}
+.eta b{font-family:var(--disp)}
+.acts{display:flex;gap:8px;margin-top:14px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 12px;border-radius:20px;font-weight:700;font-size:16px;transition:transform .12s}
+.btn:active{transform:scale(.96)}
+.btn.pri{flex:1.35;background:linear-gradient(135deg,#ff5fd9,#ff8a4f);color:#fff;box-shadow:0 10px 30px rgba(255,79,216,.35)}
+.btn.sec{flex:1;background:var(--mint);color:#04140e}
+.btn.ico{flex:0 0 54px;background:rgba(255,255,255,.1);border:1px solid var(--gline)}
+.btn .n{font:800 12px var(--disp);background:rgba(255,255,255,.25);padding:3px 7px;border-radius:99px}
+.wavePick{display:none;justify-content:space-between;gap:6px;margin-top:10px;padding:8px;border-radius:22px;background:rgba(0,0,0,.28)}
+.wavePick.on{display:flex;animation:pop .25s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.8);opacity:0}}
+.wavePick button{font-size:28px;flex:1;padding:6px 0;border-radius:14px;transition:transform .12s}
+.wavePick button:active{transform:scale(1.35)}
+.waveInfo{margin-top:10px;font-size:13.5px;color:var(--mut)}
+.waveInfo:empty{display:none}
+.waveInfo b{color:#fff}
+.msg{color:var(--gold);font-size:13px;margin-top:10px;word-break:break-word}
+.msg:empty{display:none}
+.posBtns{display:none;gap:8px;margin-top:12px}
+
+/* viac o lete */
+details.more{margin:0 12px 12px;padding:4px 16px}
+details.more>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-weight:700;cursor:pointer}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::after{content:"›";font-size:22px;color:var(--mut);transition:transform .25s}
+details.more[open]>summary::after{transform:rotate(90deg)}
+.moreIn{padding-bottom:14px}
+.photo{height:170px;border-radius:20px;background:#000 center/cover no-repeat;position:relative;display:none;margin-bottom:12px}
 .photo.on{display:block}
-.photo small{position:absolute;right:8px;bottom:6px;font-size:10px;color:#fff;opacity:.7;text-shadow:0 1px 2px #000}
-.call{font:900 40px/1.05 var(--disp);letter-spacing:-.03em;margin:12px 0 2px;overflow-wrap:anywhere}
-.type{color:var(--mut);font-size:15px}
-.route{display:none;align-items:center;gap:10px;margin-top:12px;padding:12px;border-radius:16px;background:rgba(0,0,0,.25)}
+.photo small{position:absolute;right:10px;bottom:8px;font-size:10px;color:#fff;opacity:.75;text-shadow:0 1px 2px #000}
+.route{display:none;align-items:center;gap:10px;padding:12px;border-radius:18px;background:rgba(0,0,0,.22);margin-bottom:10px}
 .route.on{display:flex}
-.route .ap{flex:1;min-width:0}
+.route .ap{flex:1;min-width:0}.route .ap.r{text-align:right}
 .route .ap b{font:800 22px/1 var(--disp);display:block}
 .route .ap span{font-size:12px;color:var(--mut);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.route .ap.r{text-align:right}
-.route .pl{font-size:20px;animation:fly 2.5s ease-in-out infinite}
-@keyframes fly{50%{transform:translateX(6px)}}
-.quip{margin-top:12px;font-size:16px;font-weight:500;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(255,79,216,.18),rgba(79,195,255,.14));border:1px solid rgba(255,79,216,.25)}
-.quip:empty{display:none}
-.look{display:flex;gap:14px;align-items:center;margin-top:14px}
-.compass{width:84px;height:84px;flex:none;border-radius:50%;border:1px solid var(--line);position:relative;background:radial-gradient(circle,rgba(109,255,199,.12),transparent 70%)}
-.compass svg{position:absolute;inset:0;transition:transform .35s ease-out}
-.compass .n{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--mut)}
-.lookTxt{font-weight:700;font-size:17px}
-.lookSub{font-size:13px;color:var(--mut);margin-top:2px}
-.gauge{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden}
-.gauge i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--mint));transition:width .6s}
-.eta{margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(109,255,199,.1);border:1px solid rgba(109,255,199,.3);font-weight:600;display:none}
-.eta.on{display:block}
-.eta b{font-family:var(--disp);font-size:20px;color:var(--mint)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.grid div{background:rgba(0,0,0,.22);border-radius:14px;padding:10px 12px}
-.grid b{display:block;font:700 19px/1.2 var(--disp)}
-.grid span{font-size:11.5px;color:var(--mut);display:block;margin-top:2px}
-.actions{display:flex;gap:8px;margin-top:14px}
-button{font:600 15px var(--body);border:0;border-radius:14px;padding:12px 14px;color:#06101c;background:var(--mint);cursor:pointer}
-button.ghost{background:rgba(255,255,255,.08);color:var(--txt);border:1px solid var(--line)}
-button.pink{background:linear-gradient(135deg,var(--pink),#ff8a4f);color:#fff}
-.actions button{flex:1;padding:12px 6px}
+.wx{display:grid;gap:8px;margin-bottom:10px}
+.wx:empty{display:none}
+.wx>div{background:rgba(0,0,0,.22);border-radius:16px;padding:10px 12px;font-size:14px}
+.wx b{font-family:var(--disp)}
+.cbar{height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:6px;overflow:hidden}
+.cbar i{display:block;height:100%;background:linear-gradient(90deg,#fff,var(--sky))}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 div{background:rgba(0,0,0,.22);border-radius:16px;padding:10px 12px}
+.grid2 b{display:block;font:700 17px/1.2 var(--disp)}
+.grid2 span{font-size:11.5px;color:var(--mut);display:block;margin-top:2px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.row3 .btn{padding:12px 6px;font-size:13.5px;flex-direction:column;gap:3px;background:rgba(255,255,255,.08);border:1px solid var(--gline)}
+.row3 .btn i{font-style:normal;font-size:22px}
 .links{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px}
-a{color:var(--sky);text-decoration:none}
-.lookup{position:absolute;top:12px;right:12px;font:900 13px var(--disp);color:#06101c;background:var(--mint);padding:6px 10px;border-radius:99px;display:none;animation:bounce 1s infinite}
-.hero.overhead .lookup{display:block}
-.hero.overhead .rar{visibility:hidden}
-@keyframes bounce{50%{transform:translateY(-4px)}}
-.emergBar{display:none;margin-top:10px;background:var(--red);color:#fff;font-weight:700;padding:8px 12px;border-radius:12px}
-.hero.emerg .emergBar{display:block}
-#radarWrap{position:relative;max-width:340px;margin:8px auto 0}
-#radar{display:block;width:100%}
-.sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(109,255,199,.28),transparent 22%);animation:spin 4s linear infinite;pointer-events:none;
-  -webkit-mask:radial-gradient(circle,#000 69.5%,transparent 70%);mask:radial-gradient(circle,#000 69.5%,transparent 70%)}
-@keyframes spin{to{transform:rotate(360deg)}}
-.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+
+/* karty */
+.card{margin:0 12px 12px;padding:16px}
+.lbl{display:flex;justify-content:space-between;align-items:center;gap:8px;font:700 11px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid rgba(255,255,255,.08)}
 .row:first-child{border-top:0}
-.row .l{min-width:0}.row .l b{font-family:var(--disp);font-size:15px}
+.row .l{min-width:0}.row .l b{font-size:15px}
 .row .l div{font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .r{text-align:right;font-size:12.5px;color:var(--mut);flex:none}.row .r b{color:var(--txt)}
-.badge{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-nav{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;gap:4px;padding:6px;border-radius:22px;
-  background:rgba(13,20,48,.75);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);z-index:20}
-nav button{flex:1;background:transparent;color:var(--mut);padding:8px 2px;font-size:11px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
-nav button i{font-style:normal;font-size:20px}
-nav button.on{background:rgba(109,255,199,.14);color:var(--mint)}
+.badge{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.kr{display:flex;align-items:center;gap:10px;padding:7px 0}
+.kr .nm{width:92px;font-size:13.5px;font-weight:600}
+.kr .bar{flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.kr .bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--sky),var(--pink))}
+.kr .v{width:44px;text-align:right;font:700 13px var(--disp)}
+.kr.me .nm{color:var(--mint)}
+footer{font-size:11.5px;color:var(--mut2);text-align:center;margin:8px 20px}
+
+/* spodná navigácia */
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 12px);display:flex;gap:4px;padding:6px;border-radius:99px;z-index:40;width:min(360px,calc(100% - 32px))}
+nav button{flex:1;color:var(--mut);padding:9px 4px;font-size:11.5px;border-radius:99px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:background .2s,color .2s}
+nav button i{font-style:normal;font-size:20px;line-height:1}
+nav button.on{background:rgba(255,255,255,.14);color:#fff}
 .view{display:none}.view.on{display:block;animation:fade .35s}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}}
-/* collection */
-.lvl{font:900 28px/1.1 var(--disp)}
-.bar{height:10px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden;margin:10px 0 6px}
-.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--sky),var(--pink))}
-.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.stats3 div{background:rgba(0,0,0,.22);border-radius:14px;padding:10px;text-align:center}
-.stats3 b{font:800 22px var(--disp);display:block}.stats3 span{font-size:11px;color:var(--mut)}
-.ach{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
-.ach div{background:rgba(0,0,0,.22);border-radius:14px;padding:10px 6px;text-align:center;font-size:11px;color:var(--mut);border:1px solid transparent}
-.ach div i{font-style:normal;font-size:26px;display:block;filter:grayscale(1);opacity:.35}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}}
+.pageHead{padding:calc(var(--top) + 64px) 16px 8px}
+.pageHead h1{font:900 32px/1.05 var(--disp);letter-spacing:-.03em;margin:0}
+.pageHead p{color:var(--mut);margin:6px 0 0}
+
+/* vesmír */
+#v-space .hero2{padding:18px}
+.etaBox{margin-top:12px;padding:12px 14px;border-radius:18px;background:rgba(109,255,199,.1);border:1px solid rgba(109,255,199,.3);font-weight:600}
+.etaBox b{font-family:var(--disp);font-size:20px;color:var(--mint)}
+.pass{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid rgba(255,255,255,.08)}
+.pass:first-child{border-top:0}
+.pass .vis{color:var(--gold);font-weight:700;flex:none}
+.lookSub{font-size:13px;color:var(--mut)}
+.qbox{margin-top:12px;font-size:14.5px;padding:12px 14px;border-radius:18px;background:linear-gradient(135deg,rgba(255,79,216,.16),rgba(79,195,255,.12));border:1px solid rgba(255,79,216,.25)}
+.qbox:empty{display:none}
+
+/* ja */
+.prof{padding:18px}
+.lvl{font:900 26px/1.1 var(--disp);letter-spacing:-.02em;margin-top:8px}
+.ptype{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:99px;background:rgba(167,139,255,.18);border:1px solid rgba(167,139,255,.4);font-weight:700;font-size:14px}
+.xp{height:10px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:12px 0 6px}
+.xp i{display:block;height:100%;background:linear-gradient(90deg,var(--sky),var(--pink))}
+.st3b{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.st3b div{background:rgba(0,0,0,.22);border-radius:16px;padding:10px;text-align:center}
+.st3b b{font:800 22px var(--disp);display:block}.st3b span{font-size:11px;color:var(--mut)}
+.wrapBtn{width:100%;margin-top:14px;padding:16px;border-radius:20px;font-weight:800;font-size:16px;color:#fff;background:linear-gradient(135deg,#7b5cff,#ff4fd8 60%,#ff8a4f);box-shadow:0 12px 34px rgba(123,92,255,.35)}
+.dl{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid rgba(255,255,255,.08)}
+.dl:first-child{border-top:0}
+.dl i{font-style:normal;font-size:24px}
+.dl .t{flex:1}.dl small{display:block;color:var(--mut);font-size:12px}
+.dl.done .t{text-decoration:line-through;opacity:.55}
+.ach{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.ach div{background:rgba(0,0,0,.22);border-radius:16px;padding:10px 4px;text-align:center;font-size:10.5px;color:var(--mut);border:1px solid transparent;line-height:1.2}
+.ach div i{font-style:normal;font-size:24px;display:block;filter:grayscale(1);opacity:.3;margin-bottom:4px}
 .ach div.got{color:var(--txt);border-color:rgba(255,207,79,.4);background:rgba(255,207,79,.08)}
 .ach div.got i{filter:none;opacity:1}
-/* settings */
-.set{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
-.set:first-of-type{border-top:0}
-.set small{display:block;color:var(--mut);font-size:12px}
-.tog{width:52px;height:30px;border-radius:99px;background:rgba(255,255,255,.12);position:relative;flex:none;padding:0}
-.tog::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s}
-.tog.on{background:var(--mint)}.tog.on::after{left:25px}
-select,input{font:inherit;background:rgba(0,0,0,.3);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:10px}
+.duelRow{margin-top:10px}
+.duelRow .xp{margin:5px 0 0}
+details.set{margin:0 12px 12px;padding:4px 16px}
+details.set>summary{list-style:none;padding:14px 0;font-weight:700;display:flex;justify-content:space-between}
+details.set>summary::-webkit-details-marker{display:none}
+details.set>summary::after{content:"›";color:var(--mut);font-size:22px}
+details.set[open]>summary::after{transform:rotate(90deg)}
+.sr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid rgba(255,255,255,.08)}
+.sr small{display:block;color:var(--mut);font-size:12px}
+.tog{width:52px;height:31px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;flex:none;padding:0}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:25px;height:25px;border-radius:50%;background:#fff;transition:.2s}
+.tog.on{background:var(--mint)}.tog.on::after{left:24px}
+.ghost{background:rgba(255,255,255,.1);border:1px solid var(--gline);padding:10px 14px;border-radius:14px}
+.solid{background:var(--mint);color:#04140e;padding:11px 14px;border-radius:14px}
 .manual{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.manual input{flex:1;min-width:110px}
-.msg{color:var(--gold);font-size:13px;margin-top:8px;word-break:break-word}
-.msg:empty{display:none}
-/* toast + confetti */
-#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translate(-50%,-150%);z-index:60;transition:transform .45s cubic-bezier(.2,1.4,.4,1);
-  background:#101a3a;border:1px solid var(--gold);border-radius:18px;padding:12px 16px;min-width:260px;max-width:92vw;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+
+/* onboarding */
+#onb{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;justify-content:flex-end;padding:calc(var(--top) + 20px) 22px calc(var(--bot) + 26px);background:radial-gradient(120% 70% at 50% 18%,#1b2a6b 0%,#0a0f24 55%,#05070f 100%);overflow:hidden}
+#onb.hide{opacity:0;pointer-events:none;transition:opacity .45s}
+#onb .sky{position:absolute;inset:0 0 40% 0}
+#onb .pl{position:absolute;font-size:44px;animation:cross 7s linear infinite;filter:drop-shadow(0 0 12px rgba(255,255,255,.5))}
+@keyframes cross{from{transform:translate(-20vw,30vh) rotate(-28deg)}to{transform:translate(110vw,-6vh) rotate(-28deg)}}
+#onb h1{font:900 clamp(36px,11vw,50px)/1 var(--disp);letter-spacing:-.04em;margin:0 0 14px}
+#onb h1 span{background:linear-gradient(90deg,var(--mint),var(--sky),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+#onb p{color:var(--mut);font-size:17px;margin:0 0 18px;max-width:420px}
+.vals{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+.vals div{display:flex;align-items:center;gap:12px;font-weight:600;font-size:15px}
+.vals i{font-style:normal;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border:1px solid var(--gline);font-size:20px}
+.cta{width:100%;padding:18px;border-radius:22px;font:800 18px var(--body);background:var(--mint);color:#04140e;box-shadow:0 0 40px rgba(109,255,199,.35)}
+.fine{font-size:12.5px;color:var(--mut2);text-align:center;margin-top:12px}
+.cities{display:none;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
+.cities.on{display:flex}
+.cities button{padding:9px 13px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--gline);font-size:14px}
+.linkBtn{display:block;margin:10px auto 0;color:var(--sky);font-size:14px;font-weight:600}
+
+/* toast */
+#toast{position:fixed;left:50%;top:calc(var(--top) + 10px);transform:translate(-50%,-160%);z-index:95;transition:transform .45s cubic-bezier(.2,1.4,.4,1);padding:12px 18px;min-width:250px;max-width:92vw;text-align:center;border-radius:22px}
 #toast.on{transform:translate(-50%,0)}
-#toast b{font-family:var(--disp);display:block;font-size:16px}
+#toast b{display:block;font-size:15.5px}
 #toast span{font-size:13px;color:var(--mut)}
-.cf{position:absolute;top:-10px;width:9px;height:14px;z-index:59;pointer-events:none;animation:fall 1.6s ease-in forwards}
-@keyframes fall{to{transform:translate3d(var(--dx),105vh,0) rotate(720deg);opacity:.8}}
-/* AR */
-#ar{position:fixed;inset:0;z-index:40;background:#000;display:none}
-#ar.on{display:block}
-#ar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#arLayer{position:absolute;inset:0;overflow:hidden}
-.arTag{position:absolute;transform:translate(-50%,-50%);will-change:left,top;pointer-events:none;text-align:center}
-.arTag .ring{width:46px;height:46px;border-radius:50%;border:2px solid var(--c,#fff);margin:0 auto;box-shadow:0 0 18px var(--c,#fff);display:flex;align-items:center;justify-content:center;font-size:20px}
-.arTag .box{margin-top:6px;background:rgba(0,0,0,.6);border:1px solid var(--c,#fff);border-radius:12px;padding:5px 9px;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.arTag .box b{font-family:var(--disp);font-size:14px;display:block}
-.arTag .box span{font-size:11px;color:#dfe6ff}
-.arTop{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 12px) 14px 30px;background:linear-gradient(#000a,transparent);display:flex;justify-content:space-between;align-items:center;gap:10px}
-.arHint{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:rgba(0,0,0,.65);border-radius:18px;padding:10px 16px;font-weight:600;max-width:92vw;width:max-content;text-align:center;border:1px solid var(--line)}
-.cross{position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.4);border-radius:50%}
-.arEdge{position:absolute;font-size:34px;color:var(--mint);text-shadow:0 0 12px var(--mint);transform:translate(-50%,-50%);display:none}
-/* splash */
-#splash{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;background:radial-gradient(60% 50% at 50% 40%,#1b2a6b,#070b18)}
-#splash h1{font:900 46px/1 var(--disp);margin:18px 0 10px;letter-spacing:-.03em}
-#splash h1 span{background:linear-gradient(90deg,var(--mint),var(--sky),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
-#splash p{color:var(--mut);max-width:320px;margin:0 0 26px}
-#splash .big{font-size:70px;animation:take 3s ease-in-out infinite}
-@keyframes take{0%{transform:translate(-30px,20px) rotate(-10deg)}50%{transform:translate(30px,-20px) rotate(-10deg)}100%{transform:translate(-30px,20px) rotate(-10deg)}}
-#splash button{font-size:18px;padding:16px 34px;border-radius:99px;box-shadow:0 0 30px rgba(109,255,199,.4)}
-#splash.hide{opacity:0;pointer-events:none;transition:opacity .4s}
-/* share modal */
-#shareM{position:fixed;inset:0;z-index:65;background:rgba(0,0,0,.85);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
+.flyE{position:fixed;z-index:91;font-size:34px;pointer-events:none;animation:flyUp 1.3s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes flyUp{to{transform:translate(var(--fx),var(--fy)) scale(.5);opacity:0}}
+
+/* modály */
+.modal{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;padding:12px 12px calc(var(--bot) + 12px)}
+.modal.on{display:flex;animation:fade .25s}
+.mcard{width:100%;max-width:440px;max-height:88vh;overflow:auto;padding:18px;background:rgba(16,22,48,.92);border:1px solid var(--gline);border-radius:30px;box-shadow:var(--gshadow);min-width:0}
+#shzWave{width:100%;height:80px;margin:10px 0;display:block}
+#map{width:100%;height:55vh;background:#111;border-radius:22px}
+#duelM{z-index:85}
+#shareM{position:fixed;inset:0;z-index:72;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
 #shareM.on{display:flex}
-#shareM img{max-height:70vh;max-width:100%;border-radius:18px}
+#shareM img,#shareM video{max-height:66vh;max-width:100%;border-radius:20px}
 #shareM p{color:var(--mut);font-size:14px;margin:0;text-align:center}
 
-.strip{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin-bottom:10px;font-size:14px;font-weight:600;cursor:pointer}
-.strip span:first-child{flex:1;min-width:0}
-.strip .go{color:var(--mut);font-size:20px}
-.strip button{padding:7px 12px;font-size:13px}
-.strip .x{background:transparent;color:var(--mut);padding:4px 6px}
-.strip.iss{border-color:rgba(255,207,79,.5);background:rgba(255,207,79,.1)}
-.wx{margin-top:10px;display:grid;gap:6px}
-.wx:empty{display:none}
-.wx>div{background:rgba(0,0,0,.22);border-radius:12px;padding:9px 12px;font-size:14px}
-.wx b{font-family:var(--disp)}
-.cbar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden}
-.cbar i{display:block;height:100%;background:linear-gradient(90deg,#fff,var(--sky))}
+/* moja obloha (príbehy) */
+#wrap{position:fixed;inset:0;z-index:75;display:none;background:#05070f}
+#wrap.on{display:block}
+.wbars{position:absolute;left:10px;right:10px;top:calc(var(--top) + 10px);display:flex;gap:4px;z-index:3}
+.wbars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}
+.wbars i b{display:block;height:100%;width:0;background:#fff}
+.wclose{position:absolute;right:14px;top:calc(var(--top) + 22px);z-index:4;font-size:22px;padding:8px}
+.wslide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:calc(var(--top) + 60px) 28px calc(var(--bot) + 40px);text-align:left}
+.wslide .k{font:700 13px var(--body);letter-spacing:.14em;text-transform:uppercase;opacity:.8}
+.wslide .h{font:900 clamp(40px,13vw,64px)/1 var(--disp);letter-spacing:-.04em;margin:14px 0}
+.wslide .p{font-size:19px;opacity:.9;max-width:440px}
+.wslide .e{font-size:80px;margin-bottom:10px}
+.wtap{position:absolute;inset:0;display:flex;z-index:2}.wtap div{flex:1}
+.wacts{position:absolute;left:24px;right:24px;bottom:calc(var(--bot) + 30px);display:flex;flex-direction:column;gap:10px;z-index:3}
+
+/* AR */
+#ar{position:fixed;inset:0;z-index:60;background:#000;display:none}
+#ar.on{display:block}
+#ar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #arCanvas{position:absolute;inset:0;width:100%;height:100%}
-.arCtl{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 90px);display:flex;justify-content:center;align-items:center;gap:28px}
+.arTop{position:absolute;left:0;right:0;top:0;padding:calc(var(--top) + 12px) 14px 30px;background:linear-gradient(#000a,transparent);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.arHint{position:absolute;left:50%;bottom:calc(var(--bot) + 24px);transform:translateX(-50%);background:rgba(0,0,0,.6);border-radius:18px;padding:10px 16px;font-weight:600;max-width:92vw;width:max-content;text-align:center;border:1px solid var(--gline);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.arCtl{position:absolute;left:0;right:0;bottom:calc(var(--bot) + 90px);display:flex;justify-content:center;align-items:center;gap:28px}
 .arCtl .ghost{width:54px;height:54px;border-radius:50%;padding:0;font-size:22px;background:rgba(0,0,0,.45)}
 .rec{width:74px;height:74px;border-radius:50%;padding:0;background:rgba(255,255,255,.2);border:4px solid #fff;display:flex;align-items:center;justify-content:center}
 .rec i{display:block;width:52px;height:52px;border-radius:50%;background:var(--red);transition:.2s}
 .rec.on i{width:26px;height:26px;border-radius:6px}
-.modal{position:fixed;inset:0;z-index:66;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:16px}
-.modal.on{display:flex}
-.mcard{min-width:0;background:#0d1430;border:1px solid var(--line);border-radius:24px;padding:18px;width:100%;max-width:420px;max-height:90vh;overflow:auto}
-#shzWave{width:100%;height:80px;margin:10px 0;display:block}
-#map{width:100%;height:58vh;background:#111}
-#duelM{z-index:80}
-.pass{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
-.pass:first-child{border-top:0}
-.pass .vis{color:var(--gold);font-weight:700}
-.dl{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
-.dl:first-child{border-top:0}
-.dl i{font-style:normal;font-size:24px}
-.dl .t{flex:1}.dl small{display:block;color:var(--mut);font-size:12px}
-.dl.done .t{text-decoration:line-through;opacity:.6}
-.duelRow{margin-top:10px}
-.duelRow .bar{margin:4px 0 0}
-footer{font-size:11.5px;color:var(--mut);text-align:center;margin-top:8px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="stars"></div>
+<div id="bg"></div>
 <div id="fx"></div>
 
-<div id="splash">
-  <div class="big">✈️</div>
-  <h1 id="sp-title"><span>Čo to letí?</span></h1>
-  <p id="sp-sub">Zisti, čo ti práve letí nad hlavou, odkiaľ a kam. Namier mobil na oblohu a zbieraj vzácne lietadlá.</p>
-  <button id="go">Pozri hore 👆</button>
+<!-- ONBOARDING (len prvýkrát) -->
+<div id="onb" style="display:none">
+  <div class="sky"><div class="pl">✈️</div></div>
+  <h1 id="onbTitle"><span>Čo ti práve letí nad hlavou?</span></h1>
+  <p>Každé lietadlo nad tebou naživo – odkiaľ letí, kam a koľko ľudí v ňom sedí.</p>
+  <div class="vals">
+    <div><i>✈️</i>Lietadlá a trasy v reálnom čase</div>
+    <div><i>👋</i>Zamávaj im s celým Slovenskom</div>
+    <div><i>🛰️</i>ISS, Starlink a satelity nad tebou</div>
+  </div>
+  <button class="cta" id="go">📍 Ukáž mi moju oblohu</button>
+  <div class="fine">Polohu potrebujeme, aby sme vedeli, čo je nad tebou. Zostáva v tvojom mobile.</div>
+  <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
+  <div class="cities" id="cities"></div>
 </div>
 
-<header>
-  <div class="logo" id="logo"><span>Čo to letí?</span></div>
-  <div class="pill"><span id="dot" class="dot"></span><span id="status">Štartujem…</span></div>
+<header id="top">
+  <div class="logo" id="logo">Čo to letí?</div>
+  <div class="pill glass" id="statusPill"><span id="dot" class="dot"></span><span id="status">Štartujem…</span></div>
 </header>
 
-<!-- TERAZ -->
+<!-- NEBO -->
 <main id="v-now" class="view on">
-  <div class="strip" id="installBar" style="display:none"><span id="installTxt">📲 Pridaj si appku na plochu</span><button id="b-install">Pridať</button><button class="x" id="b-installX">✕</button></div>
-  <div class="strip" id="dailyStrip"><span id="dailyTxt">🎯 Dnešné výzvy</span><span class="go">›</span></div>
-  <div class="strip iss" id="issStrip" style="display:none"><span id="issTxt"></span><span class="go">›</span></div>
-  <section class="card hero" id="hero">
-    <div class="lookup" id="lookupBadge">POZRI HORE! 👆</div>
-    <div class="lbl"><span id="h-lbl">Práve nad tebou</span><span class="rar" id="h-rar" style="display:none"></span></div>
-    <div class="photo" id="h-photo"><small>foto: airport-data.com</small></div>
-    <div class="call" id="h-call">—</div>
-    <div class="type" id="h-type">Čakám na polohu…</div>
-    <div class="emergBar">🚨 Lietadlo hlási núdzovú situáciu (7700)</div>
-    <div class="route" id="h-route">
-      <div class="ap"><b id="r-o">—</b><span id="r-on"></span></div>
-      <div class="pl">✈️</div>
-      <div class="ap r"><b id="r-d">—</b><span id="r-dn"></span></div>
+  <section id="stage">
+    <canvas id="sky"></canvas>
+    <div class="stageTxt">
+      <div class="pax" id="paxLine"></div>
+      <div class="live" id="liveLine"></div>
     </div>
+  </section>
+
+  <section id="hero" class="glass">
+    <div class="kick"><span id="h-lbl">Práve nad tebou</span><span class="sp"></span><span class="rar" id="h-rar" style="display:none"></span><span class="lookup" id="lookupBadge">POZRI HORE 👆</span></div>
+    <div class="big" id="h-call">—</div>
+    <div class="sub" id="h-type">Čakám na polohu…</div>
+
+    <div class="acts">
+      <button class="btn pri" id="b-wave">👋 Mávni <span class="n" id="waveN" style="display:none">0</span></button>
+      <button class="btn sec" id="b-ar">🔭 Nájdi</button>
+      <button class="btn ico" id="b-share" aria-label="Zdieľať">↗</button>
+    </div>
+    <div class="wavePick" id="wavePick"><button>👋</button><button>❤️</button><button>🇸🇰</button><button>🔥</button><button>😂</button><button>🫡</button></div>
+    <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
-    <div class="look">
+    <div class="st3" id="h-st3">
+      <div><b id="g-alt">—</b><span id="g-altC">výška</span></div>
+      <div><b id="g-pax">—</b><span>ľudí na palube</span></div>
+      <div><b id="g-dist">—</b><span>od teba</span></div>
+    </div>
+    <div class="dir" id="h-dir">
       <div class="compass" id="compass"><span class="n" id="compN">S</span>
-        <svg viewBox="0 0 84 84" id="arrow"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6dffc7"/><stop offset="1" stop-color="#4fc3ff"/></linearGradient></defs>
-          <path d="M42 12 L56 52 L42 44 L28 52 Z" fill="url(#ag)"/></svg>
+        <svg viewBox="0 0 84 84" id="arrow"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6dffc7"/><stop offset="1" stop-color="#4fc3ff"/></linearGradient></defs><path d="M42 12 L56 52 L42 44 L28 52 Z" fill="url(#ag)"/></svg>
       </div>
-      <div style="flex:1;min-width:0">
-        <div class="lookTxt" id="h-look">—</div>
-        <div class="lookSub" id="h-lookSub"></div>
-        <div class="gauge"><i id="h-gauge"></i></div>
-      </div>
+      <div class="dirT"><b id="h-look">—</b><span id="h-lookSub"></span><div class="gauge"><i id="h-gauge"></i></div></div>
     </div>
     <div class="eta" id="h-eta"></div>
-    <div class="wx" id="h-wx"></div>
-    <div class="grid">
-      <div><b id="g-alt">—</b><span id="g-altC">výška</span></div>
-      <div><b id="g-spd">—</b><span id="g-spdC">rýchlosť</span></div>
-      <div><b id="g-dist">—</b><span>od teba po zemi</span></div>
-      <div><b id="g-trk">—</b><span id="g-trkC">letí smerom</span></div>
-    </div>
-    <div class="actions">
-      <button class="pink" id="b-share">📸 Do stories</button>
-      <button id="b-ar">🔭 AR obloha</button>
-      <button class="ghost" id="b-voice" style="flex:0 0 52px">🔇</button>
-    </div>
-    <div class="actions">
-      <button class="ghost" id="b-shazam">👂 Čo to hučí?</button>
-      <button class="ghost" id="b-map">🗺️ Mapa letu</button>
-    </div>
-    <div class="links" id="h-links"></div>
+
     <div class="msg" id="heroErr"></div>
-    <div class="actions" id="posBtns" style="display:none"><button id="b-pos">📍 Povoliť polohu</button><button class="ghost" id="b-man">Zadať ručne</button></div>
+    <div class="posBtns" id="posBtns"><button class="solid" id="b-pos">📍 Povoliť polohu</button><button class="ghost" id="b-man">Vybrať mesto</button></div>
   </section>
 
-  <section class="card">
-    <div class="lbl"><span>Radar oblohy</span><span id="radarCnt"></span></div>
-    <div id="radarWrap"><div class="sweep"></div><svg id="radar" viewBox="-110 -110 220 220"></svg></div>
-    <div class="lookSub" style="text-align:center;margin-top:6px">Stred = priamo nad hlavou · okraj = obzor · sever hore</div>
+  <div class="chips">
+      <button class="chip glass" id="dailyStrip"><span id="dailyTxt">🎯 Výzvy 0/3</span></button>
+      <button class="chip glass gold" id="issStrip" style="display:none"><span id="issTxt"></span></button>
+      <button class="chip glass" id="b-shazam2">👂 Čo to hučí?</button>
+      <button class="chip glass" id="installBar" style="display:none"><span id="installTxt">📲 Na plochu</span><span class="x" id="b-installX">✕</span></button>
+    </div>
+
+  <details class="more glass" id="more">
+    <summary>Viac o tomto lete</summary>
+    <div class="moreIn">
+      <div class="photo" id="h-photo"><small>foto: airport-data.com</small></div>
+      <div class="route" id="h-route">
+        <div class="ap"><b id="r-o">—</b><span id="r-on"></span></div><div>✈️</div><div class="ap r"><b id="r-d">—</b><span id="r-dn"></span></div>
+      </div>
+      <div class="wx" id="h-wx"></div>
+      <div class="grid2">
+        <div><b id="g-spd">—</b><span id="g-spdC">rýchlosť</span></div>
+        <div><b id="g-trk">—</b><span id="g-trkC">letí smerom</span></div>
+      </div>
+      <div class="row3">
+        <button class="btn" id="b-map"><i>🗺️</i>Mapa letu</button>
+        <button class="btn" id="b-shazam"><i>👂</i>Čo to hučí?</button>
+        <button class="btn" id="b-voice"><i>🔇</i>Hlas</button>
+      </div>
+      <div class="links" id="h-links"></div>
+    </div>
+  </details>
+
+  <section class="card glass" id="krajeCard" style="display:none">
+    <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
+    <div id="kraje" style="margin-top:8px"></div>
   </section>
 
-  <section class="card">
-    <div class="lbl" style="margin-bottom:6px"><span>Ďalšie v okolí</span></div>
-    <div id="list"><div class="lookSub">—</div></div>
+  <section class="card glass">
+    <div class="lbl"><span>Okolo teba</span><span id="radarCnt"></span></div>
+    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
   </section>
-  <footer>Dáta: komunitné ADS-B siete (adsb.lol, airplanes.live, OpenSky) a adsbdb.com.<br>Nie všetky lietadlá vysielajú polohu – niektoré vojenské a malé chýbajú.</footer>
+  <footer>Dáta: adsb.lol, airplanes.live, adsb.fi, adsbdb.com, CelesTrak, Open-Meteo.<br>Niektoré vojenské a malé lietadlá nevysielajú polohu.</footer>
 </main>
 
 <!-- VESMÍR -->
 <main id="v-space" class="view">
-  <section class="card hero" id="sp-next">
+  <div class="pageHead"><h1>Vesmír nad tebou</h1><p>ISS, Tiangong a vláčiky Starlink</p></div>
+  <section class="card glass hero2" id="sp-next">
     <div class="lbl"><span>Najbližší viditeľný prelet</span><span id="sp-sun"></span></div>
-    <div class="call" id="sp-name" style="font-size:30px">Počítam dráhy…</div>
-    <div class="type" id="sp-when"></div>
-    <div class="eta on" id="sp-count" style="display:none"></div>
-    <div class="grid" id="sp-grid" style="display:none">
+    <div class="big" id="sp-name" style="font-size:28px">Počítam dráhy…</div>
+    <div class="sub" id="sp-when"></div>
+    <div class="etaBox" id="sp-count" style="display:none"></div>
+    <div class="grid2" id="sp-grid" style="display:none;margin-top:10px">
       <div><b id="sp-max">—</b><span>najvyššie nad obzorom</span></div>
       <div><b id="sp-dur">—</b><span>dĺžka preletu</span></div>
       <div><b id="sp-from">—</b><span>objaví sa na</span></div>
       <div><b id="sp-to">—</b><span>zmizne na</span></div>
     </div>
-    <div class="quip" id="sp-tip"></div>
+    <div class="qbox" id="sp-tip"></div>
     <div class="msg" id="sp-err"></div>
   </section>
-  <section class="card">
+  <section class="card glass">
     <div class="lbl" style="margin-bottom:6px"><span>Teraz nad obzorom</span><span id="sp-nowN"></span></div>
     <div id="sp-now"><div class="lookSub">—</div></div>
   </section>
-  <section class="card">
-    <div class="lbl" style="margin-bottom:6px"><span>Prelety vesmírnych staníc (36 h)</span></div>
+  <section class="card glass">
+    <div class="lbl" style="margin-bottom:6px"><span>Prelety staníc (36 h)</span></div>
     <div id="sp-passes"><div class="lookSub">—</div></div>
   </section>
-  <footer>Dráhy: CelesTrak · výpočet: satellite.js (SGP4). ISS je najjasnejšia, keď je tma u teba, ale stanica je ešte na slnku – zvyčajne 1–2 h po západe alebo pred východom slnka.</footer>
+  <footer>Dráhy: CelesTrak · výpočet: satellite.js. ISS je najlepšie vidieť 1–2 h po západe alebo pred východom slnka.</footer>
 </main>
 
-<!-- ZBIERKA -->
+<!-- JA -->
 <main id="v-col" class="view">
-  <section class="card">
-    <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
-    <div id="d-list"></div>
-  </section>
-  <section class="card">
-    <div class="lbl"><span>⚔️ Súboj s kamarátom</span></div>
-    <div id="duel"><div class="lookSub" style="margin-top:8px">Pošli kamarátovi výzvu. Keď otvorí odkaz, uvidí tvoje skóre a bude ťa chcieť prekonať.</div></div>
-    <div class="actions"><button class="pink" id="b-duel">⚔️ Vyzvi kamaráta</button></div>
-  </section>
-  <section class="card">
-    <div class="lbl"><span>Tvoj level</span><span id="c-pts"></span></div>
+  <div class="pageHead"><h1 id="meName">Spotter</h1><p id="meSub">Tvoja obloha, úlovky a výzvy</p></div>
+  <section class="card glass prof">
+    <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
     <div class="lvl" id="c-lvl">—</div>
-    <div class="bar"><i id="c-bar"></i></div>
+    <div class="ptype" id="c-type">☁️ Snílek oblakov</div>
+    <div class="xp"><i id="c-bar"></i></div>
     <div class="lookSub" id="c-next"></div>
-    <div class="stats3">
-      <div><b id="c-n">0</b><span>ulovených lietadiel</span></div>
-      <div><b id="c-t">0</b><span>rôznych typov</span></div>
-      <div><b id="c-r">0</b><span>vzácnych a legiend</span></div>
+    <div class="st3b">
+      <div><b id="c-n">0</b><span>úlovkov</span></div>
+      <div><b id="c-t">0</b><span>typov</span></div>
+      <div><b id="c-r">0</b><span>vzácnych</span></div>
     </div>
-    <div class="lookSub" style="margin-top:12px">💡 Lietadlo sa ti uloví, keď je aspoň 25° nad obzorom. Čím vzácnejšie, tým viac bodov.</div>
+    <button class="wrapBtn" id="b-wrapped">✨ Moja obloha – príbeh tvojho týždňa</button>
   </section>
-  <section class="card">
-    <div class="lbl"><span>Odznaky</span><span id="c-achN"></span></div>
+  <section class="card glass">
+    <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
+    <div id="d-list" style="margin-top:6px"></div>
+  </section>
+  <section class="card glass">
+    <div class="lbl"><span>⚔️ Súboj s kamarátom</span></div>
+    <div id="duel"><div class="lookSub" style="margin-top:8px">Pošli kamarátovi výzvu. Keď otvorí odkaz, uvidí tvoje skóre.</div></div>
+    <div class="acts"><button class="btn pri" id="b-duel">⚔️ Vyzvi kamaráta</button></div>
+  </section>
+  <section class="card glass">
+    <div class="lbl"><span>🏅 Odznaky</span><span id="c-achN"></span></div>
     <div class="ach" id="c-ach"></div>
   </section>
-  <section class="card">
-    <div class="lbl" style="margin-bottom:6px"><span>Tvoja zbierka typov</span></div>
+  <section class="card glass">
+    <div class="lbl" style="margin-bottom:6px"><span>Zbierka typov</span></div>
     <div id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
-</main>
-
-<!-- NASTAVENIA -->
-<main id="v-set" class="view">
-  <section class="card">
-    <div class="set"><div>😎 Tvoja prezývka<small>Uvidí ju kamarát vo výzve</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
-    <div class="set"><div>🔊 Hlasové ohlásenie<small>Povie, čo ti letí nad hlavou</small></div><button class="tog" id="t-voice"></button></div>
-    <div class="set"><div>📳 Vibrovať pri prelete<small>Keď je lietadlo vyššie ako 60°</small></div><button class="tog" id="t-vib"></button></div>
-    <div class="set"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych"></button></div>
-    <div class="set"><div>📡 Okruh<small>Ako ďaleko hľadať</small></div>
-      <select id="radius"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
-    <div class="set"><div>🧭 Kompas<small id="compStat">Šípka ukáže smer k lietadlu</small></div><button class="ghost" id="b-comp">Zapnúť</button></div>
-  </section>
-  <section class="card">
-    <div class="lbl"><span>Poloha</span><span id="posTxt"></span></div>
-    <div class="manual">
-      <input id="mlat" inputmode="decimal" placeholder="Šírka 48.1486">
-      <input id="mlon" inputmode="decimal" placeholder="Dĺžka 17.1077">
+  <details class="set glass" id="settings">
+    <summary>⚙️ Nastavenia</summary>
+    <div class="sr"><div>😎 Prezývka<small>Uvidí ju kamarát vo výzve</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
+    <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice"></button></div>
+    <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib"></button></div>
+    <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych"></button></div>
+    <div class="sr"><div>📡 Okruh</div><select id="radius"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
+    <div class="sr"><div>🧭 Kompas<small id="compStat">Šípka ukáže smer k lietadlu</small></div><button class="ghost" id="b-comp">Zapnúť</button></div>
+    <div class="sr" style="display:block"><div>📍 Poloha <small id="posTxt"></small></div>
+      <div class="manual"><input id="mlat" inputmode="decimal" placeholder="Šírka 48.1486"><input id="mlon" inputmode="decimal" placeholder="Dĺžka 17.1077"></div>
+      <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
+      <div class="msg" id="err"></div>
     </div>
-    <div class="actions"><button id="mset">Použiť túto polohu</button><button class="ghost" id="mgps">📍 GPS</button></div>
-    <div class="msg" id="err"></div>
-  </section>
-  <section class="card">
-    <div class="lbl"><span>🛠️ Vlastný server pre dáta</span><span id="pxStat"></span></div>
-    <div class="lookSub" style="margin-top:8px">Adresa tvojho Cloudflare Workera, napr. https://cotoleti.meno.workers.dev</div>
-    <div class="manual"><input id="pxUrl" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://….workers.dev"></div>
-    <div class="actions"><button id="pxSave">Uložiť a použiť</button></div>
-  </section>
-  <section class="card">
-    <div class="set"><div>Vymazať zbierku<small>Začneš od nuly</small></div><button class="ghost" id="b-reset">Vymazať</button></div>
-  </section>
+    <div class="sr" style="display:block"><div>🛠️ Vlastný server <small id="pxStat"></small></div>
+      <div class="manual"><input id="pxUrl" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://….workers.dev"></div>
+      <div class="acts"><button class="ghost" id="pxSave" style="flex:1">Uložiť</button></div>
+    </div>
+    <div class="sr"><div>Vymazať zbierku</div><button class="ghost" id="b-reset">Vymazať</button></div>
+  </details>
+  <footer>Čo to letí? · vyrobené na Slovensku 🇸🇰</footer>
 </main>
 
-<nav>
-  <button data-v="now" class="on"><i>✈️</i>Teraz</button>
-  <button data-v="ar"><i>🔭</i>AR</button>
+<nav class="glass">
+  <button data-v="now" class="on"><i>✈️</i>Nebo</button>
   <button data-v="space"><i>🛰️</i>Vesmír</button>
-  <button data-v="col"><i>🏆</i>Zbierka</button>
-  <button data-v="set"><i>⚙️</i>Viac</button>
+  <button data-v="col"><i>😎</i>Ja</button>
 </nav>
 
 <!-- AR -->
 <div id="ar">
   <video id="arVid" playsinline muted autoplay></video>
   <canvas id="arCanvas"></canvas>
-  <div class="arTop"><div class="logo" style="font-size:16px"><span>AR obloha</span></div><button class="ghost" id="arClose">✕ Zavrieť</button></div>
+  <div class="arTop"><div class="logo" style="font-size:16px">AR obloha</div><button class="ghost" id="arClose">✕ Zavrieť</button></div>
   <div class="arHint" id="arHint">Namier mobil na oblohu</div>
-  <div class="arCtl"><button class="ghost" id="arSnap">📷</button><button id="arRec" class="rec"><i></i></button><button class="ghost" id="arCal" title="Kalibrácia">🧭</button></div>
+  <div class="arCtl"><button class="ghost" id="arSnap">📷</button><button id="arRec" class="rec"><i></i></button><button class="ghost" id="arCal">🧭</button></div>
 </div>
 
-<div class="modal" id="shz">
-  <div class="mcard">
-    <div class="lbl"><span>👂 Čo to hučí?</span></div>
-    <canvas id="shzWave" width="600" height="160"></canvas>
-    <div id="shzRes"><div class="call" style="font-size:24px">Počúvam…</div><div class="lookSub">Drž mobil smerom k zvuku</div></div>
-    <div class="actions"><button class="ghost" id="shzClose">Zavrieť</button></div>
-  </div>
-</div>
-<div class="modal" id="mapM">
-  <div class="mcard" style="padding:0;overflow:hidden">
-    <div id="map"></div>
-    <div style="padding:14px"><div id="mapInfo" class="lookSub"></div><div class="actions"><button class="ghost" id="mapClose">Zavrieť</button></div></div>
-  </div>
-</div>
-<div class="modal" id="duelM">
-  <div class="mcard" style="text-align:center">
-    <div style="font-size:54px">⚔️</div>
-    <div class="call" style="font-size:26px" id="duelT"></div>
-    <div class="type" id="duelS"></div>
-    <div class="actions"><button id="duelGo">Prijímam výzvu 💪</button></div>
-  </div>
+<!-- MOJA OBLOHA -->
+<div id="wrap">
+  <div class="wbars" id="wbars"></div>
+  <button class="wclose" id="wclose">✕</button>
+  <div id="wslides"></div>
+  <div class="wtap"><div id="wprev"></div><div id="wnext"></div></div>
+  <div class="wacts" id="wacts" style="display:none"><button class="cta" id="wshare">📸 Zdieľať do stories</button><button class="btn ico" style="flex:none;width:100%;padding:14px" id="wduel">⚔️ Vyzvi kamaráta</button></div>
 </div>
 
-<div id="toast"><b id="toastT"></b><span id="toastS"></span></div>
+<div id="toast" class="glass"><b id="toastT"></b><span id="toastS"></span></div>
 
 <div id="shareM">
-  <img id="shareImg" alt="Kartička na zdieľanie"><video id="shareVid" controls playsinline loop style="display:none;max-height:65vh;max-width:100%;border-radius:18px"></video>
-  <p id="shareTxt">Podrž prst na obrázku a ulož ho, potom ho pridaj do stories.</p>
-  <div class="actions" style="width:100%;max-width:340px"><a id="shareDl" download="co-to-leti.png"><button style="width:100%">⬇️ Stiahnuť</button></a><button class="ghost" id="shareClose">Zavrieť</button></div>
+  <img id="shareImg" alt="Kartička na zdieľanie"><video id="shareVid" controls playsinline loop style="display:none"></video>
+  <p id="shareTxt">Podrž prst na obrázku a ulož ho.</p>
+  <div class="acts" style="width:100%;max-width:340px"><a id="shareDl" download="co-to-leti.png" style="flex:1"><button class="solid" style="width:100%">⬇️ Stiahnuť</button></a><button class="ghost" id="shareClose">Zavrieť</button></div>
 </div>
+<div class="modal" id="shz"><div class="mcard">
+  <div class="lbl"><span>👂 Čo to hučí?</span></div>
+  <canvas id="shzWave" width="600" height="160"></canvas>
+  <div id="shzRes"></div>
+  <div class="acts"><button class="ghost" id="shzClose" style="flex:1">Zavrieť</button></div>
+</div></div>
+<div class="modal" id="mapM"><div class="mcard" style="padding:10px">
+  <div id="map"></div>
+  <div style="padding:10px 6px 4px"><div id="mapInfo" class="lookSub"></div><div class="acts"><button class="ghost" id="mapClose" style="flex:1">Zavrieť</button></div></div>
+</div></div>
+<div class="modal" id="duelM" style="align-items:center"><div class="mcard" style="text-align:center">
+  <div style="font-size:54px">⚔️</div>
+  <div class="big" style="font-size:26px" id="duelT"></div>
+  <div class="sub" id="duelS"></div>
+  <div class="acts"><button class="btn sec" id="duelGo">Prijímam výzvu 💪</button></div>
+</div></div>
 
 <script src="js/core.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/ar.js"></script>
 <script src="js/space.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/extras.js"></script>
+<script src="js/social.js"></script>
+<script src="js/wrapped.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
