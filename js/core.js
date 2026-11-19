@@ -111,12 +111,17 @@ function normReadsb(j){
 const SOURCES=[
   {name:"adsb.lol",url:(la,lo,r)=>`https://api.adsb.lol/v2/point/${la}/${lo}/${r}`,parse:normReadsb},
   {name:"airplanes.live",url:(la,lo,r)=>`https://api.airplanes.live/v2/point/${la}/${lo}/${r}`,parse:normReadsb},
+  {name:"adsb.fi",url:(la,lo,r)=>`https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/${r}`,parse:normReadsb},
   {name:"OpenSky",url:(la,lo,r)=>{const dl=r*1852/111320,dn=dl/Math.cos(rad(la));
      return `https://opensky-network.org/api/states/all?lamin=${(+la-dl).toFixed(3)}&lamax=${(+la+dl).toFixed(3)}&lomin=${(+lo-dn).toFixed(3)}&lomax=${(+lo+dn).toFixed(3)}`},
    parse:j=>(j.states||[]).filter(s=>s[6]!=null&&s[5]!=null).map(s=>({hex:s[0],call:(s[1]||"").trim(),reg:"",type:"",desc:"",op:"",cat:"",mil:false,
      lat:s[6],lon:s[5],alt:s[8]?0:(s[13]??s[7]),ground:s[8],spd:s[9]!=null?s[9]*3.6:null,trk:s[10],vr:s[11]!=null?s[11]/FT*60:null,sq:s[14]||""}))}
 ];
+// Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
+const DEFAULT_PROXY="";
+const MYPROXY=(LS.get("ctl_proxy","")||DEFAULT_PROXY).replace(/\/+$/,"");
 const ROUTES=[
+  ...(MYPROXY?[{name:"môj server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)}]:[]),
   {name:"priamo",wrap:u=>u},
   {name:"cors.lol",wrap:u=>"https://api.cors.lol/?url="+encodeURIComponent(u)},
   {name:"allorigins",wrap:u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u)},
@@ -124,7 +129,7 @@ const ROUTES=[
   {name:"corsproxy.io",wrap:u=>"https://corsproxy.io/?url="+encodeURIComponent(u)}
 ];
 const COMBOS=[];ROUTES.forEach(rt=>SOURCES.forEach(s=>COMBOS.push({s,rt})));
-let comboIdx=(()=>{const v=LS.get("ctl_combo",null)??LS.get("nm_combo",null);return v==null?-1:Math.min(COMBOS.length-1,Math.max(0,v|0))})(),busy=false;
+let comboIdx=(()=>{if(MYPROXY&&LS.get("ctl_combo_px","")!==MYPROXY){LS.set("ctl_combo_px",MYPROXY);return 0}const v=LS.get("ctl_combo",null)??LS.get("nm_combo",null);return v==null?-1:Math.min(COMBOS.length-1,Math.max(0,v|0))})(),busy=false;
 
 async function getJSON(url,ms=7000,outer){
   const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);

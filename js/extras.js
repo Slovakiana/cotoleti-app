@@ -202,3 +202,13 @@ function installHint(){
 $("b-install").onclick=async()=>{if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").style.display="none"}};
 $("b-installX").onclick=e=>{e.stopPropagation();LS.set("ctl_noinst",true);$("installBar").style.display="none"};
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+/* ============ 🛠️ vlastný server ============ */
+$("pxUrl").value=LS.get("ctl_proxy","");
+$("pxStat").textContent=MYPROXY?"aktívny ✓":"";
+$("pxSave").onclick=()=>{
+  let v=$("pxUrl").value.trim();
+  if(v&&!/^https:\/\//.test(v))v="https://"+v;
+  LS.set("ctl_proxy",v);LS.set("ctl_combo",0);
+  toast(v?"Server uložený ✓":"Server zrušený","Načítavam znova…");setTimeout(()=>location.reload(),900);
+};
