@@ -29,6 +29,10 @@ const MUS={
     parts.forEach(([r,a])=>{const o=ctx.createOscillator(),og=ctx.createGain();o.type="sine";o.frequency.value=f*r;og.gain.value=a;
       if(r>1){og.gain.setValueAtTime(a,t);og.gain.exponentialRampToValueAtTime(.0005,t+.5)}o.connect(og).connect(lp);o.start(t);o.stop(t+(bell?2.8:1.6))});
   },
+  // krátky úder akordu (elektrické piano) – nič nezostáva znieť donekonečna
+  strum(ctx,dest,t,ci,vol=.05){MUS.prog[ci].t.slice(0,4).forEach((x,i)=>MUS.pluck(ctx,dest,t+i*.03,48+x+12,vol,(i-1.5)*.25,false))},
+  bass(ctx,dest,t,ci,len=.7,vol=.16){const o=ctx.createOscillator(),g=ctx.createGain();o.type="sine";o.frequency.value=MUS.hz(36+((MUS.prog[ci].r+12)%12));
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+len);o.connect(g).connect(dest);o.start(t);o.stop(t+len+.05)},
   // mäkký pad akordu + basa
   pad(ctx,dest,t,ci,dur,vol=.05){
     const c=MUS.prog[ci],g=ctx.createGain(),lp=ctx.createBiquadFilter();lp.type="lowpass";lp.frequency.setValueAtTime(500,t);lp.frequency.linearRampToValueAtTime(1100,t+dur/2);lp.frequency.linearRampToValueAtTime(600,t+dur);
@@ -64,8 +68,12 @@ function sndSched(){
   const c=SND.ctx;if(!c)return;
   while(SND.next<c.currentTime+.3){
     const ci=Math.floor(SND.step/BAR)%MUS.prog.length,t=SND.next;
-    if(SND.step%BAR===0)MUS.pad(c,SND.fx.in,t,ci,BAR*EIGHTH,.045);
-    skyNotes(c,SND.fx.in,t,SND.step,ci,sndPlanes());
+    const st=SND.step%BAR,pl=sndPlanes();
+    if(st===0||st===10)MUS.strum(c,SND.fx.in,t,ci,st?.03:.045);
+    if(st===0||st===6||st===8)MUS.bass(c,SND.fx.in,t,ci,st===6?.35:.7,st===6?.09:.15);
+    // keď je na oblohe málo lietadiel, jemná melódia, aby nebolo ticho
+    if(pl.length<2&&(st===4||st===12||st===14))MUS.pluck(c,SND.fx.in,t,MUS.tone(ci,[3,5,4][(st>>2)%3]),.04,0,false);
+    skyNotes(c,SND.fx.in,t,SND.step,ci,pl);
     SND.step++;SND.next+=EIGHTH;
   }
 }
@@ -83,7 +91,8 @@ function musicBed(ctx,dest,t0,dur){
   const bpm=100,beat=60/bpm,fx=MUS.fx(ctx,dest);fx.delay.delayTime.value=beat*.75;
   const beats=Math.ceil(dur/beat);
   for(let i=0;i<beats;i++){const t=t0+i*beat,ci=Math.floor(i/4)%4;
-    if(i%4===0)MUS.pad(ctx,fx.in,t,ci,beat*4,.05);
+    if(i%4===0)MUS.strum(ctx,fx.in,t,ci,.05);
+    if(i%2===0)MUS.bass(ctx,dest,t,ci,.45,.14);
     // kick
     if(i%2===0||i%8===7){const k=ctx.createOscillator(),kg=ctx.createGain();k.frequency.setValueAtTime(110,t);k.frequency.exponentialRampToValueAtTime(42,t+.18);kg.gain.setValueAtTime(.55,t);kg.gain.exponentialRampToValueAtTime(.001,t+.35);k.connect(kg).connect(dest);k.start(t);k.stop(t+.4)}
     // rimshot / hat
