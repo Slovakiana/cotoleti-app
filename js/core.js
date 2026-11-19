@@ -118,7 +118,7 @@ const SOURCES=[
      lat:s[6],lon:s[5],alt:s[8]?0:(s[13]??s[7]),ground:s[8],spd:s[9]!=null?s[9]*3.6:null,trk:s[10],vr:s[11]!=null?s[11]/FT*60:null,sq:s[14]||""}))}
 ];
 // Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
-const DEFAULT_PROXY="";
+const DEFAULT_PROXY="https://cotoleti-app.radovan-kudela.workers.dev";
 const MYPROXY=(LS.get("ctl_proxy","")||DEFAULT_PROXY).replace(/\/+$/,"");
 const ROUTES=[
   ...(MYPROXY?[{name:"môj server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)}]:[]),
