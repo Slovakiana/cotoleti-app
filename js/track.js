@@ -76,7 +76,7 @@ function trLanded(){
 }
 async function trServer(){
   if(!SOC.api||!TR||TR.me)return;
-  try{await fetch(SOC.api+"/api/track",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,cs:TR.cs,label:TR.label||"",lat:S.pos&&S.pos.lat,lon:S.pos&&S.pos.lon})});TR.srv=1;LS.set("ctl_track",TR)}catch(e){}
+  try{await apiPost("/api/track",{cs:TR.cs,label:TR.label||"",...posR()});TR.srv=1;LS.set("ctl_track",TR)}catch(e){}
 }
 function trStart(cs,disp,label,me){
   TR={cs,disp,label:label||"",me:!!me,t:Date.now()};LS.set("ctl_track",TR);TRK.ac=null;
@@ -102,7 +102,7 @@ $("b-track").onclick=()=>{haptic(8);if(TR&&!TR.landed){$("trackCard").scrollInto
 $("trFriend").onclick=()=>trSubmit(false);$("trMe").onclick=()=>trSubmit(true);$("trCancel").onclick=()=>$("trackM").classList.remove("on");
 $("trShare").onclick=trShareLink;
 $("trNotify").onclick=async()=>{if(await enablePush()){await trServer();toast("🔔 Dáme ti vedieť","Keď bude "+trName()+" blízko, príde upozornenie");trRender()}};
-$("trClose").onclick=()=>{if(TR&&SOC.api&&TR.srv)fetch(SOC.api+"/api/track",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,cs:TR.cs,off:1})}).catch(()=>{});TR=null;LS.set("ctl_track",null);trRender()};
+$("trClose").onclick=()=>{if(TR&&SOC.api&&TR.srv)apiPost("/api/track",{id:SOC.cid,cs:TR.cs,off:1}).catch(()=>{});TR=null;LS.set("ctl_track",null);trRender()};
 // odkaz #let=…
 function trFromHash(){
   const m=location.hash.match(/let=([A-Za-z0-9]+)/);if(!m)return;

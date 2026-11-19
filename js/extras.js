@@ -160,8 +160,9 @@ $("dailyStrip").onclick=()=>setView("col");
 const b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const b64d=s=>decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/"))));
 const nick=()=>($("nick").value||"").trim()||LS.get("ctl_nick","")||"Spotter";
-function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,id:(typeof SOC!=="undefined"?SOC.cid:"")}}
+function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,pid:(typeof PID!=="undefined"?PID:"")}}
 async function sendDuel(){
+  if(typeof ensureTok==="function")await ensureTok();
   const me=myScore(),url=location.origin+location.pathname+"#vyzva="+b64e(JSON.stringify(me));
   const text=`⚔️ ${me.n} ťa vyzýva v appke Čo to letí? ✈️ Mám ${me.p} bodov, ${me.c} ulovených lietadiel a ${me.t} typov. Prekonáš ma?`;
   try{if(navigator.share){await navigator.share({title:"Čo to letí? – výzva",text,url});return}}catch(e){if(e.name==="AbortError")return}
@@ -179,7 +180,7 @@ function checkDuelLink(){
   try{
     const r=JSON.parse(b64d(m[1]));if(typeof r.p!=="number")return;
     r.n=String(r.n||"Kamoš").slice(0,20);LS.set("ctl_rival",r);
-    if(r.id&&/^[A-Za-z0-9]{8,40}$/.test(r.id)&&(typeof SOC==="undefined"||r.id!==SOC.cid)){const fl=LS.get("ctl_friends",[]).filter(f=>f.id!==r.id);fl.unshift({id:r.id,n:r.n});LS.set("ctl_friends",fl.slice(0,40))}
+    if(r.pid&&/^[A-Za-z0-9]{16}$/.test(r.pid)&&typeof apiPost==="function")apiPost("/api/friend",{pid:r.pid}).catch(()=>{});
     $("duelT").textContent=r.n+" ťa vyzýva!";
     $("duelS").textContent=`Má ${r.p} bodov, ${r.c} ulovených lietadiel a ${r.t} typov (level ${r.l}). Dokážeš ho prekonať? Odteraz uvidíš, ktorým lietadlám mával.`;
     $("duelM").classList.add("on");
@@ -209,12 +210,3 @@ $("installBar").onclick=async()=>{
 $("b-installX").onclick=e=>{e.stopPropagation();LS.set("ctl_noinst",true);$("installBar").style.display="none"};
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 
-/* ============ 🛠️ vlastný server ============ */
-$("pxUrl").value=LS.get("ctl_proxy","");
-$("pxStat").textContent=MYPROXY?"aktívny ✓":"";
-$("pxSave").onclick=()=>{
-  let v=$("pxUrl").value.trim();
-  if(v&&!/^https:\/\//.test(v))v="https://"+v;
-  LS.set("ctl_proxy",v);LS.set("ctl_combo",0);
-  toast(v?"Server uložený ✓":"Server zrušený","Načítavam znova…");setTimeout(()=>location.reload(),900);
-};

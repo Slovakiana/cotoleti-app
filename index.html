@@ -24,7 +24,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <style>
 :root{
-  --bg:#05070f;--txt:#f4f7ff;--mut:rgba(235,240,255,.62);--mut2:rgba(235,240,255,.42);
+  --bg:#05070f;--txt:#f4f7ff;--mut:rgba(235,240,255,.78);--mut2:rgba(235,240,255,.42);
   --mint:#6dffc7;--sky:#4fc3ff;--pink:#ff4fd8;--gold:#ffcf4f;--red:#ff4f6d;--violet:#a78bff;
   --glass:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
   --gline:rgba(255,255,255,.16);
@@ -69,7 +69,7 @@ input,select{font:inherit;background:rgba(0,0,0,.28);color:var(--txt);border:1px
 .live{font-size:12px;color:rgba(255,255,255,.85);margin-top:10px;font-weight:600;line-height:1.35}
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 12px 12px}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip{flex:none;display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 14px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
 .chip.gold{border-color:rgba(255,207,79,.55)}
 .chip .x{opacity:.6;margin-left:2px}
 
@@ -400,7 +400,7 @@ body.moment #top{opacity:0;pointer-events:none}
     <div><i>🛰️</i>ISS, Starlink a satelity nad tebou</div>
   </div>
   <button class="cta" id="go">📍 Ukáž mi moju oblohu</button>
-  <div class="fine">Polohu potrebujeme, aby sme vedeli, čo je nad tebou. Zostáva v tvojom mobile.</div>
+  <div class="fine">Polohu potrebujeme, aby sme vedeli, čo je nad tebou. Na server posielame len zaokrúhlenú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
 </div>
@@ -413,7 +413,7 @@ body.moment #top{opacity:0;pointer-events:none}
 <!-- NEBO -->
 <main id="v-now" class="view on">
   <section id="stage">
-    <canvas id="sky"></canvas>
+    <canvas id="sky" role="img" aria-label="Obloha nad tebou"></canvas>
     <button id="momentBar"></button>
     <div class="stageTxt">
       <div class="pax" id="paxLine"></div>
@@ -432,7 +432,7 @@ body.moment #top{opacity:0;pointer-events:none}
       <button class="btn sec" id="b-ar">🔭 Nájdi</button>
       <button class="btn ico" id="b-share" aria-label="Zdieľať">↗</button>
     </div>
-    <div class="wavePick" id="wavePick"><button>👋</button><button>❤️</button><button>🇸🇰</button><button>🔥</button><button>😂</button><button>🫡</button><button data-mail="1">✉️</button></div>
+    <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="st3" id="h-st3">
@@ -513,7 +513,7 @@ body.moment #top{opacity:0;pointer-events:none}
     <div class="lbl"><span>Okolo teba</span><span id="radarCnt"></span></div>
     <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
   </section>
-  <footer>Dáta: adsb.lol, airplanes.live, adsb.fi, adsbdb.com, CelesTrak, Open-Meteo.<br>Niektoré vojenské a malé lietadlá nevysielajú polohu.</footer>
+  <footer>Dáta: adsb.lol (ODbL), airplanes.live, <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>, adsbdb.com, CelesTrak, Open-Meteo (CC BY 4.0).<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie a zdroje</a></footer>
 </main>
 
 <!-- VESMÍR -->
@@ -584,12 +584,12 @@ body.moment #top{opacity:0;pointer-events:none}
   </section>
   <details class="set glass" id="settings">
     <summary>⚙️ Nastavenia</summary>
-    <div class="sr"><div>😎 Prezývka<small>Uvidí ju kamarát vo výzve</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
-    <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment"></button></div>
-    <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess"></button></div>
-    <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice"></button></div>
-    <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib"></button></div>
-    <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych"></button></div>
+    <div class="sr"><div>😎 Prezývka<small>Uvidia ju ostatní. Nepíš svoje skutočné meno.</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
+    <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
+    <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess" role="switch" aria-label="Tipovačka"></button></div>
+    <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice" role="switch" aria-label="Hlasové ohlásenie"></button></div>
+    <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib" role="switch" aria-label="Vibrovanie"></button></div>
+    <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
     <div class="sr"><div>📡 Okruh</div><select id="radius"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
     <div class="sr"><div>🧭 Kompas<small id="compStat">Šípka ukáže smer k lietadlu</small></div><button class="ghost" id="b-comp">Zapnúť</button></div>
     <div class="sr" style="display:block"><div>📍 Poloha <small id="posTxt"></small></div>
@@ -597,10 +597,8 @@ body.moment #top{opacity:0;pointer-events:none}
       <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
       <div class="msg" id="err"></div>
     </div>
-    <div class="sr" style="display:block"><div>🛠️ Vlastný server <small id="pxStat"></small></div>
-      <div class="manual"><input id="pxUrl" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://….workers.dev"></div>
-      <div class="acts"><button class="ghost" id="pxSave" style="flex:1">Uložiť</button></div>
-    </div>
+    <div class="sr"><div>🔒 Súkromie a zdroje<small>Čo zbierame a odkiaľ sú dáta</small></div><button class="ghost" id="b-privacy">Otvoriť</button></div>
+    <div class="sr"><div>🗑️ Zmazať moje údaje<small>Zo servera aj z tohto mobilu</small></div><button class="ghost" id="b-forget">Zmazať</button></div>
     <div class="sr"><div>Vymazať zbierku</div><button class="ghost" id="b-reset">Vymazať</button></div>
   </details>
   <footer>Čo to letí? · vyrobené na Slovensku 🇸🇰</footer>
@@ -659,7 +657,19 @@ body.moment #top{opacity:0;pointer-events:none}
 </div></div>
 <div class="modal" id="cdM"><div class="mcard" id="cdBox"></div></div>
 
-<div id="toast" class="glass"><b id="toastT"></b><span id="toastS"></span></div>
+<div class="modal" id="privM"><div class="mcard">
+  <div class="lbl"><span>🔒 Súkromie a zdroje</span></div>
+  <div class="lookSub" style="margin-top:12px;line-height:1.55;color:var(--txt)">
+  <b>Čo appka zbiera.</b> Tvoja presná poloha zostáva v mobile. Na náš server (Cloudflare) posielame len: náhodné id zariadenia, polohu zaokrúhlenú na ~1 km (na výpočet kraja a mesta a pri upozorneniach), prezývku, ak si ju zadáš, tvoje mávnutia, pozdravy, tím a sledované lety. IP adresu neukladáme, používame ju len zahashovanú na ochranu pred podvodmi.<br><br>
+  <b>Na čo.</b> Aby fungovalo mávanie, rebríčky, pošta, upozornenia a ochrana súťaží (oprávnený záujem a poskytovanie služby; upozornenia len s tvojím súhlasom).<br><br>
+  <b>Ako dlho.</b> Mávnutia, pozdravy a mestá 8 dní, upozornenia do 90 dní nečinnosti, sledovaný let 36 hodín. Body a zbierka sú len v tvojom mobile.<br><br>
+  <b>Tvoje práva.</b> Údaje si kedykoľvek zmažeš tlačidlom „Zmazať moje údaje“ v nastaveniach. Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
+  <b>Pravidlá.</b> Prezývka nesmie byť urážlivá ani obsahovať cudzie osobné údaje – nevhodné prezývky server odmieta. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolínií sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
+  <b>Zdroje dát.</b> Lietadlá: adsb.lol (ODbL 1.0), airplanes.live, adsb.fi, The OpenSky Network, adsbdb.com · fotky lietadiel: airport-data.com, © autori · satelity: CelesTrak, výpočet satellite.js · počasie: Open-Meteo.com (CC BY 4.0) · mapa: © OpenStreetMap contributors, © CARTO.
+  </div>
+  <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
+</div></div>
+<div id="toast" class="glass" role="status" aria-live="polite"><b id="toastT"></b><span id="toastS"></span></div>
 
 <div id="shareM">
   <img id="shareImg" alt="Kartička na zdieľanie"><video id="shareVid" controls playsinline loop style="display:none"></video>

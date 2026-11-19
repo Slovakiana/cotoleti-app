@@ -119,17 +119,14 @@ const SOURCES=[
 ];
 // Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
 const DEFAULT_PROXY="https://cotoleti-app.radovan-kudela.workers.dev";
-const MYPROXY=(LS.get("ctl_proxy","")||DEFAULT_PROXY).replace(/\/+$/,"");
+const MYPROXY=DEFAULT_PROXY;
+// len vlastný server a priamy prístup – žiadne cudzie proxy, ktoré by videli polohu
 const ROUTES=[
-  ...(MYPROXY?[{name:"môj server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)}]:[]),
-  {name:"priamo",wrap:u=>u},
-  {name:"cors.lol",wrap:u=>"https://api.cors.lol/?url="+encodeURIComponent(u)},
-  {name:"allorigins",wrap:u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u)},
-  {name:"codetabs",wrap:u=>"https://api.codetabs.com/v1/proxy?quest="+encodeURIComponent(u)},
-  {name:"corsproxy.io",wrap:u=>"https://corsproxy.io/?url="+encodeURIComponent(u)}
+  {name:"server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)},
+  {name:"priamo",wrap:u=>u}
 ];
 const COMBOS=[];ROUTES.forEach(rt=>SOURCES.forEach(s=>COMBOS.push({s,rt})));
-let comboIdx=(()=>{if(MYPROXY&&LS.get("ctl_combo_px","")!==MYPROXY){LS.set("ctl_combo_px",MYPROXY);return 0}const v=LS.get("ctl_combo",null)??LS.get("nm_combo",null);return v==null?-1:Math.min(COMBOS.length-1,Math.max(0,v|0))})(),busy=false;
+let comboIdx=0,busy=false;
 
 async function getJSON(url,ms=7000,outer){
   const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);
@@ -145,7 +142,7 @@ async function getJSON(url,ms=7000,outer){
 
 async function tryCombo(i,r,signal){
   const c=COMBOS[i];
-  const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url(S.pos.lat.toFixed(4),S.pos.lon.toFixed(4),r)),9000,signal);
+  const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url(S.pos.lat.toFixed(1),S.pos.lon.toFixed(1),r+6)),9000,signal);
   if(!ok)throw new Error("HTTP "+status);
   if(!j.ac&&!j.aircraft&&!("states" in j))throw new Error("zlý formát");
   return {i,list:c.s.parse(j)};
@@ -173,7 +170,7 @@ async function fetchPlanes(force){
     }catch(e){
       setStatus("Bez spojenia",false);
       S.failN=(S.failN||0)+1;S.nextTry=Date.now()+Math.min(60000,10000*S.failN);
-      err("Nepodarilo sa načítať dáta o lietadlách. Skúsim znova o "+Math.round(Math.min(60000,10000*S.failN)/1000)+" s. Detail: "+fails.join(" · "));
+      err("Dáta o lietadlách sú dočasne nedostupné, skúšam znova…");console.warn("fetchPlanes",fails);
       if(!S.raw.length)$("h-type").textContent="Poloha OK ✓ Dáta o lietadlách zatiaľ nedostupné…";
     }
   }finally{busy=false}

@@ -3,10 +3,30 @@
 function setStatus(x,live){$("status").textContent=x;$("dot").className="dot"+(live?" live":"")}
 function err(x){$("err").textContent=x||"";$("heroErr").textContent=x||""}
 let toastT;
-function toast(a,b,col){$("toastT").textContent=a;$("toastS").textContent=b||"";$("toast").style.borderColor=col||"";$("toast").classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>$("toast").classList.remove("on"),3200)}
+const TQ=[];let tBusy=false;
+function toast(a,b,col){
+  if(TQ.some(q=>q[0]===a)||(tBusy&&$("toastT").textContent===a))return; // bez duplicít
+  TQ.push([a,b,col]);if(TQ.length>4)TQ.splice(1,TQ.length-4);if(!tBusy)toastNext();
+}
+function toastNext(){
+  const q=TQ.shift();if(!q){tBusy=false;return}tBusy=true;
+  $("toastT").textContent=q[0];$("toastS").textContent=q[1]||"";$("toast").style.borderColor=q[2]||"";$("toast").classList.add("on");
+  clearTimeout(toastT);toastT=setTimeout(()=>{$("toast").classList.remove("on");setTimeout(toastNext,450)},TQ.length?2400:3200);
+}
 function confetti(n){const cols=["#6dffc7","#4fc3ff","#ff4fd8","#ffcf4f","#fff"];for(let i=0;i<n;i++){const e=document.createElement("i");e.className="cf";e.style.left=Math.random()*96+"%";e.style.background=cols[i%cols.length];e.style.setProperty("--dx",(Math.random()*160-80)+"px");e.style.animationDelay=Math.random()*.4+"s";e.style.borderRadius=Math.random()<.5?"50%":"2px";$("fx").appendChild(e);setTimeout(()=>e.remove(),2200)}}
 let actx;
 function ping(r){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const notes=r==="l"?[523,659,784,1047]:r==="r"?[523,784,1047]:[784,1047];notes.forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type="triangle";o.frequency.value=f;g.gain.setValueAtTime(.0001,actx.currentTime+i*.09);g.gain.exponentialRampToValueAtTime(.15,actx.currentTime+i*.09+.02);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+i*.09+.25);o.connect(g).connect(actx.destination);o.start(actx.currentTime+i*.09);o.stop(actx.currentTime+i*.09+.3)})}catch(e){}}
+/* zvuk na iPhone: hrať ako médium (aj pri tichom režime) a odomknúť v rámci ťuknutia */
+let SILENT=null;
+function silentWav(){const sr=8000,n=sr/2,b=new ArrayBuffer(44+n),v=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};
+  w(0,"RIFF");v.setUint32(4,36+n,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,"data");v.setUint32(40,n,true);for(let i=0;i<n;i++)v.setUint8(44+i,128);
+  return URL.createObjectURL(new Blob([b],{type:"audio/wav"}))}
+function unlockAudio(ctx){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+  try{if(!SILENT){SILENT=new Audio(silentWav());SILENT.loop=true;SILENT.setAttribute("playsinline","")}SILENT.play().catch(()=>{})}catch(e){}
+  try{if(ctx&&ctx.state!=="running")ctx.resume()}catch(e){}
+}
+function releaseAudio(){try{SILENT&&SILENT.pause()}catch(e){}}
 const haptic=p=>{try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}};
 function applyTexts(){$("logo").textContent=t("title");$("lookupBadge").textContent=t("look");document.title=t("title")+" ✈️"}
 
@@ -52,6 +72,7 @@ function skyProj(az,el){const rot=S.heading!=null?-S.heading:0,r=(90-Math.max(-2
 function skyFrame(){
   SKY.raf=requestAnimationFrame(skyFrame);
   if(S.view!=="now"||document.hidden)return;
+  const tNow=performance.now();if(tNow-(SKY.last||0)<33)return;SKY.last=tNow; // max ~30 fps
   const c=SKY.c,d=SKY.d,W=SKY.W,H=SKY.H,now=Date.now(),sa=paintSky();
   c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,W,H);
   if(sa<-6){for(const s of SKY.stars){c.globalAlpha=.35+.35*Math.sin(now/900+s.p);c.fillStyle="#fff";c.beginPath();c.arc(s.x,s.y,s.r,0,7);c.fill()}c.globalAlpha=1}
@@ -196,6 +217,7 @@ function tick(fresh){
   S.top=best;
   if(changed||fresh){renderHeroStatic(best);if(best){loadMeta(best);if(changed)announce(best,false)}}
   renderHeroLive(best);
+  if(fresh||now%5000<1000){const up=S.list.filter(a=>a.el>0);$("sky").setAttribute("aria-label",up.length?`Obloha: ${up.length} lietadiel nad obzorom${best?`, najbližšie ${titleOf(best)} na ${dirL(best.bear)}, ${Math.round(best.el)} stupňov nad obzorom`:""}`:"Obloha nad tebou je prázdna")}
   HOOKS.live.forEach(f=>{try{f(best,fresh)}catch(e){console.error(e)}});
   if(HOOKS.list)HOOKS.list.forEach(f=>{try{f(S.list)}catch(e){console.error(e)}});
   if(fresh||now%3000<1000)renderList(S.list);
@@ -398,10 +420,10 @@ async function boot(){
 
 /* ============ 🤔 Tipovačka „Kam letí?“ ============ */
 const GPOOL=["Londýn","Paríž","Rím","Antalya","Istanbul","Dubaj","Barcelona","Madrid","Amsterdam","Frankfurt","Mníchov","Viedeň","Varšava","Atény","Miláno","Kodaň","Štokholm","Dublin","Lisabon","Tel Aviv","Káhira","Hurghada","Larnaka","Bukurešť","Sofia","Belehrad","Moskva","Kyjev","Doha","Málaga","Mallorca","Tenerife","Helsinki","Oslo","Zürich","Brusel","Praha","Budapešť","Krakov","Neapol","Benátky","Split","New York","Bangkok"];
-S.guess=LS.get("ctl_guess",true);let GUESSED=LS.get("ctl_guessed",{});
+S.guess=LS.get("ctl_guess",true);const guessReady=()=>COL.n>=3;let GUESSED=LS.get("ctl_guessed",{});
 function guessUI(a,rt){
   const box=$("guess");
-  if(!S.guess||!rt||GUESSED[a.hex]||S.pick===a.hex&&GUESSED[a.hex]){box.classList.remove("on");return}
+  if(!S.guess||!guessReady()||!rt||GUESSED[a.hex]){box.classList.remove("on");return}
   const right=citySk(rt.destination.municipality||rt.destination.name);if(!right){box.classList.remove("on");return}
   const h=hash(a.hex),pool=GPOOL.filter(c=>c!==right),opts=[right,pool[h%pool.length],pool[(h>>>7)%pool.length]===pool[h%pool.length]?pool[(h+3)%pool.length]:pool[(h>>>7)%pool.length]];
   const sh=opts.map((c,i)=>({c,k:hash(a.hex+c)})).sort((x,y)=>x.k-y.k).map(x=>x.c);
@@ -420,3 +442,15 @@ $("gSkip").onclick=()=>guessDone($("guess").dataset.hex);
 ACH.push({id:"oracle",i:"🔮",n:"Jasnovidec (5×)",c:()=>false});
 $("t-guess").classList.toggle("on",S.guess);
 $("t-guess").onclick=()=>{S.guess=!S.guess;LS.set("ctl_guess",S.guess);$("t-guess").classList.toggle("on",S.guess);if(S.top)renderHeroStatic(S.top)};
+
+/* ============ 🔒 súkromie a zmazanie údajov ============ */
+const openPriv=e=>{if(e)e.preventDefault();$("privM").classList.add("on")};
+$("b-privacy").onclick=openPriv;$("f-privacy").onclick=openPriv;$("onb-privacy").onclick=openPriv;$("privClose").onclick=()=>$("privM").classList.remove("on");
+let forgetArm=0;
+$("b-forget").onclick=async()=>{
+  if(Date.now()-forgetArm>4000){forgetArm=Date.now();$("b-forget").textContent="Naozaj? Ťukni znova";return}
+  try{if(typeof apiPost==="function")await apiPost("/api/forget",{})}catch(e){}
+  try{const r=await navigator.serviceWorker?.getRegistration();const sub=await r?.pushManager?.getSubscription();await sub?.unsubscribe()}catch(e){}
+  try{Object.keys(localStorage).filter(k=>k.startsWith("ctl_")||k.startsWith("nm_")).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  toast("🗑️ Údaje zmazané","Zo servera aj z tohto mobilu");setTimeout(()=>location.reload(),1500);
+};

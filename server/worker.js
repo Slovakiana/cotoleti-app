@@ -21,6 +21,32 @@ const cleanId = i => String(i || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 40);
 const num = (v, d = null) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const b64u = buf => { const b = buf instanceof ArrayBuffer ? new Uint8Array(buf) : (typeof buf === "string" ? new TextEncoder().encode(buf) : buf); let s = ""; for (const x of b) s += String.fromCharCode(x); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 const MOMENT_MS = 3 * 60e3;
+const PUSH_HOSTS = ["fcm.googleapis.com","updates.push.services.mozilla.com","push.services.mozilla.com","web.push.apple.com","notify.windows.com"];
+const APP_ORIGINS = ["https://slovakiana.github.io","https://cotoleti-app.radovan-kudela.workers.dev","http://localhost:8765"];
+// kraj a mesto počíta server sám – klientovi neveríme
+const KRAJ_C = {BA:[48.15,17.11],TT:[48.38,17.59],TN:[48.89,18.04],NR:[48.31,18.08],ZA:[49.22,18.74],BB:[48.74,19.15],PO:[49.0,21.24],KE:[48.72,21.26]};
+const TOWNS = [["Bratislava",48.148,17.107],["Košice",48.716,21.261],["Prešov",48.998,21.234],["Žilina",49.223,18.739],["Banská Bystrica",48.736,19.146],["Nitra",48.306,18.076],["Trnava",48.377,17.587],["Trenčín",48.894,18.044],["Martin",49.063,18.922],["Poprad",49.059,20.297],["Prievidza",48.774,18.627],["Zvolen",48.574,19.124],["Považská Bystrica",49.121,18.448],["Michalovce",48.755,21.918],["Nové Zámky",47.986,18.162],["Spišská Nová Ves",48.944,20.565],["Komárno",47.763,18.129],["Levice",48.217,18.604],["Humenné",48.937,21.906],["Bardejov",49.292,21.276],["Liptovský Mikuláš",49.083,19.612],["Lučenec",48.330,19.667],["Piešťany",48.592,17.827],["Ružomberok",49.075,19.302],["Topoľčany",48.561,18.175],["Trebišov",48.629,21.720],["Čadca",49.438,18.789],["Dubnica nad Váhom",48.959,18.172],["Rimavská Sobota",48.383,20.022],["Partizánske",48.628,18.375],["Šaľa",48.152,17.874],["Vranov nad Topľou",48.889,21.684],["Pezinok",48.289,17.267],["Hlohovec",48.426,17.803],["Brezno",48.806,19.638],["Senica",48.680,17.367],["Nové Mesto nad Váhom",48.757,17.831],["Dunajská Streda",47.993,17.619],["Snina",48.988,22.152],["Senec",48.220,17.400],["Žiar nad Hronom",48.592,18.853],["Rožňava",48.660,20.532],["Dolný Kubín",49.209,19.296],["Bánovce nad Bebravou",48.719,18.258],["Púchov",49.124,18.326],["Malacky",48.436,17.018],["Handlová",48.728,18.762],["Kežmarok",49.135,20.429],["Stará Ľubovňa",49.300,20.687],["Sereď",48.287,17.735],["Kysucké Nové Mesto",49.300,18.786],["Galanta",48.190,17.727],["Levoča",49.025,20.588],["Detva",48.557,19.420],["Skalica",48.845,17.226],["Revúca",48.683,20.117],["Myjava",48.756,17.568],["Svidník",49.306,21.568],["Stupava",48.274,17.032],["Šurany",48.086,18.186],["Štúrovo",47.799,18.718],["Veľký Krtíš",48.211,19.338],["Sabinov",49.102,21.098],["Krupina",48.355,19.065],["Námestovo",49.408,19.480],["Tvrdošín",49.337,19.556],["Stropkov",49.202,21.651],["Gelnica",48.855,20.937],["Moldava nad Bodvou",48.614,21.000],["Medzilaborce",49.272,21.903],["Banská Štiavnica",48.449,18.910],["Turčianske Teplice",48.862,18.862],["Bytča",49.224,18.559],["Žarnovica",48.484,18.721],["Poltár",48.431,19.794],["Sobrance",48.745,22.181],["Kráľovský Chlmec",48.423,21.980],["Šamorín",48.031,17.309],["Modra",48.333,17.307]];
+function krajOf(la, lo) {
+  if (la == null || la < 47.72 || la > 49.62 || lo < 16.83 || lo > 22.57) return "XX";
+  let best = "BA", bd = 1e9;
+  for (const [k, v] of Object.entries(KRAJ_C)) { const d = Math.hypot(la - v[0], (lo - v[1]) * 0.66); if (d < bd) { bd = d; best = k; } }
+  return best;
+}
+function townOf(la, lo) {
+  if (krajOf(la, lo) === "XX") return "";
+  let best = "", bd = 1e9;
+  for (const t of TOWNS) { const d = Math.hypot(la - t[1], (lo - t[2]) * 0.66); if (d < bd) { bd = d; best = t[0]; } }
+  return bd < 0.3 ? best : "";
+}
+// prezývky a názvy tímov: bez neviditeľných znakov a vulgarizmov
+const BAD = ["kokot","pica","picus","jeb","kurv","kurw","debil","chuj","hovno","srack","fuck","shit","bitch","nigg","negr","hitler","nazi","buzer","zmrd","retard","whore","porn","penis","vagin","kreten","idiot","sieg"];
+function cleanName(v, max = 20) {
+  let s = String(v || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+  const flat = s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/0/g, "o").replace(/[1!|]/g, "i").replace(/3/g, "e").replace(/[4@]/g, "a").replace(/[5$]/g, "s").replace(/7/g, "t").replace(/[^a-z]/g, "");
+  if (BAD.some(w => flat.includes(w))) return null;
+  return s;
+}
+const round2 = v => v == null ? null : Math.round(Number(v) * 100) / 100;
 
 function distKm(la1, lo1, la2, lo2) {
   const R = 6371, r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
@@ -65,7 +91,13 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS golden(day TEXT, seq INTEGER, hex TEXT, call TEXT, type TEXT, t INTEGER, wid TEXT, wnick TEXT, wk TEXT, wtown TEXT, wt INTEGER, state INTEGER DEFAULT 0, PRIMARY KEY(day, seq));
       CREATE TABLE IF NOT EXISTS teams(code TEXT PRIMARY KEY, name TEXT, t INTEGER);
       CREATE TABLE IF NOT EXISTS tmembers(id TEXT PRIMARY KEY, code TEXT, nick TEXT);
-      CREATE TABLE IF NOT EXISTS tweek(code TEXT, wk TEXT, n INTEGER, PRIMARY KEY(code, wk));`);
+      CREATE TABLE IF NOT EXISTS tweek(code TEXT, wk TEXT, n INTEGER, PRIMARY KEY(code, wk));
+      CREATE TABLE IF NOT EXISTS ids(id TEXT PRIMARY KEY, t INTEGER, iph TEXT);
+      CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY, w INTEGER, n INTEGER);
+      CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
+      CREATE INDEX IF NOT EXISTS pres_t ON pres(t);
+      CREATE INDEX IF NOT EXISTS mails_dh ON mails(day, hex);`);
+    try { this.sql.exec("ALTER TABLE wavelog ADD COLUMN pid TEXT"); } catch (e) {}
   }
   day() { return new Date().toISOString().slice(0, 10); }
   week(t = Date.now()) { const d = new Date(t); const day = (d.getUTCDay() + 6) % 7; const mon = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day)); return mon.toISOString().slice(0, 10); }
@@ -104,6 +136,35 @@ export class Sky extends DurableObject {
     }
     return m;
   }
+  async secret() {
+    if (this._sec) return this._sec;
+    let raw = await this.ctx.storage.get("hmac");
+    if (!raw) { raw = b64u(crypto.getRandomValues(new Uint8Array(32))); await this.ctx.storage.put("hmac", raw); }
+    this._salt = raw;
+    this._sec = await crypto.subtle.importKey("raw", new TextEncoder().encode(raw), {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
+    return this._sec;
+  }
+  async pid(id) { return b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("pid:" + id))).replace(/[^A-Za-z0-9]/g, "").slice(0, 16); }
+  async tok(id) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("id:" + id))).slice(0, 24); }
+  async authed(id, tok) { if (!id || id.length < 8 || !tok) return false; return (await this.tok(id)) === String(tok); }
+  async iph(ip) { await this.secret(); return b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(this.day() + "|" + this._salt + "|" + (ip || "?")))).slice(0, 16); }
+  // obmedzenie počtu požiadaviek: true = povolené
+  rate(key, limit, winMs) {
+    const w = Math.floor(Date.now() / winMs), r = this.row("SELECT w, n FROM rl WHERE k=?", key);
+    if (!r || r.w !== w) { this.sql.exec("INSERT INTO rl(k, w, n) VALUES(?, ?, 1) ON CONFLICT(k) DO UPDATE SET w=excluded.w, n=1", key, w); return true; }
+    if (r.n >= limit) return false;
+    this.sql.exec("UPDATE rl SET n = n + 1 WHERE k=?", key); return true;
+  }
+  // je lietadlo naozaj blízko tvrdenej polohy?
+  async verifyPlane(hex, la, lo) {
+    try {
+      const r = await fetch("https://api.adsb.lol/v2/hex/" + hex, {headers: {"User-Agent": "cotoleti-app"}, cf: {cacheTtl: 10, cacheEverything: true}});
+      const j = await r.json(), a = (j.ac || [])[0];
+      if (!a || a.lat == null) return {known: true, found: false};
+      if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
+      return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || ""};
+    } catch (e) { return {known: false}; }
+  }
   async keys() {
     if (this._keys) return this._keys;
     let k = await this.ctx.storage.get("vapid");
@@ -128,7 +189,8 @@ export class Sky extends DurableObject {
     const body = b64u(JSON.stringify({aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "https://slovakiana.github.io/cotoleti-app/"}));
     const sig = await crypto.subtle.sign({name: "ECDSA", hash: "SHA-256"}, k.priv, new TextEncoder().encode(head + "." + body));
     try {
-      const r = await fetch(sub.endpoint, {method: "POST", headers: {Authorization: `vapid t=${head}.${body}.${b64u(sig)}, k=${k.pub}`, TTL: "900", Urgency: "high", "Content-Length": "0"}});
+      if (!PUSH_HOSTS.some(h => { const hn = new URL(sub.endpoint).hostname; return hn === h || hn.endsWith("." + h); })) return;
+      const r = await fetch(sub.endpoint, {method: "POST", redirect: "manual", headers: {Authorization: `vapid t=${head}.${body}.${b64u(sig)}, k=${k.pub}`, TTL: "900", Urgency: "high", "Content-Length": "0"}});
       if (r.status === 404 || r.status === 410) this.sql.exec("DELETE FROM subs WHERE id=?", id);
     } catch (e) {}
   }
@@ -179,55 +241,110 @@ export class Sky extends DurableObject {
   }
   async fetch(req) {
     const u = new URL(req.url), d = this.day(), now = Date.now(), p = u.pathname;
-    const body = async () => { try { return JSON.parse(await req.text()); } catch (e) { return {}; } };
+    let _b = null;
+    const body = async () => { if (_b) return _b; try { const t = await req.text(); _b = t.length > 4000 ? {} : JSON.parse(t); } catch (e) { _b = {}; } return _b; };
+    const ip = req.headers.get("x-cc-ip") || "", country = req.headers.get("x-cc-country") || "", ipLat = num(req.headers.get("x-cc-lat")), ipLon = num(req.headers.get("x-cc-lon"));
+    const iph = await this.iph(ip);
+    const ipFar = (la, lo) => ipLat != null && la != null && distKm(la, lo, ipLat, ipLon) > 650;
+    if (p === "/api/hello" && req.method === "POST") {
+      const b = await body(), id = cleanId(b.id);
+      if (id.length < 16) return json({error: "bad"}, 400);
+      if (!this.row("SELECT 1 AS x FROM ids WHERE id=?", id)) {
+        if (!this.rate("mint:" + iph, 6, 86400e3)) return json({error: "rate"}, 429);
+        this.sql.exec("INSERT INTO ids(id, t, iph) VALUES(?, ?, ?)", id, now, iph);
+      }
+      return json({tok: await this.tok(id), pid: await this.pid(id)});
+    }
+    if (req.method === "POST" && p !== "/cron") {
+      const b = await body();
+      if (!(await this.authed(cleanId(b.id), b.tok))) return json({error: "auth"}, 401);
+      if (!this.rate("post:" + iph, 60, 60e3)) return json({error: "rate"}, 429);
+    }
     if (p === "/cron") { await this.cron(); return json({ok: true}); }
     if (p === "/api/vapid") return json({key: (await this.keys()).pub});
     if (p === "/api/wave" && req.method === "POST") {
       const b = await body();
-      const hex = cleanHex(b.hex), id = cleanId(b.id);
-      const emoji = EMO.includes(b.emoji) ? b.emoji : "👋", k = KRAJE.includes(b.k) ? b.k : "XX";
-      if (!hex || id.length < 8) return json({error: "bad"}, 400);
-      if (b.nick) this.sql.exec("INSERT INTO nicks(id, nick) VALUES(?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick", id, String(b.nick).slice(0, 20));
+      const hex = cleanHex(b.hex), id = cleanId(b.id), la = num(b.lat), lo = num(b.lon);
+      const emoji = EMO.includes(b.emoji) ? b.emoji : "👋";
+      if (!hex || id.length < 8 || la == null || lo == null || Math.abs(la) > 90 || Math.abs(lo) > 180) return json({error: "bad"}, 400);
+      if (!this.rate("wave:" + iph, 400, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) return json({error: "rate"}, 429);
+      const vp = await this.verifyPlane(hex, la, lo);
+      if (vp.known && (!vp.found || vp.ground || vp.km > 130)) return json({error: "far"}, 422);
+      // do súťaží sa ráta len poloha zo Slovenska, ktorá sedí s IP adresou
+      const fair = country === "SK" && !ipFar(la, lo);
+      const k = fair ? krajOf(la, lo) : "XX";
+      const nk = cleanName(b.nick);
+      if (nk) this.sql.exec("INSERT INTO nicks(id, nick) VALUES(?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick", id, nk);
       const seen = !!this.row("SELECT 1 AS x FROM wavelog WHERE day=? AND hex=? AND id=?", d, hex, id) || !!this.row("SELECT 1 AS x FROM waveby WHERE day=? AND hex=? AND id=?", d, hex, id);
       let record = false;
       let golden = false;
       if (!seen) {
-        const town = String(b.town || "").slice(0, 40);
+        const town = fair ? townOf(la, lo) : "";
         this.sql.exec("INSERT INTO planes(day, hex, call, type, dest) VALUES(?, ?, ?, ?, ?) ON CONFLICT(day, hex) DO UPDATE SET call=COALESCE(NULLIF(excluded.call,''), call), type=COALESCE(NULLIF(excluded.type,''), type), dest=COALESCE(NULLIF(excluded.dest,''), dest)",
-          d, hex, String(b.call || "").slice(0, 8), String(b.type || "").slice(0, 6), String(b.dest || "").slice(0, 40));
+          d, hex, (vp.call || String(b.call || "")).replace(/[^A-Z0-9]/gi, "").slice(0, 8), (vp.type || String(b.type || "")).replace(/[^A-Z0-9]/gi, "").slice(0, 6), cleanName(b.dest, 40) || "");
         if (town) this.sql.exec("INSERT INTO towns(day, town, n) VALUES(?, ?, 1) ON CONFLICT(day, town) DO UPDATE SET n = n + 1", d, town);
         const tm = this.row("SELECT code FROM tmembers WHERE id=?", id);
-        if (tm) this.sql.exec("INSERT INTO tweek(code, wk, n) VALUES(?, ?, 1) ON CONFLICT(code, wk) DO UPDATE SET n = n + 1", tm.code, this.week());
+        if (tm && fair) this.sql.exec("INSERT INTO tweek(code, wk, n) VALUES(?, ?, 1) ON CONFLICT(code, wk) DO UPDATE SET n = n + 1", tm.code, this.week());
         const g = this.goldenNow(d);
-        if (g && g.state === 0 && g.hex === hex) { this.sql.exec("UPDATE golden SET state=1, wid=?, wnick=?, wk=?, wtown=?, wt=? WHERE day=? AND seq=?", id, String(b.nick || "Spotter").slice(0, 20), k, town, now, d, g.seq); golden = true; }
-        this.sql.exec("INSERT INTO wavelog(day, hex, id, t, k) VALUES(?, ?, ?, ?, ?)", d, hex, id, now, k);
+        // zlaté lietadlo: overené blízko (GPS, ≤ 60 km), zo Slovenska, účet starší ako 10 min
+        const acct = this.row("SELECT t FROM ids WHERE id=?", id);
+        if (g && g.state === 0 && g.hex === hex && fair && b.gps === true && vp.known && vp.found && vp.km <= 60 && acct && now - acct.t > 10 * 60e3) {
+          this.sql.exec("UPDATE golden SET state=1, wid=?, wnick=?, wk=?, wtown=?, wt=? WHERE day=? AND seq=?", id, nk || "Spotter", k, town, now, d, g.seq); golden = true;
+        }
+        this.sql.exec("INSERT INTO wavelog(day, hex, id, t, k, pid) VALUES(?, ?, ?, ?, ?, ?)", d, hex, id, now, k, await this.pid(id));
         this.sql.exec("INSERT INTO waves(day, hex, emoji, n) VALUES(?, ?, ?, 1) ON CONFLICT(day, hex, emoji) DO UPDATE SET n = n + 1", d, hex, emoji);
-        this.sql.exec("INSERT INTO kraje(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", d, k);
-        this.sql.exec("INSERT INTO totals(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1", d);
+        if (fair) {
+          this.sql.exec("INSERT INTO kraje(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", d, k);
+          this.sql.exec("INSERT INTO totals(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1", d);
+        }
       }
       return json({ok: true, dup: seen, golden, plane: this.plane(d, hex)});
     }
+    if (p === "/api/friend" && req.method === "POST") {
+      const b = await body(), me = await this.pid(cleanId(b.id)), other = String(b.pid || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
+      if (other.length !== 16 || other === me) return json({error: "bad"}, 400);
+      if (!this.rate("friend:" + iph, 30, 86400e3)) return json({error: "rate"}, 429);
+      this.sql.exec("INSERT OR IGNORE INTO friends(a, b) VALUES(?, ?)", me, other);
+      this.sql.exec("INSERT OR IGNORE INTO friends(a, b) VALUES(?, ?)", other, me);
+      return json({ok: true});
+    }
+    if (p === "/api/forget" && req.method === "POST") {
+      const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
+      for (const t of ["wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+      this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
+      this.sql.exec("DELETE FROM mails WHERE id=?", id);
+      this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
+      this.sql.exec("UPDATE golden SET wid=NULL, wnick='Spotter', wtown='' WHERE wid=?", id);
+      return json({ok: true});
+    }
     if (p === "/api/mail" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), hex = cleanHex(b.hex), msg = Math.max(0, Math.min(11, num(b.msg, 0) | 0));
-      if (id.length < 8 || !hex) return json({error: "bad"}, 400);
+      const b = await body(), id = cleanId(b.id), hex = cleanHex(b.hex), msg = Math.max(0, Math.min(11, num(b.msg, 0) | 0)), la = num(b.lat), lo = num(b.lon);
+      if (id.length < 8 || !hex || la == null || lo == null) return json({error: "bad"}, 400);
+      if (!this.rate("mail:" + iph, 40, 86400e3)) return json({error: "limit"}, 429);
+      const vp = await this.verifyPlane(hex, la, lo);
+      if (vp.known && (!vp.found || vp.ground || vp.km > 130)) return json({error: "far"}, 422);
+      const fair = country === "SK" && !ipFar(la, lo);
       const cnt = (this.row("SELECT COUNT(*) AS c FROM mails WHERE day=? AND id=?", d, id) || {c: 0}).c;
       if (cnt >= 30) return json({error: "limit"}, 429);
       if (this.row("SELECT 1 AS x FROM mails WHERE day=? AND hex=? AND id=?", d, hex, id)) return json({ok: true, dup: true});
-      this.sql.exec("INSERT INTO mails(day, hex, id, nick, town, k, msg, emoji, t) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", d, hex, id, String(b.nick || "").slice(0, 20), String(b.town || "").slice(0, 40), KRAJE.includes(b.k) ? b.k : "XX", msg, EMO.includes(b.emoji) ? b.emoji : "✉️", now);
+      const MEMO = ["☀️","🇸🇰","✈️","👋","🌙","❤️","😊","🔥","🙏","🛋️","👀","🥺"];
+      this.sql.exec("INSERT INTO mails(day, hex, id, nick, town, k, msg, emoji, t) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", d, hex, id, cleanName(b.nick) || "", fair ? townOf(la, lo) : "", fair ? krajOf(la, lo) : "XX", msg, MEMO[msg] || "✉️", now);
       const on = (this.row("SELECT COUNT(*) AS c FROM mails WHERE day=? AND hex=?", d, hex) || {c: 0}).c;
       return json({ok: true, on});
     }
     if (p === "/api/team" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), nick = String(b.nick || "Spotter").slice(0, 20);
+      const b = await body(), id = cleanId(b.id), nick = cleanName(b.nick) || "Spotter";
       if (id.length < 8) return json({error: "bad"}, 400);
       if (b.action === "create") {
-        const name = String(b.name || "").trim().slice(0, 24); if (!name) return json({error: "name"}, 400);
+        const name = cleanName(b.name, 24); if (!name) return json({error: "name"}, 400);
+        if (!this.rate("team:" + iph, 3, 86400e3)) return json({error: "rate"}, 429);
         let code; do { code = Array.from({length: 6}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join(""); } while (this.row("SELECT 1 AS x FROM teams WHERE code=?", code));
         this.sql.exec("INSERT INTO teams(code, name, t) VALUES(?, ?, ?)", code, name, now);
         this.sql.exec("INSERT INTO tmembers(id, code, nick) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET code=excluded.code, nick=excluded.nick", id, code, nick);
         return json({ok: true, code, name});
       }
       if (b.action === "join") {
+        if (!this.rate("tjoin:" + iph, 20, 3600e3)) return json({error: "rate"}, 429);
         const code = String(b.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6), t = this.row("SELECT * FROM teams WHERE code=?", code);
         if (!t) return json({error: "notfound"}, 404);
         this.sql.exec("INSERT INTO tmembers(id, code, nick) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET code=excluded.code, nick=excluded.nick", id, code, nick);
@@ -238,27 +355,31 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/sub" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
-      if (id.length < 8 || !b.sub || !b.sub.endpoint || !/^https:\/\//.test(b.sub.endpoint)) return json({error: "bad"}, 400);
+      let host = ""; try { host = new URL(b.sub && b.sub.endpoint).hostname; } catch (e) {}
+      if (id.length < 8 || !host || !/^https:\/\//.test(b.sub.endpoint) || !PUSH_HOSTS.some(h => host === h || host.endsWith("." + h))) return json({error: "bad"}, 400);
+      if (!this.rate("sub:" + iph, 10, 86400e3)) return json({error: "rate"}, 429);
       this.sql.exec("INSERT INTO subs(id, sub, lat, lon, k, moment, t) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, lat=excluded.lat, lon=excluded.lon, k=excluded.k, moment=excluded.moment, t=excluded.t",
-        id, JSON.stringify(b.sub).slice(0, 2000), num(b.lat), num(b.lon), KRAJE.includes(b.k) ? b.k : "XX", b.moment ? 1 : 0, now);
+        id, JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), round2(b.lat), round2(b.lon), krajOf(num(b.lat), num(b.lon)), b.moment ? 1 : 0, now);
       return json({ok: true});
     }
     if (p === "/api/subset" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
       if ("moment" in b) this.sql.exec("UPDATE subs SET moment=? WHERE id=?", b.moment ? 1 : 0, id);
-      if (b.lat != null) this.sql.exec("UPDATE subs SET lat=?, lon=? WHERE id=?", num(b.lat), num(b.lon), id);
+      if (b.lat != null) this.sql.exec("UPDATE subs SET lat=?, lon=? WHERE id=?", round2(b.lat), round2(b.lon), id);
       return json({ok: true});
     }
     if (p === "/api/track" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), cs = cleanCs(b.cs);
       if (id.length < 8) return json({error: "bad"}, 400);
       if (!cs || b.off) { this.sql.exec("DELETE FROM tracks WHERE id=?" + (cs ? " AND cs=?" : ""), ...(cs ? [id, cs] : [id])); return json({ok: true}); }
+      if ((this.row("SELECT COUNT(*) AS c FROM tracks WHERE id=? AND cs<>?", id, cs) || {c: 0}).c >= 5) return json({error: "limit"}, 429);
       this.sql.exec("INSERT INTO tracks(id, cs, label, lat, lon, notified, t) VALUES(?, ?, ?, ?, ?, 0, ?) ON CONFLICT(id, cs) DO UPDATE SET label=excluded.label, lat=excluded.lat, lon=excluded.lon, notified=0, t=excluded.t",
-        id, cs, String(b.label || "").slice(0, 30), num(b.lat), num(b.lon), now);
+        id, cs, cleanName(b.label, 30) || "", round2(b.lat), round2(b.lon), now);
       return json({ok: true});
     }
     if (p === "/api/msg") {
-      const m = this.row("SELECT title, body, url FROM msgs WHERE id=?", cleanId(u.searchParams.get("id")));
+      const mid = cleanId(u.searchParams.get("id"));
+      const m = (await this.authed(mid, u.searchParams.get("tok"))) ? this.row("SELECT title, body, url FROM msgs WHERE id=?", mid) : null;
       return json(m || {title: "✈️ Pozri hore!", body: "Niečo zaujímavé letí nad tebou.", url: "./"});
     }
     if (p === "/api/moment" && req.method === "POST") {
@@ -270,8 +391,12 @@ export class Sky extends DurableObject {
       return json({ok: true, n: (this.row("SELECT n FROM moments WHERE day=?", d) || {n: 0}).n});
     }
     if (p === "/api/sky") {
-      const id = cleanId(u.searchParams.get("id")), k = KRAJE.includes(u.searchParams.get("k")) ? u.searchParams.get("k") : "XX";
-      if (id.length >= 8) this.sql.exec("INSERT INTO pres(id, t, k) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET t = excluded.t, k = excluded.k", id, now, k);
+      if (!this.rate("sky:" + iph, 40, 60e3)) return json({error: "rate"}, 429);
+      const okId = await this.authed(cleanId(u.searchParams.get("id")), u.searchParams.get("tok"));
+      const id = okId ? cleanId(u.searchParams.get("id")) : "";
+      const sla = num(u.searchParams.get("lat")), slo = num(u.searchParams.get("lon"));
+      const k = sla != null && country === "SK" && !ipFar(sla, slo) ? krajOf(sla, slo) : "XX";
+      if (id.length >= 8) { const pr = this.row("SELECT t FROM pres WHERE id=?", id); if (!pr || now - pr.t > 60e3) this.sql.exec("INSERT INTO pres(id, t, k) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET t = excluded.t, k = excluded.k", id, now, k); }
       if (Math.random() < 0.03) {
         this.sql.exec("DELETE FROM pres WHERE t < ?", now - 15 * 60e3);
         this.sql.exec("DELETE FROM waveby WHERE day < ?", d);
@@ -279,6 +404,11 @@ export class Sky extends DurableObject {
         this.sql.exec("DELETE FROM waves WHERE day < ?", old);
         this.sql.exec("DELETE FROM wavelog WHERE day < ?", old);
         this.sql.exec("DELETE FROM momentby WHERE day < ?", old);
+        for (const t of ["planes", "towns", "mails", "kraje"]) this.sql.exec(`DELETE FROM ${t} WHERE day < ?`, old);
+        this.sql.exec("DELETE FROM maildel WHERE mid NOT IN (SELECT mid FROM mails)");
+        this.sql.exec("DELETE FROM maildeliv WHERE mid NOT IN (SELECT mid FROM mails)");
+        this.sql.exec("DELETE FROM rl WHERE k LIKE 'sky:%' OR k LIKE 'post:%'");
+        this.sql.exec("DELETE FROM subs WHERE t < ?", now - 90 * 86400e3);
       }
       const active = (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c;
       const kraje = this.sql.exec("SELECT k, n FROM kraje WHERE day = ? ORDER BY n DESC", d).toArray();
@@ -286,21 +416,22 @@ export class Sky extends DurableObject {
       const allTime = (this.row("SELECT SUM(n) AS s FROM totals") || {s: 0}).s || 0;
       const rec = this.row("SELECT day, n FROM totals WHERE day < ? ORDER BY n DESC LIMIT 1", d);
       const hexes = (u.searchParams.get("hexes") || "").split(",").map(cleanHex).filter(Boolean).slice(0, 25);
-      const friendIds = (u.searchParams.get("f") || "").split(",").map(cleanId).filter(x => x.length >= 8).slice(0, 50);
+      const myPid = id ? await this.pid(id) : "";
+      const friendIds = myPid ? this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", myPid).toArray().map(r => r.b) : [];
       const planes = {}, friends = {};
       for (const h of hexes) {
         const pl = this.plane(d, h); if (pl.total) planes[h] = pl;
         if (friendIds.length) {
-          const fr = this.sql.exec(`SELECT w.id, w.t, w.k, n.nick FROM wavelog w LEFT JOIN nicks n ON n.id = w.id WHERE w.day = ? AND w.hex = ? AND w.id IN (${friendIds.map(() => "?").join(",")})`, d, h, ...friendIds).toArray();
-          if (fr.length) friends[h] = fr.map(r => ({n: r.nick || "Kamoš", t: r.t, k: r.k}));
+          const fr = this.sql.exec(`SELECT w.id, n.nick FROM wavelog w LEFT JOIN nicks n ON n.id = w.id WHERE w.day = ? AND w.hex = ? AND w.pid IN (${friendIds.map(() => "?").join(",")})`, d, h, ...friendIds).toArray();
+          if (fr.length) friends[h] = fr.map(r => ({n: r.nick || "Kamoš"}));
         }
       }
       // pošta: doruč pozdravy z lietadiel, ktoré sú práve nad mnou
-      const myTown = String(u.searchParams.get("town") || "").slice(0, 40), mailsIn = [], mailOn = {};
+      const myTown = k !== "XX" ? townOf(sla, slo) : "", mailsIn = [], mailOn = {};
       if (hexes.length) {
         const ph = hexes.map(() => "?").join(",");
         for (const r of this.sql.exec(`SELECT hex, COUNT(*) AS c FROM mails WHERE day=? AND hex IN (${ph}) GROUP BY hex`, d, ...hexes).toArray()) mailOn[r.hex] = r.c;
-        if (id.length >= 8) {
+        if (id.length >= 8 && sla != null) {
           const cand = this.sql.exec(`SELECT * FROM mails m WHERE m.day=? AND m.hex IN (${ph}) AND m.id<>? AND (m.town<>? OR m.town='' OR ?='') AND m.t < ? AND NOT EXISTS (SELECT 1 FROM maildel x WHERE x.mid=m.mid AND x.id=?) ORDER BY m.t DESC LIMIT 2`, d, ...hexes, id, myTown, myTown, now - 60e3, id).toArray();
           for (const m of cand) {
             if (m.town && myTown && m.town === myTown) continue;
@@ -321,7 +452,7 @@ export class Sky extends DurableObject {
       const towns = this.sql.exec("SELECT town, n FROM towns WHERE day=? ORDER BY n DESC LIMIT 10", d).toArray();
       // zlaté lietadlo
       const g = this.goldenNow(d);
-      const golden = g ? {seq: g.seq, hex: g.hex, call: g.call, type: g.type, t: g.t, state: g.state, winner: g.state === 1 ? {n: g.wnick, k: g.wk, town: g.wtown, t: g.wt} : null} : null;
+      const golden = g ? {seq: g.seq, hex: g.hex, call: g.call, type: g.type, t: g.t, state: g.state, winner: g.state === 1 ? {n: g.wnick, k: g.wk} : null} : null;
       // tímy
       const wk = this.week(), mt = id.length >= 8 ? this.row("SELECT code FROM tmembers WHERE id=?", id) : null;
       const teamsTop = this.sql.exec("SELECT t.code, t.name, w.n FROM tweek w JOIN teams t ON t.code = w.code WHERE w.wk=? ORDER BY w.n DESC LIMIT 10", wk).toArray().map(r => ({name: r.name, n: r.n, me: !!(mt && mt.code === r.code)}));
@@ -352,21 +483,40 @@ export default {
     const url = new URL(req.url);
     if (url.pathname.startsWith("/api/")) {
       if (!env.SKY) return json({error: "no sky"}, 503);
-      try { return await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(req); }
+      const h = new Headers();
+      for (const [k, v] of req.headers) if (!k.toLowerCase().startsWith("x-cc-")) h.set(k, v);
+      h.set("x-cc-ip", req.headers.get("cf-connecting-ip") || "");
+      h.set("x-cc-country", (req.cf && req.cf.country) || "");
+      if (req.cf && req.cf.latitude) { h.set("x-cc-lat", String(req.cf.latitude)); h.set("x-cc-lon", String(req.cf.longitude)); }
+      const fwd = new Request(req.url, {method: req.method, headers: h, body: req.method === "POST" ? await req.text() : undefined});
+      try { return await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd); }
       catch (e) { return json({error: String(e)}, 500); }
     }
     const raw = url.searchParams.get("url");
     if (!raw) {
-      if (env.ASSETS) return env.ASSETS.fetch(req);
+      if (env.ASSETS) {
+        const r = await env.ASSETS.fetch(req), h = new Headers(r.headers);
+        h.set("X-Content-Type-Options", "nosniff");
+        h.set("Referrer-Policy", "strict-origin-when-cross-origin");
+        h.set("X-Frame-Options", "DENY");
+        h.set("Permissions-Policy", "geolocation=(self), camera=(self), microphone=(self)");
+        h.set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+        return new Response(r.body, {status: r.status, headers: h});
+      }
       return new Response("Čo to letí? server beží ✈️", {headers: CORS});
     }
+    const origin = req.headers.get("origin");
+    if (origin && !APP_ORIGINS.includes(origin)) return new Response("nepovolené", {status: 403, headers: CORS});
     let t;
     try { t = new URL(raw); } catch (e) { return new Response("zlá adresa", {status: 400, headers: CORS}); }
-    if (t.protocol !== "https:" || !ALLOW.includes(t.hostname)) return new Response("nepovolené", {status: 403, headers: CORS});
+    const PATHS = {"api.adsb.lol": /^\/v2\//, "api.airplanes.live": /^\/v2\//, "opendata.adsb.fi": /^\/api\/v2\//, "opensky-network.org": /^\/api\/states\/all$/, "api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/};
+    if (t.protocol !== "https:" || !ALLOW.includes(t.hostname) || !PATHS[t.hostname].test(t.pathname)) return new Response("nepovolené", {status: 403, headers: CORS});
     try {
-      const r = await fetch(t, {headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: 5}});
+      const r = await fetch(t, {redirect: "manual", headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: t.hostname === "celestrak.org" ? 3600 : 5, cacheEverything: true}});
       const h = new Headers(CORS);
-      h.set("Content-Type", r.headers.get("Content-Type") || "application/json");
+      h.set("Content-Type", t.hostname === "celestrak.org" ? "text/plain; charset=utf-8" : "application/json; charset=utf-8");
+      h.set("X-Content-Type-Options", "nosniff");
+      h.set("Content-Security-Policy", "sandbox; default-src 'none'");
       h.set("Cache-Control", "no-store");
       return new Response(r.body, {status: r.status, headers: h});
     } catch (e) {

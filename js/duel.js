@@ -20,7 +20,7 @@ function cdStart(){
 }
 async function cdSendLink(){
   const seed=Math.floor(Math.random()*1e6),cats=[0,1,2].map(i=>CD_CATS[hash(String(seed)+i)%CD_CATS.length][0]);
-  const p={n:nick(),id:SOC.cid,c:CD.sel,k:cats};
+  await ensureTok();const p={n:nick(),c:CD.sel,k:cats,s:seed};
   const url=location.origin+location.pathname+"#kd="+b64e(JSON.stringify(p));
   const text=`⚔️ ${p.n} ťa vyzýva na súboj kartičiek lietadiel v appke Čo to letí? ✈️ Trúfneš si?`;
   cdClose();
@@ -53,7 +53,9 @@ function cdReveal(mine){
 }
 function cdResult(){
   const [them,me]=CD.score,p=CD.p,w=me>them;
-  if(w){grantAch("cardduel");COL.pts+=20;LS.set("ctl_col",COL);confetti(100)}
+  const key="kd"+hash(JSON.stringify(p)),done=LS.get("ctl_kdDone",[]);
+  if(w&&!done.includes(key)){grantAch("cardduel");COL.pts+=20;LS.set("ctl_col",COL);confetti(100)}
+  if(!done.includes(key)){done.push(key);LS.set("ctl_kdDone",done.slice(-200))}
   CD.res=`${me}:${them}`;
   cdOpen(`<div style="text-align:center;font-size:64px;margin-top:6px">${w?"🏆":me===them?"🤝":"😅"}</div>
     <div class="cdScore">${w?"Vyhral si":me===them?"Remíza":"Prehral si"} ${me}:${them}</div>

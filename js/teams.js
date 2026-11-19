@@ -1,7 +1,7 @@
 "use strict";
 /* ============ 👥 Tímy (trieda, firma, partia) ============ */
 async function teamCall(body){
-  const r=await fetch(SOC.api+"/api/team",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,nick:LS.get("ctl_nick","")||"Spotter",...body})});
+  const r=await apiPost("/api/team",{id:SOC.cid,nick:LS.get("ctl_nick","")||"Spotter",...body});
   return r.json();
 }
 function teamRender(){

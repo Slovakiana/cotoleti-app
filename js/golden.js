@@ -7,7 +7,7 @@ function goldRender(){
   const g=GOLD.g,ch=$("goldChip");
   if(!g){ch.style.display="none";return}
   ch.style.display="";ch.classList.toggle("goldOn",g.state===0);
-  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · nikto ho ešte nemá`:g.state===1?`🏆 Zlaté lietadlo chytil${g.winner&&g.winner.n?" "+g.winner.n:""}${g.winner&&g.winner.town?" ("+g.winner.town+")":""}`:"🏆 Zlaté lietadlo uletelo nechytené 😢";
+  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · nikto ho ešte nemá`:g.state===1?`🏆 Zlaté lietadlo chytil${g.winner&&g.winner.n?" "+g.winner.n:""}${g.winner&&g.winner.k&&KRAJ[g.winner.k]&&g.winner.k!=="XX"?" ("+KRAJ[g.winner.k][2]+" kraj)":""}`:"🏆 Zlaté lietadlo uletelo nechytené 😢";
   // je nad nami?
   const here=goldActive()&&S.list.find(a=>a.hex===g.hex&&a.el>2);
   $("hero").classList.toggle("golden",!!(here&&S.top&&S.top.hex===g.hex));

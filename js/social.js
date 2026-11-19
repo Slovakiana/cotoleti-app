@@ -1,7 +1,22 @@
 "use strict";
 /* ============ 👋 Mávanie lietadlám + živé Slovensko ============ */
 const SOC={api:MYPROXY||"",data:null,busy:false,waved:LS.get("ctl_waved",{}),local:{}};
-SOC.cid=LS.get("ctl_cid",null)||(()=>{const v=(Math.random().toString(36).slice(2)+Date.now().toString(36)+Math.random().toString(36).slice(2)).slice(0,24);LS.set("ctl_cid",v);return v})();
+// tajné id (nikdy neodchádza v odkazoch) – staré id z odkazov sa nahrádza novým
+SOC.cid=(()=>{let v=LS.get("ctl_cid","");if(!/^v2[A-Za-z0-9]{30}$/.test(v)){const b=new Uint8Array(24);crypto.getRandomValues(b);v="v2"+Array.from(b,x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[x%56]).join("").slice(0,30);LS.set("ctl_cid",v);LS.set("ctl_tok","");LS.set("ctl_pid","")}return v})();
+/* identita: server vydá podpísaný token, bez neho sa nič nezapočíta */
+let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid","");
+async function ensureTok(){
+  if(TOK||!SOC.api)return TOK;
+  try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid})});const j=await r.json();if(j.tok){TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID)}}catch(e){}
+  return TOK;
+}
+async function apiPost(path,obj){
+  await ensureTok();
+  const r=await fetch(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok:TOK})});
+  if(r.status===401){TOK="";LS.set("ctl_tok","")}
+  return r;
+}
+const posR=()=>S.pos?{lat:Math.round(S.pos.lat*100)/100,lon:Math.round(S.pos.lon*100)/100}:{};
 const KRAJ={BA:[48.15,17.11,"Bratislavský"],TT:[48.38,17.59,"Trnavský"],TN:[48.89,18.04,"Trenčiansky"],NR:[48.31,18.08,"Nitriansky"],ZA:[49.22,18.74,"Žilinský"],BB:[48.74,19.15,"Banskobystrický"],PO:[49.0,21.24,"Prešovský"],KE:[48.72,21.26,"Košický"],XX:[0,0,"Zo zahraničia"]};
 function krajOf(p){
   if(!p||p.lat<47.72||p.lat>49.62||p.lon<16.83||p.lon>22.57)return "XX";
@@ -21,8 +36,8 @@ async function socPoll(){
   try{
     const hs=S.list.filter(a=>a.el>0).slice(0,15).map(a=>a.hex);
     if(typeof TR!=="undefined"&&TR&&TR.hex&&!hs.includes(TR.hex))hs.push(TR.hex);
-    const fr=LS.get("ctl_friends",[]).map(f=>f.id).filter(Boolean).slice(0,40).join(",");
-    const r=await fetch(`${SOC.api}/api/sky?id=${SOC.cid}&k=${krajOf(S.pos)}&town=${encodeURIComponent(typeof townOf==="function"?townOf(S.pos):"")}&hexes=${hs.join(",")}${fr?"&f="+fr:""}`,{cache:"no-store"});
+    await ensureTok();const pr=posR();
+    const r=await fetch(`${SOC.api}/api/sky?id=${SOC.cid}&tok=${encodeURIComponent(TOK)}${pr.lat!=null?`&lat=${pr.lat}&lon=${pr.lon}`:""}&hexes=${hs.join(",")}`,{cache:"no-store"});
     if(r.ok){SOC.data=await r.json();socRender()}
   }catch(e){}
   SOC.busy=false;
@@ -67,7 +82,7 @@ function waveInfo(a){
   $("waveN").style.display=p.total?"":"none";$("waveN").textContent=nf(p.total);
   const em=Object.entries(p.emoji||{}).sort((x,y)=>y[1]-x[1]).slice(0,4).map(([e,n])=>e+" "+n).join("  ");
   const fr=SOC.data&&SOC.data.friends&&SOC.data.friends[a.hex];
-  const frTxt=fr&&fr.length?`<div class="frLine">👯 ${fr.slice(0,3).map(f=>esc(f.n)).join(", ")} ${fr.length===1?"mu zamával":"mu zamávali"} ${(()=>{const m=Math.round((Date.now()-Math.max(...fr.map(f=>f.t)))/60000);return m<1?"práve teraz":"pred "+m+" min"})()}</div>`:"";
+  const frTxt=fr&&fr.length?`<div class="frLine">👯 ${fr.slice(0,3).map(f=>esc(f.n)).join(", ")} ${fr.length===1?"mu dnes zamával":"mu dnes zamávali"}</div>`:"";
   const mOn=SOC.data&&SOC.data.mailOn&&SOC.data.mailOn[a.hex];
   const mailTxt=mOn?`<div class="frLine" style="color:#ffcf8a">✉️ Nesie ${mOn} ${mOn===1?"pozdrav":mOn<5?"pozdravy":"pozdravov"} po Slovensku</div>`:"";
   $("waveInfo").innerHTML=(p.total?`${mine?"Ty a ďalší – zamávalo":"Zamávalo"} mu už <b>${nf(p.total)} ${ludia(p.total)}</b> · ${em}`:"Buď prvý, kto mu dnes zamáva 👋")+frTxt+mailTxt;
@@ -107,8 +122,10 @@ async function doWave(e){
   ping("u");
   if(!SOC.api){toast(e+" Zamával si lietadlu"+to,"+2 body");return}
   try{
-    const r=await fetch(`${SOC.api}/api/wave`,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({hex:a.hex,id:SOC.cid,emoji:e,k:krajOf(S.pos),nick:LS.get("ctl_nick",""),town:typeof townOf==="function"?townOf(S.pos):"",call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""})});
+    const r=await apiPost("/api/wave",{hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""});
     const j=await r.json();
+    if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
+    if(j.error==="rate"){toast("Pomalšie 🙂","Skús o chvíľu");return}
     if(j&&j.golden&&typeof goldenWon==="function")goldenWon(a);
     if(j&&j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex];waveInfo(a)}
     const tot=j&&j.plane?j.plane.total:1;
@@ -118,4 +135,4 @@ async function doWave(e){
 }
 $("b-wave").onclick=()=>{if(!S.top)return;haptic(8);$("wavePick").classList.toggle("on")};
 $("wavePick").onclick=ev=>{const b=ev.target.closest("button");if(!b)return;if(b.dataset.mail){$("wavePick").classList.remove("on");if(typeof openMail==="function")openMail();return}doWave(b.textContent)};
-if(SOC.api){setInterval(socPoll,20000);setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}
+if(SOC.api){setInterval(socPoll,30000);setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}

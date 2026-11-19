@@ -16,10 +16,12 @@ $("mailList").onclick=async e=>{
   haptic([20,40,20]);flyEmoji("✉️",$("b-wave"));
   if(!SOC.api){toast("✉️ Pozdrav odoslaný","");return}
   try{
-    const r=await fetch(SOC.api+"/api/mail",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,hex:a.hex,msg:i,emoji:MAIL_EMO[i]||"✉️",k:krajOf(S.pos),town:townOf(S.pos),nick:LS.get("ctl_nick","")})});
+    const r=await apiPost("/api/mail",{hex:a.hex,msg:i,...posR(),nick:LS.get("ctl_nick","")});
     const j=await r.json();
     if(j.dup)toast("✉️ Tomuto lietadlu si už pozdrav dal","Skús ďalšie lietadlo");
     else if(j.error==="limit")toast("Na dnes stačilo 😊","Pošli ďalšie zajtra");
+    else if(j.error==="far")toast("Toto lietadlo je od teba priďaleko","Pozdrav pošli lietadlu nad tebou");
+    else if(j.error)toast("Pozdrav sa nepodarilo poslať","Skús o chvíľu");
     else{toast("✉️ Pozdrav je na palube!","Keď ho lietadlo doručí, dáme ti vedieť 📬");grantAch("mail");if(typeof dailyEvent==="function")dailyEvent("mail");COL.pts+=3;LS.set("ctl_col",COL);setTimeout(socPoll,800)}
   }catch(err){toast("Pozdrav sa nepodarilo poslať","Skús znova")}
 };

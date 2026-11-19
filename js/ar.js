@@ -147,7 +147,8 @@ function pickMime(){
 }
 function arMusic(){
   try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)(),dst=ctx.createMediaStreamDestination(),out=ctx.createGain();out.gain.value=.5;out.connect(dst);
+    const ctx=AR.actx||(AR.actx=new (window.AudioContext||window.webkitAudioContext)());unlockAudio(ctx);
+    const dst=ctx.createMediaStreamDestination(),out=ctx.createGain();out.gain.value=.5;out.connect(dst);out.connect(ctx.destination);
     const bpm=112,beat=60/bpm,t0=ctx.currentTime+.05;
     for(let i=0;i<Math.ceil(12/beat);i++){const t=t0+i*beat;
       const k=ctx.createOscillator(),kg=ctx.createGain();k.frequency.setValueAtTime(140,t);k.frequency.exponentialRampToValueAtTime(40,t+.15);kg.gain.setValueAtTime(.9,t);kg.gain.exponentialRampToValueAtTime(.001,t+.25);k.connect(kg).connect(out);k.start(t);k.stop(t+.3);
@@ -155,7 +156,7 @@ function arMusic(){
       const notes=[220,277,330,262];const o=ctx.createOscillator(),og=ctx.createGain();o.type="triangle";o.frequency.value=notes[Math.floor(i/4)%4];og.gain.setValueAtTime(.12,t);og.gain.exponentialRampToValueAtTime(.001,t+beat*.9);o.connect(og).connect(out);o.start(t);o.stop(t+beat)}
     // „whoosh“ pri prelete
     const w=ctx.createBufferSource(),wb=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate),wd=wb.getChannelData(0);for(let j=0;j<wd.length;j++)wd[j]=(Math.random()*2-1)*Math.sin(Math.PI*j/wd.length);w.buffer=wb;const bp=ctx.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(300,t0+3);bp.frequency.exponentialRampToValueAtTime(3000,t0+6);const wg=ctx.createGain();wg.gain.value=.4;w.connect(bp).connect(wg).connect(out);w.start(t0+3);
-    return {track:dst.stream.getAudioTracks()[0],stop:()=>{try{ctx.close()}catch(e){}}};
+    return {track:dst.stream.getAudioTracks()[0],stop:()=>{try{out.gain.setTargetAtTime(0,ctx.currentTime,.1);setTimeout(()=>{try{out.disconnect()}catch(e){}},400)}catch(e){}releaseAudio()}};
   }catch(e){return null}
 }
 function startRec(opt={}){
@@ -163,7 +164,9 @@ function startRec(opt={}){
   const mime=pickMime();AR.chunks=[];AR.maxS=opt.auto?10:30;
   const st=AR.cv.captureStream(30);
   if(opt.auto){AR.music=arMusic();if(AR.music&&AR.music.track)st.addTrack(AR.music.track)}
-  try{AR.rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:5e6}:undefined)}catch(e){toast("Nahrávanie zlyhalo",e.message);return}
+  try{AR.rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:5e6}:undefined)}
+  catch(e){ // niektoré prehliadače nevedia nahrať zvuk z webu – skúsime bez neho
+    try{st.getAudioTracks().forEach(t=>st.removeTrack(t));AR.rec=new MediaRecorder(st,mime?{mimeType:mime}:undefined);toast("🎵 Video bude bez hudby","Tento prehliadač nevie nahrať zvuk")}catch(e2){toast("Nahrávanie zlyhalo",e2.message);return}}
   AR.rec.ondataavailable=e=>{if(e.data&&e.data.size)AR.chunks.push(e.data)};
   AR.rec.onstop=()=>{
     if(AR.music){AR.music.stop();AR.music=null}
@@ -223,6 +226,8 @@ function selfieSticker(c,W,H,now){
 }
 
 $("arAuto").onclick=()=>{
+  // zvuk musí vzniknúť priamo pri ťuknutí, inak ho iPhone zablokuje
+  try{AR.actx=AR.actx||new (window.AudioContext||window.webkitAudioContext)();unlockAudio(AR.actx)}catch(e){}
   if(AR.facing==="user"){AR.facing="environment";arCam()}
   AR.auto=!AR.auto;AR.cd=0;haptic(10);
   $("arAuto").textContent=AR.auto?"🎯 Auto: čakám…":"🎯 Auto-záber";
