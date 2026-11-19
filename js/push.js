@@ -48,15 +48,15 @@ function momentUI(mo){
   const bar=$("momentBar");
   if(mo&&mo.live){
     const left=Math.max(0,Math.round((mo.end-(Date.now()+(SOC.skew||0)))/1000));
-    bar.classList.add("on");
+    bar.classList.add("on");document.body.classList.add("moment");
     bar.textContent=`🔴 SPOLOČNÝ MOMENT · ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")} · ${nf(mo.n||0)} 👀`;
     const d=dayKey();
     if(PUSH.joined!==d){PUSH.joined=d;LS.set("ctl_momJoined",d);
       fetch(SOC.api+"/api/moment",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid})}).then(r=>r.json()).then(j=>{SOC.data.moment.n=j.n;toast("👀 Si pri tom!","Spolu s tebou sa práve pozerá hore "+nf(j.n)+" "+ludia(j.n));confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
     }
     if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data&&SOC.data.moment),1000);
-    if(left<=0){bar.classList.remove("on");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500)}
-  }else{bar.classList.remove("on");if(momTimer){clearInterval(momTimer);momTimer=null}}
+    if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500)}
+  }else{bar.classList.remove("on");document.body.classList.remove("moment");if(momTimer){clearInterval(momTimer);momTimer=null}}
 }
 $("momentBar").onclick=()=>{haptic(10);openAR()};
 ACH.push({id:"moment",i:"👀",n:"Spoločný moment",c:()=>false});

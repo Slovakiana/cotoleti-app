@@ -294,7 +294,9 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 .rec i{display:block;width:52px;height:52px;border-radius:50%;background:var(--red);transition:.2s}
 .rec.on i{width:26px;height:26px;border-radius:6px}
 /* spoločný moment */
-#momentBar{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + 8px);z-index:50;color:#fff;padding:9px 14px;border-radius:99px;font-weight:800;font-size:13.5px;white-space:nowrap;background:rgba(255,79,109,.85);box-shadow:0 0 30px rgba(255,79,109,.6);animation:pulse 1.4s infinite}
+#momentBar{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + 8px);z-index:50;color:#fff;padding:9px 14px;border-radius:99px;font-weight:800;font-size:13.5px;white-space:nowrap;background:#ff3b5c;box-shadow:0 0 30px rgba(255,79,109,.6);animation:glow 1.4s infinite}
+@keyframes glow{50%{box-shadow:0 0 55px rgba(255,79,109,.95)}}
+body.moment #top{opacity:0;pointer-events:none}
 #momentBar.on{display:block}
 /* sledovaný let */
 #trackCard{display:none;margin:0 12px 12px;padding:16px}
