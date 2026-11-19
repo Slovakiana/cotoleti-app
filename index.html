@@ -321,7 +321,20 @@ body.moment #top{opacity:0;pointer-events:none}
 .gOpts button:active{transform:scale(.98)}
 .gSkip{display:block;margin:10px auto 0;color:var(--mut);font-size:13px}
 /* holo kartičky */
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.mini{padding:0;border-radius:10px;overflow:hidden;line-height:0;position:relative;transition:transform .15s}
+.mini:active{transform:scale(.95)}
+.mini svg{width:100%;height:auto;display:block}
+.mini.r::after,.mini.l::after,.mini.shiny::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:300% 300%;animation:shine 3.5s ease-in-out infinite;mix-blend-mode:overlay;pointer-events:none}
+@keyframes shine{0%{background-position:100% 100%}60%,100%{background-position:0 0}}
+.atTabs{display:flex;gap:6px;margin-top:10px}
+.atTabs button{flex:1;padding:9px;border-radius:12px;font-size:13.5px;background:rgba(255,255,255,.06);border:1px solid var(--gline);color:var(--mut)}
+.atTabs button.on{background:rgba(255,255,255,.16);color:#fff}
+.holoWrap{position:relative;width:min(84vw,360px);margin:0 auto;line-height:0;border-radius:20px;overflow:hidden;transform:perspective(800px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .08s;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.holoWrap svg{width:100%;height:auto;display:block}
+.holoWrap::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.4) 46%,rgba(255,255,255,0) 60%);background-size:260% 260%;background-position:var(--mx,50%) var(--my,50%);mix-blend-mode:overlay;pointer-events:none}
+.holoWrap.r::before,.holoWrap.l::before,.holoWrap.shiny::before{content:"";position:absolute;inset:0;z-index:1;background:conic-gradient(from var(--ang,0deg) at 50% 50%,#ff4fd8,#4fc3ff,#6dffc7,#ffcf4f,#ff4fd8);opacity:.22;mix-blend-mode:color-dodge;pointer-events:none}
+.holoWrap.l::before{background:conic-gradient(from var(--ang,0deg),#fff3b0,#ffcf4f,#fff,#d9a000,#fff3b0);opacity:.3}
 .hcard{position:relative;aspect-ratio:3/4;border-radius:20px;padding:12px;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,.25);text-align:left;background:var(--cg);box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .hcard::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.45) 45%,rgba(255,255,255,0) 60%);background-size:250% 250%;background-position:var(--mx,50%) var(--my,50%);mix-blend-mode:overlay;pointer-events:none}
 .hcard.r::before,.hcard.l::before{content:"";position:absolute;inset:0;background:conic-gradient(from var(--ang,0deg),#ff4fd8,#4fc3ff,#6dffc7,#ffcf4f,#ff4fd8);opacity:.28;mix-blend-mode:color-dodge;pointer-events:none}
@@ -520,7 +533,7 @@ body.moment #top{opacity:0;pointer-events:none}
     <div class="ach" id="c-ach"></div>
   </section>
   <section class="card glass">
-    <div class="lbl"><span>🃏 Zberateľské kartičky</span><span id="c-cardsN"></span></div>
+    <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
     <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
   <details class="set glass" id="settings">
@@ -622,6 +635,7 @@ body.moment #top{opacity:0;pointer-events:none}
 <script src="js/wrapped.js"></script>
 <script src="js/push.js"></script>
 <script src="js/track.js"></script>
+<script src="js/catalog.js"></script>
 <script src="js/cards.js"></script>
 <script src="js/main.js"></script>
 </body>
