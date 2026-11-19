@@ -149,13 +149,7 @@ function arMusic(){
   try{
     const ctx=AR.actx||(AR.actx=new (window.AudioContext||window.webkitAudioContext)());unlockAudio(ctx);
     const dst=ctx.createMediaStreamDestination(),out=ctx.createGain();out.gain.value=.5;out.connect(dst);out.connect(ctx.destination);
-    const bpm=112,beat=60/bpm,t0=ctx.currentTime+.05;
-    for(let i=0;i<Math.ceil(12/beat);i++){const t=t0+i*beat;
-      const k=ctx.createOscillator(),kg=ctx.createGain();k.frequency.setValueAtTime(140,t);k.frequency.exponentialRampToValueAtTime(40,t+.15);kg.gain.setValueAtTime(.9,t);kg.gain.exponentialRampToValueAtTime(.001,t+.25);k.connect(kg).connect(out);k.start(t);k.stop(t+.3);
-      if(i%2){const n=ctx.createBufferSource(),b=ctx.createBuffer(1,ctx.sampleRate*.05,ctx.sampleRate),d=b.getChannelData(0);for(let j=0;j<d.length;j++)d[j]=(Math.random()*2-1)*(1-j/d.length);n.buffer=b;const hg=ctx.createGain();hg.gain.value=.25;const hp=ctx.createBiquadFilter();hp.type="highpass";hp.frequency.value=6000;n.connect(hp).connect(hg).connect(out);n.start(t+beat/2)}
-      const notes=[220,277,330,262];const o=ctx.createOscillator(),og=ctx.createGain();o.type="triangle";o.frequency.value=notes[Math.floor(i/4)%4];og.gain.setValueAtTime(.12,t);og.gain.exponentialRampToValueAtTime(.001,t+beat*.9);o.connect(og).connect(out);o.start(t);o.stop(t+beat)}
-    // „whoosh“ pri prelete
-    const w=ctx.createBufferSource(),wb=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate),wd=wb.getChannelData(0);for(let j=0;j<wd.length;j++)wd[j]=(Math.random()*2-1)*Math.sin(Math.PI*j/wd.length);w.buffer=wb;const bp=ctx.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(300,t0+3);bp.frequency.exponentialRampToValueAtTime(3000,t0+6);const wg=ctx.createGain();wg.gain.value=.4;w.connect(bp).connect(wg).connect(out);w.start(t0+3);
+    musicBed(ctx,out,ctx.currentTime+.05,12);
     return {track:dst.stream.getAudioTracks()[0],stop:()=>{try{out.gain.setTargetAtTime(0,ctx.currentTime,.1);setTimeout(()=>{try{out.disconnect()}catch(e){}},400)}catch(e){}releaseAudio()}};
   }catch(e){return null}
 }
