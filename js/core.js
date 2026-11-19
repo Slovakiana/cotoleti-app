@@ -150,14 +150,15 @@ async function tryCombo(i,r,signal){
   if(!j.ac&&!j.aircraft&&!("states" in j))throw new Error("zlý formát");
   return {i,list:c.s.parse(j)};
 }
-function gotPlanes(i,list){
+function gotPlanes(i,list){S.failN=0;S.nextTry=0;
   S.raw=list;S.rawT=Date.now();comboIdx=i;LS.set("ctl_combo",i);err("");
   const c=COMBOS[i];
   setStatus(S.raw.filter(a=>!a.ground).length+" lietadiel · "+c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:""),true);
   tick(true);
 }
-async function fetchPlanes(){
+async function fetchPlanes(force){
   if(!S.pos||busy)return;
+  if(!force&&S.nextTry&&Date.now()<S.nextTry)return;
   busy=true;
   const r=+$("radius").value;
   try{
@@ -171,7 +172,8 @@ async function fetchPlanes(){
       ctl.abort();gotPlanes(x.i,x.list);
     }catch(e){
       setStatus("Bez spojenia",false);
-      err("Nepodarilo sa načítať dáta o lietadlách. Skúsim znova o 10 s. Detail: "+fails.slice(0,8).join(" · "));
+      S.failN=(S.failN||0)+1;S.nextTry=Date.now()+Math.min(60000,10000*S.failN);
+      err("Nepodarilo sa načítať dáta o lietadlách. Skúsim znova o "+Math.round(Math.min(60000,10000*S.failN)/1000)+" s. Detail: "+fails.join(" · "));
       if(!S.raw.length)$("h-type").textContent="Poloha OK ✓ Dáta o lietadlách zatiaľ nedostupné…";
     }
   }finally{busy=false}
