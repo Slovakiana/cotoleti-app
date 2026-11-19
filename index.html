@@ -349,6 +349,39 @@ body.moment #top{opacity:0;pointer-events:none}
 .recBar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 6px}
 .recBar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--red))}
 .frLine{margin-top:6px;font-size:13.5px;color:var(--mint);font-weight:600}
+/* zlaté lietadlo */
+#hero.golden{border-color:#ffcf4f;box-shadow:var(--gshadow),0 0 0 1px rgba(255,207,79,.7),0 0 70px rgba(255,207,79,.35)}
+.goldTag{display:none;font:900 11px/1 var(--disp);color:#2a1d00;background:linear-gradient(90deg,#ffe27a,#ffb800);padding:6px 9px;border-radius:99px}
+#hero.golden .goldTag{display:inline-block}
+#hero.golden .rar,#hero.golden .lookup{display:none!important}
+.chip.goldOn{background:linear-gradient(90deg,rgba(255,207,79,.35),rgba(255,184,0,.2));border-color:#ffcf4f}
+/* pošta */
+.mailList{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.mailList button{padding:14px;border-radius:16px;text-align:left;font-weight:600;font-size:16px;background:rgba(255,255,255,.08);border:1px solid var(--gline)}
+.post{border-radius:24px;padding:22px;background:linear-gradient(150deg,#fff8ec,#ffe7c7);color:#2b1d0e;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.post::before{content:"";position:absolute;inset:8px;border:2px dashed rgba(193,120,40,.35);border-radius:18px;pointer-events:none}
+.post .stamp{position:absolute;top:18px;right:18px;width:66px;height:78px;border:3px dotted #c1782a;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:34px;background:#fff;transform:rotate(6deg)}
+.post .k{font:700 12px var(--body);letter-spacing:.12em;text-transform:uppercase;color:#b06a1e}
+.post .m{font:900 30px/1.1 var(--disp);letter-spacing:-.02em;margin:14px 80px 14px 0}
+.post .f{font-size:15px;color:#6b4a2a}
+.post .via{margin-top:12px;font-size:13px;color:#8a6a4a}
+/* liga */
+.lgTabs{display:flex;gap:6px;margin-top:10px}
+.lgTabs button{flex:1;padding:8px;border-radius:12px;font-size:13px;background:rgba(255,255,255,.06);border:1px solid var(--gline);color:var(--mut)}
+.lgTabs button.on{background:rgba(255,255,255,.16);color:#fff}
+/* súboj kartičiek */
+.cdRow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-top:12px}
+.cdRow .vs{font:900 20px var(--disp);color:var(--mut)}
+.cdCard{line-height:0;border-radius:10px;overflow:hidden}
+.cdCard svg{width:100%;height:auto}
+.cdBack{aspect-ratio:600/840;border-radius:10px;background:repeating-linear-gradient(45deg,#1b2a6b 0 10px,#24357f 10px 20px);display:flex;align-items:center;justify-content:center;font-size:40px}
+.cdPick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px;max-height:40vh;overflow:auto}
+.cdPick button{padding:0;line-height:0;border-radius:8px;overflow:hidden;border:2px solid transparent}
+.cdPick button.sel{border-color:var(--mint)}
+.cdPick button:disabled{opacity:.25}
+.cdPick svg{width:100%;height:auto}
+.cdCat{font:900 24px var(--disp);margin-top:6px}
+.cdScore{font:900 34px var(--disp);text-align:center;margin:10px 0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -389,7 +422,7 @@ body.moment #top{opacity:0;pointer-events:none}
   </section>
 
   <section id="hero" class="glass">
-    <div class="kick"><span id="h-lbl">Práve nad tebou</span><span class="sp"></span><span class="rar" id="h-rar" style="display:none"></span><span class="lookup" id="lookupBadge">POZRI HORE 👆</span></div>
+    <div class="kick"><span id="h-lbl">Práve nad tebou</span><span class="sp"></span><span class="rar" id="h-rar" style="display:none"></span><span class="lookup" id="lookupBadge">POZRI HORE 👆</span><span class="goldTag">🏆 ZLATÉ LIETADLO</span></div>
     <div class="big" id="h-call">—</div>
     <div class="sub" id="h-type">Čakám na polohu…</div>
     <div id="guess"><div class="gOpts" id="gOpts"></div><button class="gSkip" id="gSkip">Preskočiť a ukázať</button></div>
@@ -399,7 +432,7 @@ body.moment #top{opacity:0;pointer-events:none}
       <button class="btn sec" id="b-ar">🔭 Nájdi</button>
       <button class="btn ico" id="b-share" aria-label="Zdieľať">↗</button>
     </div>
-    <div class="wavePick" id="wavePick"><button>👋</button><button>❤️</button><button>🇸🇰</button><button>🔥</button><button>😂</button><button>🫡</button></div>
+    <div class="wavePick" id="wavePick"><button>👋</button><button>❤️</button><button>🇸🇰</button><button>🔥</button><button>😂</button><button>🫡</button><button data-mail="1">✉️</button></div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="st3" id="h-st3">
@@ -420,10 +453,11 @@ body.moment #top{opacity:0;pointer-events:none}
   </section>
 
   <div class="chips">
+      <button class="chip glass" id="goldChip" style="display:none"></button>
       <button class="chip glass" id="b-track">✈️ Sleduj let</button>
       <button class="chip glass" id="dailyStrip"><span id="dailyTxt">🎯 Výzvy 0/3</span></button>
       <button class="chip glass gold" id="issStrip" style="display:none"><span id="issTxt"></span></button>
-      <button class="chip glass" id="b-shazam2">👂 Čo to hučí?</button>
+      <button class="chip glass" id="b-sound">🎵 Počúvaj oblohu</button>
       <button class="chip glass" id="installBar" style="display:none"><span id="installTxt">📲 Na plochu</span><span class="x" id="b-installX">✕</span></button>
     </div>
 
@@ -465,9 +499,16 @@ body.moment #top{opacity:0;pointer-events:none}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Kraje</button><button data-t="m">Mestá</button><button data-t="t">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
   </section>
 
+  <section class="card glass" id="weekCard" style="display:none">
+    <div class="lbl"><span>🥇 Najzamávanejšie lietadlo týždňa</span><span id="weekN"></span></div>
+    <div class="trTitle" id="weekT"></div>
+    <div class="trLine" id="weekS"></div>
+    <div class="trActs"><button id="weekShare">📸 Zdieľať</button></div>
+  </section>
   <section class="card glass">
     <div class="lbl"><span>Okolo teba</span><span id="radarCnt"></span></div>
     <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
@@ -523,6 +564,10 @@ body.moment #top{opacity:0;pointer-events:none}
     <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
     <div id="d-list" style="margin-top:6px"></div>
   </section>
+  <section class="card glass" id="teamCard">
+    <div class="lbl"><span>👥 Tím</span><span id="teamRank"></span></div>
+    <div id="teamBox"></div>
+  </section>
   <section class="card glass">
     <div class="lbl"><span>⚔️ Súboj s kamarátom</span></div>
     <div id="duel"><div class="lookSub" style="margin-top:8px">Pošli kamarátovi výzvu. Keď otvorí odkaz, uvidí tvoje skóre.</div></div>
@@ -534,6 +579,7 @@ body.moment #top{opacity:0;pointer-events:none}
   </section>
   <section class="card glass">
     <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
+    <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
     <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
   <details class="set glass" id="settings">
@@ -570,7 +616,7 @@ body.moment #top{opacity:0;pointer-events:none}
 <div id="ar">
   <video id="arVid" playsinline muted autoplay></video>
   <canvas id="arCanvas"></canvas>
-  <div class="arTop"><div class="logo" style="font-size:16px">AR obloha</div><button class="ghost" id="arClose">✕ Zavrieť</button></div>
+  <div class="arTop"><button class="ghost" id="arAuto">🎯 Auto-záber</button><button class="ghost" id="arClose">✕ Zavrieť</button></div>
   <div class="arHint" id="arHint">Namier mobil na oblohu</div>
   <div class="arCtl"><button class="ghost" id="arSnap">📷</button><button id="arRec" class="rec"><i></i></button><button class="ghost" id="arFlip">🤳</button></div>
 </div>
@@ -600,6 +646,18 @@ body.moment #top{opacity:0;pointer-events:none}
   <div id="cardBig"></div>
   <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardClose" style="flex:0 0 60px">✕</button></div>
 </div></div>
+
+<div class="modal" id="mailM"><div class="mcard">
+  <div class="lbl"><span>✉️ Pošli pozdrav lietadlom</span></div>
+  <div class="trTitle" style="margin-top:10px" id="mailTo">Lietadlo ho doručí ľuďom, nad ktorými preletí</div>
+  <div class="mailList" id="mailList"></div>
+  <div class="acts"><button class="ghost" id="mailClose" style="flex:1">Zrušiť</button></div>
+</div></div>
+<div class="modal" id="postM" style="align-items:center"><div style="width:100%;max-width:420px">
+  <div class="post" id="postCard"></div>
+  <div class="acts"><button class="btn pri" id="postReply">↩️ Pošli pozdrav späť</button><button class="btn ico" id="postShare" style="flex:0 0 56px">↗</button><button class="btn ico" id="postClose" style="flex:0 0 56px">✕</button></div>
+</div></div>
+<div class="modal" id="cdM"><div class="mcard" id="cdBox"></div></div>
 
 <div id="toast" class="glass"><b id="toastT"></b><span id="toastS"></span></div>
 
@@ -635,8 +693,14 @@ body.moment #top{opacity:0;pointer-events:none}
 <script src="js/wrapped.js"></script>
 <script src="js/push.js"></script>
 <script src="js/track.js"></script>
+<script src="js/towns.js"></script>
 <script src="js/catalog.js"></script>
 <script src="js/cards.js"></script>
+<script src="js/mail.js"></script>
+<script src="js/golden.js"></script>
+<script src="js/teams.js"></script>
+<script src="js/duel.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

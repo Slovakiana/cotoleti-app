@@ -44,7 +44,7 @@ function shzDone(){
     <div class="qbox">🤯 Zvuk je pomalší ako lietadlo. Počuješ ho tam, kde bolo pred ${nf(delay)} sekundami – odvtedy preletelo ďalších ${nf(back/1000,1)} km. Pozri sa ${a.trk!=null?"viac na "+dirL(a.trk):"pred zvuk"}!</div>`;
   ping("u");
 }
-$("b-shazam").onclick=shazam;$("b-shazam2").onclick=shazam;
+$("b-shazam").onclick=shazam;
 $("shzClose").onclick=()=>{shzStop();$("shz").classList.remove("on")};
 
 /* ============ 🗺️ Mapa trasy ============ */
@@ -187,6 +187,7 @@ function checkDuelLink(){
   try{history.replaceState(null,"",location.pathname)}catch(e){}
 }
 $("duelGo").onclick=()=>$("duelM").classList.remove("on");
+addEventListener("hashchange",()=>checkDuelLink());
 $("b-duel").onclick=sendDuel;
 $("nick").value=LS.get("ctl_nick","");
 $("nick").onchange=()=>LS.set("ctl_nick",$("nick").value.trim());

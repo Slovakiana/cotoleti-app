@@ -1,0 +1,62 @@
+"use strict";
+/* ============ 🏆 Zlaté lietadlo dňa + 🥇 lietadlo týždňa ============ */
+const GOLD={g:null,alerted:LS.get("ctl_goldAlert",""),won:LS.get("ctl_goldWon","")};
+function goldActive(){return GOLD.g&&GOLD.g.state===0}
+function goldenHex(){return goldActive()?GOLD.g.hex:null}
+function goldRender(){
+  const g=GOLD.g,ch=$("goldChip");
+  if(!g){ch.style.display="none";return}
+  ch.style.display="";ch.classList.toggle("goldOn",g.state===0);
+  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · nikto ho ešte nemá`:g.state===1?`🏆 Zlaté lietadlo chytil${g.winner&&g.winner.n?" "+g.winner.n:""}${g.winner&&g.winner.town?" ("+g.winner.town+")":""}`:"🏆 Zlaté lietadlo uletelo nechytené 😢";
+  // je nad nami?
+  const here=goldActive()&&S.list.find(a=>a.hex===g.hex&&a.el>2);
+  $("hero").classList.toggle("golden",!!(here&&S.top&&S.top.hex===g.hex));
+  const key=dayKey()+g.seq;
+  if(here&&GOLD.alerted!==key){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 ZLATÉ LIETADLO je nad tebou!","Zamávaj ako prvý na Slovensku 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
+}
+async function goldTap(){
+  const g=GOLD.g;if(!g)return;
+  if(g.state!==0){toast(g.state===1?"🏆 Dnes ho už niekto chytil":"🏆 Uletelo","Ďalšie zlaté lietadlo sa objaví neskôr. Majú ho len 4 denne.");return}
+  const here=S.list.find(a=>a.hex===g.hex);
+  if(here){S.pick=g.hex;tick(true);window.scrollTo({top:0,behavior:"smooth"});return}
+  toast("🏆 Hľadám zlaté lietadlo…",g.call);
+  const ac=await trFetch(g.call);
+  if(!ac||!S.pos){toast("🏆 "+g.call,"Práve nevysiela polohu – skús o chvíľu");return}
+  const {d,b}=distBear(S.pos.lat,S.pos.lon,ac.lat,ac.lon);
+  toast("🏆 "+g.call+" je "+nf(d/1000)+" km od teba","Smer "+dirL(b)+(d<60000?" – môže preletieť blízko!":" – sleduj, či sa priblíži"));
+}
+$("goldChip").onclick=goldTap;
+function goldenWon(a){
+  const key=dayKey()+(GOLD.g?GOLD.g.seq:"");GOLD.won=key;LS.set("ctl_goldWon",key);
+  COL.pts+=100;LS.set("ctl_col",COL);grantAch("golden");
+  setTimeout(()=>{toast("🏆 CHYTIL SI ZLATÉ LIETADLO DŇA!","+100 bodov · si prvý na Slovensku!","#ffcf4f");confetti(160);haptic([80,50,80,50,80,50,400]);ping("l")},600);
+}
+ACH.push({id:"golden",i:"🏆",n:"Zlaté lietadlo",c:()=>false});
+// lietadlo týždňa
+function weekRender(w){
+  if(!w||!w.n){$("weekCard").style.display="none";return}
+  $("weekCard").style.display="";
+  const al=w.call?AIRLINES[w.call.slice(0,3)]||"":"",tn=TYPES[w.type]||w.type||"";
+  $("weekT").textContent=(al?al+" ":"")+(w.call||w.hex.toUpperCase())+(w.dest?" → "+w.dest:"");
+  $("weekS").textContent=[tn,`zamávalo mu ${nf(w.n)} ${ludia(w.n)}`].filter(Boolean).join(" · ");
+  $("weekN").textContent=nf(w.n)+" 👋";
+  GOLD.week=w;
+}
+$("weekShare").onclick=()=>{
+  const w=GOLD.week;if(!w)return;const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#2a1d00");g.addColorStop(.5,"#b8860b");g.addColorStop(1,"#ffcf4f");x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.textAlign="center";x.fillStyle="#fff";x.font="200px sans-serif";x.fillText("🥇",W/2,520);
+  x.font="700 40px Inter, sans-serif";x.fillText("NAJZAMÁVANEJŠIE LIETADLO TÝŽDŇA",W/2,640);
+  const al=w.call?AIRLINES[w.call.slice(0,3)]||"":"";
+  x.font="900 110px Unbounded, sans-serif";x.fillText(w.call||"",W/2,820);
+  x.font="600 50px Inter, sans-serif";x.fillText([al,TYPES[w.type]||w.type].filter(Boolean).join(" · "),W/2,910);
+  if(w.dest){x.font="800 64px Unbounded, sans-serif";x.fillText("→ "+w.dest,W/2,1030)}
+  x.font="900 150px Unbounded, sans-serif";x.fillText(nf(w.n)+" 👋",W/2,1300);
+  x.font="600 44px Inter, sans-serif";x.fillText("ľudí zo Slovenska mu zamávalo",W/2,1380);
+  x.fillStyle="#2a1d00";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-190);
+  x.font="600 36px Inter, sans-serif";x.fillText(location.host,W/2,H-125);
+  c.toBlob(b=>b&&shareBlob(b,"lietadlo-tyzdna.png",`🥇 Najzamávanejšie lietadlo týždňa: ${w.call}${al?" ("+al+")":""} – zamávalo mu ${w.n} ľudí zo Slovenska! ✈️👋 ${al?"#"+al.replace(/\s/g,""):""} ${location.href}`),"image/png");
+};
+HOOKS.social=HOOKS.social||[];
+HOOKS.social.push(D=>{GOLD.g=D.golden||null;goldRender();weekRender(D.weekTop)});
+HOOKS.live.push(()=>{if(goldActive())goldRender()});

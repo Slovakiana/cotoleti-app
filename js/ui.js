@@ -72,7 +72,8 @@ function skyFrame(){
   const list=enrich(now).filter(a=>a.el!=null&&a.el>-2).slice(0,45);SKY.pts=[];
   const topHex=S.top&&S.top.hex;
   list.slice().reverse().forEach(a=>{
-    const p=skyProj(a.bear,a.el),isTop=a.hex===topHex,col=isTop?"#6dffc7":RAR[rarity(a)].col;
+    const p=skyProj(a.bear,a.el),isTop=a.hex===topHex,isGold=typeof goldenHex==="function"&&a.hex===goldenHex(),col=isGold?"#ffcf4f":isTop?"#6dffc7":RAR[rarity(a)].col;
+    if(isGold){c.fillStyle="rgba(255,207,79,.25)";c.beginPath();c.arc(p.x,p.y,22+4*Math.sin(now/200),0,7);c.fill()}
     SKY.pts.push({hex:a.hex,x:p.x,y:p.y});
     // stopa
     let tr=SKY.trails.get(a.hex);if(!tr){tr=[];SKY.trails.set(a.hex,tr)}

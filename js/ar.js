@@ -1,6 +1,6 @@
 "use strict";
 /* ============ AR obloha na canvase (dá sa nahrávať) ============ */
-const AR={facing:"environment",stream:null,raf:null,rec:null,chunks:[],recStart:0,cv:null,ctx:null,vid:null,d:1,hint:"",calib:LS.get("ctl_arcal",0)};
+const AR={auto:false,cd:0,maxS:30,music:null,facing:"environment",stream:null,raf:null,rec:null,chunks:[],recStart:0,cv:null,ctx:null,vid:null,d:1,hint:"",calib:LS.get("ctl_arcal",0)};
 const HFOV=52,VFOV=68;
 
 async function openAR(){
@@ -113,6 +113,18 @@ function arFrame(){
       hint=(hint?hint.charAt(0).toUpperCase()+hint.slice(1):"Tam")+" → "+titleOf(top.a);
     }else hint=inView?(inView===1?"1 lietadlo v zábere":inView+" lietadlá v zábere"):"Namier mobil na oblohu 👆";
   }
+  // 🎯 automatický záber nad hlavou
+  if(AR.auto&&!selfie){
+    const recOn=AR.rec&&AR.rec.state==="recording";
+    const tp=S.top&&enrich(now).find(a=>a.hex===S.top.hex);
+    if(!recOn&&!AR.cd&&tp){const ap=approach(tp);
+      if(tp.el>=55||(ap&&ap.t>0&&ap.t<4&&ap.el>=45))AR.cd=now+3000;
+      else{const sec=ap&&ap.t>0?Math.round(ap.t):null;hint="🎯 Čakám na lietadlo nad tebou"+(sec&&sec<900?` · ~${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`:"")}}
+    if(AR.cd&&!recOn){const left=Math.ceil((AR.cd-now)/1000);
+      if(left<=0){AR.cd=0;startRec({auto:true})}
+      else{c.fillStyle="rgba(0,0,0,.35)";c.fillRect(0,0,W,H);c.fillStyle="#fff";c.textAlign="center";c.font="900 140px Unbounded, sans-serif";c.fillText(String(left),W/2,H/2+50);hint="Priprav sa… mier hore 👆"}}
+    if(recOn&&now-AR.recStart<2500){c.fillStyle="#6dffc7";c.textAlign="center";c.font="900 30px Unbounded, sans-serif";c.shadowColor="#000";c.shadowBlur=12;c.fillText("NADO MNOU ↑",W/2,150);c.shadowBlur=0}
+  }
   // zameriavač
   c.strokeStyle="rgba(255,255,255,.45)";c.lineWidth=1;c.beginPath();c.arc(W/2,H/2,16,0,7);c.stroke();
   // vodoznak (viditeľný aj vo videu)
@@ -123,7 +135,7 @@ function arFrame(){
     const s=(now-AR.recStart)/1000;
     c.fillStyle="#ff4f6d";c.beginPath();c.arc(W-74,110,6,0,7);c.fill();
     c.fillStyle="#fff";c.font="700 13px Inter, sans-serif";c.textAlign="left";c.fillText("REC "+Math.floor(s)+" s",W-62,115);
-    if(s>=30)stopRec();
+    if(s>=AR.maxS)stopRec();
   }
   if(hint!==AR.hint){AR.hint=hint;$("arHint").textContent=hint}
 }
@@ -133,12 +145,29 @@ function pickMime(){
   if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return "";
   return ["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(m=>MediaRecorder.isTypeSupported(m))||"";
 }
-function startRec(){
+function arMusic(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)(),dst=ctx.createMediaStreamDestination(),out=ctx.createGain();out.gain.value=.5;out.connect(dst);
+    const bpm=112,beat=60/bpm,t0=ctx.currentTime+.05;
+    for(let i=0;i<Math.ceil(12/beat);i++){const t=t0+i*beat;
+      const k=ctx.createOscillator(),kg=ctx.createGain();k.frequency.setValueAtTime(140,t);k.frequency.exponentialRampToValueAtTime(40,t+.15);kg.gain.setValueAtTime(.9,t);kg.gain.exponentialRampToValueAtTime(.001,t+.25);k.connect(kg).connect(out);k.start(t);k.stop(t+.3);
+      if(i%2){const n=ctx.createBufferSource(),b=ctx.createBuffer(1,ctx.sampleRate*.05,ctx.sampleRate),d=b.getChannelData(0);for(let j=0;j<d.length;j++)d[j]=(Math.random()*2-1)*(1-j/d.length);n.buffer=b;const hg=ctx.createGain();hg.gain.value=.25;const hp=ctx.createBiquadFilter();hp.type="highpass";hp.frequency.value=6000;n.connect(hp).connect(hg).connect(out);n.start(t+beat/2)}
+      const notes=[220,277,330,262];const o=ctx.createOscillator(),og=ctx.createGain();o.type="triangle";o.frequency.value=notes[Math.floor(i/4)%4];og.gain.setValueAtTime(.12,t);og.gain.exponentialRampToValueAtTime(.001,t+beat*.9);o.connect(og).connect(out);o.start(t);o.stop(t+beat)}
+    // „whoosh“ pri prelete
+    const w=ctx.createBufferSource(),wb=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate),wd=wb.getChannelData(0);for(let j=0;j<wd.length;j++)wd[j]=(Math.random()*2-1)*Math.sin(Math.PI*j/wd.length);w.buffer=wb;const bp=ctx.createBiquadFilter();bp.type="bandpass";bp.frequency.setValueAtTime(300,t0+3);bp.frequency.exponentialRampToValueAtTime(3000,t0+6);const wg=ctx.createGain();wg.gain.value=.4;w.connect(bp).connect(wg).connect(out);w.start(t0+3);
+    return {track:dst.stream.getAudioTracks()[0],stop:()=>{try{ctx.close()}catch(e){}}};
+  }catch(e){return null}
+}
+function startRec(opt={}){
   if(!AR.cv.captureStream||!window.MediaRecorder){toast("Nahrávanie tu nejde","Tento prehliadač ho nepodporuje – skús fotku 📷");return}
-  const mime=pickMime();AR.chunks=[];
-  try{AR.rec=new MediaRecorder(AR.cv.captureStream(30),mime?{mimeType:mime,videoBitsPerSecond:5e6}:undefined)}catch(e){toast("Nahrávanie zlyhalo",e.message);return}
+  const mime=pickMime();AR.chunks=[];AR.maxS=opt.auto?10:30;
+  const st=AR.cv.captureStream(30);
+  if(opt.auto){AR.music=arMusic();if(AR.music&&AR.music.track)st.addTrack(AR.music.track)}
+  try{AR.rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:5e6}:undefined)}catch(e){toast("Nahrávanie zlyhalo",e.message);return}
   AR.rec.ondataavailable=e=>{if(e.data&&e.data.size)AR.chunks.push(e.data)};
   AR.rec.onstop=()=>{
+    if(AR.music){AR.music.stop();AR.music=null}
+    if(AR.auto){AR.auto=false;$("arAuto").classList.remove("on");$("arAuto").textContent="🎯 Auto-záber";grantAch("autoshot")}
     const type=(AR.rec.mimeType||mime||"video/webm").split(";")[0],blob=new Blob(AR.chunks,{type});
     if(!blob.size){toast("Video je prázdne","Skús to znova");return}
     grantAch("video");
@@ -192,3 +221,11 @@ function selfieSticker(c,W,H,now){
   const p=pax(a);c.fillText([a.alt!=null?nf(a.alt/1000,1)+" km nado mnou":"",p>=10?"~"+nf(p)+" ľudí na palube":""].filter(Boolean).join(" · "),bx+18,by+124);
   return "Selfie s lietadlom nad hlavou 🤳 – nahraj alebo odfoť";
 }
+
+$("arAuto").onclick=()=>{
+  if(AR.facing==="user"){AR.facing="environment";arCam()}
+  AR.auto=!AR.auto;AR.cd=0;haptic(10);
+  $("arAuto").textContent=AR.auto?"🎯 Auto: čakám…":"🎯 Auto-záber";
+  if(AR.auto)toast("🎯 Auto-záber zapnutý","Namier mobil hore. Keď bude lietadlo nad tebou, sám natočí 10 s aj s hudbou 🎵");
+};
+ACH.push({id:"autoshot",i:"🎯",n:"Auto-záber",c:()=>false});
