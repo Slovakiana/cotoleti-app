@@ -293,6 +293,47 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 .rec{width:74px;height:74px;border-radius:50%;padding:0;background:rgba(255,255,255,.2);border:4px solid #fff;display:flex;align-items:center;justify-content:center}
 .rec i{display:block;width:52px;height:52px;border-radius:50%;background:var(--red);transition:.2s}
 .rec.on i{width:26px;height:26px;border-radius:6px}
+/* spoločný moment */
+#momentBar{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + 8px);z-index:50;color:#fff;padding:9px 14px;border-radius:99px;font-weight:800;font-size:13.5px;white-space:nowrap;background:rgba(255,79,109,.85);box-shadow:0 0 30px rgba(255,79,109,.6);animation:pulse 1.4s infinite}
+#momentBar.on{display:block}
+/* sledovaný let */
+#trackCard{display:none;margin:0 12px 12px;padding:16px}
+#trackCard.on{display:block}
+.trTitle{font:800 20px/1.15 var(--disp);letter-spacing:-.02em;margin:8px 0 4px}
+.trLine{font-size:14px;color:var(--mut);margin-top:2px}
+.trEta{margin-top:10px;font-weight:700;color:var(--mint)}
+.trActs{display:flex;gap:8px;margin-top:12px}
+.trActs button{flex:1;padding:11px 8px;border-radius:16px;font-size:14px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid var(--gline)}
+.trActs button.p{background:var(--mint);color:#04140e;border:0}
+#pushAsk{display:none;margin:0 12px 12px;padding:16px}
+#pushAsk.on{display:block}
+.field{width:100%;margin-top:8px}
+.trChoice{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.trChoice button{padding:15px;border-radius:18px;font-weight:700;text-align:left;background:rgba(255,255,255,.08);border:1px solid var(--gline)}
+.trChoice button small{display:block;font-weight:500;color:var(--mut);font-size:12.5px;margin-top:2px}
+/* tipovačka */
+#guess{display:none;margin-top:10px}
+#guess.on{display:block}
+.gOpts{display:flex;flex-direction:column;gap:8px}
+.gOpts button{padding:14px;border-radius:18px;font:700 17px var(--body);background:rgba(255,255,255,.1);border:1px solid var(--gline);text-align:left}
+.gOpts button:active{transform:scale(.98)}
+.gSkip{display:block;margin:10px auto 0;color:var(--mut);font-size:13px}
+/* holo kartičky */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.hcard{position:relative;aspect-ratio:3/4;border-radius:20px;padding:12px;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,.25);text-align:left;background:var(--cg);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.hcard::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.45) 45%,rgba(255,255,255,0) 60%);background-size:250% 250%;background-position:var(--mx,50%) var(--my,50%);mix-blend-mode:overlay;pointer-events:none}
+.hcard.r::before,.hcard.l::before{content:"";position:absolute;inset:0;background:conic-gradient(from var(--ang,0deg),#ff4fd8,#4fc3ff,#6dffc7,#ffcf4f,#ff4fd8);opacity:.28;mix-blend-mode:color-dodge;pointer-events:none}
+.hcard .em{font-size:44px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+.hcard .nm{font:800 15px/1.15 var(--disp);letter-spacing:-.01em}
+.hcard .mt{font-size:11.5px;opacity:.85;margin-top:4px}
+.hcard .rr{position:absolute;top:10px;right:10px;font:700 9.5px var(--body);letter-spacing:.08em;padding:4px 7px;border-radius:99px;background:rgba(0,0,0,.35)}
+.hcard .cnt{position:absolute;bottom:10px;right:12px;font:800 13px var(--disp)}
+#cardM .hcard{width:min(78vw,330px);margin:0 auto;transition:transform .1s;transform:perspective(700px) rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg))}
+#cardM .hcard .em{font-size:96px}#cardM .hcard .nm{font-size:24px}#cardM .hcard .mt{font-size:14px}
+.recLine{font-size:12.5px;color:var(--mut);margin-top:4px}
+.recBar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 6px}
+.recBar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--red))}
+.frLine{margin-top:6px;font-size:13.5px;color:var(--mint);font-weight:600}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -325,6 +366,7 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 <main id="v-now" class="view on">
   <section id="stage">
     <canvas id="sky"></canvas>
+    <button id="momentBar"></button>
     <div class="stageTxt">
       <div class="pax" id="paxLine"></div>
       <div class="live" id="liveLine"></div>
@@ -335,6 +377,7 @@ details.set[open]>summary::after{transform:rotate(90deg)}
     <div class="kick"><span id="h-lbl">Práve nad tebou</span><span class="sp"></span><span class="rar" id="h-rar" style="display:none"></span><span class="lookup" id="lookupBadge">POZRI HORE 👆</span></div>
     <div class="big" id="h-call">—</div>
     <div class="sub" id="h-type">Čakám na polohu…</div>
+    <div id="guess"><div class="gOpts" id="gOpts"></div><button class="gSkip" id="gSkip">Preskočiť a ukázať</button></div>
 
     <div class="acts">
       <button class="btn pri" id="b-wave">👋 Mávni <span class="n" id="waveN" style="display:none">0</span></button>
@@ -362,12 +405,27 @@ details.set[open]>summary::after{transform:rotate(90deg)}
   </section>
 
   <div class="chips">
+      <button class="chip glass" id="b-track">✈️ Sleduj let</button>
       <button class="chip glass" id="dailyStrip"><span id="dailyTxt">🎯 Výzvy 0/3</span></button>
       <button class="chip glass gold" id="issStrip" style="display:none"><span id="issTxt"></span></button>
       <button class="chip glass" id="b-shazam2">👂 Čo to hučí?</button>
       <button class="chip glass" id="installBar" style="display:none"><span id="installTxt">📲 Na plochu</span><span class="x" id="b-installX">✕</span></button>
     </div>
 
+  <section class="glass" id="trackCard">
+    <div class="kick"><span id="trKick">Sleduješ let</span><span class="sp"></span><button id="trClose" style="font-size:18px;color:var(--mut)">✕</button></div>
+    <div class="trTitle" id="trTitle">—</div>
+    <div class="trLine" id="trLine"></div>
+    <div class="trEta" id="trEta"></div>
+    <div class="frLine" id="trWaves"></div>
+    <div class="trActs"><button class="p" id="trNotify">🔔 Upozorni ma</button><button id="trShare">📤 Pošli odkaz</button></div>
+  </section>
+  <section class="glass" id="pushAsk">
+    <div class="kick"><span>🔔 Spoločný moment</span></div>
+    <div class="trTitle">Raz denne sa celé Slovensko naraz pozrie hore</div>
+    <div class="trLine" id="pushAskTxt">Pošleme ti upozornenie v náhodnej chvíli. Máš 3 minúty pozrieť sa na oblohu – spolu so všetkými ostatnými.</div>
+    <div class="trActs"><button class="p" id="pushYes">Zapnúť</button><button id="pushNo">Teraz nie</button></div>
+  </section>
   <details class="more glass" id="more">
     <summary>Viac o tomto lete</summary>
     <div class="moreIn">
@@ -391,6 +449,7 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
+    <div id="recBox"></div>
     <div id="kraje" style="margin-top:8px"></div>
   </section>
 
@@ -459,12 +518,14 @@ details.set[open]>summary::after{transform:rotate(90deg)}
     <div class="ach" id="c-ach"></div>
   </section>
   <section class="card glass">
-    <div class="lbl" style="margin-bottom:6px"><span>Zbierka typov</span></div>
-    <div id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
+    <div class="lbl"><span>🃏 Zberateľské kartičky</span><span id="c-cardsN"></span></div>
+    <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
   <details class="set glass" id="settings">
     <summary>⚙️ Nastavenia</summary>
     <div class="sr"><div>😎 Prezývka<small>Uvidí ju kamarát vo výzve</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
+    <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment"></button></div>
+    <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess"></button></div>
     <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice"></button></div>
     <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib"></button></div>
     <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych"></button></div>
@@ -496,7 +557,7 @@ details.set[open]>summary::after{transform:rotate(90deg)}
   <canvas id="arCanvas"></canvas>
   <div class="arTop"><div class="logo" style="font-size:16px">AR obloha</div><button class="ghost" id="arClose">✕ Zavrieť</button></div>
   <div class="arHint" id="arHint">Namier mobil na oblohu</div>
-  <div class="arCtl"><button class="ghost" id="arSnap">📷</button><button id="arRec" class="rec"><i></i></button><button class="ghost" id="arCal">🧭</button></div>
+  <div class="arCtl"><button class="ghost" id="arSnap">📷</button><button id="arRec" class="rec"><i></i></button><button class="ghost" id="arFlip">🤳</button></div>
 </div>
 
 <!-- MOJA OBLOHA -->
@@ -507,6 +568,23 @@ details.set[open]>summary::after{transform:rotate(90deg)}
   <div class="wtap"><div id="wprev"></div><div id="wnext"></div></div>
   <div class="wacts" id="wacts" style="display:none"><button class="cta" id="wshare">📸 Zdieľať do stories</button><button class="btn ico" style="flex:none;width:100%;padding:14px" id="wduel">⚔️ Vyzvi kamaráta</button></div>
 </div>
+
+<div class="modal" id="trackM"><div class="mcard">
+  <div class="lbl"><span>✈️ Sleduj let</span></div>
+  <div class="trTitle" style="margin-top:12px">Ktorý let?</div>
+  <input class="field" id="trInput" placeholder="napr. FR1234 alebo W6 2201" autocapitalize="characters" autocorrect="off">
+  <input class="field" id="trLabel" placeholder="Kto letí? (nepovinné, napr. Mama)" maxlength="30">
+  <div class="msg" id="trErr"></div>
+  <div class="trChoice">
+    <button id="trFriend">👀 Letí niekto blízky<small>Dáme ti vedieť, keď bude nad tebou – zamávaš mu</small></button>
+    <button id="trMe">🧳 Letím ja<small>Pošli odkaz kamošom, nech ti zamávajú. Po pristátí uvidíš, koľko ich bolo.</small></button>
+  </div>
+  <div class="acts"><button class="ghost" id="trCancel" style="flex:1">Zrušiť</button></div>
+</div></div>
+<div class="modal" id="cardM" style="align-items:center"><div style="width:100%;max-width:420px">
+  <div id="cardBig"></div>
+  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardClose" style="flex:0 0 60px">✕</button></div>
+</div></div>
 
 <div id="toast" class="glass"><b id="toastT"></b><span id="toastS"></span></div>
 
@@ -540,6 +618,9 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 <script src="js/extras.js"></script>
 <script src="js/social.js"></script>
 <script src="js/wrapped.js"></script>
+<script src="js/push.js"></script>
+<script src="js/track.js"></script>
+<script src="js/cards.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

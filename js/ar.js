@@ -1,6 +1,6 @@
 "use strict";
 /* ============ AR obloha na canvase (dá sa nahrávať) ============ */
-const AR={stream:null,raf:null,rec:null,chunks:[],recStart:0,cv:null,ctx:null,vid:null,d:1,hint:"",calib:LS.get("ctl_arcal",0)};
+const AR={facing:"environment",stream:null,raf:null,rec:null,chunks:[],recStart:0,cv:null,ctx:null,vid:null,d:1,hint:"",calib:LS.get("ctl_arcal",0)};
 const HFOV=52,VFOV=68;
 
 async function openAR(){
@@ -9,8 +9,12 @@ async function openAR(){
   AR.cv=$("arCanvas");AR.ctx=AR.cv.getContext("2d");AR.vid=$("arVid");
   sizeAR();
   cancelAnimationFrame(AR.raf);arFrame();
+  await arCam();
+}
+async function arCam(){
+  if(AR.stream){AR.stream.getTracks().forEach(x=>x.stop());AR.stream=null}
   try{
-    AR.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
+    AR.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:AR.facing},width:{ideal:1280},height:{ideal:720}},audio:false});
     AR.vid.srcObject=AR.stream;await AR.vid.play().catch(()=>{});
   }catch(e){toast("Kamera nie je povolená","Ukážem aspoň štítky na oblohe")}
 }
@@ -76,11 +80,14 @@ function arFrame(){
   const c=AR.ctx,d=AR.d,W=AR.cv.width/d,H=AR.cv.height/d,now=Date.now();
   c.setTransform(d,0,0,d,0,0);
   const v=AR.vid;
-  if(v&&v.readyState>=2&&v.videoWidth){const k=Math.max(W/v.videoWidth,H/v.videoHeight),w=v.videoWidth*k,h=v.videoHeight*k;c.drawImage(v,(W-w)/2,(H-h)/2,w,h)}
+  const selfie=AR.facing==="user";
+  if(v&&v.readyState>=2&&v.videoWidth){const k=Math.max(W/v.videoWidth,H/v.videoHeight),w=v.videoWidth*k,h=v.videoHeight*k;
+    if(selfie){c.save();c.translate(W,0);c.scale(-1,1);c.drawImage(v,(W-w)/2,(H-h)/2,w,h);c.restore()}else c.drawImage(v,(W-w)/2,(H-h)/2,w,h)}
   else{const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#070b18");g.addColorStop(1,"#1b2a6b");c.fillStyle=g;c.fillRect(0,0,W,H)}
   const night=typeof SPACE!=="undefined"&&SPACE.sunAlt()<-4;
   let hint="";
-  if(S.camHead==null){hint="Čakám na kompas… pohni mobilom do osmičky"}
+  if(selfie){hint=selfieSticker(c,W,H,now)}
+  else if(S.camHead==null){hint="Čakám na kompas… pohni mobilom do osmičky"}
   else{
     const head=S.camHead+AR.calib,pitch=S.camPitch;
     const proj=(az,el)=>{const dx=wrap180(az-head),dy=el-pitch;return {dx,dy,x:W/2+dx/HFOV*W,y:H/2-dy/VFOV*H,in:Math.abs(dx)<HFOV/2+6&&Math.abs(dy)<VFOV/2+6}};
@@ -157,7 +164,8 @@ async function shareBlob(blob,name,text){
 $("arRec").onclick=()=>{if(AR.rec&&AR.rec.state==="recording")stopRec();else startRec()};
 $("arSnap").onclick=snapAR;
 // kalibrácia: namier na najbližšie lietadlo/ISS v strede a ťukni
-$("arCal").onclick=()=>{
+$("arFlip").onclick=()=>{AR.facing=AR.facing==="user"?"environment":"user";haptic(10);arCam()};
+if($("arCal"))$("arCal").onclick=()=>{
   if(S.camHead==null){toast("Kompas ešte nebeží","Pohni mobilom do osmičky");return}
   const target=S.top||null;
   if(!target){AR.calib=0;LS.set("ctl_arcal",0);toast("Kalibrácia zrušená","");return}
@@ -165,3 +173,22 @@ $("arCal").onclick=()=>{
   AR.calib=wrap180(a.bear-S.camHead);LS.set("ctl_arcal",AR.calib);
   toast("🧭 Skalibrované","Namieril si na "+titleOf(a)+" – štítky sedia na oblohu");
 };
+
+/* ---- 🤳 selfie s lietadlom nad hlavou ---- */
+function selfieSticker(c,W,H,now){
+  const a=S.top;
+  // šípka hore
+  const ay=110+6*Math.sin(now/300);
+  c.fillStyle="#6dffc7";c.shadowColor="#6dffc7";c.shadowBlur=20;c.beginPath();c.moveTo(W/2,ay);c.lineTo(W/2+22,ay+30);c.lineTo(W/2+8,ay+30);c.lineTo(W/2+8,ay+58);c.lineTo(W/2-8,ay+58);c.lineTo(W/2-8,ay+30);c.lineTo(W/2-22,ay+30);c.closePath();c.fill();c.shadowBlur=0;
+  const bx=16,bw=W-32,by=H-385,bh=150;
+  c.fillStyle="rgba(5,7,15,.62)";rrect(c,bx,by,bw,bh,24);c.fill();c.strokeStyle="rgba(255,255,255,.25)";c.lineWidth=1;c.stroke();
+  c.textAlign="left";c.fillStyle="rgba(255,255,255,.75)";c.font="700 12px Inter, sans-serif";c.fillText("NADO MNOU PRÁVE LETÍ ↑",bx+18,by+28);
+  if(!a){c.fillStyle="#fff";c.font="900 26px Unbounded, sans-serif";c.fillText("Čisté nebo ☁️",bx+18,by+70);return "Selfie s oblohou 🤳"}
+  const m=S.meta.get(a.hex),rt=routeOf(a),al=airlineOf(a);
+  let big=rt?"→ "+citySk(rt.destination.municipality):(al||titleOf(a)),fs=32;
+  c.fillStyle="#fff";c.font=`900 ${fs}px Unbounded, sans-serif`;while(c.measureText(big).width>bw-36&&fs>18){fs-=2;c.font=`900 ${fs}px Unbounded, sans-serif`}c.fillText(big,bx+18,by+72);
+  c.fillStyle="rgba(255,255,255,.85)";c.font="500 14px Inter, sans-serif";
+  c.fillText([al,typeName(a,m)].filter(Boolean).join(" · "),bx+18,by+100);
+  const p=pax(a);c.fillText([a.alt!=null?nf(a.alt/1000,1)+" km nado mnou":"",p>=10?"~"+nf(p)+" ľudí na palube":""].filter(Boolean).join(" · "),bx+18,by+124);
+  return "Selfie s lietadlom nad hlavou 🤳 – nahraj alebo odfoť";
+}

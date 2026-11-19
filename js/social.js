@@ -19,8 +19,10 @@ async function socPoll(){
   if(!SOC.api||SOC.busy||document.hidden)return;
   SOC.busy=true;
   try{
-    const hexes=S.list.filter(a=>a.el>0).slice(0,15).map(a=>a.hex).join(",");
-    const r=await fetch(`${SOC.api}/api/sky?id=${SOC.cid}&k=${krajOf(S.pos)}&hexes=${hexes}`,{cache:"no-store"});
+    const hs=S.list.filter(a=>a.el>0).slice(0,15).map(a=>a.hex);
+    if(typeof TR!=="undefined"&&TR&&TR.hex&&!hs.includes(TR.hex))hs.push(TR.hex);
+    const fr=LS.get("ctl_friends",[]).map(f=>f.id).filter(Boolean).slice(0,40).join(",");
+    const r=await fetch(`${SOC.api}/api/sky?id=${SOC.cid}&k=${krajOf(S.pos)}&hexes=${hs.join(",")}${fr?"&f="+fr:""}`,{cache:"no-store"});
     if(r.ok){SOC.data=await r.json();socRender()}
   }catch(e){}
   SOC.busy=false;
@@ -37,7 +39,10 @@ function socRender(){
     const a=D.active||0,w=D.wavesToday||0;
     $("liveLine").innerHTML=`🟢 ${nf(a)} ${ludia(a)} na Slovensku práve ${a===1?"pozerá":a<5?"pozerajú":"pozerá"} hore`+(w?` · 👋 ${nf(w)} dnes`:"");
     const kr=(D.kraje||[]).filter(x=>x.n>0);
-    $("krajeCard").style.display=kr.length?"":"none";
+    $("krajeCard").style.display=kr.length||D.allTime?"":"none";
+    const rec=D.record;
+    $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Rekord dňa: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · chýba "+nf(Math.max(0,rec.n-w+1))}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
+    if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
     if(kr.length){
       const max=Math.max(...kr.map(x=>x.n)),me=krajOf(S.pos);
       $("wavesToday").textContent=nf(w)+" 👋";
@@ -45,6 +50,7 @@ function socRender(){
     }
   }
   waveInfo(S.top);
+  if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
 }
 function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}
@@ -52,7 +58,9 @@ function waveInfo(a){
   const p=planeWaves(a.hex),mine=SOC.waved[dayKey()+a.hex];
   $("waveN").style.display=p.total?"":"none";$("waveN").textContent=nf(p.total);
   const em=Object.entries(p.emoji||{}).sort((x,y)=>y[1]-x[1]).slice(0,4).map(([e,n])=>e+" "+n).join("  ");
-  $("waveInfo").innerHTML=p.total?`${mine?"Ty a ďalší – zamávalo":"Zamávalo"} mu už <b>${nf(p.total)} ${ludia(p.total)}</b> · ${em}`:"Buď prvý, kto mu dnes zamáva 👋";
+  const fr=SOC.data&&SOC.data.friends&&SOC.data.friends[a.hex];
+  const frTxt=fr&&fr.length?`<div class="frLine">👯 ${fr.slice(0,3).map(f=>esc(f.n)).join(", ")} ${fr.length===1?"mu zamával":"mu zamávali"} ${(()=>{const m=Math.round((Date.now()-Math.max(...fr.map(f=>f.t)))/60000);return m<1?"práve teraz":"pred "+m+" min"})()}</div>`:"";
+  $("waveInfo").innerHTML=(p.total?`${mine?"Ty a ďalší – zamávalo":"Zamávalo"} mu už <b>${nf(p.total)} ${ludia(p.total)}</b> · ${em}`:"Buď prvý, kto mu dnes zamáva 👋")+frTxt;
 }
 HOOKS.heroStatic.push(a=>waveInfo(a));
 
@@ -89,7 +97,7 @@ async function doWave(e){
   ping("u");
   if(!SOC.api){toast(e+" Zamával si lietadlu"+to,"+2 body");return}
   try{
-    const r=await fetch(`${SOC.api}/api/wave`,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({hex:a.hex,id:SOC.cid,emoji:e,k:krajOf(S.pos)})});
+    const r=await fetch(`${SOC.api}/api/wave`,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({hex:a.hex,id:SOC.cid,emoji:e,k:krajOf(S.pos),nick:LS.get("ctl_nick","")})});
     const j=await r.json();
     if(j&&j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex];waveInfo(a)}
     const tot=j&&j.plane?j.plane.total:1;

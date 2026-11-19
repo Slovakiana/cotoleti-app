@@ -83,7 +83,7 @@ function skyFrame(){
       c.shadowColor="#6dffc7";c.shadowBlur=18}
     c.save();c.translate(p.x,p.y);c.rotate(rad((a.trk??0)+(S.heading!=null?-S.heading:0)));
     const s=isTop?1.5:1;c.fillStyle=col;c.beginPath();c.moveTo(0,-7*s);c.lineTo(5*s,6*s);c.lineTo(0,3.5*s);c.lineTo(-5*s,6*s);c.closePath();c.fill();c.restore();c.shadowBlur=0;
-    if(isTop||list.length<8||a.el>45){const rt=routeOf(a),lab=titleOf(a)+(isTop&&rt?" → "+citySk(rt.destination.municipality):"");
+    if(isTop||list.length<8||a.el>45){const rt=routeOf(a),hide=$("guess").classList.contains("on")&&$("guess").dataset.hex===a.hex,lab=titleOf(a)+(isTop&&rt&&!hide?" → "+citySk(rt.destination.municipality):"");
       c.font=(isTop?"700 12px":"600 10px")+" Inter, sans-serif";c.textAlign="left";c.fillStyle=isTop?"#fff":"rgba(255,255,255,.75)";
       c.shadowColor="rgba(0,0,0,.6)";c.shadowBlur=6;c.fillText(lab,p.x+(isTop?18:9),p.y);c.shadowBlur=0}
   });
@@ -102,6 +102,7 @@ function skyTap(ev){
 
 /* ============ hlavná karta ============ */
 function heroEmpty(){
+  $("guess").classList.remove("on");
   $("h-lbl").textContent=t("now");$("h-rar").style.display="none";
   $("h-call").textContent=S.pos?t("empty"):"Pozri hore";
   $("h-type").textContent=S.pos?(S.raw.length?t("emptySub"):"Hľadám lietadlá…"):"Čakám na polohu…";
@@ -125,6 +126,7 @@ function renderHeroStatic(a){
   else $("h-photo").classList.remove("on");
   $("h-quip").textContent=quip(a,m);
   $("hero").classList.toggle("emerg",a.sq==="7700");
+  guessUI(a,rt);
   $("h-links").innerHTML=`<a href="https://globe.adsb.lol/?icao=${esc(a.hex)}" target="_blank" rel="noopener">Mapa letu ↗</a>`+
     (a.call?`<a href="https://www.flightradar24.com/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">Flightradar24 ↗</a>`:"")+
     (a.reg?`<a href="https://www.jetphotos.com/registration/${encodeURIComponent(a.reg)}" target="_blank" rel="noopener">Fotky ↗</a>`:"");
@@ -176,7 +178,7 @@ function renderCol(){
   $("c-ach").innerHTML=ACH.map(x=>`<div class="${COL.ach[x.id]?"got":""}"><i>${x.i}</i>${x.n}</div>`).join("");
   $("c-achN").textContent=Object.keys(COL.ach).length+"/"+ACH.length;
   const order={l:0,r:1,u:2,c:3};
-  $("c-types").innerHTML=types.length?types.sort((x,y)=>order[x[1].r]-order[y[1].r]||y[1].n-x[1].n).map(([k,v])=>`<div class="row"><div class="l"><b><span class="badge" style="background:${RAR[v.r].col}"></span>${esc(v.name||k)}</b><div>${RAR[v.r].n} · ${esc(k)}</div></div><div class="r"><b>${v.n}×</b></div></div>`).join(""):'<div class="lookSub">Zatiaľ prázdna. Pozri hore!</div>';
+  if(typeof renderCards==="function")renderCards();
   const nk=LS.get("ctl_nick","");$("meName").textContent=nk||"Spotter";
   if(typeof spotterType==="function"){const st=spotterType();$("c-type").textContent=st.e+" "+st.n}
 }
@@ -392,3 +394,28 @@ async function boot(){
   else if(LS.get("ctl_onb",0)&&S.pos){startGps();fetchPlanes(true);bindOri()}
   else{$("onb").style.display="flex"}
 }
+
+/* ============ 🤔 Tipovačka „Kam letí?“ ============ */
+const GPOOL=["Londýn","Paríž","Rím","Antalya","Istanbul","Dubaj","Barcelona","Madrid","Amsterdam","Frankfurt","Mníchov","Viedeň","Varšava","Atény","Miláno","Kodaň","Štokholm","Dublin","Lisabon","Tel Aviv","Káhira","Hurghada","Larnaka","Bukurešť","Sofia","Belehrad","Moskva","Kyjev","Doha","Málaga","Mallorca","Tenerife","Helsinki","Oslo","Zürich","Brusel","Praha","Budapešť","Krakov","Neapol","Benátky","Split","New York","Bangkok"];
+S.guess=LS.get("ctl_guess",true);let GUESSED=LS.get("ctl_guessed",{});
+function guessUI(a,rt){
+  const box=$("guess");
+  if(!S.guess||!rt||GUESSED[a.hex]||S.pick===a.hex&&GUESSED[a.hex]){box.classList.remove("on");return}
+  const right=citySk(rt.destination.municipality||rt.destination.name);if(!right){box.classList.remove("on");return}
+  const h=hash(a.hex),pool=GPOOL.filter(c=>c!==right),opts=[right,pool[h%pool.length],pool[(h>>>7)%pool.length]===pool[h%pool.length]?pool[(h+3)%pool.length]:pool[(h>>>7)%pool.length]];
+  const sh=opts.map((c,i)=>({c,k:hash(a.hex+c)})).sort((x,y)=>x.k-y.k).map(x=>x.c);
+  $("h-call").textContent="Kam letí? 🤔";$("h-quip").textContent="";
+  $("gOpts").innerHTML=sh.map(c=>`<button data-c="${esc(c)}">${esc(c)}</button>`).join("");
+  box.classList.add("on");box.dataset.hex=a.hex;box.dataset.right=right;
+}
+function guessDone(hex){GUESSED[hex]=Date.now();const ks=Object.keys(GUESSED);if(ks.length>300)ks.slice(0,ks.length-300).forEach(k=>delete GUESSED[k]);LS.set("ctl_guessed",GUESSED);$("guess").classList.remove("on");if(S.top)renderHeroStatic(S.top)}
+$("gOpts").onclick=e=>{
+  const b=e.target.closest("button");if(!b)return;const box=$("guess"),ok=b.dataset.c===box.dataset.right;
+  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);COL.pts+=5;LS.set("ctl_col",COL);toast("🎯 Trafil si! +5 bodov",st>1?"Séria "+st+" za sebou 🔥":"Letí do "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
+  else{LS.set("ctl_gstreak",0);toast("😅 Vedľa!","Letí do "+box.dataset.right);haptic(60)}
+  guessDone(box.dataset.hex);
+};
+$("gSkip").onclick=()=>guessDone($("guess").dataset.hex);
+ACH.push({id:"oracle",i:"🔮",n:"Jasnovidec (5×)",c:()=>false});
+$("t-guess").classList.toggle("on",S.guess);
+$("t-guess").onclick=()=>{S.guess=!S.guess;LS.set("ctl_guess",S.guess);$("t-guess").classList.toggle("on",S.guess);if(S.top)renderHeroStatic(S.top)};
