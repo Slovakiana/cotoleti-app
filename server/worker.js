@@ -410,6 +410,13 @@ export class Sky extends DurableObject {
       this.setMeta("sunwave", d);
       for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray()) this.notify(s.id, "🌊 O 5 minút mávame všetci", "Nedeľná vlna o 18:00. Pomôž svojmu kraju vyhrať.", "./");
     }
+    // 🔥 séria v ohrození: včera mával, dnes ešte nie (o 19:00 SK, raz denne)
+    if (skH === 19 && this.getMeta("streakPush") !== d) {
+      this.setMeta("streakPush", d);
+      const y = this.day(now - 86400e3);
+      for (const s of this.sql.exec("SELECT s.id FROM subs s WHERE EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) AND NOT EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) LIMIT 5000", y, d).toArray())
+        this.notify(s.id, "🔥 Tvoja séria je v ohrození", "Dnes si ešte nikomu nezamával. Pozri hore – stačí jedno lietadlo.", "./");
+    }
     // týždenný súhrn v pondelok ráno
     const wk = this.week(), prev = this.week(now - 7 * 86400e3);
     if (dt.getUTCDay() === 1 && dt.getUTCHours() >= 7 && this.getMeta("weekly") !== prev) {
@@ -583,7 +590,10 @@ export class Sky extends DurableObject {
           this.sql.exec("INSERT INTO totals(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1", d);
         }
       }
-      return json({ok: true, dup: seen, golden, plane: this.plane(d, hex)});
+      // 👯 spoločné mávnutie: kamarát zamával tomu istému lietadlu za posledných 10 minút
+      let together = null;
+      if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
+      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex)});
     }
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;

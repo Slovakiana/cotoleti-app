@@ -111,14 +111,22 @@ const DAILY_POOL=[
   {id:"rare",i:"💎",n:"Ulov vzácne lietadlo",h:"Fialové alebo zlaté na radare",t:a=>["r","l"].includes(rarity(a))},
   {id:"zen",i:"🎯",n:"Ulov lietadlo vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
   {id:"shazam",i:"👂",n:"Vyskúšaj „Čo to hučí?“",h:"Keď počuješ lietadlo",ev:true},
+  // 📅 sviatočné výzvy (len v daný deň, vždy ako prvá)
+  {id:"miki",sp:"12-06",i:"🎅",n:"Mikulášska výzva: ulov 6 lietadiel",h:"Zamávaj 6 rôznym lietadlám · odznak Mikuláš",need:6,t:()=>true,ach:"mikulas"},
+  {id:"civil",sp:"12-07",i:"✈️",n:"Deň civilného letectva: 3 aerolinky",h:"Zamávaj lietadlám 3 rôznych aeroliniek",need:3,key:a=>airlineOf(a),ach:"civil"},
+  {id:"stefanik",sp:"05-04",i:"🇸🇰",n:"Deň Štefánika: ulov lietadlo nad 11 500 m",h:"Na počesť prvého slovenského letca",t:a=>a.alt!=null&&a.alt>11500,ach:"stefanik"},
+  {id:"snp",sp:"08-29",i:"🇸🇰",n:"Výročie SNP: ulov 5 lietadiel",h:"Zamávaj 5 rôznym lietadlám",need:5,t:()=>true},
+  {id:"silvester",sp:"12-31",i:"🎆",n:"Silvester: ulov posledné lietadlo roka",h:"Zamávaj ešte dnes aspoň jednému",t:()=>true,ach:"silvester"},
 ];
+ACH.push({id:"mikulas",i:"🎅",n:"Mikulášsky spotter",c:()=>false},{id:"civil",i:"✈️",n:"Deň civilného letectva",c:()=>false},{id:"stefanik",i:"⭐",n:"Na počesť Štefánika",c:()=>false},{id:"silvester",i:"🎆",n:"Posledné lietadlo roka",c:()=>false});
 const today=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"}).format(new Date());
 let DAILY=LS.get("ctl_daily",null);
 function dailyEnsure(){
   const d=today();
   if(!DAILY||DAILY.date!==d){
-    const prev=DAILY||{streak:0,lastFull:null},h=hash(d),pool=DAILY_POOL.slice(),ids=[];
-    for(let k=0;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}
+    const prev=DAILY||{streak:0,lastFull:null},h=hash(d),pool=DAILY_POOL.filter(q=>!q.sp),ids=[];
+    const sp=DAILY_POOL.find(q=>q.sp===d.slice(5));if(sp)ids.push(sp.id);
+    for(let k=ids.length;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}
     DAILY={date:d,ids,prog:{},done:{},streak:prev.streak||0,lastFull:prev.lastFull||null};
     LS.set("ctl_daily",DAILY);
   }
@@ -128,6 +136,7 @@ function dailyComplete(id){
   const D=dailyEnsure();if(D.done[id])return;
   D.done[id]=Date.now();COL.pts+=10;
   const x=DAILY_POOL.find(q=>q.id===id);
+  if(x&&x.ach)setTimeout(()=>grantAch(x.ach),1500);
   toast("🎯 Výzva splnená! +10 bodov",x.n,"#6dffc7");confetti(40);ping("u");
   // séria rastie už pri prvej splnenej výzve dňa (včera = kalendárny deň, funguje aj pri zmene času)
   if(D.lastDay!==D.date){

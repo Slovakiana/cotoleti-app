@@ -81,6 +81,11 @@ await t("kamarát vidí len prezývku", async () => {
   const s = (await call(`/api/sky?id=${A}&tok=${ha.tok}&lat=48.15&lon=17.11&hexes=aabbcc`)).j;
   assert.deepEqual(s.friends.aabbcc, [{n: "Maťo"}]); assert.ok(Array.isArray(s.krajeWeek));
 });
+await t("spoločné mávnutie s kamarátom", async () => {
+  db.exec(`DELETE FROM wavelog WHERE id='${A}'`); db.exec(`UPDATE wavelog SET t=${Date.now()} WHERE id='${C}'`);
+  const r = await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11});
+  assert.deepEqual(r.j.together, {n: "Maťo"});
+});
 await t("upozornenia len na povolené servery", async () => {
   assert.equal((await call("/api/sub", {id: A, tok: ha.tok, sub: {endpoint: "https://evil.com/x"}})).s, 400);
   assert.equal((await call("/api/sub", {id: A, tok: ha.tok, sub: {endpoint: "https://fcm.googleapis.com/fcm/send/abc"}, lat: 48.1234, lon: 17.5678})).s, 200);

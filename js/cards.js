@@ -148,7 +148,7 @@ let cardK=null;
 $("c-types").onclick=e=>{
   const tb=e.target.closest(".atTabs button");if(tb){atlasMode=tb.dataset.m;renderCards();return}
   const m=e.target.closest(".mini");if(!m)return;const k=m.dataset.k;
-  if(!COL.types[k]){const c=CAT[k];toast("🔒 "+(c?c.name:k),"Ešte si ho neulovil · "+RAR[cardRar(k)].n+". Pozeraj hore!");haptic(20);return}
+  if(!COL.types[k]){openLocked(k);haptic(20);return}
   cardK=k;openCard(k);
 };
 function openCard(k){
@@ -236,3 +236,24 @@ HOOKS.caught.push(a=>{
   const top=$("c-types").querySelector(".atlasTop");if(top&&!$("c-types").querySelector(".monthly"))top.insertAdjacentHTML("afterend",setsHTML());
   $("c-types").querySelectorAll(".mini[data-k]").forEach(m=>{const v=COL.types[m.dataset.k];if(v&&!m.querySelector(".stars"))m.insertAdjacentHTML("beforeend",`<span class="stars" aria-label="Úroveň ${cardLvl(v.n)} zo 4">${stars(cardLvl(v.n))}</span>`)})}}
 {const base=openCard;openCard=function(k){base(k);const v=COL.types[k];if(v)$("cardBig").insertAdjacentHTML("beforeend",`<div class="lookSub" style="text-align:center;margin-top:10px">${stars(cardLvl(v.n))} · ulovená ${v.n}× · ďalšia úroveň pri ${CARD_LV.find(x=>x>v.n)||"max"} úlovkoch</div>`)}}
+
+/* 📖 Encyklopédia: aj neulovené lietadlo má svoju stránku – vieš, čo hľadať */
+function openLocked(k){
+  const c=CAT[k];if(!c){toast("🔒 "+k,"Ešte si ho neulovil. Pozeraj hore!");return}
+  const r=cardRar(k),nf2=n=>n==null?"–":Number(n).toLocaleString("sk-SK");
+  const hint=r==="l"?"Legendárne – nad Slovenskom ho uvidíš len párkrát do roka. Zapni upozornenia.":r==="r"?"Vzácne – občas preletí, najčastejšie na diaľkových linkách vysoko nad nami.":r==="u"?"Menej bežné – oplatí sa pozerať hore ráno a podvečer.":"Bežné – nad Slovenskom lieta denne. Stačí pozrieť hore a zamávať.";
+  $("cardBig").innerHTML=`<div class="mcard lockedCard" style="text-align:left">
+    <div class="lbl"><span>📖 Atlas · č. ${c.no}</span><span>🔒 neulovené</span></div>
+    <div style="font-size:26px;font-weight:900;margin:6px 0 2px">${esc(c.name)}</div>
+    <div class="lookSub">${esc(c.maker)} · ${RAR[r].n}</div>
+    <div class="lockStats">
+      <div><b>${nf2(c.len)} m</b><small>dĺžka</small></div><div><b>${nf2(c.span)} m</b><small>rozpätie</small></div>
+      <div><b>${nf2(c.seats)}</b><small>miest</small></div><div><b>${nf2(c.range)} km</b><small>dolet</small></div>
+      <div><b>${nf2(c.spd)} km/h</b><small>rýchlosť</small></div><div><b>${c.year||"–"}</b><small>prvý let</small></div>
+    </div>
+    <p style="margin:12px 0 6px;line-height:1.45">💡 ${esc(c.fact)}</p>
+    <p class="lookSub" style="margin:0">🔭 ${hint}</p>
+  </div>`;
+  $("cardShare").style.display="none";$("cardM").classList.add("on");
+}
+{const cl=$("cardClose").onclick;$("cardClose").onclick=()=>{$("cardShare").style.display="";cl()}}

@@ -48,7 +48,7 @@ TUI:"TUI",TOM:"TUI",TFL:"TUI",ENT:"Enter Air",AIC:"Air India",SIA:"Singapore Air
 DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",NJE:"NetJets",VJT:"VistaJet",
 RCH:"US Air Force",GAF:"Nemecké letectvo",IAM:"Talianske letectvo",CEF:"České letectvo",PLF:"Poľské letectvo",BAF:"Belgické letectvo",NATO:"NATO",HUF:"Maďarské letectvo",AME:"Španielske letectvo",FAF:"Francúzske letectvo",RRR:"Kráľovské letectvo (RAF)"};
 const LEG=new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","F16","EUFI","GRIF","F18","F15"]);
-const RARE=new Set(["E3TF","E3CF","GLF5","Q4","RQ4","B748","B744","B742","A400","C17","C130","C30J","K35R","IL76","AN12","AN26","MD11","DC10","A346","A343","L39","C27J","SU95","GL7T","B779","B778"]);
+const RARE=new Set(["E3TF","E3CF","GLF5","Q4","RQ4","B748","B744","B742","A400","C17","C130","C30J","K35R","IL76","AN12","AN26","MD11","DC10","A346","A343","L39","C27J","SU95","GL7T","B779","B778","A388"]);
 const WIDE=new Set(["A306","A310","A332","A333","A338","A339","A359","A35K","B762","B763","B764","B772","B77W","B77L","B788","B789","B78X","B753_","B752_"]);
 const HELI=new Set(["EC35","EC45","EC30","EC55","AS50","A109","A139","A169","B06","B407","R44","R22","H60","MI8","S92","B429"]);
 const RAR={c:{n:"Bežné",p:2,col:"#97a3c7"},u:{n:"Nezvyčajné",p:5,col:"#4fc3ff"},r:{n:"Vzácne",p:15,col:"#c77dff"},l:{n:"Legendárne",p:40,col:"#ffcf4f"}};

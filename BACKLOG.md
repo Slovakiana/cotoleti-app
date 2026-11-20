@@ -44,3 +44,10 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - Chyba prihlásenia sa zapíše do /api/err a ukáže v kóde chyby
 - Sezóny (Zima/Jar/Leto/Jeseň) bez mazania zbierky + odznak 100 b za sezónu
 - Súboj kamarátov: mávnutia za týždeň overené serverom
+
+## Hotové 20. 11. 2026 (v23)
+- Spoločné mávnutie: kamarát zamával tomu istému lietadlu do 10 min → +2 body a odznak
+- Push „🔥 séria v ohrození“ o 19:00 (kto včera mával a dnes ešte nie)
+- Sviatočné výzvy: Mikuláš 6. 12., Deň civilného letectva 7. 12., Silvester, Štefánik 4. 5., SNP 29. 8. + odznaky
+- Encyklopédia: neulovené lietadlo v atlase ukáže parametre, zaujímavosť a kde ho hľadať
+- Preklady odložené – zatiaľ len slovenský trh

@@ -36,7 +36,7 @@ const dayKey=()=>SKD.format(new Date());
 const dayAgo=n=>SKD.format(new Date(Date.now()-n*864e5));
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 
-ACH.push({id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
+ACH.push({id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"wave",i:"👋",n:"Zamávaj lietadlu",h:"Ťukni na „Mávni“ pri lietadle nad tebou",ev:true});
 
 async function socPoll(){
@@ -171,6 +171,7 @@ async function doWave(e){
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     credit();toast(e+" Zamávané! +1 bod","Spojenie so serverom zlyhalo ("+code+"), počítame to u teba");return}
   credit();
+  if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");setTimeout(()=>{toast("👯 Spoločné mávnutie!","Aj "+j.together.n+" mu práve mával · +2 body navyše","#7cf3c0");confetti(40)},2200)}
   if(j.golden==="entered")setTimeout(()=>toast("🏆 Si v žrebovaní!","Víťaza vyžrebujeme do 10 minút 🤞","#ffcf4f"),1800);
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);
