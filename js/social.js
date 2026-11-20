@@ -203,8 +203,8 @@ async function friendsRender(){
   const box=$("frList");if(!box||!SOC.api)return;
   try{const r=await apiPost("/api/friends",{});const j=await r.json();const fr=j.friends||[];
     if(!fr.length){box.innerHTML='<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';return}
-    const all=[...fr,{n:"Ty",w:j.me|0,me:1}].sort((a,b)=>(b.w|0)-(a.w|0));
-    box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)} · ${f.w|0} 👋</div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
+    const all=[...fr,{n:"Ty",w:j.me|0,c:j.meC|0,me:1}].sort((a,b)=>(b.w|0)-(a.w|0));
+    box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)} · ${f.w|0} 👋<small>${f.c|0} overených úlovkov ✈️</small></div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
   }catch(e){}
 }
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-unf]");if(!b)return;await apiPost("/api/friends",{remove:b.dataset.unf}).catch(()=>{});toast("Kamarát odobratý","Už neuvidíte svoje mávnutia");friendsRender()});

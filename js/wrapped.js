@@ -98,3 +98,35 @@ $("wshare").onclick=async()=>{
   x.fillStyle="rgba(255,255,255,.85)";x.font="500 36px Inter, sans-serif";x.fillText("Aký spotter typ si ty? → "+APP_HOST,W/2,H-245);
   c.toBlob(b=>b&&shareBlob(b,"moja-obloha.png","Môj spotter typ: "+s.type.e+" "+s.type.n+" ✈️ Aký si ty? "+appLink()+TAGS),"image/png");
 };
+
+/* 🇸🇰 Slovensko <rok> na oblohe – spoločný súhrn (december a január) */
+function yearOf(){const d=new Date();return d.getMonth()===0?d.getFullYear()-1:d.getFullYear()}
+function yearShow(){const d=new Date(),m=d.getMonth();return (m===11||m===0||/rok/.test(location.hash))&&!!SOC.api}
+function yearInit(){if(!$("b-year"))return;$("yearY").textContent=yearOf();$("b-year").hidden=!yearShow();if(/rok/.test(location.hash)&&yearShow())setTimeout(yearOpen,900)}
+async function yearOpen(){
+  $("yearM").classList.add("on");$("yearT").textContent="🇸🇰 Slovensko "+yearOf()+" na oblohe";
+  try{
+    const {ok,j}=await getJSON(SOC.api+"/api/year?y="+yearOf(),8000);if(!ok||!j)throw 0;
+    const KN=k=>(KRAJ[k]||KRAJ.XX)[2];
+    const fd=s=>s?new Date(s+"T12:00:00").toLocaleDateString("sk-SK",{day:"numeric",month:"long"}):"";
+    $("yearBody").innerHTML=`<div class="lookSub">Spolu sme zamávali</div><div class="yBig">${nf(j.waves)}×</div>
+      <div class="lookSub">${nf(j.users)} nových spotterov · ${j.days} dní mávania${j.gold?" · "+j.gold+"× zlaté lietadlo":""}</div>
+      ${j.record?`<div class="ySec">🏆 Rekordný deň</div><div class="yRow"><span>${fd(j.record.day)}</span><b>${nf(j.record.n)} 👋</b></div>`:""}
+      ${j.kraje.length?`<div class="ySec">🗺️ Kraje</div>`+j.kraje.slice(0,3).map((k,i)=>`<div class="yRow"><span>${["🥇","🥈","🥉"][i]} ${esc(KN(k.k))}</span><b>${nf(k.n)}</b></div>`).join(""):""}
+      ${j.towns.length?`<div class="ySec">🏙️ Mestá</div>`+j.towns.slice(0,3).map((t,i)=>`<div class="yRow"><span>${["🥇","🥈","🥉"][i]} ${esc(t.town)}</span><b>${nf(t.n)}</b></div>`).join(""):""}
+      ${j.planes.length?`<div class="ySec">✈️ Najzamávanejšie lietadlá</div>`+j.planes.map((p,i)=>`<div class="yRow"><span>${["🥇","🥈","🥉"][i]} ${esc(p.call||p.hex)}${p.dest?" → "+esc(p.dest):""}</span><b>${nf(p.n)}</b></div>`).join(""):""}
+      <div class="lookSub" style="margin-top:12px">Tvoj rok: ${nf(COL.n)} úlovkov · ${nf(COL.pts)} bodov</div>`;
+    YEAR=j;
+  }catch(e){$("yearBody").innerHTML='<div class="lookSub">Súhrn sa nepodarilo načítať. Skús to o chvíľu.</div>'}
+}
+let YEAR=null;
+if($("b-year")){
+  $("b-year").onclick=yearOpen;
+  $("yearClose").onclick=()=>$("yearM").classList.remove("on");
+  $("yearShare").onclick=async()=>{
+    const url=shareUrl("rok",""),text=YEAR?`🇸🇰 Slovensko ${YEAR.y}: spolu sme lietadlám zamávali ${nf(YEAR.waves)}×! Ja mám ${nf(COL.n)} úlovkov ✈️`:"🇸🇰 Slovensko na oblohe – súhrn roka";
+    try{if(navigator.share){await navigator.share({title:"Slovensko na oblohe",text,url});return}}catch(e){if(e.name==="AbortError")return}
+    try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho ďalej")}catch(e){}
+  };
+  yearInit();
+}

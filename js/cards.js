@@ -155,6 +155,7 @@ function openCard(k){
   const v=COL.types[k];if(!v)return;const r=v.r;
   $("cardBig").innerHTML=`<div class="holoWrap ${r} ${v.shiny?"shiny":""}">${cardSVG(k,v,{id:"b"})}</div>`;
   $("cardM").classList.add("on");haptic(15);bindTilt();
+  if($("cardVideo"))$("cardVideo").hidden=!vidOK();
 }
 $("cardClose").onclick=()=>$("cardM").classList.remove("on");
 function tiltTo(rx,ry){const c=$("cardBig").firstElementChild;if(!c)return;if(typeof RM==="function"&&RM()){rx=0;ry=0}c.style.setProperty("--rx",rx+"deg");c.style.setProperty("--ry",ry+"deg");c.style.setProperty("--mx",(50+ry*3)+"%");c.style.setProperty("--my",(50-rx*3)+"%");c.style.setProperty("--ang",(ry*10+rx*6)+"deg")}
@@ -257,3 +258,53 @@ function openLocked(k){
   $("cardShare").style.display="none";$("cardM").classList.add("on");
 }
 {const cl=$("cardClose").onclick;$("cardClose").onclick=()=>{$("cardShare").style.display="";cl()}}
+const _ol=openLocked;openLocked=k=>{_ol(k);if($("cardVideo"))$("cardVideo").hidden=true};
+
+/* 🎬 6-sekundové video s odhalením kartičky (na TikTok/Reels/stories), bez hudby */
+function vidOK(){return typeof MediaRecorder!=="undefined"&&!!HTMLCanvasElement.prototype.captureStream}
+function vidMime(){for(const m of ["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"])try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}return ""}
+if($("cardVideo"))$("cardVideo").onclick=()=>{
+  const v=COL.types[cardK];if(!v||!vidOK())return;
+  const btn=$("cardVideo");btn.disabled=true;btn.textContent="⏳";
+  const done=()=>{btn.disabled=false;btn.textContent="🎬"};
+  const img=new Image(),W=720,H=1280,CW=560,CH=784;
+  img.onload=()=>{
+    const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+    const stars=Array.from({length:90},()=>[Math.random()*W,Math.random()*H,Math.random()*2+.4,Math.random()*6]);
+    const sp=Array.from({length:40},()=>[Math.random()*Math.PI*2,120+Math.random()*320,Math.random()*.6+.4]);
+    const name=catGuess(cardK).name,shiny=!!v.shiny,col=shiny?"#ff4fd8":{l:"#ffcf4f",r:"#b98bff",u:"#5ec8ff",c:"#c9d3f0"}[v.r]||"#c9d3f0";
+    const mime=vidMime(),st=c.captureStream(30),rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:4e6}:{}),chunks=[];
+    rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+    rec.onstop=()=>{done();const b=new Blob(chunks,{type:(mime||"video/webm").split(";")[0]});shareBlob(b,"kartička."+(b.type.includes("mp4")?"mp4":"webm"),(shiny?"✨ SHINY ":"")+"kartička: "+name+" ✈️ "+appLink()+TAGS)};
+    const T=6000,t0=performance.now();
+    const frame=now=>{
+      const t=Math.min(1,(now-t0)/T),ms=now-t0;
+      const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0d1430");g.addColorStop(1,shiny?"#5a1f6b":"#1b2a6b");x.fillStyle=g;x.fillRect(0,0,W,H);
+      for(const s of stars){x.fillStyle=`rgba(255,255,255,${.3+.3*Math.sin(ms/400+s[3])})`;x.beginPath();x.arc(s[0],s[1],s[2],0,7);x.fill()}
+      x.textAlign="center";x.fillStyle="#fff";x.font="800 34px Unbounded, sans-serif";
+      x.fillText(ms<2200?"Čo som ulovil? 👀":shiny?"✨ SHINY KARTIČKA! ✨":"Nová kartička! ✈️",W/2,150);
+      // otočenie kartičky v 1,4–2,2 s
+      const flip=Math.max(0,Math.min(1,(ms-1400)/800)),sx=Math.abs(Math.cos(flip*Math.PI)),front=flip>=.5;
+      const wob=ms<1400?Math.sin(ms/90)*6*(ms/1400):0,sc=front?1+.06*Math.max(0,1-(ms-2200)/600):1;
+      x.save();x.translate(W/2+wob,H/2-40);x.scale(sx*sc,sc);
+      if(front){
+        if(ms>2200){const a=Math.max(0,1-(ms-2200)/1800);x.shadowColor=col;x.shadowBlur=60+80*a}
+        x.drawImage(img,-CW/2,-CH/2,CW,CH);
+      }else{
+        const bg=x.createLinearGradient(-CW/2,-CH/2,CW/2,CH/2);bg.addColorStop(0,"#26336e");bg.addColorStop(1,"#121a45");
+        x.fillStyle=bg;x.beginPath();x.roundRect(-CW/2,-CH/2,CW,CH,36);x.fill();x.strokeStyle="rgba(255,255,255,.25)";x.lineWidth=4;x.stroke();
+        x.fillStyle="#fff";x.font="900 180px Unbounded, sans-serif";x.textBaseline="middle";x.fillText("?",0,0);x.textBaseline="alphabetic";
+      }
+      x.restore();
+      // iskry po odhalení
+      if(ms>2200){const k=Math.min(1,(ms-2200)/1500);for(const p of sp){const r=p[1]*k,a=(1-k)*p[2];if(a<=0)continue;x.fillStyle=shiny?`rgba(255,120,230,${a})`:`rgba(255,230,120,${a})`;x.beginPath();x.arc(W/2+Math.cos(p[0])*r,H/2-40+Math.sin(p[0])*r,5,0,7);x.fill()}}
+      if(ms>2600){x.globalAlpha=Math.min(1,(ms-2600)/500);x.fillStyle="#fff";x.font="800 38px Unbounded, sans-serif";x.fillText(name,W/2,H-210);
+        x.fillStyle="#6dffc7";x.font="900 40px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-130);
+        x.fillStyle="rgba(255,255,255,.8)";x.font="500 23px Inter, sans-serif";x.fillText("Pozri hore a zamávaj · "+APP_HOST,W/2,H-82);x.globalAlpha=1}
+      if(t<1)requestAnimationFrame(frame);else setTimeout(()=>rec.stop(),120);
+    };
+    rec.start(250);requestAnimationFrame(frame);
+  };
+  img.onerror=done;
+  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(cardSVG(cardK,v,{id:"v"}));
+};

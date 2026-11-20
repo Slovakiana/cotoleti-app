@@ -113,6 +113,10 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY, w INTEGER, n INTEGER);
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
       CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
+      CREATE TABLE IF NOT EXISTS catches(id TEXT, hex TEXT, t INTEGER, PRIMARY KEY(id, hex));
+      CREATE TABLE IF NOT EXISTS mayorm(m TEXT, town TEXT, id TEXT, n INTEGER, PRIMARY KEY(m, town, id));
+      CREATE TABLE IF NOT EXISTS yagg(y TEXT, k TEXT, n INTEGER, PRIMARY KEY(y, k));
+      CREATE TABLE IF NOT EXISTS yplane(y TEXT, hex TEXT, call TEXT, type TEXT, dest TEXT, n INTEGER, PRIMARY KEY(y, hex));
       CREATE INDEX IF NOT EXISTS pres_t ON pres(t);
       CREATE INDEX IF NOT EXISTS mails_dh ON mails(day, hex);
       CREATE TABLE IF NOT EXISTS seen(day TEXT, id TEXT, PRIMARY KEY(day, id));
@@ -156,7 +160,6 @@ export class Sky extends DurableObject {
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE wavelog ADD COLUMN pid TEXT"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS wavelog_pid ON wavelog(pid, day)"); } catch (e) {}
-    try { this.sql.exec("CREATE INDEX IF NOT EXISTS idday_town ON idday(town, day)"); } catch (e) {}
   }
   day(t = Date.now()) { return SKDAY.format(new Date(t)); }
   // meno prejde filtrom aj zoznamom nahlásených mien
@@ -234,6 +237,7 @@ export class Sky extends DurableObject {
         const yr = new Date(now - 365 * 86400e3).toISOString().slice(0, 10);
         this.sql.exec("DELETE FROM nicks WHERE id IN (SELECT id FROM ids WHERE COALESCE(ls, '') < ? AND t < ?)", yr, now - 365 * 86400e3);
         this.sql.exec("DELETE FROM ids WHERE COALESCE(ls, '') < ? AND t < ? AND id NOT IN (SELECT id FROM subs) AND id NOT IN (SELECT id FROM tmembers)", yr, now - 365 * 86400e3);
+        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); }
         if (this.getMeta("rlDay") !== d) { this.setMeta("rlDay", d); this.sql.exec("DELETE FROM rl"); this.sql.exec("DELETE FROM idday WHERE day < ?", d); }
         this.sql.exec("DELETE FROM funnel WHERE day < ?", new Date(now - 60 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM errs WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
@@ -545,6 +549,22 @@ export class Sky extends DurableObject {
       const errors = this.sql.exec("SELECT msg, SUM(n) AS n FROM errs GROUP BY msg ORDER BY n DESC LIMIT 10").toArray();
       return json({retencia: {d7: coh(7), d30: coh(30)}, lievik7dni: funnel, chyby: errors, users: (this.row("SELECT COUNT(*) AS c FROM ids") || {c: 0}).c, pushSubs: (this.row("SELECT COUNT(*) AS c FROM subs") || {c: 0}).c, teams: (this.row("SELECT COUNT(*) AS c FROM teams") || {c: 0}).c, days});
     }
+    if (p === "/api/year") {
+      // 🇸🇰 súhrn roka – spoločný pre všetkých, cache 10 min
+      const Y = /^20\d\d$/.test(qp("y") || "") ? qp("y") : d.slice(0, 4);
+      if (!this._year || this._year.y !== Y || now - this._year.at > 600e3) {
+        const tot = this.row("SELECT SUM(n) AS s, COUNT(*) AS c FROM totals WHERE day LIKE ?", Y + "%") || {};
+        const rec = this.row("SELECT day, n FROM totals WHERE day LIKE ? ORDER BY n DESC LIMIT 1", Y + "%");
+        const kr = this.sql.exec("SELECT substr(k, 3) AS k, n FROM yagg WHERE y=? AND k LIKE 'k:%' AND k <> 'k:XX' ORDER BY n DESC LIMIT 8", Y).toArray();
+        const tw = this.sql.exec("SELECT substr(k, 3) AS town, n FROM yagg WHERE y=? AND k LIKE 't:%' ORDER BY n DESC LIMIT 5", Y).toArray();
+        const pl = this.sql.exec("SELECT hex, call, type, dest, n FROM yplane WHERE y=? ORDER BY n DESC LIMIT 3", Y).toArray();
+        const yS = Date.parse(Y + "-01-01T00:00:00Z"), yE = Date.parse((+Y + 1) + "-01-01T00:00:00Z");
+        const users = (this.row("SELECT COUNT(*) AS c FROM ids WHERE t >= ? AND t < ?", yS, yE) || {c: 0}).c;
+        const gold = (this.row("SELECT COUNT(*) AS c FROM golden WHERE day LIKE ? AND state=1", Y + "%") || {c: 0}).c;
+        this._year = {y: Y, at: now, v: {y: Y, waves: tot.s || 0, days: tot.c || 0, record: rec || null, kraje: kr, towns: tw, planes: pl, users, gold}};
+      }
+      return json(this._year.v);
+    }
     if (p === "/api/vapid") return json({key: (await this.keys()).pub});
     if (p === "/api/wave" && req.method === "POST") {
       const b = await body();
@@ -574,6 +594,8 @@ export class Sky extends DurableObject {
       this.sql.exec("INSERT OR IGNORE INTO wavelog(day, hex, id, t, k, pid, lg) VALUES(?, ?, ?, ?, ?, ?, ?)", d, hex, id, now, k, pdx, league ? 1 : 0);
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
       let golden = false;
+      // ✈️ úlovok overený serverom (lietadlo sme našli v sieti a je blízko)
+      if (!seen && vp.found && vp.km <= 130) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t) VALUES(?, ?, ?)", id, hex, now);
       if (!seen) {
         const town = league ? dd.town : "";
         if (league) this.sql.exec("UPDATE idday SET n = n + 1 WHERE day=? AND id=?", d, id);
@@ -595,6 +617,11 @@ export class Sky extends DurableObject {
         if (league) {
           this.sql.exec("INSERT INTO kraje(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", d, k);
           this.sql.exec("INSERT INTO totals(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1", d);
+          // dlhodobé súhrny: starosta mesiaca a súhrn roka (denné tabuľky sa po týždni mažú)
+          const Y = d.slice(0, 4), yi = (key) => this.sql.exec("INSERT INTO yagg(y, k, n) VALUES(?, ?, 1) ON CONFLICT(y, k) DO UPDATE SET n = n + 1", Y, key);
+          if (town) { this.sql.exec("INSERT INTO mayorm(m, town, id, n) VALUES(?, ?, ?, 1) ON CONFLICT(m, town, id) DO UPDATE SET n = n + 1", d.slice(0, 7), town, id); yi("t:" + town); }
+          yi("k:" + k);
+          if (!vp.priv) { const pl = this.row("SELECT call, type, dest FROM planes WHERE day=? AND hex=?", d, hex) || {}; this.sql.exec("INSERT INTO yplane(y, hex, call, type, dest, n) VALUES(?, ?, ?, ?, ?, 1) ON CONFLICT(y, hex) DO UPDATE SET n = n + 1, call=COALESCE(NULLIF(excluded.call,''), call), dest=COALESCE(NULLIF(excluded.dest,''), dest)", Y, hex, pl.call || "", pl.type || "", pl.dest || ""); }
         }
       }
       // 👯 spoločné mávnutie: kamarát zamával tomu istému lietadlu za posledných 10 minút
@@ -612,11 +639,12 @@ export class Sky extends DurableObject {
       const b = await body(), pd = await this.pid(cleanId(b.id));
       if (b.remove) { const o = String(b.remove).replace(/[^A-Za-z0-9]/g, "").slice(0, 16); this.sql.exec("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", pd, o, o, pd); return json({ok: true}); }
       // týždenné mávnutia overené serverom – súboj kamarátov sa nedá sfalšovať v mobile
+      const cc = x => (this.row("SELECT COUNT(*) AS c FROM catches WHERE id=?", x) || {c: 0}).c;
       const wk0 = this.day(now - ((new Date(now).getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=?", x, wk0) || {c: 0}).c;
       const list = this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", pd).toArray();
       const out = [];
-      for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b)}); }
-      return json({friends: out, me: wk(pd)});
+      for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b), c: ids.length ? cc(ids[0].id) : 0}); }
+      return json({friends: out, me: wk(pd), meC: cc(cleanId(b.id))});
     }
     if (p === "/api/mydata" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id), out = {vytvorene: new Date((this.row("SELECT t FROM ids WHERE id=?", id) || {t: 0}).t).toISOString()};
@@ -675,7 +703,7 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/forget" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
-      for (const t of ["wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+      for (const t of ["catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
       this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
       this.sql.exec("DELETE FROM mails WHERE id=?", id);
       this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
@@ -838,11 +866,10 @@ export class Sky extends DurableObject {
         const mc = this.mayorC || (this.mayorC = new Map()), c = mc.get(mTown);
         let top = c && now - c.t < 60e3 ? c.v : null;
         if (!top) {
-          const m0 = d.slice(0, 8) + "01";
-          top = this.sql.exec("SELECT d.id, SUM(d.n) AS n, x.nick, i.kid FROM idday d LEFT JOIN nicks x ON x.id = d.id LEFT JOIN ids i ON i.id = d.id WHERE d.town=? AND d.day>=? GROUP BY d.id ORDER BY n DESC LIMIT 1", mTown, m0).toArray()[0] || null;
+          top = this.sql.exec("SELECT d.id, d.n, x.nick, i.kid FROM mayorm d LEFT JOIN nicks x ON x.id = d.id LEFT JOIN ids i ON i.id = d.id WHERE d.m=? AND d.town=? ORDER BY d.n DESC LIMIT 1", d.slice(0, 7), mTown).toArray()[0] || null;
           if (mc.size > 3000) mc.clear(); mc.set(mTown, {t: now, v: top});
         }
-        const mine = id.length >= 8 ? (this.row("SELECT SUM(n) AS n FROM idday WHERE town=? AND id=? AND day>=?", mTown, id, d.slice(0, 8) + "01") || {n: 0}).n || 0 : 0;
+        const mine = id.length >= 8 ? (this.row("SELECT n FROM mayorm WHERE m=? AND town=? AND id=?", d.slice(0, 7), mTown, id) || {n: 0}).n || 0 : 0;
         mayor = {town: mTown, nick: top && top.n > 0 ? (top.kid || !top.nick ? "Spotter" : top.nick) : "", n: top ? top.n || 0 : 0, me: !!(top && top.id === id && top.n > 0), mine};
       }
       return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, flags: this.flags()});
@@ -897,6 +924,9 @@ async function sharePage(url, env, ctx) {
     title = m && t ? `🎅 ${m}: Santa preletí 24. 12. o ${t}` : "🎅 Santa nad Slovenskom"; desc = m && t ? "A potom každých 12 minút. Nastavte si budík a mávajte spolu." : "24. 12. od 15:00 preletí nad každým z nás. Zamávaj mu!"; }
   else if (kind === "p" && /^[0-9a-f]{6}$/.test(data)) { const q = k => { const v = cleanName(url.searchParams.get(k), 24) || ""; return k === "m" ? (TOWNS.some(t => t[0] === v) ? v : "") : /^[\p{L} .'-]{2,24}$/u.test(v) ? v : ""; }; const c = (url.searchParams.get("c") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 8), dd = q("d"), m = q("m");
     title = `✈️ ${m ? m + ": práve letí" : "Práve letí"} ${c || "lietadlo"}${dd ? " → " + dd : ""}`; desc = "A čo letí nad tebou? Pozri hore."; }
+  else if (kind === "rok") { hash = "rok"; img = "m/rok"; title = "🇸🇰 Slovensko 2026 na oblohe"; desc = "Koľkokrát sme zamávali, ktoré lietadlo bolo najobľúbenejšie a ktorý kraj vyhral? Pozri súhrn roka."; }
+  // obrázok s mestom pre veľké mestá (pripravené v og/m/)
+  { const m = cleanName(url.searchParams.get("m"), 24) || ""; if ((kind === "santa" || kind === "p") && BIG_TOWNS.includes(m)) img = "m/" + (kind === "santa" ? "santa-" : "let-") + m.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]+/g, "-"); }
   const r = /^[A-Za-z0-9]{16}$/.test(url.searchParams.get("r") || "") ? url.searchParams.get("r") : "";
   if (env.SKY && ctx && ctx.waitUntil) ctx.waitUntil(env.SKY.get(env.SKY.idFromName("slovensko")).fetch(new Request("https://do/api/ev", {method: "POST", body: JSON.stringify({step: "click"})})).catch(() => {}));
   const to = APP_URL + (r ? "?r=" + r : "") + (hash ? "#" + hash : "");

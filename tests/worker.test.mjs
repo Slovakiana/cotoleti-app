@@ -88,7 +88,10 @@ await t("spoločné mávnutie s kamarátom", async () => {
 });
 await t("starosta oblohy", async () => {
   const s = (await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11`, null, "9.9.9.9")).j;
-  assert.ok(s.mayor && s.mayor.town); assert.equal(s.mayor.me, true); assert.equal(s.mayor.nick, "Maťo");
+  assert.ok(s.mayor && s.mayor.town); assert.ok(s.mayor.n >= 1); assert.ok(s.mayor.mine >= 1);
+  db.exec(`UPDATE mayorm SET n = 50 WHERE id='${C}'`);
+  const s2 = (await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11&x=1`, null, "9.9.9.9")).j;
+  assert.equal(s2.mayor.mine, 50);
 });
 await t("upozornenia len na povolené servery", async () => {
   assert.equal((await call("/api/sub", {id: A, tok: ha.tok, sub: {endpoint: "https://evil.com/x"}})).s, 400);
@@ -182,3 +185,18 @@ await t("proxy: cudzí web a cesty zakázané", async () => {
   assert.equal(await pr("https://evil.com/v2/x"), 403);
 });
 console.log(`\n${ok} testov OK`);
+await (async () => {
+  const r = await W.fetch(new Request("https://x.dev/s/santa?m=Banská%20Bystrica&cas=15:24"), {}, null);
+  const h = await r.text(); assert.ok(h.includes("og/m/santa-banska-bystrica.jpg"), "OG s mestom");
+  const r2 = await W.fetch(new Request("https://x.dev/s/rok"), {}, null); assert.ok((await r2.text()).includes("og/m/rok.jpg"));
+  console.log("✓ OG obrázky s mestom");
+})();
+await (async () => {
+  const y = (await call("/api/year")).j; assert.ok(y.waves >= 1 && Array.isArray(y.kraje) && y.planes.length >= 1, JSON.stringify(y));
+  console.log("✓ súhrn roka");
+})();
+await (async () => {
+  const f = (await call("/api/friends", {id: C, tok: hc.tok}, "9.9.9.9")).j;
+  assert.ok(f.meC >= 1, JSON.stringify(f));
+  console.log("✓ úlovky overené serverom");
+})();

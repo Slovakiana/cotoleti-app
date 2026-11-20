@@ -493,6 +493,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 .seenBox{margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(5,10,30,.28);font-size:calc(13px*var(--fs,1));line-height:1.5;color:#fff}.seenBox small{color:rgba(255,255,255,.8)}
 .lockStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.lockStats div{background:rgba(255,255,255,.07);border-radius:12px;padding:8px;text-align:center}.lockStats b{display:block;font-size:calc(15px*var(--fs,1))}.lockStats small{color:#97a3c7;font-size:calc(11px*var(--fs,1))}
 .mayor{margin-top:12px;padding:10px 12px;border-radius:14px;background:linear-gradient(90deg,rgba(255,207,79,.16),rgba(255,207,79,.04));border:1px solid rgba(255,207,79,.25);font-size:calc(14px*var(--fs,1));line-height:1.45}.mayor small{color:#c9d3f0}
+#yearM .mcard{max-height:86vh;overflow-y:auto;background:#0e1430}#yearM .acts{position:sticky;bottom:-1px;background:#0e1430;padding:10px 0 4px}.yearBtn{margin-top:10px;background:linear-gradient(90deg,#0b4ea2,#ee1c25)}.yBig{font-size:calc(44px*var(--fs,1));font-weight:900;line-height:1.05;margin:6px 0}.yRow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}.yRow:last-child{border:0}.ySec{margin-top:14px;font-weight:800}
 </style>
 </head>
 <body>
@@ -678,6 +679,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
       <div><b id="c-r">0</b><span>vzácnych</span></div>
     </div>
     <button class="wrapBtn" id="b-wrapped">✨ Moja obloha – príbeh tvojho týždňa</button>
+    <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
   </section>
   <section class="card glass">
     <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
@@ -776,7 +778,13 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 </div></div>
 <div class="modal" id="cardM" role="dialog" aria-modal="true" style="align-items:center"><div style="width:100%;max-width:420px">
   <div id="cardBig"></div>
-  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
+  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardVideo" aria-label="Video s odhalením kartičky" style="flex:0 0 60px" hidden>🎬</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
+</div></div>
+
+<div class="modal" id="yearM" role="dialog" aria-modal="true" aria-labelledby="yearT"><div class="mcard">
+  <div class="lbl"><span id="yearT">🇸🇰 Súhrn roka</span><button class="btn ico" id="yearClose" aria-label="Zavrieť">✕</button></div>
+  <div id="yearBody"><div class="lookSub">Načítavam…</div></div>
+  <div class="acts" style="margin-top:14px"><button class="btn pri" id="yearShare">📤 Zdieľať súhrn</button></div>
 </div></div>
 
 <div class="modal" id="mailM" role="dialog" aria-modal="true"><div class="mcard">
@@ -861,25 +869,25 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=25"></script>
-<script src="js/ui.js?v=25"></script>
-<script src="js/ar.js?v=25"></script>
-<script src="js/space.js?v=25"></script>
-<script src="js/weather.js?v=25"></script>
-<script src="js/extras.js?v=25"></script>
-<script src="js/social.js?v=25"></script>
-<script src="js/wrapped.js?v=25"></script>
-<script src="js/push.js?v=25"></script>
-<script src="js/track.js?v=25"></script>
-<script src="js/towns.js?v=25"></script>
-<script src="js/catalog.js?v=25"></script>
-<script src="js/cards.js?v=25"></script>
-<script src="js/mail.js?v=25"></script>
-<script src="js/golden.js?v=25"></script>
-<script src="js/teams.js?v=25"></script>
-<script src="js/duel.js?v=25"></script>
-<script src="js/sound.js?v=25"></script>
-<script src="js/santa.js?v=25"></script>
-<script src="js/main.js?v=25"></script>
+<script src="js/core.js?v=26"></script>
+<script src="js/ui.js?v=26"></script>
+<script src="js/ar.js?v=26"></script>
+<script src="js/space.js?v=26"></script>
+<script src="js/weather.js?v=26"></script>
+<script src="js/extras.js?v=26"></script>
+<script src="js/social.js?v=26"></script>
+<script src="js/wrapped.js?v=26"></script>
+<script src="js/push.js?v=26"></script>
+<script src="js/track.js?v=26"></script>
+<script src="js/towns.js?v=26"></script>
+<script src="js/catalog.js?v=26"></script>
+<script src="js/cards.js?v=26"></script>
+<script src="js/mail.js?v=26"></script>
+<script src="js/golden.js?v=26"></script>
+<script src="js/teams.js?v=26"></script>
+<script src="js/duel.js?v=26"></script>
+<script src="js/sound.js?v=26"></script>
+<script src="js/santa.js?v=26"></script>
+<script src="js/main.js?v=26"></script>
 </body>
 </html>

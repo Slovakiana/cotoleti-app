@@ -58,3 +58,11 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 
 ## Hotové 20. 11. 2026 (v25)
 - Dynamic Type: písmo sa riadi veľkosťou textu v iPhone + prepínač „Väčšie písmo“ v nastaveniach
+
+## Hotové 20. 11. 2026 (v26)
+- Úlovky overené serverom (tabuľka catches) – v súboji kamarátov
+- Súhrn roka „Slovensko 2026 na oblohe“ (december–január, /api/year, zdieľanie /s/rok s vlastným obrázkom)
+- Starosta oblohy počíta celý mesiac (tabuľka mayorm – denné tabuľky sa mažú)
+- OG obrázky s mestom pre 10 najväčších miest (Santa aj „práve letí“)
+- 🎬 6 s video s odhalením kartičky (shiny so žiarou), bez hudby, zdieľanie do TikTok/Reels
+- Zostáva: knižnice a fonty priamo v appke (potrebuje sieť na stiahnutie súborov)
