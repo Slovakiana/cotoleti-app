@@ -189,3 +189,50 @@ $("cardShare").onclick=async()=>{
   };
   img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
 };
+
+/* ============ 📚 zberateľské sady, úroveň kartičky a mesačná výzva ============ */
+const SETS=[
+  {id:"a320",i:"✈️",n:"Rodina A320",d:"Najčastejšie lietadlá nad Slovenskom",t:["A319","A320","A321","A20N","A21N"],b:40},
+  {id:"b737",i:"🛫",n:"Rodina 737",d:"Od klasiky po MAX",t:["B737","B738","B739","B38M","B39M"],b:40},
+  {id:"jumbo",i:"🐘",n:"Obri oblohy",d:"Najväčšie dopravné lietadlá",t:["A388","B744","B748","B77W","A35K"],b:80},
+  {id:"dream",i:"🌙",n:"Dreamlinery a spol.",d:"Moderné diaľkové stroje",t:["B788","B789","B78X","A359","A339"],b:60},
+  {id:"emb",i:"🇧🇷",n:"Embraery",d:"Menšie prúdové lietadlá",t:["E190","E195","E290","E295","E75L"],b:40},
+  {id:"prop",i:"🌀",n:"Vrtuľové",d:"Turbovrtuľové regionálky",t:["AT43","AT75","AT76","DH8D"],b:40},
+  {id:"heli",i:"🚁",n:"Záchranári a vrtuľníky",d:"Pozor, lietajú nízko",t:["B429","EC35","EC45","A109","A139","R44"],b:50},
+  {id:"biz",i:"💼",n:"Biznis jety",d:"Súkromné tryskáče",t:["GLF6","GL7T","GLEX","C68A","CL35","FA7X","PC24"],b:60},
+  {id:"heavy",i:"🏋️",n:"Ťažké transporty",d:"Nákladné a vojenské obry",t:["A400","C17","C130","C30J","IL76","A124","MD11"],b:80},
+  {id:"small",i:"🛩️",n:"Malé lietadielka",d:"Aerokluby a súkromníci",t:["C152","C172","P28A","SR22","DA40","PC12"],b:50}
+].map(s=>({...s,t:s.t.filter(k=>CAT[k])})).filter(s=>s.t.length>=3);
+// úroveň kartičky podľa počtu úlovkov toho typu
+const CARD_LV=[1,3,10,25];
+const cardLvl=n=>CARD_LV.filter(x=>n>=x).length;
+const stars=l=>"★".repeat(l)+"☆".repeat(4-l);
+function monthKey(){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava",year:"numeric",month:"2-digit"}).format(new Date())}
+function monthNew(){const mk=monthKey();return Object.values(COL.types).filter(v=>v.first&&new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava",year:"numeric",month:"2-digit"}).format(new Date(v.first))===mk).length}
+const MONTH_GOAL=3,MONTH_BONUS=30;
+function setsHTML(){
+  COL.sets=COL.sets||{};
+  const mn=monthNew(),mdone=(COL.month||"")===monthKey();
+  const mname=new Date().toLocaleDateString("sk-SK",{month:"long"});
+  return `<div class="monthly">🗓️ <b>Mesačná výzva (${mname}):</b> ulov ${MONTH_GOAL} nové typy lietadiel · ${Math.min(mn,MONTH_GOAL)}/${MONTH_GOAL}${mdone?" ✅ +"+MONTH_BONUS+" bodov":" · odmena +"+MONTH_BONUS+" bodov"}</div>
+  <div class="sets">${SETS.map(s=>{const h=s.t.filter(k=>COL.types[k]).length,done=!!COL.sets[s.id];
+    return `<div class="setRow ${done?"done":""}"><span class="si" aria-hidden="true">${s.i}</span><span class="sn">${s.n}<small>${s.d}</small></span><span class="sp">${done?"✅ hotovo":h+"/"+s.t.length}</span></div>`}).join("")}</div>`;
+}
+function setsCheck(a){
+  COL.sets=COL.sets||{};let msg=null;
+  for(const s of SETS){if(COL.sets[s.id])continue;if(s.t.every(k=>COL.types[k])){COL.sets[s.id]=Date.now();COL.pts+=s.b;msg=["📚 Kompletná sada: "+s.n,"+"+s.b+" bodov · máš všetky "+s.t.length+" kartičky"]}}
+  const mk=monthKey();if(COL.month!==mk&&monthNew()>=MONTH_GOAL){COL.month=mk;COL.pts+=MONTH_BONUS;msg=msg||["🗓️ Mesačná výzva splnená!","+"+MONTH_BONUS+" bodov za "+MONTH_GOAL+" nové typy"]}
+  if(msg){LS.set("ctl_col",COL);setTimeout(()=>{toast(msg[0],msg[1],"#ffcf4f");confetti(90)},3600)}
+}
+// opakovaný úlovok toho istého typu zvyšuje úroveň kartičky
+HOOKS.caught.push(a=>{
+  const v=COL.types[a.type||"?"];if(!v)return;
+  const l=cardLvl(v.n),pl=cardLvl(v.n-1);
+  if(v.n>1&&l>pl)setTimeout(()=>toast("⭐ Kartička povýšená: "+(v.name||a.type),stars(l)+" · ulovená "+v.n+"×","#ffcf4f"),2600);
+  setsCheck(a);
+});
+// do atlasu: sady nad kartičkami, hviezdy na kartičkách
+{const base=renderCards;renderCards=function(){setsCheck();base();
+  const top=$("c-types").querySelector(".atlasTop");if(top&&!$("c-types").querySelector(".monthly"))top.insertAdjacentHTML("afterend",setsHTML());
+  $("c-types").querySelectorAll(".mini[data-k]").forEach(m=>{const v=COL.types[m.dataset.k];if(v&&!m.querySelector(".stars"))m.insertAdjacentHTML("beforeend",`<span class="stars" aria-label="Úroveň ${cardLvl(v.n)} zo 4">${stars(cardLvl(v.n))}</span>`)})}}
+{const base=openCard;openCard=function(k){base(k);const v=COL.types[k];if(v)$("cardBig").insertAdjacentHTML("beforeend",`<div class="lookSub" style="text-align:center;margin-top:10px">${stars(cardLvl(v.n))} · ulovená ${v.n}× · ďalšia úroveň pri ${CARD_LV.find(x=>x>v.n)||"max"} úlovkoch</div>`)}}

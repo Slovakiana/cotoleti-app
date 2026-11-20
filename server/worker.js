@@ -15,6 +15,7 @@ const EMO = ["👋","❤️","🇸🇰","🔥","😂","🫡"];
 const KRAJE = ["BA","TT","TN","NR","ZA","BB","PO","KE","XX"];
 const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type, x-admin-key","Access-Control-Max-Age":"86400"};
 // siete dátových centier a VPN – mávnutia z nich sa do súťaží nerátajú (AWS, Google, Azure, DigitalOcean, OVH, Hetzner, M247, Datacamp, Linode, Vultr, Contabo, Cloudflare WARP, Oracle, Alibaba, Scaleway, Leaseweb)
+const BIG_TOWNS = ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystrica", "Nitra", "Trnava", "Trenčín", "Martin", "Poprad"];
 const DC_ASN = new Set([16509, 14618, 15169, 396982, 8075, 14061, 16276, 24940, 9009, 60068, 63949, 20473, 51167, 13335, 31898, 45102, 12876, 60781, 212238, 136787]);
 const UA = "cotoleti-app/1.0 (+https://github.com/Slovakiana/cotoleti-app)";
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
@@ -140,7 +141,7 @@ export class Sky extends DurableObject {
       DROP INDEX IF EXISTS friends_a;`);
     for (const q of ["ALTER TABLE ids ADD COLUMN ep INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN ls TEXT", "ALTER TABLE idday ADD COLUMN la REAL", "ALTER TABLE idday ADD COLUMN lo REAL",
       "ALTER TABLE wavelog ADD COLUMN lg INTEGER DEFAULT 0", "ALTER TABLE tmembers ADD COLUMN jt INTEGER DEFAULT 0", "ALTER TABLE nicks ADD COLUMN lc TEXT", "ALTER TABLE teams ADD COLUMN lc TEXT",
-      "ALTER TABLE tmembers ADD COLUMN lc TEXT", "ALTER TABLE mails ADD COLUMN lc TEXT", "ALTER TABLE ids ADD COLUMN kid INTEGER DEFAULT 0"]) { try { this.sql.exec(q); } catch (e) {} }
+      "ALTER TABLE tmembers ADD COLUMN lc TEXT", "ALTER TABLE mails ADD COLUMN lc TEXT", "ALTER TABLE ids ADD COLUMN kid INTEGER DEFAULT 0", "ALTER TABLE reports ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN ok INTEGER DEFAULT 0"]) { try { this.sql.exec(q); } catch (e) {} }
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS nicks_lc ON nicks(lc); CREATE INDEX IF NOT EXISTS teams_lc ON teams(lc); CREATE INDEX IF NOT EXISTS tmem_lc ON tmembers(lc); CREATE INDEX IF NOT EXISTS mails_lc ON mails(lc); CREATE INDEX IF NOT EXISTS wavelog_lg ON wavelog(day, lg); CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     // jednorazové doplnenie normalizovaných mien a vymazanie IP odtlačkov z účtov
     if (!this.row("SELECT 1 AS x FROM meta WHERE k='mig3'")) {
@@ -192,6 +193,10 @@ export class Sky extends DurableObject {
       const allTime = (this.row("SELECT SUM(n) AS s FROM totals") || {s: 0}).s || 0;
       const rec = this.row("SELECT day, n FROM totals WHERE day < ? ORDER BY n DESC LIMIT 1", d);
       const towns = this.sql.exec("SELECT town, n FROM towns WHERE day=? ORDER BY n DESC LIMIT 10", d).toArray();
+      // menšie mestá (bez 10 najväčších) – aby mali šancu aj menšie miesta
+      const townsSmall = this.sql.exec(`SELECT town, n FROM towns WHERE day=? AND town NOT IN (${BIG_TOWNS.map(() => "?").join(",")}) ORDER BY n DESC LIMIT 10`, d, ...BIG_TOWNS).toArray();
+      // kraje na hráča: priemer mávnutí na aktívneho spottera (aspoň 3 hráči)
+      const krajePP = this.sql.exec("SELECT k, SUM(n) AS s, COUNT(*) AS c FROM idday WHERE day=? AND n > 0 AND k <> 'XX' GROUP BY k HAVING c >= 3", d).toArray().map(r => ({k: r.k, n: Math.round(r.s / r.c * 10) / 10, p: r.c})).sort((a, b) => b.n - a.n);
       const g = this.goldenNow(d);
       const golden = g ? {seq: g.seq, hex: g.hex, call: g.call, type: g.type, t: g.t, state: g.state, winner: g.state === 1 ? {k: g.wk} : null} : null;
       const wk = this.week();
@@ -204,7 +209,7 @@ export class Sky extends DurableObject {
       const weekTop = this._wk.v;
       const m = this.moment(d), mo = {start: m.start, end: m.start + MOMENT_MS, n: m.n, live: now >= m.start && now < m.start + MOMENT_MS, past: now >= m.start + MOMENT_MS};
       if (!mo.live && !mo.past) delete mo.start; // čas momentu neprezrádzame vopred
-      const v = {active, wavesToday, allTime, record: rec ? {day: rec.day, n: rec.n} : null, kraje, krajeWeek, moment: mo, towns, golden, teamsTop, weekTop};
+      const v = {active, wavesToday, allTime, record: rec ? {day: rec.day, n: rec.n} : null, kraje, krajeWeek, krajePP, moment: mo, towns, townsSmall, golden, teamsTop, weekTop};
     this._snap = {d, at: now, v};
     return v;
   }
@@ -324,7 +329,7 @@ export class Sky extends DurableObject {
       const j = await r.json(), a = (j.ac || [])[0];
       if (!a || a.lat == null) return {known: true, found: false};
       if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-      return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || ""};
+      return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12)};
     } catch (e) { return {known: false}; }
   }
   async keys() {
@@ -481,7 +486,7 @@ export class Sky extends DurableObject {
       const pd = await this.pid(x.id);
       return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), data: x.data});
     }
-    const OPEN = ["/api/sky", "/api/msg"];
+    const OPEN = ["/api/sky", "/api/msg", "/api/admin"];
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {
       if (!this.rate("post:" + iph, 90, 60e3)) { this.bump("429:post"); return json({error: "rate"}, 429); }
       const b = await body();
@@ -545,7 +550,7 @@ export class Sky extends DurableObject {
       if (!seen) {
         const town = league ? dd.town : "";
         if (league) this.sql.exec("UPDATE idday SET n = n + 1 WHERE day=? AND id=?", d, id);
-        this.sql.exec("INSERT INTO planes(day, hex, call, type, dest) VALUES(?, ?, ?, ?, ?) ON CONFLICT(day, hex) DO UPDATE SET call=COALESCE(NULLIF(excluded.call,''), call), type=COALESCE(NULLIF(excluded.type,''), type), dest=COALESCE(NULLIF(excluded.dest,''), dest)",
+        if (!vp.priv) this.sql.exec("INSERT INTO planes(day, hex, call, type, dest) VALUES(?, ?, ?, ?, ?) ON CONFLICT(day, hex) DO UPDATE SET call=COALESCE(NULLIF(excluded.call,''), call), type=COALESCE(NULLIF(excluded.type,''), type), dest=COALESCE(NULLIF(excluded.dest,''), dest)",
           d, hex, (vp.call || String(b.call || "")).replace(/[^A-Z0-9]/gi, "").slice(0, 8), (vp.type || String(b.type || "")).replace(/[^A-Z0-9]/gi, "").slice(0, 6), cleanName(b.dest, 40) || "");
         if (town) this.sql.exec("INSERT INTO towns(day, town, n) VALUES(?, ?, 1) ON CONFLICT(day, town) DO UPDATE SET n = n + 1", d, town);
         const tm = this.row("SELECT code, jt FROM tmembers WHERE id=?", id);
@@ -599,8 +604,11 @@ export class Sky extends DurableObject {
     if (p === "/api/admin" && req.method === "POST") {
       const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
+      if (b.unban) this.sql.exec("DELETE FROM banned WHERE name=?", lc(b.unban));
+      if (b.confirm) this.sql.exec("UPDATE banned SET ok=1 WHERE name=?", lc(b.confirm));
       const sig = this.sql.exec("SELECT day, k, n FROM sig WHERE day >= ? ORDER BY day DESC, n DESC", this.day(now - 3 * 86400e3)).toArray();
-      return json({flags: this.flags(), signaly: sig});
+      const fronta = this.sql.exec("SELECT name, why, t FROM banned WHERE COALESCE(ok, 0)=0 ORDER BY t DESC LIMIT 30").toArray();
+      return json({flags: this.flags(), naKontrolu: fronta, signaly: sig});
     }
     if (p === "/api/report" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), name = lc(b.name).slice(0, 24);
@@ -610,14 +618,16 @@ export class Sky extends DurableObject {
       if (!acct || now - acct.t < 86400e3 || days < 2) return json({ok: true}); // nové účty sa nerátajú
       const exists = ["nicks", "teams", "mails", "tmembers"].some(t => this.row(`SELECT 1 AS x FROM ${t} WHERE lc=? LIMIT 1`, name));
       if (!exists) return json({ok: true});
-      this.sql.exec("INSERT OR IGNORE INTO reports(name, id, t) VALUES(?, ?, ?)", name, id, now);
+      const why = ["urazlive", "sikana", "osobne", "sex", "ine"].includes(b.why) ? b.why : "ine";
+      this.sql.exec("INSERT OR IGNORE INTO reports(name, id, t, why) VALUES(?, ?, ?, ?)", name, id, now, why);
       const n = (this.row("SELECT COUNT(*) AS c FROM reports WHERE name=?", name) || {c: 0}).c;
-      if (n >= 3) { // 3 rôzni ľudia nahlásili -> meno zmizne všade
-        this.sql.exec("INSERT OR IGNORE INTO banned(name, t) VALUES(?, ?)", name, now);
+      const serious = why === "osobne" || why === "sex";
+      if (n >= 3 || serious) { // vážne (osobné údaje, sexuálny obsah) skryjeme hneď, inak po 3 nahláseniach – a rozhodne človek v /admin
+        this.sql.exec("INSERT OR IGNORE INTO banned(name, t, why, ok) VALUES(?, ?, ?, 0)", name, now, why);
         this.sql.exec("UPDATE nicks SET nick='Spotter', lc='spotter' WHERE lc=?", name); this.sql.exec("UPDATE tmembers SET nick='Spotter', lc='spotter' WHERE lc=?", name);
         this.sql.exec("UPDATE mails SET nick='', lc='' WHERE lc=?", name); this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code) WHERE lc=?", name);
         for (const r of this.sql.exec("SELECT rowid AS k, wnick AS v FROM golden").toArray()) if (lc(r.v) === name) this.sql.exec("UPDATE golden SET wnick='Spotter' WHERE rowid=?", r.k);
-        this.bump("ban"); this.alert("ban", "🚩 Zakázané meno: " + name);
+        this.bump("ban"); this.alert("ban", `🚩 Skryté meno „${name}“ (${why}) – potvrď alebo zruš v /admin`);
       }
       return json({ok: true});
     }
@@ -791,10 +801,13 @@ function adminPage() {
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
 <button id="s">📊 Štatistiky</button><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
-<button id="f">💾 Uložiť vypínače</button><pre id="o">Zadaj kľúč.</pre>
+<button id="f">💾 Uložiť vypínače</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><pre id="o">Zadaj kľúč.</pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 $("s").onclick=async()=>{o.textContent="…";const r=await fetch("/api/stats",{headers:H()});o.textContent=JSON.stringify(await r.json(),null,1)};
-$("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};</script></body></html>`;
+$("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};
+const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify(x)});return r.json()};
+const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
+$("q").onclick=()=>Q();</script></body></html>`;
   return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"}});
 }

@@ -597,3 +597,22 @@ function heroCities(){
 {const onb=$("onb");if(onb&&onb.style.display!=="none"&&!LS.get("ctl_onb",0)){onb.setAttribute("role","dialog");onb.setAttribute("aria-modal","true");document.querySelectorAll("main,nav,#top,header").forEach(e=>e.inert=true);
   const rel=()=>document.querySelectorAll("main,nav,#top,header").forEach(e=>e.inert=false);new MutationObserver(()=>{if(onb.style.display==="none"||onb.classList.contains("hide"))rel()}).observe(onb,{attributes:true});}}
 $("list").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const r=e.target.closest(".row");if(r){e.preventDefault();r.click()}}});
+
+/* ============ 👋 plávajúce Mávni (keď karta lietadla zmizne pri scrolle) ============ */
+{const fab=$("fabWave");let heroVis=true;
+  new IntersectionObserver(es=>{heroVis=es[0].isIntersecting;upd()},{threshold:.15}).observe($("hero"));
+  function upd(){const a=S.top,ok=S.view==="now"&&!heroVis&&a&&!a.emg&&!$("b-wave").disabled&&!$("b-wave").classList.contains("waved");
+    fab.classList.toggle("on",!!ok);if(ok)fab.textContent="👋 Mávni · "+(a.call||titleOf(a))}
+  fab.onclick=()=>{haptic(8);if(typeof doWave==="function")doWave("👋");setTimeout(upd,600)};
+  HOOKS.live.push(upd);HOOKS.view.push(upd);
+  // počas oznámenia sa tlačidlo skryje, aby sa neprekrývali
+  new MutationObserver(()=>document.body.classList.toggle("toastOn",$("toast").classList.contains("on"))).observe($("toast"),{attributes:true,attributeFilter:["class"]});}
+
+/* ============ ↓ potiahni nadol = nové lietadlá ============ */
+{const ptr=$("ptr");let y0=null,dy=0,busyP=false;
+  addEventListener("touchstart",e=>{if(S.view!=="now"||scrollY>0||document.querySelector(".modal.on")||busyP)return;y0=e.touches[0].clientY;dy=0},{passive:true});
+  addEventListener("touchmove",e=>{if(y0==null)return;dy=Math.max(0,e.touches[0].clientY-y0);ptr.style.transform=`translate(-50%,${Math.min(dy,90)-60}px)`;ptr.style.rotate=(dy*3)+"deg"},{passive:true});
+  addEventListener("touchend",async()=>{if(y0==null)return;y0=null;
+    if(dy>70){busyP=true;haptic(12);ptr.classList.add("spin");ptr.style.transform="translate(-50%,24px)";try{await fetchPlanes(true)}catch(e){}
+      setTimeout(()=>{ptr.classList.remove("spin");ptr.style.transform="";ptr.style.rotate="";busyP=false},500)}
+    else{ptr.style.transform="";ptr.style.rotate=""}},{passive:true});}

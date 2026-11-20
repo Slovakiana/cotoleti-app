@@ -367,7 +367,8 @@ body.moment #top{opacity:0;pointer-events:none}
 .post .f{font-size:15px;color:#6b4a2a}
 .post .via{margin-top:12px;font-size:13px;color:#8a6a4a}
 /* liga */
-.lgTabs{display:flex;gap:6px;margin-top:10px}
+.lgTabs{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.lgTabs::-webkit-scrollbar{display:none}
+.lgTabs button{flex:0 0 auto!important;padding:8px 12px!important;white-space:nowrap}
 body.kid #duelFr,body.kid [data-mail],body.kid #pushAsk,body.kid #postReply,body.kid #trNotify{display:none!important}
 .wideB{width:100%;margin-top:10px;min-height:48px;justify-content:center}
 .inappBar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:120;padding:12px 44px 12px 14px;border-radius:18px;font-size:13px;line-height:1.4;display:flex;flex-direction:column;gap:2px}
@@ -462,6 +463,22 @@ body.kid .frLine{display:none}
 .spotLine:empty{display:none}
 .emptyActs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.emptyActs button{flex:1;min-height:44px}
 details summary{cursor:pointer}
+
+.repOpts{display:flex;flex-direction:column;gap:8px}.repOpts button{text-align:left;padding:14px;border-radius:16px;background:var(--fill-1);border:1px solid var(--gline);color:var(--txt);font-size:15px;min-height:48px}
+/* zberateľské sady */
+.sets{grid-column:1/-1;display:grid;gap:8px;margin:4px 0 8px}
+.setRow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--tile);border:1px solid var(--divider)}
+.setRow .si{font-size:22px}.setRow .sn{flex:1;font-size:14px;font-weight:600}.setRow .sn small{display:block;color:var(--mut2);font-weight:500;font-size:12px}
+.setRow .sp{font-weight:700;font-size:13px;color:var(--mut)}.setRow.done{border-color:rgba(255,207,79,.5)}.setRow.done .sp{color:#ffcf4f}
+.mini{position:relative}.mini .stars{position:absolute;left:6px;bottom:6px;font-size:10px;letter-spacing:-1px;color:#ffcf4f;text-shadow:0 1px 2px #000}
+.monthly{grid-column:1/-1;padding:10px 12px;border-radius:16px;background:linear-gradient(135deg,rgba(255,79,216,.18),rgba(79,195,255,.14));font-size:14px}
+.monthly b{color:#fff}
+/* plávajúce Mávni a potiahnutie na obnovenie */
+#fabWave{position:fixed;left:50%;transform:translate(-50%,20px);bottom:calc(var(--bot) + 86px);z-index:41;padding:12px 20px;border-radius:999px;background:linear-gradient(135deg,#ff5fd9,#ff8a4f);color:#fff;font-weight:700;font-size:15px;box-shadow:0 10px 30px rgba(255,79,216,.35);opacity:0;pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.2,1,.3,1);max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0}
+#fabWave.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+body.toastOn #fabWave{opacity:0;pointer-events:none}
+#ptr{position:fixed;top:calc(var(--top) + 8px);left:50%;transform:translate(-50%,-60px);z-index:60;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(14,18,40,.9);border:1px solid var(--gline);font-size:18px;transition:transform .15s}
+#ptr.spin{animation:ptrspin .8s linear infinite}@keyframes ptrspin{to{rotate:360deg}}
 </style>
 </head>
 <body>
@@ -581,7 +598,7 @@ details summary{cursor:pointer}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
-    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="t">Tímy</button></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="p">Na hráča</button><button data-t="m">Mestá</button><button data-t="s">Menšie mestá</button><button data-t="t">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
   </section>
 
@@ -785,6 +802,20 @@ details summary{cursor:pointer}
   <div class="fine" style="margin-top:8px">Kód nikomu neposielaj – kto ho má, dostane tvoju zbierku.</div>
   <div class="acts"><button class="btn ghost" id="xClose" style="flex:1">Hotovo</button></div>
 </div></div>
+<div class="modal" id="repM" role="dialog" aria-modal="true" aria-label="Nahlásiť meno"><div class="mcard">
+  <div class="lbl"><span>🚩 Nahlásiť <b id="repName"></b></span></div>
+  <div class="lookSub" style="margin:8px 0 12px">Prečo? Pri osobných údajoch alebo sexuálnom obsahu meno hneď skryjeme. Každé nahlásenie skontroluje človek do 24 hodín.</div>
+  <div class="repOpts">
+    <button data-why="urazlive">🤬 Urážlivé alebo vulgárne</button>
+    <button data-why="sikana">😢 Šikana niekoho</button>
+    <button data-why="osobne">🪪 Skutočné meno, škola, adresa</button>
+    <button data-why="sex">🔞 Sexuálny obsah</button>
+    <button data-why="ine">❓ Iné</button>
+  </div>
+  <div class="acts"><button class="btn ghost" id="repClose" style="flex:1">Zrušiť</button></div>
+</div></div>
+<button id="fabWave" aria-label="Mávni lietadlu">👋 Mávni</button>
+<div id="ptr" aria-hidden="true">✈️</div>
 <div id="nightTint" aria-hidden="true"></div>
 <div id="toast" class="glass" role="status" aria-live="polite"><b id="toastT"></b><span id="toastS"></span></div>
 
@@ -811,25 +842,25 @@ details summary{cursor:pointer}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=19"></script>
-<script src="js/ui.js?v=19"></script>
-<script src="js/ar.js?v=19"></script>
-<script src="js/space.js?v=19"></script>
-<script src="js/weather.js?v=19"></script>
-<script src="js/extras.js?v=19"></script>
-<script src="js/social.js?v=19"></script>
-<script src="js/wrapped.js?v=19"></script>
-<script src="js/push.js?v=19"></script>
-<script src="js/track.js?v=19"></script>
-<script src="js/towns.js?v=19"></script>
-<script src="js/catalog.js?v=19"></script>
-<script src="js/cards.js?v=19"></script>
-<script src="js/mail.js?v=19"></script>
-<script src="js/golden.js?v=19"></script>
-<script src="js/teams.js?v=19"></script>
-<script src="js/duel.js?v=19"></script>
-<script src="js/sound.js?v=19"></script>
-<script src="js/santa.js?v=19"></script>
-<script src="js/main.js?v=19"></script>
+<script src="js/core.js?v=20"></script>
+<script src="js/ui.js?v=20"></script>
+<script src="js/ar.js?v=20"></script>
+<script src="js/space.js?v=20"></script>
+<script src="js/weather.js?v=20"></script>
+<script src="js/extras.js?v=20"></script>
+<script src="js/social.js?v=20"></script>
+<script src="js/wrapped.js?v=20"></script>
+<script src="js/push.js?v=20"></script>
+<script src="js/track.js?v=20"></script>
+<script src="js/towns.js?v=20"></script>
+<script src="js/catalog.js?v=20"></script>
+<script src="js/cards.js?v=20"></script>
+<script src="js/mail.js?v=20"></script>
+<script src="js/golden.js?v=20"></script>
+<script src="js/teams.js?v=20"></script>
+<script src="js/duel.js?v=20"></script>
+<script src="js/sound.js?v=20"></script>
+<script src="js/santa.js?v=20"></script>
+<script src="js/main.js?v=20"></script>
 </body>
 </html>

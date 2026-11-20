@@ -79,18 +79,25 @@ function renderLeague(){
   const bar=(name,n,max,me,i,rep)=>`<div class="kr${me?" me":""}"><div class="nm">${i===0?"👑 ":""}${esc(name)}${rep?` <button class="rep" data-rep="${esc(name)}" aria-label="Nahlásiť nevhodný názov">🚩</button>`:""}</div><div class="bar"><i style="width:${max?n/max*100:0}%"></i></div><div class="v">${nf(n)}</div></div>`;
   let rows=[];
   if(LG==="k"||LG==="w"){const me=krajOf(S.pos);rows=((LG==="w"?D.krajeWeek:D.kraje)||[]).filter(x=>x.n>0&&x.k!=="XX").slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2],x.n,x.k===me])}
-  else if(LG==="m"){const me=typeof townOf==="function"?townOf(S.pos):"";rows=(D.towns||[]).map(x=>[x.town,x.n,x.town===me])}
+  else if(LG==="m"||LG==="s"){const me=typeof townOf==="function"?townOf(S.pos):"";rows=((LG==="s"?D.townsSmall:D.towns)||[]).map(x=>[x.town,x.n,x.town===me])}
+  else if(LG==="p"){const me=krajOf(S.pos);rows=(D.krajePP||[]).slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2]+` · ${x.p} ${x.p<5?"hráči":"hráčov"}`,x.n,x.k===me])}
   else rows=(D.teamsTop||[]).map(x=>[x.name,x.n,x.me,!x.me]);
   const max=Math.max(1,...rows.map(r=>r[1]));
   $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v sekcii Ja 👥":"Dnes ešte nikto nemával. Buď prvý 👋"}</div>`;
 }
 $("kraje").onclick=e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)};
 // nahlásenie nevhodného mena (po 3 nahláseniach od rôznych ľudí zmizne všade)
-async function reportName(name,btn){
-  if(!name)return;if(btn&&!btn.dataset.arm){btn.dataset.arm=1;btn.textContent="Nahlásiť?";setTimeout(()=>{if(btn.isConnected){btn.textContent="🚩";delete btn.dataset.arm}},3500);return}
-  try{await apiPost("/api/report",{name})}catch(e){}
-  if(btn)btn.remove();toast("🚩 Ďakujeme za nahlásenie","Ak to nahlásia viacerí, meno zmizne");
+let REP=null;
+function reportName(name,btn){
+  if(!name)return;REP={name,btn};$("repName").textContent="„"+name+"“";$("repM").classList.add("on");haptic(10);
 }
+$("repM").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-why]");if(e.target.id==="repClose"||e.target===$("repM")){$("repM").classList.remove("on");return}
+  if(!b||!REP)return;$("repM").classList.remove("on");
+  try{await apiPost("/api/report",{name:REP.name,why:b.dataset.why})}catch(err){}
+  if(REP.btn)REP.btn.remove();
+  toast("🚩 Ďakujeme za nahlásenie",b.dataset.why==="osobne"||b.dataset.why==="sex"?"Meno sme hneď skryli, preveríme ho do 24 h":"Preveríme ho. Ak ho nahlásia viacerí, zmizne hneď");REP=null;
+});
 $("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;LG=b.dataset.t;[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x===b));renderLeague();haptic(6)};
 function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}

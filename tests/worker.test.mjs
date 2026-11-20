@@ -103,6 +103,17 @@ await t("lievik a chyby sa počítajú anonymne", async () => {
   assert.equal(db.prepare("SELECT COUNT(*) c FROM funnel").get().c, 1);
   assert.ok(!db.prepare("SELECT msg FROM errs").get().msg.includes("https"));
 });
+await t("vážne nahlásenie skryje meno hneď, admin ho vie vrátiť", async () => {
+  await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Janka Novakova"}, "9.9.9.9");
+  await call("/api/report", {id: A, tok: ha.tok, name: "Janka Novakova", why: "osobne"}, "1.1.1.1");
+  assert.ok(db.prepare("SELECT 1 FROM banned WHERE name='janka novakova'").get());
+  const r = await W.fetch(new Request("https://x/api/admin", {method: "POST", headers: {"x-admin-key": "tajne"}, body: JSON.stringify({unban: "Janka Novakova"})}), env);
+  assert.equal(r.status, 200); assert.ok(!db.prepare("SELECT 1 FROM banned WHERE name='janka novakova'").get());
+});
+await t("ligy: na hráča a menšie mestá", async () => {
+  const s = (await call(`/api/sky?id=${C}&tok=${hc.tok}&hexes=aabbcc`, null, "9.9.9.9")).j;
+  assert.ok(Array.isArray(s.krajePP)); assert.ok(Array.isArray(s.townsSmall));
+});
 await t("zdravie servera", async () => assert.equal((await call("/api/health")).s, 200));
 await t("štatistiky len s kľúčom", async () => {
   assert.equal((await call("/api/stats")).s, 401);
