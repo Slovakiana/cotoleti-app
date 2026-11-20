@@ -159,9 +159,11 @@ function renderHeroStatic(a){
   if(rt){$("r-o").textContent=rt.origin.iata_code||rt.origin.icao_code||"?";$("r-on").textContent=citySk(rt.origin.municipality||rt.origin.name);
     $("r-d").textContent=rt.destination.iata_code||rt.destination.icao_code||"?";$("r-dn").textContent=citySk(rt.destination.municipality||rt.destination.name);$("h-route").classList.add("on")}
   else $("h-route").classList.remove("on");
-  const ph=m.ac&&(m.ac.url_photo||m.ac.url_photo_thumbnail);
-  if(ph){const img=new Image();img.onload=()=>{if(S.top&&S.top.hex===a.hex){$("h-photo").style.backgroundImage="url('"+ph.replace(/'/g,"%27")+"')";$("h-photo").classList.add("on");$("h-photo").querySelector("small").innerHTML='foto © autor · <a href="'+esc(m.ac.url_photo||ph)+'" target="_blank" rel="noopener">airport-data.com</a>'}};img.src=ph}
-  else $("h-photo").classList.remove("on");
+  $("h-photo").classList.remove("on");
+  if(!a.priv)photoOf(a.hex).then(p=>{
+    if(!p||!S.top||S.top.hex!==a.hex)return;
+    const img=new Image();img.onload=()=>{if(S.top&&S.top.hex===a.hex){$("h-photo").style.backgroundImage="url('"+img.src.replace(/'/g,"%27")+"')";$("h-photo").classList.add("on");
+      $("h-photo").querySelector("small").innerHTML='foto © '+esc(p.by)+' · <a href="'+esc(p.link)+'" target="_blank" rel="noopener">airport-data.com</a>'}};img.onerror=()=>{if(img.src!==p.thumb){p.img=p.thumb;img.src=p.thumb}};img.src=p.img});
   $("h-quip").textContent=quip(a,m);
   $("hero").classList.toggle("emerg",a.sq==="7700");
   guessUI(a,rt);
@@ -210,6 +212,7 @@ function renderCol(){
   $("c-lvl").textContent="Lvl "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
   $("c-bar").style.width=Math.min(100,(COL.pts-a)/(b-a)*100)+"%";
   $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
+  {const sd=seenSum();$("c-seen").innerHTML=sd?sd:"";$("c-seen").hidden=!sd}
   const types=Object.entries(COL.types);
   $("c-n").textContent=COL.n;$("c-t").textContent=types.length;$("c-r").textContent=types.filter(([,v])=>v.r==="r"||v.r==="l").reduce((s,[,v])=>s+v.n,0);
   $("c-ach").innerHTML=ACH.map(x=>`<div class="${COL.ach[x.id]?"got":""}"><i>${x.i}</i>${x.n}</div>`).join("");
@@ -236,7 +239,8 @@ function tick(fresh){
   HOOKS.live.forEach(f=>{try{f(best,fresh)}catch(e){console.error(e)}});
   if(HOOKS.list)HOOKS.list.forEach(f=>{try{f(S.list)}catch(e){console.error(e)}});
   if(fresh||now%3000<1000)renderList(S.list);
-  S.list.forEach(tryCatch);
+  // lietadlá sa už nezbierajú samé – úlovok len zamávaním (hra je o pozeraní hore)
+  if(fresh)seenLog(S.list);
   if(best&&best.el>=60&&!S.buzzed.has(best.hex)){S.buzzed.add(best.hex);if(S.vib)haptic([120,60,120,60,240])}
   if(fresh){S.list.slice(0,8).forEach(a=>loadMeta(a));HOOKS.fresh.forEach(f=>{try{f()}catch(e){console.error(e)}})}
 }
@@ -616,3 +620,35 @@ $("list").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const 
     if(dy>70){busyP=true;haptic(12);ptr.classList.add("spin");ptr.style.transform="translate(-50%,24px)";try{await fetchPlanes(true)}catch(e){}
       setTimeout(()=>{ptr.classList.remove("spin");ptr.style.transform="";ptr.style.rotate="";busyP=false},500)}
     else{ptr.style.transform="";ptr.style.rotate=""}},{passive:true});}
+
+/* 📷 fotka lietadla len s menom autora (autorské práva) */
+const PHOTO=new Map();
+function photoOf(hex){
+  if(PHOTO.has(hex))return PHOTO.get(hex);
+  const pr=getJSON(MYPROXY+"/?url="+encodeURIComponent("https://www.airport-data.com/api/ac_thumb.json?m="+hex.toUpperCase()+"&n=1"),6000).then(({ok,j})=>{
+    const d=ok&&j&&j.data&&j.data[0];if(!d||!d.photographer||!/^https:\/\//.test(d.image||""))return null;
+    return {img:d.image.replace("/thumbnails/","/"),thumb:d.image,by:String(d.photographer).slice(0,40),link:/^https:\/\//.test(d.link||"")?d.link:"https://www.airport-data.com/"};
+  }).catch(()=>null);
+  PHOTO.set(hex,pr);return pr;
+}
+
+/* 👀 zazreté (bez bodov) – „Včera nad tebou“; uloviť sa dá len zamávaním */
+function seenLog(list){
+  const d=dayKey(),L=LS.get("ctl_seen",{});let ch=false;
+  const t=L[d]||(L[d]={n:0,h:{},best:null,bestR:0});
+  const RO={c:0,u:1,r:2,l:3};
+  for(const a of list){if(a.el==null||a.el<15||a.santa||t.h[a.hex])continue;
+    if(t.n<400){t.h[a.hex]=COL.hex[a.hex]?2:1}t.n++;ch=true;
+    const r=rarity(a);if(RO[r]>=t.bestR&&!a.priv){t.bestR=RO[r];t.best=titleOf(a)}}
+  if(!ch)return;
+  for(const k of Object.keys(L))if(k<dayAgo(3))delete L[k];
+  LS.set("ctl_seen",L);
+}
+function seenSum(){
+  const L=LS.get("ctl_seen",{}),y=L[dayAgo(1)],t=L[dayKey()];
+  const caught=x=>x?Object.keys(x.h).filter(h=>COL.hex[h]).length:0;
+  const parts=[];
+  if(t&&t.n)parts.push(`<b>Dnes nad tebou:</b> ${t.n} ✈️ · ulovené ${caught(t)} 👋`);
+  if(y&&y.n)parts.push(`<b>Včera:</b> ${y.n} ✈️ · ulovené ${caught(y)}${y.best?" · najvzácnejšie "+esc(y.best):""}`);
+  return parts.length?parts.join("<br>")+'<br><small>Lietadlo uloviš len tak, že mu zamávaš 👋</small>':"";
+}

@@ -10,13 +10,13 @@
 //  cron každú minútu → spoločný moment + blížiace sa sledované lety
 import { DurableObject } from "cloudflare:workers";
 
-const ALLOW = ["api.adsb.lol","api.airplanes.live","opendata.adsb.fi","opensky-network.org","api.adsbdb.com","celestrak.org","api.open-meteo.com"];
+const ALLOW = ["www.airport-data.com","api.adsb.lol","api.airplanes.live","opendata.adsb.fi","opensky-network.org","api.adsbdb.com","celestrak.org","api.open-meteo.com"];
 const EMO = ["👋","❤️","🇸🇰","🔥","😂","🫡"];
 const KRAJE = ["BA","TT","TN","NR","ZA","BB","PO","KE","XX"];
 const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type, x-admin-key","Access-Control-Max-Age":"86400"};
-// siete dátových centier a VPN – mávnutia z nich sa do súťaží nerátajú (AWS, Google, Azure, DigitalOcean, OVH, Hetzner, M247, Datacamp, Linode, Vultr, Contabo, Cloudflare WARP, Oracle, Alibaba, Scaleway, Leaseweb)
+// siete dátových centier a VPN – mávnutia z nich sa do súťaží nerátajú (AWS, Google, Azure, DigitalOcean, OVH, Hetzner, M247, Datacamp, Linode, Vultr, Contabo, Oracle, Alibaba, Scaleway, Leaseweb)
 const BIG_TOWNS = ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystrica", "Nitra", "Trnava", "Trenčín", "Martin", "Poprad"];
-const DC_ASN = new Set([16509, 14618, 15169, 396982, 8075, 14061, 16276, 24940, 9009, 60068, 63949, 20473, 51167, 13335, 31898, 45102, 12876, 60781, 212238, 136787]);
+const DC_ASN = new Set([16509, 14618, 15169, 396982, 8075, 14061, 16276, 24940, 9009, 60068, 63949, 20473, 51167, 31898, 45102, 12876, 60781, 212238, 136787]);
 const UA = "cotoleti-app/1.0 (+https://github.com/Slovakiana/cotoleti-app)";
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
 const cleanHex = h => String(h || "").toLowerCase().replace(/[^0-9a-f~]/g, "").slice(0, 8);
@@ -324,13 +324,22 @@ export class Sky extends DurableObject {
   }
   // je lietadlo naozaj blízko tvrdenej polohy?
   async verifyPlane(hex, la, lo) {
-    try {
-      const r = await fetch("https://api.adsb.lol/v2/hex/" + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}});
-      const j = await r.json(), a = (j.ac || [])[0];
-      if (!a || a.lat == null) return {known: true, found: false};
-      if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-      return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12)};
-    } catch (e) { return {known: false}; }
+    // viac zdrojov: appka berie dáta z rôznych sietí, lietadlo nemusí byť v každej
+    const SRC = ["https://api.adsb.lol/v2/hex/", "https://api.airplanes.live/v2/hex/", "https://opendata.adsb.fi/api/v2/hex/"];
+    let any = false;
+    for (const u of SRC) {
+      try {
+        const r = await fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}});
+        if (!r.ok) continue;
+        const j = await r.json(); any = true;
+        const a = (j.ac || j.aircraft || [])[0];
+        if (!a || a.lat == null) continue;
+        if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
+        return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12)};
+      } catch (e) {}
+    }
+    // nenašli sme ho nikde: mávnutie prijmeme, ale do ligy sa neráta (vp.found = false)
+    return {known: any, found: false};
   }
   async keys() {
     if (this._keys) return this._keys;
@@ -526,7 +535,7 @@ export class Sky extends DurableObject {
       if (!hex || id.length < 8 || la == null || lo == null || Math.abs(la) > 90 || Math.abs(lo) > 180) return json({error: "bad"}, 400);
       if (!this.rate("wave:" + iph, 400, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) { this.bump("429:wave"); return json({error: "rate"}, 429); }
       const vp = await this.verifyPlane(hex, la, lo);
-      if (vp.known && (!vp.found || vp.ground || vp.km > 130)) return json({error: "far"}, 422);
+      if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const pdx = await this.pid(id);
       // do súťaží sa ráta len poloha zo Slovenska, ktorá sedí s IP adresou, a nie z VPN/serverov
       const asn = Number(req.headers.get("x-cc-asn") || 0);
@@ -660,7 +669,7 @@ export class Sky extends DurableObject {
       if (id.length < 8 || !hex || la == null || lo == null) return json({error: "bad"}, 400);
       if (!this.rate("mail:" + iph, 40, 86400e3)) return json({error: "limit"}, 429);
       const vp = await this.verifyPlane(hex, la, lo);
-      if (vp.known && (!vp.found || vp.ground || vp.km > 130)) return json({error: "far"}, 422);
+      if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const fair = country === "SK" && !ipFar(la, lo);
       const cnt = (this.row("SELECT COUNT(*) AS c FROM mails WHERE day=? AND id=?", d, id) || {c: 0}).c;
       if (cnt >= 30) return json({error: "limit"}, 429);
@@ -890,10 +899,10 @@ export default {
     if (origin && !APP_ORIGINS.includes(origin)) return new Response("nepovolené", {status: 403, headers: CORS});
     let t;
     try { t = new URL(raw); } catch (e) { return new Response("zlá adresa", {status: 400, headers: CORS}); }
-    const PATHS = {"api.adsb.lol": /^\/v2\//, "api.airplanes.live": /^\/v2\//, "opendata.adsb.fi": /^\/api\/v2\//, "opensky-network.org": /^\/api\/states\/all$/, "api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/};
+    const PATHS = {"api.adsb.lol": /^\/v2\//, "api.airplanes.live": /^\/v2\//, "opendata.adsb.fi": /^\/api\/v2\//, "opensky-network.org": /^\/api\/states\/all$/, "api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/, "www.airport-data.com": /^\/api\/ac_thumb\.json$/};
     if (t.protocol !== "https:" || !ALLOW.includes(t.hostname) || !PATHS[t.hostname].test(t.pathname)) return new Response("nepovolené", {status: 403, headers: CORS});
     try {
-      const r = await fetch(t, {redirect: "manual", headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: t.hostname === "celestrak.org" ? 3600 : t.hostname === "api.adsbdb.com" ? 86400 : t.hostname === "api.open-meteo.com" ? 900 : 8, cacheEverything: true}});
+      const r = await fetch(t, {redirect: "manual", headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: t.hostname === "celestrak.org" ? 3600 : t.hostname === "api.adsbdb.com" || t.hostname === "www.airport-data.com" ? 86400 : t.hostname === "api.open-meteo.com" ? 900 : 8, cacheEverything: true}});
       const h = new Headers(CORS);
       h.set("Content-Type", t.hostname === "celestrak.org" ? "text/plain; charset=utf-8" : "application/json; charset=utf-8");
       h.set("X-Content-Type-Options", "nosniff");

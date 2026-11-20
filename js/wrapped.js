@@ -54,7 +54,7 @@ const BGS=["linear-gradient(160deg,#1b1464,#6a1b9a 55%,#ff4fd8)","linear-gradien
 function openWrapped(){
   const s=weekStats(),SL=[];
   SL.push({e:"✨",k:"Moja obloha",h:"Tvoj týždeň nad hlavou",p:"Pozri sa, čo všetko ti preletelo nad hlavou za posledných 7 dní."});
-  if(!s.n){SL.push({e:"🌤️",k:"Zatiaľ ticho",h:"Obloha čaká",p:"Nechaj appku otvorenú, keď niečo letí nad tebou. Každé lietadlo vyššie ako 25° sa ti zapíše do príbehu."})}
+  if(!s.n){SL.push({e:"🌤️",k:"Zatiaľ ticho",h:"Obloha čaká",p:"Keď nad tebou niečo letí, zamávaj mu – každé lietadlo, ktorému zamávaš, sa ti uloží do zbierky."})}
   else{
     SL.push({e:"✈️",k:"Preletelo nad tebou",h:nf(s.n),p:(s.n===1?"lietadlo":s.n<5?"lietadlá":"lietadiel")+" priamo nad tvojou hlavou."});
     if(s.pax)SL.push({e:"🧑‍🤝‍🧑",k:"V nich sedelo",h:"~"+nf(s.pax),p:"ľudí. Niektorí z nich sa možno práve pozerali dole na teba. 👋"});

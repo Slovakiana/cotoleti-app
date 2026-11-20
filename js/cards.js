@@ -152,7 +152,7 @@ $("c-types").onclick=e=>{
   cardK=k;openCard(k);
 };
 function openCard(k){
-  const v=COL.types[k],r=v.r;
+  const v=COL.types[k];if(!v)return;const r=v.r;
   $("cardBig").innerHTML=`<div class="holoWrap ${r} ${v.shiny?"shiny":""}">${cardSVG(k,v,{id:"b"})}</div>`;
   $("cardM").classList.add("on");haptic(15);bindTilt();
 }

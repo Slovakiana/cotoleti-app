@@ -32,6 +32,7 @@ function krajOf(p){
 // deň podľa slovenského času (rovnako ako server), aj keď je mobil v inom pásme
 const SKD=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"});
 const dayKey=()=>SKD.format(new Date());
+const dayAgo=n=>SKD.format(new Date(Date.now()-n*864e5));
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 
 ACH.push({id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
@@ -132,14 +133,16 @@ async function doWave(e){
   const a=S.top;if(!a)return;
   $("wavePick").classList.remove("on");
   haptic([18,40,18]);flyEmoji(e,$("b-wave"));
-  if(a.santa){toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
+  if(a.santa){tryCatch(a);toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
   const key=dayKey()+a.hex,already=!!SOC.waved[key];
   const rt=routeOf(a),to=rt?" → "+citySk(rt.destination.municipality):"";
-  if(already){toast("👋 Dnes už zamávané","Každému lietadlu sa ráta 1 mávnutie denne");return}
+  if(already){tryCatch(a);toast("👋 Dnes už zamávané","Každému lietadlu sa ráta 1 mávnutie denne");return}
   ping("u");
   // body a výzvy sa pripíšu až keď server mávnutie prijme (alebo keď sme offline)
   const credit=()=>{
     SOC.waved[key]=e;
+    // úlovok = zamávanie (nie automaticky, keď appka len beží)
+    if(!COL.hex[a.hex]){if((a.el??0)>=10)setTimeout(()=>tryCatch(a),900);else setTimeout(()=>toast("📉 Je ešte nízko nad obzorom","Na úlovok mu zamávaj, keď bude vyššie ako 10°"),2600)}
     for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
     LS.set("ctl_waved",SOC.waved);
     // body za mávanie: +1, najviac 20 denne (hra je o pozeraní hore, nie o ťukaní)
@@ -161,7 +164,11 @@ async function doWave(e){
     toast(e+" Zamávané! +1 bod","Odošleme, keď budeš online");return}
   if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
   if(j.error==="rate"){toast("Spomaľ 🙂","Mávať môžeš znova o chvíľu");return}
-  if(!r.ok||!j.ok){toast("Mávnutie sa nepodarilo odoslať","Skús to o chvíľu znova");return}
+  if(!r.ok||!j.ok){
+    const code=r.status+(j.error?"/"+j.error:"");
+    try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"wave fail "+code}))}catch(x){}
+    // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
+    credit();toast(e+" Zamávané! +1 bod","Spojenie so serverom zlyhalo ("+code+"), počítame to u teba");return}
   credit();
   if(j.golden==="entered")setTimeout(()=>toast("🏆 Si v žrebovaní!","Víťaza vyžrebujeme do 10 minút 🤞","#ffcf4f"),1800);
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}

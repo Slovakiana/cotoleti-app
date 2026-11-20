@@ -22,6 +22,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1320x2868.png">
+<link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1206x2622.png">
+<link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1080x2340.png">
+<link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/750x1334.png">
 <link rel="icon" href="icons/icon-192.png">
 <style>
 :root{
@@ -479,6 +490,7 @@ details summary{cursor:pointer}
 body.toastOn #fabWave{opacity:0;pointer-events:none}
 #ptr{position:fixed;top:calc(var(--top) + 8px);left:50%;transform:translate(-50%,-60px);z-index:60;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(14,18,40,.9);border:1px solid var(--gline);font-size:18px;transition:transform .15s}
 #ptr.spin{animation:ptrspin .8s linear infinite}@keyframes ptrspin{to{rotate:360deg}}
+.seenBox{margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(5,10,30,.28);font-size:13px;line-height:1.5;color:#fff}.seenBox small{color:rgba(255,255,255,.8)}
 </style>
 </head>
 <body>
@@ -531,7 +543,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
       <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
     </div>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
-    <div class="waveHint" id="waveHint">Ťukni a zamávaj · podrž pre výber reakcie</div>
+    <div class="waveHint" id="waveHint">Zamávaj a lietadlo ulovíš · podrž pre výber reakcie</div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="dir" id="h-dir">
@@ -654,6 +666,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
     <div class="ptype" id="c-type">☁️ Snívač v oblakoch</div>
     <div class="xp"><i id="c-bar"></i></div>
     <div class="lookSub" id="c-next"></div>
+    <div class="seenBox" id="c-seen" hidden></div>
     <div class="st3b">
       <div><b id="c-n">0</b><span>úlovkov</span></div>
       <div><b id="c-t">0</b><span>typov</span></div>
@@ -842,25 +855,25 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=20"></script>
-<script src="js/ui.js?v=20"></script>
-<script src="js/ar.js?v=20"></script>
-<script src="js/space.js?v=20"></script>
-<script src="js/weather.js?v=20"></script>
-<script src="js/extras.js?v=20"></script>
-<script src="js/social.js?v=20"></script>
-<script src="js/wrapped.js?v=20"></script>
-<script src="js/push.js?v=20"></script>
-<script src="js/track.js?v=20"></script>
-<script src="js/towns.js?v=20"></script>
-<script src="js/catalog.js?v=20"></script>
-<script src="js/cards.js?v=20"></script>
-<script src="js/mail.js?v=20"></script>
-<script src="js/golden.js?v=20"></script>
-<script src="js/teams.js?v=20"></script>
-<script src="js/duel.js?v=20"></script>
-<script src="js/sound.js?v=20"></script>
-<script src="js/santa.js?v=20"></script>
-<script src="js/main.js?v=20"></script>
+<script src="js/core.js?v=21"></script>
+<script src="js/ui.js?v=21"></script>
+<script src="js/ar.js?v=21"></script>
+<script src="js/space.js?v=21"></script>
+<script src="js/weather.js?v=21"></script>
+<script src="js/extras.js?v=21"></script>
+<script src="js/social.js?v=21"></script>
+<script src="js/wrapped.js?v=21"></script>
+<script src="js/push.js?v=21"></script>
+<script src="js/track.js?v=21"></script>
+<script src="js/towns.js?v=21"></script>
+<script src="js/catalog.js?v=21"></script>
+<script src="js/cards.js?v=21"></script>
+<script src="js/mail.js?v=21"></script>
+<script src="js/golden.js?v=21"></script>
+<script src="js/teams.js?v=21"></script>
+<script src="js/duel.js?v=21"></script>
+<script src="js/sound.js?v=21"></script>
+<script src="js/santa.js?v=21"></script>
+<script src="js/main.js?v=21"></script>
 </body>
 </html>

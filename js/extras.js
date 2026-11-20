@@ -104,7 +104,7 @@ const DAILY_POOL=[
   {id:"high",i:"🏔️",n:"Ulov lietadlo vyššie ako 11 500 m",h:"To je viac ako 4× Gerlach",t:a=>a.alt!=null&&a.alt>11500},
   {id:"fast",i:"⚡",n:"Ulov lietadlo rýchlejšie ako 950 km/h",h:"S poriadnym chvostovým vetrom",t:a=>a.spd!=null&&a.spd>950},
   {id:"cargo",i:"📦",n:"Ulov nákladné lietadlo",h:"DHL, UPS, FedEx…",t:a=>/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL/.test(airlineOf(a))},
-  {id:"five",i:"🖐️",n:"Ulov dnes 5 lietadiel",h:"Akékoľvek",need:5,t:()=>true},
+  {id:"five",i:"🖐️",n:"Ulov dnes 5 lietadiel",h:"Zamávaj 5 rôznym lietadlám",need:5,t:()=>true},
   {id:"air3",i:"🎨",n:"Ulov 3 rôzne aerolinky",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
   {id:"sun",i:"🏖️",n:"Nájdi let k moru",h:"Turecko, Egypt, Grécko, Španielsko, Chorvátsko…",t:a=>{const m=S.meta.get(a.hex),c=m&&m.route&&m.route.destination&&m.route.destination.country_iso_name;return ["TR","EG","GR","ES","HR","CY","PT","TN","IT","MT"].includes(c)}},
   {id:"far",i:"🌏",n:"Nájdi let mimo Európy",h:"Ázia, Amerika, Afrika…",t:a=>{const m=S.meta.get(a.hex),d=m&&m.route&&m.route.destination;return !!(d&&d.latitude!=null&&(d.longitude>45||d.longitude<-25||d.latitude<34))}},

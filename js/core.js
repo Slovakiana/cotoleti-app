@@ -279,7 +279,7 @@ const lvlOf=p=>{let l=0;while(lvlPts(l+1)<=p)l++;return l};
 const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
 const lvlName=l=>l<LEVELS.length?LEVELS[l]:LEVELS[LEVELS.length-1]+" "+ROM[Math.min(ROM.length-1,l-LEVELS.length)];
 function tryCatch(a){
-  if(a.el==null||a.el<25||COL.hex[a.hex])return;
+  if(a.el==null||a.el<10||COL.hex[a.hex])return false;
   const r=rarity(a),pts=RAR[r].p;
   COL.hex[a.hex]=Date.now();COL.n++;COL.pts+=pts;
   const ty=a.type||"?",newType=!COL.types[ty];
