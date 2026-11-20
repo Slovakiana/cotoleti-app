@@ -38,3 +38,9 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - Chyba mávania ukáže kód a zapíše sa do /api/err; mávnutie sa vtedy zaráta aspoň lokálne
 - Fotky lietadiel len s menom fotografa (airport-data.com cez proxy)
 - Splash obrazovky pre iPhony + samostatná maskable ikona
+
+## Hotové 20. 11. 2026 (v22)
+- Oprava mávania „401/auth“: starší používatelia s platným tokenom sa zaregistrujú bez limitu; limit nových zariadení na IP zvýšený na 40/deň (Private Relay, operátori)
+- Chyba prihlásenia sa zapíše do /api/err a ukáže v kóde chyby
+- Sezóny (Zima/Jar/Leto/Jeseň) bez mazania zbierky + odznak 100 b za sezónu
+- Súboj kamarátov: mávnutia za týždeň overené serverom

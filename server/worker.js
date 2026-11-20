@@ -154,6 +154,7 @@ export class Sky extends DurableObject {
     try { this.sql.exec("ALTER TABLE tracks ADD COLUMN chk INTEGER DEFAULT 0"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE wavelog ADD COLUMN pid TEXT"); } catch (e) {}
+    try { this.sql.exec("CREATE INDEX IF NOT EXISTS wavelog_pid ON wavelog(pid, day)"); } catch (e) {}
   }
   day(t = Date.now()) { return SKDAY.format(new Date(t)); }
   // meno prejde filtrom aj zoznamom nahlásených mien
@@ -461,10 +462,13 @@ export class Sky extends DurableObject {
       if (id.length < 16) return json({error: "bad"}, 400);
       const ex = this.row("SELECT ep FROM ids WHERE id=?", id);
       if (!ex) {
-        if (!this.rate("mint:" + iph, 6, 86400e3)) { this.bump("mint_block"); return json({error: "rate"}, 429); }
+        // starší používateľ s platným tokenom (z čias pred tabuľkou ids) – zaregistrovať bez limitu
+        const legacy = !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
+        // limit nových zariadení na IP je vysoký: iCloud Private Relay a mobilní operátori zdieľajú IP medzi tisíckami ľudí
+        if (!legacy && !this.rate("mint:" + iph, 40, 86400e3)) { this.bump("mint_block"); return json({error: "rate"}, 429); }
         this.sql.exec("INSERT INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, now);
         // pozvanie sa ráta len pri skutočne novom zariadení
-        if (/^[A-Za-z0-9]{16}$/.test(b.r || "") && this.rate("ref:" + iph, 3, 86400e3)) this.sql.exec("INSERT INTO refs(pid, n) VALUES(?, 1) ON CONFLICT(pid) DO UPDATE SET n = n + 1", b.r);
+        if (!legacy && /^[A-Za-z0-9]{16}$/.test(b.r || "") && this.rate("ref:" + iph, 3, 86400e3)) this.sql.exec("INSERT INTO refs(pid, n) VALUES(?, 1) ON CONFLICT(pid) DO UPDATE SET n = n + 1", b.r);
       } else if (ex.ep && !sameStr(await this.tokE(id, ex.ep), b.tok || "")) {
         // účet bol prenesený na iné zariadenie – staré zariadenie už token nedostane
         return json({error: "moved"}, 401);
@@ -590,10 +594,12 @@ export class Sky extends DurableObject {
     if (p === "/api/friends" && req.method === "POST") {
       const b = await body(), pd = await this.pid(cleanId(b.id));
       if (b.remove) { const o = String(b.remove).replace(/[^A-Za-z0-9]/g, "").slice(0, 16); this.sql.exec("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", pd, o, o, pd); return json({ok: true}); }
+      // týždenné mávnutia overené serverom – súboj kamarátov sa nedá sfalšovať v mobile
+      const wk0 = this.day(now - ((new Date(now).getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=?", x, wk0) || {c: 0}).c;
       const list = this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", pd).toArray();
       const out = [];
-      for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát"}); }
-      return json({friends: out});
+      for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b)}); }
+      return json({friends: out, me: wk(pd)});
     }
     if (p === "/api/mydata" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id), out = {vytvorene: new Date((this.row("SELECT t FROM ids WHERE id=?", id) || {t: 0}).t).toISOString()};

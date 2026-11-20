@@ -12,13 +12,14 @@ async function ensureTok(){
   if((TOK&&FK)||!SOC.api)return TOK;
   try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref","")})});const j=await r.json();
     if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
-    if(j.tok){LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())}}catch(e){}
+    if(!j.tok){SOC.helloErr=r.status+"/"+(j.error||"?");try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+SOC.helloErr}))}catch(x){}}
+    if(j.tok){SOC.helloErr="";LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())}}catch(e){}
   return TOK;
 }
 async function apiPost(path,obj){
   await ensureTok();
   const r=await fetch(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok:TOK})});
-  if(r.status===401){LS.set("ctl_tok0",TOK);TOK="";LS.set("ctl_tok","")}
+  if(r.status===401){if(TOK)LS.set("ctl_tok0",TOK);TOK="";LS.set("ctl_tok","")}
   return r;
 }
 const posR=()=>S.pos?{lat:Math.round(S.pos.lat*100)/100,lon:Math.round(S.pos.lon*100)/100}:{};
@@ -165,7 +166,7 @@ async function doWave(e){
   if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
   if(j.error==="rate"){toast("Spomaľ 🙂","Mávať môžeš znova o chvíľu");return}
   if(!r.ok||!j.ok){
-    const code=r.status+(j.error?"/"+j.error:"");
+    const code=r.status+(j.error?"/"+j.error:"")+(SOC.helloErr?" h"+SOC.helloErr:"");
     try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"wave fail "+code}))}catch(x){}
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     credit();toast(e+" Zamávané! +1 bod","Spojenie so serverom zlyhalo ("+code+"), počítame to u teba");return}
@@ -190,7 +191,9 @@ if(SOC.api){(function loop(){setTimeout(async()=>{if(!document.hidden)await socP
 async function friendsRender(){
   const box=$("frList");if(!box||!SOC.api)return;
   try{const r=await apiPost("/api/friends",{});const j=await r.json();const fr=j.friends||[];
-    box.innerHTML=fr.length?fr.map(f=>`<div class="sr"><div>👯 ${esc(f.n)}</div><button class="ghost" data-unf="${esc(f.p)}">Odobrať</button></div>`).join(""):'<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';
+    if(!fr.length){box.innerHTML='<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';return}
+    const all=[...fr,{n:"Ty",w:j.me|0,me:1}].sort((a,b)=>(b.w|0)-(a.w|0));
+    box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)} · ${f.w|0} 👋</div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
   }catch(e){}
 }
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-unf]");if(!b)return;await apiPost("/api/friends",{remove:b.dataset.unf}).catch(()=>{});toast("Kamarát odobratý","Už neuvidíte svoje mávnutia");friendsRender()});

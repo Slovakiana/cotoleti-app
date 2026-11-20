@@ -212,6 +212,7 @@ function renderCol(){
   $("c-lvl").textContent="Lvl "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
   $("c-bar").style.width=Math.min(100,(COL.pts-a)/(b-a)*100)+"%";
   $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
+  {const z=seasonUpd();$("c-season").innerHTML=`<b>${z.e} ${z.name}</b> · ${z.pts} b v sezóne · končí ${z.end}${z.best?` · rekord ${z.best} b`:""}`}
   {const sd=seenSum();$("c-seen").innerHTML=sd?sd:"";$("c-seen").hidden=!sd}
   const types=Object.entries(COL.types);
   $("c-n").textContent=COL.n;$("c-t").textContent=types.length;$("c-r").textContent=types.filter(([,v])=>v.r==="r"||v.r==="l").reduce((s,[,v])=>s+v.n,0);
@@ -652,3 +653,25 @@ function seenSum(){
   if(y&&y.n)parts.push(`<b>Včera:</b> ${y.n} ✈️ · ulovené ${caught(y)}${y.best?" · najvzácnejšie "+esc(y.best):""}`);
   return parts.length?parts.join("<br>")+'<br><small>Lietadlo uloviš len tak, že mu zamávaš 👋</small>':"";
 }
+
+/* 🗓️ sezóny (každé 3 mesiace) – zbierka sa nikdy nemaže, len sa začína nové počítadlo */
+const SEAS=[["Zima","❄️"],["Jar","🌱"],["Leto","☀️"],["Jeseň","🍂"]];
+function seasonNow(d=new Date()){
+  const m=d.getMonth(),i=m===11||m<2?0:m<5?1:m<8?2:3,y=m===11?d.getFullYear()+1:d.getFullYear();
+  const endM=[2,5,8,11][i],end=new Date(i===0?y:y,endM,0);
+  return {k:y+"-"+i,name:SEAS[i][0]+(i===0?" "+(y-1)+"/"+String(y).slice(2):" "+y),e:SEAS[i][1],end:end.getDate()+". "+(end.getMonth()+1)+"."};
+}
+function seasonUpd(){
+  const n=seasonNow(),st=LS.get("ctl_season",null);
+  let z=st;
+  if(!z){z={k:n.k,base:COL.pts,best:0,hist:[]}}
+  else if(z.k!==n.k){
+    const got=COL.pts-z.base,old=z.k;
+    z.hist=(z.hist||[]).concat([{k:old,p:got}]).slice(-8);z.best=Math.max(z.best||0,got);z.k=n.k;z.base=COL.pts;
+    if(got>0)setTimeout(()=>toast("🗓️ Nová sezóna: "+n.name,"V minulej si nazbieral "+got+" b. Zbierka ti zostáva celá."),3000);
+    if(got>=100)grantAch("season100");
+  }
+  LS.set("ctl_season",z);
+  return {...n,pts:Math.max(0,COL.pts-z.base),best:z.best||0};
+}
+if(typeof ACH!=="undefined")ACH.push({id:"season100",i:"🗓️",n:"100 bodov za jednu sezónu",c:()=>false});

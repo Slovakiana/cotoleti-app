@@ -64,9 +64,16 @@ await t("žreb po 10 minútach vyberie víťaza", async () => {
 });
 Date.now = realNow;
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
-await t("max 6 nových účtov z jednej siete za deň", async () => {
-  const codes = []; for (let i = 0; i < 8; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzzz" + i}, "7.7.7.7")).s);
-  assert.deepEqual(codes.slice(-2), [429, 429]);
+await t("max 40 nových účtov z jednej siete za deň", async () => {
+  const codes = []; for (let i = 0; i < 42; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
+  assert.deepEqual(codes.slice(-2), [429, 429], codes.join(","));
+});
+await t("starý používateľ s platným tokenom sa zaregistruje aj nad limitom", async () => {
+  const id = "v2legacylegacylegacylegacy01";
+  const tok = await (await call("/api/hello", {id}, "8.8.8.8")).j.tok;
+  db.prepare("DELETE FROM ids WHERE id=?").run(id);
+  const r = await call("/api/hello", {id, tok}, "7.7.7.7");
+  assert.equal(r.s, 200); assert.equal(r.j.tok, tok);
 });
 await t("kamarát vidí len prezývku", async () => {
   assert.equal((await call("/api/friend", {id: A, tok: ha.tok, pid: hc.pid})).s, 400); // bez kľúča z odkazu nie
@@ -94,8 +101,8 @@ await t("liga: max 25 mávnutí na účet a deň, mesto pevné", async () => {
   assert.deepEqual(db.prepare("SELECT DISTINCT town FROM towns").all().map(r => r.town), ["Bratislava"]);
 });
 await t("IPv6 z jedného bloku = jedna sieť", async () => {
-  const codes = []; for (let i = 0; i < 8; i++) codes.push((await call("/api/hello", {id: "v2yyyyyyyyyyyyyyyyyyyy" + i}, "2001:db8:1:2:" + i + "::1")).s);
-  assert.deepEqual(codes.slice(-2), [429, 429]);
+  const codes = []; for (let i = 0; i < 42; i++) codes.push((await call("/api/hello", {id: "v2yyyyyyyyyyyyyyyyyyy" + String(i).padStart(2, "0")}, "2001:db8:1:2:" + (i % 9) + "::1")).s);
+  assert.deepEqual(codes.slice(-2), [429, 429], codes.join(","));
 });
 await t("lievik a chyby sa počítajú anonymne", async () => {
   await call("/api/ev", {step: "open"}); await call("/api/ev", {step: "nieco"}); await call("/api/err", {m: "TypeError x at https://a.b/c.js"});
