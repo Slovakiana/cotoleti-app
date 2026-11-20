@@ -61,12 +61,12 @@ function sndStart(){
   const master=SND.master=ctx.createGain();master.gain.value=0;master.gain.linearRampToValueAtTime(.9,ctx.currentTime+2);master.connect(ctx.destination);
   SND.fx=MUS.fx(ctx,master);SND.fx.delay.delayTime.value=EIGHTH*3;
   SND.step=0;SND.next=ctx.currentTime+.15;SND.on=true;
-  SND.sched=setInterval(sndSched,60);sndUpdate();SND.timer=setInterval(sndUpdate,1000);
+  SND.sched=setInterval(sndSched,110);sndUpdate();SND.timer=setInterval(sndUpdate,1000);
 }
 function sndPlanes(){return S.list.filter(a=>a.el!=null&&a.el>0).slice(0,8).map(a=>({hex:a.hex,el:a.el,alt:a.alt,bell:rarity(a)!=="c",pan:Math.max(-1,Math.min(1,Math.sin(rad(wrap180(a.bear-(S.heading||0))))))}))}
 function sndSched(){
   const c=SND.ctx;if(!c)return;
-  while(SND.next<c.currentTime+.3){
+  while(SND.next<c.currentTime+.45){
     const ci=Math.floor(SND.step/BAR)%MUS.prog.length,t=SND.next;
     const st=SND.step%BAR,pl=sndPlanes();
     if(st===0||st===10)MUS.strum(c,SND.fx.in,t,ci,st?.03:.045);

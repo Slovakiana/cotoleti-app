@@ -153,7 +153,7 @@ async function getJSON(url,ms=7000,outer){
 
 async function tryCombo(i,r,signal){
   const c=COMBOS[i];
-  const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url(S.pos.lat.toFixed(1),S.pos.lon.toFixed(1),r+6)),9000,signal);
+  const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url((Math.round(S.pos.lat*4)/4).toFixed(2),(Math.round(S.pos.lon*4)/4).toFixed(2),r+10)),9000,signal);
   if(!ok)throw new Error("HTTP "+status);
   if(!j.ac&&!j.aircraft&&!("states" in j))throw new Error("zlý formát");
   return {i,list:c.s.parse(j)};
@@ -251,7 +251,7 @@ function spdCompare(k){if(k==null)return "rýchlosť";if(k<150)return "ako auto 
 /* ============ zbierka ============ */
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
-addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of Object.keys(COL))delete COL[k];Object.assign(COL,v);if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
+addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
 const ACH=[
   {id:"first",i:"🐣",n:"Prvý úlovok",c:()=>COL.n>=1},
   {id:"ten",i:"🔟",n:"Desiatka",c:()=>COL.n>=10},

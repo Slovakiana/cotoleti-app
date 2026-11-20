@@ -20,8 +20,26 @@
 - Zbierky ľudí sú v ich mobiloch – tie sa nestratia.
 
 ## 5. Tajné kľúče (Cloudflare → cotoleti-app → Settings → Variables and Secrets)
-- `ADMIN_KEY` – prístup k štatistikám: `…/api/stats` s hlavičkou `x-admin-key` alebo `?key=` (odkaz nikomu neposielaj).
+- `ADMIN_KEY` – prístup na **správcovskú stránku** `https://cotoleti-app.radovan-kudela.workers.dev/admin` (kľúč sa píše do políčka, nikdy nie do adresy). Tam sú štatistiky, signály podozrivej aktivity a **vypínače** (Santa push, nedeľná vlna, šetriaci režim).
 - `TG_TOKEN`, `TG_CHAT` – týždenný súhrn na Telegram. Ak token unikne: v Telegrame @BotFather → /revoke a nový vlož sem.
 
 ## 6. Zneužitie (spam, nevhodné mená)
 - Mená miznú automaticky po 3 nahláseniach. Ak treba zasiahnuť ručne, napíš Claudovi meno – pridá ho na zoznam zakázaných.
+
+## 7. Únik osobných údajov (GDPR)
+- Do **72 hodín** oznám Úradu na ochranu osobných údajov SR (dataprotection.gov.sk → Oznámenie porušenia). Ak ide o vysoké riziko pre ľudí, informuj aj ich (oznámenie v appke).
+- Zapíš si: čo sa stalo, kedy, aké údaje, koľko ľudí, čo si urobil. Napíš Claudovi, pomôže s textom.
+- Okamžite: vymeň `ADMIN_KEY`, prípadne `TG_TOKEN`; ak unikli tokeny používateľov, Claude zmení podpisový kľúč (všetci dostanú nové tokeny automaticky).
+
+## 8. Podozrivá aktivita (Telegram hlási sám, max. 1× za 6 h na typ)
+- `401admin` – niekto skúša admin kľúč → vymeň ho.
+- `mint_block`, `xclaim_bad` – niekto vyrába účty / hádže kódy → nič netreba, limity držia; pri opakovaní napíš Claudovi.
+- `teleport`, `vpn` – podvádzanie s polohou → body sa nerátajú automaticky.
+- `ban` – zakázané meno po nahláseniach → skontroluj, či to bolo oprávnené.
+
+## 9. Štedrý deň (24. 12.) – deň D
+- **17. 12. generálka:** otvor appku s `#santatest` na konci adresy, skontroluj Santu na oblohe a zdieľanie; v /admin skontroluj štatistiky.
+- **Pred 1. 12.:** Workers Paid zapnutý, notifikácie v Cloudflare, 2FA na všetkých účtoch.
+- **24. 12. ráno:** `/api/health` → `"ok":true`. Od 12:00 do 22:00 **nenasadzovať žiadne zmeny**.
+- **14:45:** /admin → Santa push „zapnutý“. Ak by server nestíhal: /admin → Sociálne funkcie → **šetriaci režim** (Santa a lietadlá idú ďalej, len bez rebríčkov).
+- **Ak sa niečo pokazí:** Cloudflare → Deployments → Rollback na verziu z 23. 12.

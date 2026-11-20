@@ -55,8 +55,13 @@ await t("čerstvý účet nevyhrá zlaté lietadlo", async () => assert.equal((a
 Date.now = () => fixed + 20 * 60e3;
 await t("zo zahraničia nevyhrá", async () => assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}, "5.6.7.8", "US")).j.golden, false));
 db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
+db.exec(`INSERT OR IGNORE INTO seen(day, id) VALUES('2000-01-01', '${C}')`);
 await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11&hexes=aabbcc`, null, "9.9.9.9");
-await t("poctivý hráč vyhrá", async () => assert.equal((await call("/api/wave", {id: C, tok: hc.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true, nick: "Maťo"}, "9.9.9.9")).j.golden, true));
+await t("poctivý hráč sa dostane do žrebu", async () => assert.equal((await call("/api/wave", {id: C, tok: hc.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true, nick: "Maťo"}, "9.9.9.9")).j.golden, "entered"));
+await t("žreb po 10 minútach vyberie víťaza", async () => {
+  Date.now = () => fixed + 35 * 60e3; await sky.cron();
+  const g = db.prepare("SELECT state, wnick FROM golden").get(); assert.equal(g.state, 1); assert.equal(g.wnick, "Maťo");
+});
 Date.now = realNow;
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
 await t("max 6 nových účtov z jednej siete za deň", async () => {
@@ -75,7 +80,7 @@ await t("upozornenia len na povolené servery", async () => {
 });
 await t("nevhodné meno zmizne po 3 nahláseniach", async () => {
   await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Zlý tím"}, "9.9.9.9");
-  db.exec("UPDATE ids SET t=0");
+  db.exec("UPDATE ids SET t=0"); for (const x of [A, B, C]) for (const dd of ["2000-01-02", "2000-01-03"]) db.exec(`INSERT OR IGNORE INTO seen(day, id) VALUES('${dd}', '${x}')`);
   await call("/api/report", {id: A, tok: ha.tok, name: "Neexistuje"}); assert.equal(db.prepare("SELECT COUNT(*) c FROM reports").get().c, 0);
   for (const [id, tok, ip] of [[A, ha.tok, "1.1.1.1"], [B, hb.tok, "2.2.2.2"], [C, hc.tok, "3.3.3.3"]]) await call("/api/report", {id, tok, name: "ZLÝ TÍM"}, ip);
   assert.equal(db.prepare("SELECT name FROM teams").get().name.startsWith("Tím "), true);
@@ -101,12 +106,34 @@ await t("lievik a chyby sa počítajú anonymne", async () => {
 await t("zdravie servera", async () => assert.equal((await call("/api/health")).s, 200));
 await t("štatistiky len s kľúčom", async () => {
   assert.equal((await call("/api/stats")).s, 401);
-  const s = await call("/api/stats?key=tajne"); assert.equal(s.s, 200); assert.ok(s.j.days.length === 14);
-  assert.equal((await call("/api/export?key=zle")).s, 401);
+  assert.equal((await call("/api/stats?key=tajne")).s, 401); // kľúč v adrese už neplatí
+  const r = await W.fetch(new Request("https://x/api/stats", {headers: {"x-admin-key": "tajne"}}), env); const j = await r.json();
+  assert.equal(r.status, 200); assert.ok(j.days.length === 14);
+  assert.equal((await call("/api/export")).s, 404); // export celej databázy je zrušený
 });
-await t("zmazanie údajov", async () => {
+await t("moje údaje sa dajú stiahnuť", async () => { const r = await call("/api/mydata", {id: C, tok: hc.tok}); assert.equal(r.s, 200); assert.ok(Array.isArray(r.j.wavelog)); assert.ok(!JSON.stringify(r.j).includes(C)); });
+await t("zmazanie údajov zruší aj token", async () => {
   await call("/api/forget", {id: A, tok: ha.tok});
   assert.equal(db.prepare("SELECT COUNT(*) c FROM wavelog WHERE id=?").get(A).c, 0);
+  assert.equal((await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11})).s, 401);
+});
+await t("prenos zbierky: jednorazový kód, starý mobil stratí prístup", async () => {
+  const x = await call("/api/xfer", {id: B, tok: hb.tok, data: "{\"ctl_col\":\"{}\"}"}, "5.6.7.8");
+  assert.equal(x.j.code.length, 8);
+  const c1 = await call("/api/xclaim", {code: x.j.code}, "8.8.8.8"); assert.equal(c1.j.id, B); assert.ok(c1.j.tok !== hb.tok);
+  assert.equal((await call("/api/xclaim", {code: x.j.code}, "8.8.8.8")).s, 404); // druhýkrát nie
+  assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11}, "5.6.7.8")).s, 401);
+  assert.equal((await call("/api/hello", {id: B}, "5.6.7.8")).s, 401); // starý mobil si nový token nevypýta
+  assert.equal((await call("/api/sky", {id: B, tok: c1.j.tok, lat: 48.15, lon: 17.11, hexes: "aabbcc"})).s, 200);
+});
+await t("poloha zamknutá na deň (bez teleportu)", async () => {
+  const D = "v2dddddddddddddddddddddd4", hd = (await call("/api/hello", {id: D}, "4.4.4.4")).j;
+  await call("/api/wave", {id: D, tok: hd.tok, hex: "aabbcc", lat: 48.15, lon: 17.11}, "4.4.4.4");
+  const n0 = db.prepare("SELECT n FROM idday WHERE id=?").get(D).n;
+  plane.lat = 48.7; plane.lon = 21.2; plane.hex = "cc0001";
+  await call("/api/wave", {id: D, tok: hd.tok, hex: "cc0001", lat: 48.72, lon: 21.25}, "4.4.4.4");
+  plane.lat = 48.2; plane.lon = 17.2; plane.hex = "aabbcc";
+  assert.equal(db.prepare("SELECT n FROM idday WHERE id=?").get(D).n, n0);
 });
 await t("náhľad odkazu s ošetreným textom", async () => {
   const p = Buffer.from(JSON.stringify({n: "<script>x", p: 120, c: 9})).toString("base64url");

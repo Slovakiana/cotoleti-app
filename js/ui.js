@@ -462,6 +462,7 @@ $("b-forget").onclick=async()=>{
   if(Date.now()-forgetArm>4000){forgetArm=Date.now();$("b-forget").textContent="Naozaj? Ťukni znova";return}
   try{if(typeof apiPost==="function")await apiPost("/api/forget",{})}catch(e){}
   try{const r=await navigator.serviceWorker?.getRegistration();const sub=await r?.pushManager?.getSubscription();await sub?.unsubscribe()}catch(e){}
+  try{await caches.delete("ctl-id")}catch(e){}
   try{Object.keys(localStorage).filter(k=>k.startsWith("ctl_")||k.startsWith("nm_")).forEach(k=>localStorage.removeItem(k))}catch(e){}
   toast("🗑️ Údaje zmazané","Zo servera aj z tohto mobilu");setTimeout(()=>location.reload(),1500);
 };
@@ -511,37 +512,51 @@ async function wakeOn(){WAKE.want=true;try{if(navigator.wakeLock&&!WAKE.l){WAKE.
 function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l=null}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
 
-/* ============ 🔁 prenos zbierky (Safari → appka na ploche, nový mobil) ============ */
-function restoreLink(){
-  const keys=["ctl_cid","ctl_tok","ctl_pid","ctl_fk","ctl_col","ctl_nick","ctl_daily","ctl_log","ctl_team"],o={};
-  keys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)o[k]=v});
-  return location.origin+location.pathname+"#prenos="+b64e(JSON.stringify(o));
+/* ============ 🔁 prenos zbierky jednorazovým kódom (platí 10 min, starý mobil stratí prístup) ============ */
+const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_ach:"object",ctl_team:"object",ctl_track:"object"};
+async function xferMake(){
+  if(typeof apiPost!=="function")return;
+  const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
+  try{const r=await apiPost("/api/xfer",{data:JSON.stringify(data)});const j=await r.json();
+    if(!j.code){toast("Kód sa nepodarilo vytvoriť","Skús o chvíľu");return}
+    $("xCode").textContent=j.code.slice(0,4)+" "+j.code.slice(4);$("xM").classList.add("on");
+  }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
 }
-function restoreFromHash(){
-  const m=location.hash.match(/prenos=([\w-]+)/);if(!m)return;
-  try{const o=JSON.parse(b64d(m[1]));
-    if(o.ctl_cid&&/^v2[A-Za-z0-9]{30}$/.test(JSON.parse(o.ctl_cid))&&(COL.n<3||confirm("Nahradiť zbierku v tomto mobile prenesenou?"))){
-      Object.entries(o).forEach(([k,v])=>{if(k.startsWith("ctl_"))localStorage.setItem(k,v)});LS.set("ctl_onb",1);
-      history.replaceState(null,"",location.pathname);location.reload();return}
-  }catch(e){}
-  try{history.replaceState(null,"",location.pathname)}catch(e){}
+async function xferClaim(){
+  const code=(prompt("Zadaj 8-miestny kód z druhého mobilu:")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");if(code.length!==8)return;
+  if(!confirm("Prenesiem sem zbierku z druhého mobilu. Tvoja súčasná zbierka v tomto mobile sa nahradí. Pokračovať?"))return;
+  try{const r=await fetch(DEFAULT_PROXY+"/api/xclaim",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({code})});const j=await r.json();
+    if(!j.id){toast("Kód neplatí","Kód platí 10 minút a len raz");return}
+    let data={};try{data=JSON.parse(j.data||"{}")}catch(e){}
+    for(const [k,t] of Object.entries(XKEYS)){if(typeof data[k]!=="string")continue;try{const v=JSON.parse(data[k]);if(typeof v===t&&v!==null)localStorage.setItem(k,data[k])}catch(e){}}
+    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_onb",1);
+    toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);
+  }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
 }
-restoreFromHash();
-$("b-transfer").onclick=async()=>{
-  const url=restoreLink();
-  try{await navigator.clipboard.writeText(url);toast("🔁 Odkaz na prenos skopírovaný","Vlož ho do Safari v appke na ploche alebo v novom mobile. Nikomu ho neposielaj – je to tvoj kľúč.")}
-  catch(e){prompt("Tvoj odkaz na prenos (nikomu ho neposielaj):",url)}
-};
+$("b-transfer").onclick=xferMake;$("b-claim").onclick=xferClaim;$("xClose").onclick=()=>$("xM").classList.remove("on");
 /* návod na pridanie na plochu */
 function installGuide(){
   const ios=/iPhone|iPod/.test(UA)||isIPad,crios=/CriOS/.test(UA);
-  $("instSteps").innerHTML=ios?`<li>Ťukni na <b>Zdieľať</b> ${crios?"(⬆️ hore vpravo)":"(⬆️ dole v strede, v novom iOS pod ⋯)"}</li><li>Posuň nižšie a vyber <b>Pridať na plochu</b></li><li>Ťukni <b>Pridať</b>. Potom otvor appku z plochy a v Nastaveniach ťukni <b>Prenos zbierky</b>, ak chceš zachovať body.</li>`
+  $("instSteps").innerHTML=ios?`<li>Ťukni na <b>Zdieľať</b> ${crios?"(⬆️ hore vpravo)":"(⬆️ dole v strede, v novom iOS pod ⋯)"}</li><li>Posuň nižšie a vyber <b>Pridať na plochu</b></li><li>Ťukni <b>Pridať</b>. Potom otvor appku z plochy a v Nastaveniach → <b>Prenos zbierky</b> zadaj kód, ak chceš zachovať body.</li>`
     :`<li>Ťukni na <b>⋮</b> vpravo hore</li><li>Vyber <b>Pridať na plochu</b> alebo <b>Inštalovať aplikáciu</b></li>`;
   $("instM").classList.add("on");
 }
 $("instClose").onclick=()=>$("instM").classList.remove("on");
-$("instCopy").onclick=()=>$("b-transfer").click();
+$("instCopy").onclick=()=>{$("instM").classList.remove("on");xferMake()};
 // modálne okná: zatvorenie klávesom Esc a návrat zamerania
 addEventListener("keydown",e=>{if(e.key!=="Escape")return;const m=[...document.querySelectorAll(".modal.on")].pop();if(m){m.classList.remove("on");if(m.id==="ar"&&typeof closeAR==="function")closeAR()}});
 // odznak na ikone zmizne, keď otvoríš appku
 try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
+
+/* ============ 🧒 režim pre deti do 16 rokov (bez prezývky, pošty, kamarátov a upozornení) ============ */
+const KID=()=>LS.get("ctl_kid",false);
+function kidApply(){const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);$("nick").disabled=k;if(k){LS.set("ctl_nick","");$("nick").value="";LS.set("ctl_pushAsked",true)}}
+$("t-kid").onclick=()=>{LS.set("ctl_kid",!KID());kidApply();haptic(6)};
+if($("onbKid"))$("onbKid").onchange=e=>{LS.set("ctl_kid",e.target.checked);kidApply()};
+kidApply();
+$("b-mydata").onclick=async()=>{
+  try{const r=await apiPost("/api/mydata",{});const j=await r.json();
+    const blob=new Blob([JSON.stringify({zariadenie:Object.fromEntries(Object.keys(localStorage).filter(k=>k.startsWith("ctl_")&&!/tok|cid|fk/.test(k)).map(k=>[k,localStorage.getItem(k)])),server:j},null,1)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="moje-udaje-cotoleti.json";a.click();toast("📄 Údaje stiahnuté","Súbor moje-udaje-cotoleti.json");
+  }catch(e){toast("Bez internetu","Skús to znova")}
+};

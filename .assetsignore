@@ -5,3 +5,5 @@ wrangler.jsonc
 .wrangler
 tests
 .github
+*.md
+og.png

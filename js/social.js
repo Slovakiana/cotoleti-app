@@ -5,15 +5,18 @@ const SOC={api:MYPROXY||"",data:null,busy:false,waved:LS.get("ctl_waved",{}),loc
 SOC.cid=(()=>{let v=LS.get("ctl_cid","");if(!/^v2[A-Za-z0-9]{30}$/.test(v)){const b=new Uint8Array(24);crypto.getRandomValues(b);v="v2"+Array.from(b,x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[x%56]).join("").slice(0,30);LS.set("ctl_cid",v);LS.set("ctl_tok","");LS.set("ctl_pid","")}return v})();
 /* identita: server vydá podpísaný token, bez neho sa nič nezapočíta */
 let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid",""),FK=LS.get("ctl_fk","");
+function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.set(k,""));location.reload()}
 async function ensureTok(){
   if((TOK&&FK)||!SOC.api)return TOK;
-  try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid})});const j=await r.json();if(j.tok){TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK)}}catch(e){}
+  try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref","")})});const j=await r.json();
+    if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
+    if(j.tok){LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK)}}catch(e){}
   return TOK;
 }
 async function apiPost(path,obj){
   await ensureTok();
   const r=await fetch(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok:TOK})});
-  if(r.status===401){TOK="";LS.set("ctl_tok","")}
+  if(r.status===401){LS.set("ctl_tok0",TOK);TOK="";LS.set("ctl_tok","")}
   return r;
 }
 const posR=()=>S.pos?{lat:Math.round(S.pos.lat*100)/100,lon:Math.round(S.pos.lon*100)/100}:{};
@@ -24,7 +27,9 @@ function krajOf(p){
   for(const [k,v] of Object.entries(KRAJ)){if(k==="XX")continue;const d=Math.hypot(p.lat-v[0],(p.lon-v[1])*Math.cos(rad(48.7)));if(d<bd){bd=d;best=k}}
   return best;
 }
-const dayKey=()=>new Date().toLocaleDateString("sv-SE");
+// deň podľa slovenského času (rovnako ako server), aj keď je mobil v inom pásme
+const SKD=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"});
+const dayKey=()=>SKD.format(new Date());
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 
 ACH.push({id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
@@ -37,8 +42,10 @@ async function socPoll(){
     const hs=S.list.filter(a=>a.el>0).slice(0,15).map(a=>a.hex);
     if(typeof TR!=="undefined"&&TR&&TR.hex&&!hs.includes(TR.hex))hs.push(TR.hex);
     await ensureTok();const pr=posR();
-    const r=await fetch(`${SOC.api}/api/sky?id=${SOC.cid}&tok=${encodeURIComponent(TOK)}${pr.lat!=null?`&lat=${pr.lat}&lon=${pr.lon}`:""}&hexes=${hs.join(",")}`,{cache:"no-store"});
-    if(r.ok){SOC.back=1;SOC.data=await r.json();socRender();if(SOC.data.myInvites>0)grantAch("recruit")}
+    // id a token v tele požiadavky, nie v adrese (nekončia v záznamoch)
+    const r=await fetch(`${SOC.api}/api/sky`,{method:"POST",cache:"no-store",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:TOK,...pr,hexes:hs.join(",")})});
+    if(r.ok){SOC.data=await r.json();SOC.back=SOC.data.flags&&SOC.data.flags.social==="min"?4:1;socRender();if(SOC.data.myInvites>0)grantAch("recruit");
+      const gk=dayKey()+SOC.data.goldMine;if(SOC.data.goldMine&&LS.get("ctl_goldWon","")!==gk&&typeof goldenWon==="function")goldenWon(null)}
     else if(r.status===429||r.status>=500)SOC.back=Math.min(8,(SOC.back||1)*2);
   }catch(e){SOC.back=Math.min(8,(SOC.back||1)*2)}
   SOC.busy=false;
@@ -143,7 +150,7 @@ async function doWave(e){
   if(j.error==="rate"){toast("Pomalšie 🙂","Skús o chvíľu");return}
   if(!r.ok||!j.ok){toast("Mávnutie sa nepodarilo odoslať","Skús to o chvíľu znova");return}
   credit();
-  if(j.golden&&typeof goldenWon==="function")goldenWon(a);
+  if(j.golden==="entered")setTimeout(()=>toast("🏆 Si v žrebovaní o zlaté lietadlo!","Víťaza vyžrebujeme do 10 minút zo všetkých, čo mu zamávali","#ffcf4f"),1800);
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);
   const tot=j.plane?j.plane.total:1;

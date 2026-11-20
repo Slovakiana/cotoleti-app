@@ -112,7 +112,7 @@ const DAILY_POOL=[
   {id:"zen",i:"🎯",n:"Ulov lietadlo vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
   {id:"shazam",i:"👂",n:"Vyskúšaj „Čo to hučí?“",h:"Keď počuješ lietadlo",ev:true},
 ];
-const today=()=>new Date().toLocaleDateString("sv-SE");
+const today=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"}).format(new Date());
 let DAILY=LS.get("ctl_daily",null);
 function dailyEnsure(){
   const d=today();

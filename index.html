@@ -368,6 +368,7 @@ body.moment #top{opacity:0;pointer-events:none}
 .post .via{margin-top:12px;font-size:13px;color:#8a6a4a}
 /* liga */
 .lgTabs{display:flex;gap:6px;margin-top:10px}
+body.kid #duelFr,body.kid [data-mail],body.kid #pushAsk,body.kid #postReply,body.kid #trNotify{display:none!important}
 .wideB{width:100%;margin-top:10px;min-height:48px;justify-content:center}
 .inappBar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:120;padding:12px 44px 12px 14px;border-radius:18px;font-size:13px;line-height:1.4;display:flex;flex-direction:column;gap:2px}
 .inappBar b{font-size:14px}.inappBar button{position:absolute;right:8px;top:8px;width:36px;height:36px;font-size:16px;color:var(--mut)}
@@ -412,6 +413,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     <div><i>🛰️</i>ISS, Starlink a satelity nad tebou</div>
   </div>
   <button class="cta" id="go">📍 Ukáž mi moju oblohu</button>
+  <label class="fine" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px"><input type="checkbox" id="onbKid"> Mám menej ako 16 rokov</label>
   <div class="fine">Polohu potrebujeme, aby sme vedeli, čo je nad tebou. Na server posielame len zaokrúhlenú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
@@ -614,7 +616,10 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
       <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
       <div class="msg" id="err"></div>
     </div>
-    <div class="sr"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo nového mobilu</small></div><button class="ghost" id="b-transfer">Kopírovať</button></div>
+    <div class="sr" style="display:block"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo do nového mobilu – jednorazový kód na 10 minút</small></div>
+      <div class="acts"><button class="ghost" id="b-transfer" style="flex:1">Vytvoriť kód</button><button class="ghost" id="b-claim" style="flex:1">Mám kód</button></div></div>
+    <div class="sr"><div>🧒 Mám menej ako 16 rokov<small>Bez prezývky, pošty, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
+    <div class="sr"><div>📄 Moje údaje<small>Stiahni si všetko, čo o tebe server má</small></div><button class="ghost" id="b-mydata">Stiahnuť</button></div>
     <div class="sr"><div>🔒 Súkromie a zdroje<small>Čo zbierame a odkiaľ sú dáta</small></div><button class="ghost" id="b-privacy">Otvoriť</button></div>
     <div class="sr"><div>🗑️ Zmazať moje údaje<small>Zo servera aj z tohto mobilu</small></div><button class="ghost" id="b-forget">Zmazať</button></div>
     <div class="sr"><div>Vymazať zbierku</div><button class="ghost" id="b-reset">Vymazať</button></div>
@@ -678,11 +683,14 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
 <div class="modal" id="privM" role="dialog" aria-modal="true"><div class="mcard">
   <div class="lbl"><span>🔒 Súkromie a zdroje</span></div>
   <div class="lookSub" style="margin-top:12px;line-height:1.55;color:var(--txt)">
-  <b>Čo appka zbiera.</b> Tvoja presná poloha zostáva v mobile. Na náš server (Cloudflare) posielame len: náhodné id zariadenia, polohu zaokrúhlenú na ~1 km (na výpočet kraja a mesta a pri upozorneniach), prezývku, ak si ju zadáš, tvoje mávnutia, pozdravy, tím a sledované lety. IP adresu neukladáme, používame ju len zahashovanú na ochranu pred podvodmi.<br><br>
-  <b>Na čo.</b> Aby fungovalo mávanie, rebríčky, pošta, upozornenia a ochrana súťaží (oprávnený záujem a poskytovanie služby; upozornenia len s tvojím súhlasom).<br><br>
-  <b>Ako dlho.</b> Mávnutia, pozdravy a mestá 8 dní, upozornenia do 90 dní nečinnosti, sledovaný let 36 hodín. Body a zbierka sú len v tvojom mobile.<br><br>
-  <b>Tvoje práva.</b> Údaje si kedykoľvek zmažeš tlačidlom „Zmazať moje údaje“ v nastaveniach. Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
-  <b>Pravidlá.</b> Prezývka nesmie byť urážlivá ani obsahovať cudzie osobné údaje – nevhodné prezývky server odmieta. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolínií sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
+  <b>Kto appku prevádzkuje.</b> Čo to letí? je nekomerčný projekt. Kontakt a žiadosti o údaje: <a href="https://github.com/Slovakiana/cotoleti-app/issues" target="_blank" rel="noopener">github.com/Slovakiana/cotoleti-app</a>.<br><br>
+  <b>Čo appka zbiera.</b> Presná poloha zostáva v mobile. Na náš server (Cloudflare) posielame len: náhodné id zariadenia, polohu zaokrúhlenú na ~1 km (na výpočet kraja a mesta, kontrolu lietadla nad tebou a pri upozorneniach), prezývku, ak si ju zadáš, tvoje mávnutia, pozdravy, tím, kamarátov a sledované lety. Z IP adresy server zistí krajinu a približnú oblasť (na ochranu súťaží) – IP adresu ani jej odtlačok k tvojmu účtu neukladáme, na obmedzenie počtu požiadaviek používame odtlačok, ktorý sa každý deň mení a do 24 h maže. Anonymne (bez id a IP) počítame, koľko ľudí prešlo jednotlivými krokmi appky a aké chyby nastali.<br><br>
+  <b>Na čo a na akom základe.</b> Aby fungovalo mávanie, rebríčky, pošta a ochrana súťaží (oprávnený záujem a poskytovanie služby), upozornenia len s tvojím súhlasom (dá sa kedykoľvek vypnúť).<br><br>
+  <b>Ako dlho.</b> Mávnutia, pozdravy a denné rebríčky 8 dní · denné mesto a kraj do polnoci · záznam o návštevách 35 dní · upozornenia 90 dní od poslednej obnovy · správy upozornení 30 dní · sledovaný let 36 hodín · nahlásenia 30 dní · id zariadenia a prezývka do 12 mesiacov nečinnosti · tím, kým ho neopustíš. Body a zbierka sú len v tvojom mobile.<br><br>
+  <b>Deti.</b> Ak máš menej ako 16 rokov, zapni v nastaveniach „Mám menej ako 16 rokov“ – appka potom nepoužíva prezývku, poštu, kamarátov ani upozornenia.<br><br>
+  <b>Tvoje práva.</b> V nastaveniach si údaje stiahneš („Moje údaje“) alebo zmažeš („Zmazať moje údaje“ – zo servera aj z mobilu, token prestane platiť). Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
+  <b>Komu sa dáta dostanú.</b> Cloudflare (server a databáza), GitHub (hosting appky), Apple/Google/Mozilla (doručenie upozornení, len ak ich zapneš), Google Fonts a CDN unpkg/jsDelivr/cdnjs (písmo a knižnice mapy a satelitov – vidia tvoju IP pri stiahnutí). Niektorí sídlia v USA (EU-US Data Privacy Framework). Dáta o lietadlách sťahuje náš server bez tvojich údajov.<br><br>
+  <b>Pravidlá.</b> Prezývka ani názov tímu nesmú byť urážlivé ani obsahovať cudzie osobné údaje – nevhodné mená server odmieta a po nahlásení skryje. Zlaté lietadlo sa žrebuje zo všetkých, ktorí mu zamávali; pri podozrení z podvodu výhru neuznáme. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolínií sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
   <b>Zdroje dát.</b> Lietadlá: adsb.lol (ODbL 1.0), airplanes.live, adsb.fi, The OpenSky Network, adsbdb.com · fotky lietadiel: airport-data.com, © autori · satelity: CelesTrak, výpočet satellite.js · počasie: Open-Meteo.com (CC BY 4.0) · mapa: © OpenStreetMap contributors, © CARTO.
   </div>
   <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
@@ -691,8 +699,15 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <div class="lbl"><span>📲 Pridaj si appku na plochu</span></div>
   <div class="lookSub" style="margin-top:10px">Na ploche funguje ako skutočná appka: upozornenia, rýchly štart a celá obrazovka.</div>
   <ol class="instSteps" id="instSteps"></ol>
-  <div class="fine">Na iPhone má appka na ploche vlastné úložisko. Aby si nestratil body, ťukni najprv na „Skopírovať prenos“ a odkaz potom otvor v appke na ploche.</div>
-  <div class="acts"><button class="btn pri" id="instCopy">🔁 Skopírovať prenos</button><button class="btn ico" id="instClose" style="flex:0 0 56px">✕</button></div>
+  <div class="fine">Na iPhone má appka na ploche vlastné úložisko. Aby si nestratil body, vytvor si kód na prenos a v appke na ploche ho zadaj v Nastaveniach → Prenos zbierky → Mám kód.</div>
+  <div class="acts"><button class="btn pri" id="instCopy">🔁 Vytvoriť kód na prenos</button><button class="btn ico" id="instClose" style="flex:0 0 56px">✕</button></div>
+</div></div>
+<div class="modal" id="xM" role="dialog" aria-modal="true" style="align-items:center"><div class="mcard" style="text-align:center">
+  <div class="lbl"><span>🔁 Kód na prenos</span></div>
+  <div class="big" id="xCode" style="font-size:40px;letter-spacing:4px;margin:16px 0">—</div>
+  <div class="lookSub">V druhom mobile (alebo v appke na ploche) otvor Nastavenia → Prenos zbierky → <b>Mám kód</b>. Kód platí 10 minút a len raz. Tento mobil potom zbierku stratí.</div>
+  <div class="fine" style="margin-top:8px">Kód nikomu neposielaj – kto ho má, dostane tvoju zbierku.</div>
+  <div class="acts"><button class="btn ghost" id="xClose" style="flex:1">Hotovo</button></div>
 </div></div>
 <div id="nightTint" aria-hidden="true"></div>
 <div id="toast" class="glass" role="status" aria-live="polite"><b id="toastT"></b><span id="toastS"></span></div>
@@ -720,25 +735,25 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=16"></script>
-<script src="js/ui.js?v=16"></script>
-<script src="js/ar.js?v=16"></script>
-<script src="js/space.js?v=16"></script>
-<script src="js/weather.js?v=16"></script>
-<script src="js/extras.js?v=16"></script>
-<script src="js/social.js?v=16"></script>
-<script src="js/wrapped.js?v=16"></script>
-<script src="js/push.js?v=16"></script>
-<script src="js/track.js?v=16"></script>
-<script src="js/towns.js?v=16"></script>
-<script src="js/catalog.js?v=16"></script>
-<script src="js/cards.js?v=16"></script>
-<script src="js/mail.js?v=16"></script>
-<script src="js/golden.js?v=16"></script>
-<script src="js/teams.js?v=16"></script>
-<script src="js/duel.js?v=16"></script>
-<script src="js/sound.js?v=16"></script>
-<script src="js/santa.js?v=16"></script>
-<script src="js/main.js?v=16"></script>
+<script src="js/core.js?v=17"></script>
+<script src="js/ui.js?v=17"></script>
+<script src="js/ar.js?v=17"></script>
+<script src="js/space.js?v=17"></script>
+<script src="js/weather.js?v=17"></script>
+<script src="js/extras.js?v=17"></script>
+<script src="js/social.js?v=17"></script>
+<script src="js/wrapped.js?v=17"></script>
+<script src="js/push.js?v=17"></script>
+<script src="js/track.js?v=17"></script>
+<script src="js/towns.js?v=17"></script>
+<script src="js/catalog.js?v=17"></script>
+<script src="js/cards.js?v=17"></script>
+<script src="js/mail.js?v=17"></script>
+<script src="js/golden.js?v=17"></script>
+<script src="js/teams.js?v=17"></script>
+<script src="js/duel.js?v=17"></script>
+<script src="js/sound.js?v=17"></script>
+<script src="js/santa.js?v=17"></script>
+<script src="js/main.js?v=17"></script>
 </body>
 </html>

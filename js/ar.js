@@ -86,6 +86,7 @@ function drawSat(c,x,y,s,now){
 
 function arFrame(){
   AR.raf=requestAnimationFrame(arFrame);
+  const tq=performance.now();if(tq-(AR.lastF||0)<32)return;AR.lastF=tq; // max ~30 snímok/s – šetrí batériu
   const c=AR.ctx,d=AR.d,W=AR.cv.width/d,H=AR.cv.height/d,now=Date.now();
   c.setTransform(d,0,0,d,0,0);
   const v=AR.vid;
