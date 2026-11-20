@@ -23,3 +23,6 @@ Sponzorované sezóny · Spotter+ · školský balík a liga · partnerstvá (SA
 ## Vlna 3 – IT a bezpečnosť (zostáva)
 Majiteľ: passkey/2FA (GitHub, Cloudflare, iCloud) · ruleset pre main · secret scanning + Dependabot alerts · Actions permissions Read · App len pre toto repo · meno prevádzkovateľa a e-mail do textu o súkromí · Cloudflare DPA, ROPA, DPIA · generálka 17. 12.
 Claude: knižnice a fonty lokálne + SRI · /api/planes + edge cache rebríčkov · moduly servera a verzované migrácie · viac DO · liga podľa spotterov + shadow-ban · testy klienta a Playwright v CI · nasadenie len pri zelených testoch · výkon oblohy a AR · outbox offline · passkey · odobrať kamaráta · vlastná doména (WAF, Bot Fight) · podmienky, DSA pravidlá, bezpečnostná politika, prístupnosť, NIS2.
+
+## UX/UI vlna (zostáva)
+Dynamic Type (rem) · pull-to-refresh · zmenšovanie lišty pri scrolle · plávajúce „Mávni“ · splash obrázky + maskable ikona · modály (fokus, zatváracia animácia, swipe) · skeleton + radar sweep · rarita aj textom · design tokeny naplno (52 inline štýlov) · prázdna obloha: väčší okruh + mávnutie najbližšiemu · onboarding: živý počet lietadiel nad SR.
