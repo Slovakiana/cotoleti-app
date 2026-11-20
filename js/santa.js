@@ -39,7 +39,7 @@ $("santaChip").onclick=async()=>{
   const w=santaWin();haptic(8);
   if(w.live){toast("🎅 Santa letí nad Slovenskom","Každých 12 minút preletí presne nad tebou. Zamávaj mu 👋");return}
   const t1=santaFirst(),hm=new Date(t1).toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"}),town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";
-  const url=shareUrl("santa","",town?"m="+encodeURIComponent(town)+"&t="+encodeURIComponent(hm):""),text=`${town?"📍 "+town+": ":""}🎅 Santa preletí 24. 12. o ${hm} a potom každých 12 minút – v appke Čo to letí? mu môžete s deťmi zamávať ✈️`;ev("share");
+  const url=shareUrl("santa","",town?"m="+encodeURIComponent(town)+"&cas="+encodeURIComponent(hm):""),text=`${town?"📍 "+town+": ":""}🎅 Santa preletí 24. 12. o ${hm} a potom každých 12 minút – v appke Čo to letí? mu môžete s deťmi zamávať ✈️`;ev("share");
   try{if(navigator.share){await navigator.share({title:"Santa nad Slovenskom",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho rodine")}catch(e){}
 };

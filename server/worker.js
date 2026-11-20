@@ -668,7 +668,7 @@ async function sharePage(url, env) {
     title = `👥 Pridaj sa do tímu${n ? " „" + n + "“" : ""}`; desc = "Mávame lietadlám a bojujeme o 1. miesto na Slovensku ✈️"; }
   else if (kind === "l" && /^[A-Z0-9]{2,8}$/i.test(data)) { const n = url.searchParams.get("n"); hash = "let=" + data.toUpperCase() + (n ? "&n=" + encodeURIComponent(nm(n)) : ""); img = "let";
     title = `✈️ ${n ? nm(n) + " letí" : "Let " + data.toUpperCase()} – sleduj ho naživo`; desc = "Upozorníme ťa, keď bude nad tebou. Vyjdi von a zamávaj 👋"; }
-  else if (kind === "santa") { hash = "santa"; img = "santa"; const m = cleanName(url.searchParams.get("m"), 30), t = String(url.searchParams.get("t") || "").replace(/[^0-9:]/g, "").slice(0, 5);
+  else if (kind === "santa") { hash = "santa"; img = "santa"; const m = cleanName(url.searchParams.get("m"), 30), t = String(url.searchParams.get("cas") || url.searchParams.get("t") || "").replace(/[^0-9:]/g, "").slice(0, 5);
     title = m && t ? `🎅 ${m}: Santa preletí 24. 12. o ${t}` : "🎅 Santa nad Slovenskom"; desc = m && t ? "Potom každých 12 minút. Ukáž to deťom a zamávajte mu spolu 👋" : "24. 12. od 15:00 preletí nad každým z nás. Zamávaj mu!"; }
   else if (kind === "p" && /^[0-9a-f]{6}$/.test(data)) { const q = k => cleanName(url.searchParams.get(k), 30); const c = (url.searchParams.get("c") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 8), dd = q("d"), m = q("m");
     title = `✈️ ${m ? m + ": práve letí" : "Práve letí"} ${c || "lietadlo"}${dd ? " → " + dd : ""}`; desc = "Pozri hore a zamávaj mu s celým Slovenskom 👋 Čo letí nad tebou?"; }
