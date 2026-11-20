@@ -4,10 +4,10 @@ const SOC={api:MYPROXY||"",data:null,busy:false,waved:LS.get("ctl_waved",{}),loc
 // tajné id (nikdy neodchádza v odkazoch) – staré id z odkazov sa nahrádza novým
 SOC.cid=(()=>{let v=LS.get("ctl_cid","");if(!/^v2[A-Za-z0-9]{30}$/.test(v)){const b=new Uint8Array(24);crypto.getRandomValues(b);v="v2"+Array.from(b,x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[x%56]).join("").slice(0,30);LS.set("ctl_cid",v);LS.set("ctl_tok","");LS.set("ctl_pid","")}return v})();
 /* identita: server vydá podpísaný token, bez neho sa nič nezapočíta */
-let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid","");
+let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid",""),FK=LS.get("ctl_fk","");
 async function ensureTok(){
-  if(TOK||!SOC.api)return TOK;
-  try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid})});const j=await r.json();if(j.tok){TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID)}}catch(e){}
+  if((TOK&&FK)||!SOC.api)return TOK;
+  try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid})});const j=await r.json();if(j.tok){TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK)}}catch(e){}
   return TOK;
 }
 async function apiPost(path,obj){
@@ -24,10 +24,10 @@ function krajOf(p){
   for(const [k,v] of Object.entries(KRAJ)){if(k==="XX")continue;const d=Math.hypot(p.lat-v[0],(p.lon-v[1])*Math.cos(rad(48.7)));if(d<bd){bd=d;best=k}}
   return best;
 }
-const dayKey=()=>new Date().toISOString().slice(0,10);
+const dayKey=()=>new Date().toLocaleDateString("sv-SE");
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 
-ACH.push({id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false});
+ACH.push({id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"wave",i:"👋",n:"Zamávaj lietadlu",h:"Ťukni na „Mávni“ pri lietadle nad tebou",ev:true});
 
 async function socPoll(){
@@ -38,8 +38,9 @@ async function socPoll(){
     if(typeof TR!=="undefined"&&TR&&TR.hex&&!hs.includes(TR.hex))hs.push(TR.hex);
     await ensureTok();const pr=posR();
     const r=await fetch(`${SOC.api}/api/sky?id=${SOC.cid}&tok=${encodeURIComponent(TOK)}${pr.lat!=null?`&lat=${pr.lat}&lon=${pr.lon}`:""}&hexes=${hs.join(",")}`,{cache:"no-store"});
-    if(r.ok){SOC.data=await r.json();socRender()}
-  }catch(e){}
+    if(r.ok){SOC.back=1;SOC.data=await r.json();socRender();if(SOC.data.myInvites>0)grantAch("recruit")}
+    else if(r.status===429||r.status>=500)SOC.back=Math.min(8,(SOC.back||1)*2);
+  }catch(e){SOC.back=Math.min(8,(SOC.back||1)*2)}
   SOC.busy=false;
 }
 function planeWaves(hex){
@@ -52,7 +53,7 @@ function socRender(){
   const D=SOC.data;
   if(D){
     const a=D.active||0,w=D.wavesToday||0;
-    $("liveLine").innerHTML=`🟢 ${nf(a)} ${ludia(a)} na Slovensku práve ${a===1?"pozerá":a<5?"pozerajú":"pozerá"} hore`+(w?` · 👋 ${nf(w)} dnes`:"");
+    $("liveLine").innerHTML=(a?`🟢 ${nf(a)} ${ludia(a)} na Slovensku práve ${a===1?"pozerá":a<5?"pozerajú":"pozerá"} hore`:"🟢 Buď prvý, kto sa dnes pozrie hore")+(w?` · 👋 ${nf(w)} dnes`:"");
     const kr=(D.kraje||[]).filter(x=>x.n>0);
     $("krajeCard").style.display=kr.length||D.allTime?"":"none";
     const rec=D.record;
@@ -114,34 +115,41 @@ async function doWave(e){
   haptic([18,40,18]);flyEmoji(e,$("b-wave"));
   if(a.santa){toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
   const key=dayKey()+a.hex,already=!!SOC.waved[key];
-  if(!already){
-    SOC.waved[key]=e;
-    // upratovanie starých záznamov
-    for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
-    LS.set("ctl_waved",SOC.waved);
-    const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};
-    COL.pts+=2;LS.set("ctl_col",COL);
-    const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
-    grantAch("wave");if(n>=10)grantAch("wave10");
-    if(typeof dailyEvent==="function")dailyEvent("wave");
-  }
-  waveInfo(a);
   const rt=routeOf(a),to=rt?" → "+citySk(rt.destination.municipality):"";
   if(already){toast(e+" Zamával si znova","Lietadlu"+to+" si už dnes zamával – počíta sa raz");return}
   ping("u");
-  if(!SOC.api){toast(e+" Zamával si lietadlu"+to,"+2 body");return}
+  // body a výzvy sa pripíšu až keď server mávnutie prijme (alebo keď sme offline)
+  const credit=()=>{
+    SOC.waved[key]=e;
+    for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
+    LS.set("ctl_waved",SOC.waved);
+    COL.pts+=2;LS.set("ctl_col",COL);
+    const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
+    grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");
+    if(typeof dailyEvent==="function")dailyEvent("wave");
+    if(typeof maybeAskPush==="function")setTimeout(maybeAskPush,4000);
+  };
+  if(!SOC.api){credit();toast(e+" Zamával si lietadlu"+to,"+2 body");return}
+  let r,j={};
   try{
-    const r=await apiPost("/api/wave",{hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""});
-    const j=await r.json();
-    if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
-    if(j.error==="rate"){toast("Pomalšie 🙂","Skús o chvíľu");return}
-    if(j&&j.golden&&typeof goldenWon==="function")goldenWon(a);
-    if(j&&j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex];waveInfo(a)}
-    const tot=j&&j.plane?j.plane.total:1;
-    toast(e+" Zamával si lietadlu"+to,tot>1?`Si ${nf(tot)}. človek zo Slovenska, ktorý mu dnes zamával`:"Si prvý, kto mu dnes zamával! +2 body");
-    setTimeout(socPoll,800);
-  }catch(err){toast(e+" Zamával si lietadlu"+to,"+2 body")}
+    const body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""};
+    r=await apiPost("/api/wave",body);
+    if(r.status===401)r=await apiPost("/api/wave",body); // nový token a ešte raz
+    j=await r.json().catch(()=>({}));
+  }catch(err){ // bez internetu – mávnutie platí aspoň u teba
+    credit();const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};waveInfo(a);
+    toast(e+" Zamával si lietadlu"+to,"+2 body (offline)");return}
+  if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
+  if(j.error==="rate"){toast("Pomalšie 🙂","Skús o chvíľu");return}
+  if(!r.ok||!j.ok){toast("Mávnutie sa nepodarilo odoslať","Skús to o chvíľu znova");return}
+  credit();
+  if(j.golden&&typeof goldenWon==="function")goldenWon(a);
+  if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
+  waveInfo(a);
+  const tot=j.plane?j.plane.total:1;
+  toast(e+" Zamával si lietadlu"+to,tot>1?`Si ${nf(tot)}. človek zo Slovenska, ktorý mu dnes zamával · +2 b`:"Si prvý, kto mu dnes zamával! +2 body");
+  setTimeout(socPoll,800);
 }
 $("b-wave").onclick=()=>{if(!S.top)return;haptic(8);$("wavePick").classList.toggle("on")};
 $("wavePick").onclick=ev=>{const b=ev.target.closest("button");if(!b)return;if(b.dataset.mail){$("wavePick").classList.remove("on");if(typeof openMail==="function")openMail();return}doWave(b.textContent)};
-if(SOC.api){setInterval(socPoll,30000);setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}
+if(SOC.api){(function loop(){setTimeout(async()=>{if(!document.hidden)await socPoll();loop()},(45000+Math.random()*18000-9000)*Math.min(8,SOC.back||1))})();setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}

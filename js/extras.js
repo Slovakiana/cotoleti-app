@@ -129,10 +129,15 @@ function dailyComplete(id){
   D.done[id]=Date.now();COL.pts+=15;
   const x=DAILY_POOL.find(q=>q.id===id);
   toast("🎯 Výzva splnená! +15 b",x.n,"#6dffc7");confetti(40);ping("u");
+  // séria rastie už pri prvej splnenej výzve dňa (včera = kalendárny deň, funguje aj pri zmene času)
+  if(D.lastDay!==D.date){
+    const yd=new Date();yd.setDate(yd.getDate()-1);const y=yd.toLocaleDateString("sv-SE");
+    D.streak=(D.lastDay===y||D.lastFull===y)?D.streak+1:1;D.lastDay=D.date;
+    if(D.streak>1)setTimeout(()=>toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"),"Príď aj zajtra a splň aspoň jednu výzvu","#ff4fd8"),3400);
+  }
   if(D.ids.every(i=>D.done[i])){
-    const y=new Date(Date.now()-86400e3).toLocaleDateString("sv-SE");
-    D.streak=D.lastFull===y?D.streak+1:1;D.lastFull=D.date;COL.pts+=25;
-    setTimeout(()=>{toast("🔥 Všetky výzvy! +25 b","Séria: "+D.streak+(D.streak===1?" deň":D.streak<5?" dni":" dní"),"#ff4fd8");confetti(90)},3400);
+    D.lastFull=D.date;COL.pts+=25;
+    setTimeout(()=>{toast("🎉 Všetky 3 výzvy! +25 b","Bonus za celý deň","#ff4fd8");confetti(90)},5600);
   }
   LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();if(S.view==="col")renderCol();
 }
@@ -152,7 +157,7 @@ function renderDaily(){
   $("dailyTxt").textContent=`🎯 Dnešné výzvy ${n}/3`+(D.streak?` · 🔥 ${D.streak}`:"")+(n===3?" ✅":"");
   $("d-streak").textContent=D.streak?"🔥 séria "+D.streak:"";
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
-    return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+15</b></div>`}).join("");
+    return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+15</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
 }
 $("dailyStrip").onclick=()=>setView("col");
 
@@ -160,7 +165,7 @@ $("dailyStrip").onclick=()=>setView("col");
 const b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const b64d=s=>decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/"))));
 const nick=()=>($("nick").value||"").trim()||LS.get("ctl_nick","")||"Spotter";
-function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,pid:(typeof PID!=="undefined"?PID:"")}}
+function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,pid:(typeof PID!=="undefined"?PID:""),fk:(typeof FK!=="undefined"?FK:"")}}
 async function sendDuel(){
   if(typeof ensureTok==="function")await ensureTok();
   const me=myScore(),url=shareUrl("v",b64e(JSON.stringify(me)));
@@ -180,9 +185,12 @@ function checkDuelLink(){
   try{
     const r=JSON.parse(b64d(m[1]));if(typeof r.p!=="number")return;
     r.n=String(r.n||"Kamoš").slice(0,20);LS.set("ctl_rival",r);
-    if(r.pid&&/^[A-Za-z0-9]{16}$/.test(r.pid)&&typeof apiPost==="function")apiPost("/api/friend",{pid:r.pid}).catch(()=>{});
+    // kamarátom až po ťuknutí (súhlas oboch: on poslal odkaz, ty potvrdíš)
+    const canFr=r.pid&&/^[A-Za-z0-9]{16}$/.test(r.pid)&&/^[A-Za-z0-9]{10}$/.test(r.fk||"");
+    $("duelFr").style.display=canFr?"":"none";
+    $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(x=>x.ok&&toast("👯 Ste kamaráti","Uvidíš, ktorým lietadlám dnes mával – a on tebe")).catch(()=>{});$("duelM").classList.remove("on")};
     $("duelT").textContent=r.n+" ťa vyzýva!";
-    $("duelS").textContent=`Má ${r.p} bodov, ${r.c} ulovených lietadiel a ${r.t} typov (level ${r.l}). Dokážeš ho prekonať? Odteraz uvidíš, ktorým lietadlám mával.`;
+    $("duelS").textContent=`Má ${r.p} bodov, ${r.c} ulovených lietadiel a ${r.t} typov (level ${r.l}). Dokážeš ho prekonať?`;
     $("duelM").classList.add("on");
   }catch(e){}
   try{history.replaceState(null,"",location.pathname)}catch(e){}
@@ -201,12 +209,19 @@ const visits=(LS.get("ctl_visits",0)|0)+1;LS.set("ctl_visits",visits);
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)&&visits>=2){$("installBar").style.display="";$("installTxt").textContent="📲 Pridať na plochu"}});
 function installHint(){
   if(standalone()||LS.get("ctl_noinst",false)||visits<2)return;
-  if(/iPhone|iPad/.test(navigator.userAgent)){$("installBar").style.display="";$("installTxt").textContent="📲 Na plochu"}
+  if(isIOS()){$("installBar").style.display="";$("installTxt").textContent="📲 Na plochu"}
 }
 $("installBar").onclick=async()=>{
   if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").style.display="none"}
-  else toast("📲 Pridaj si appku na plochu","Ťukni na Zdieľať ⬆️ a potom „Pridať na plochu“");
+  else installGuide();
 };
 $("b-installX").onclick=e=>{e.stopPropagation();LS.set("ctl_noinst",true);$("installBar").style.display="none"};
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 
+
+// jedna výmena výzvy denne (keď je výzva v tvojom okolí nesplniteľná)
+$("d-list").addEventListener("click",e=>{
+  const b=e.target.closest("[data-sw]");if(!b)return;const D=dailyEnsure();if(D.swapped)return;
+  const pool=DAILY_POOL.filter(q=>!D.ids.includes(q.id));if(!pool.length)return;
+  const nw=pool[Math.floor(Math.random()*pool.length)];D.ids=D.ids.map(i=>i===b.dataset.sw?nw.id:i);D.swapped=1;LS.set("ctl_daily",D);renderDaily();haptic(8);toast("🔄 Nová výzva",nw.n);
+});

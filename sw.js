@@ -1,12 +1,22 @@
 // Offline obal appky + upozornenia. Vždy najprv skúša sieť, aby si mal najnovšiu verziu.
-const V="cotoleti-v15";
-const SHELL=["./","index.html","js/core.js","js/ui.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/social.js","js/wrapped.js","js/push.js","js/track.js","js/towns.js","js/catalog.js","js/cards.js","js/mail.js","js/golden.js","js/teams.js","js/duel.js","js/sound.js","js/santa.js","js/main.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
-self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).catch(()=>{}));self.skipWaiting()});
+const V="cotoleti-v16";
+const SHELL=["./","index.html","js/core.js","js/ui.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/social.js","js/wrapped.js","js/push.js","js/track.js","js/towns.js","js/catalog.js","js/cards.js","js/mail.js","js/golden.js","js/teams.js","js/duel.js","js/sound.js","js/santa.js","js/main.js","og/default.jpg","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
+self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(f=>c.add(f).catch(()=>{})))));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k!=="ctl-id").map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{
   const u=new URL(e.request.url);
   if(e.request.method!=="GET"||u.origin!==location.origin)return; // dáta o lietadlách nikdy necachujeme
-  e.respondWith(fetch(e.request,{cache:"no-cache"}).then(r=>{const cp=r.clone();caches.open(V).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match("index.html"))));
+  const nav=e.request.mode==="navigate";
+  // sieť s limitom (vonku je často slabý signál) -> inak posledná uložená verzia
+  const net=new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error("timeout")),nav?3500:6000);
+    fetch(e.request,{cache:"no-cache"}).then(r=>{clearTimeout(t);res(r)},err=>{clearTimeout(t);rej(err)})});
+  e.respondWith(net.then(r=>{if(r.ok&&r.type==="basic"){const cp=r.clone();caches.open(V).then(c=>c.put(e.request,cp))}return r})
+    .catch(()=>caches.match(e.request,{ignoreSearch:true}).then(r=>r||(nav?caches.match("index.html"):Response.error()))));
+});
+self.addEventListener("pushsubscriptionchange",e=>{
+  e.waitUntil((async()=>{try{const sub=await self.registration.pushManager.subscribe(e.oldSubscription&&e.oldSubscription.options||{userVisibleOnly:true});
+    const c=await caches.open("ctl-id"),r=await c.match("/__id");if(!r||!sub)return;const id=await r.json();
+    await fetch(id.api+"/api/sub",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:id.cid,tok:id.tok,sub:sub.toJSON(),keep:1})})}catch(err){}})());
 });
 // identita pre upozornenia (appka ju pošle cez postMessage)
 self.addEventListener("message",e=>{
@@ -20,6 +30,7 @@ self.addEventListener("push",e=>{
       const c=await caches.open("ctl-id"),r=await c.match("/__id");
       if(r){const id=await r.json();const j=await fetch(id.api+"/api/msg?id="+encodeURIComponent(id.cid)+"&tok="+encodeURIComponent(id.tok||""),{cache:"no-store"}).then(x=>x.json());if(j&&j.title)m=j}
     }catch(err){}
+    try{self.navigator.setAppBadge&&self.navigator.setAppBadge(1)}catch(err){}
     await self.registration.showNotification(m.title,{body:m.body,icon:"icons/icon-192.png",badge:"icons/icon-192.png",data:{url:m.url||"./"},tag:"cotoleti",renotify:true,vibrate:[200,100,200]});
   })());
 });

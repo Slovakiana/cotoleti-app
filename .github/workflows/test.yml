@@ -12,5 +12,7 @@ jobs:
           node-version: 22
       - name: Kontrola syntaxe
         run: for f in js/*.js sw.js server/worker.js; do node --check "$f"; done
+      - name: Verzie súborov sedia
+        run: node tests/version.test.mjs
       - name: Testy servera (súťaže, bezpečnosť)
         run: node tests/worker.test.mjs

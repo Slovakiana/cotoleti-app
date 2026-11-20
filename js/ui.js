@@ -129,6 +129,11 @@ function heroEmpty(){
   $("h-lbl").textContent=t("now");$("h-rar").style.display="none";
   $("h-call").textContent=S.pos?t("empty"):"Pozri hore";
   $("h-type").textContent=S.pos?(S.raw.length?t("emptySub"):"Hľadám lietadlá…"):"Čakám na polohu…";
+  // namiesto slepej uličky: čo sa blíži
+  if(S.pos&&S.list&&S.list.length){
+    const nx=S.list.map(a=>({a,p:approach(a)})).filter(x=>x.p&&x.p.t>20&&x.p.t<1200&&x.p.el!=null&&x.p.el>12).sort((x,y)=>x.p.t-y.p.t)[0];
+    if(nx){const m=Math.max(1,Math.round(nx.p.t/60));$("h-call").textContent="O "+m+" min priletí";$("h-type").textContent=titleOf(nx.a)+" · príde od "+dirL(nx.a.bear)+" · "+Math.round(nx.p.el)+"° nad obzorom"}
+  }
   $("h-quip").textContent="";["h-st3","h-dir","h-eta"].forEach(id=>$(id).style.display="none");
   $("b-wave").disabled=true;$("b-wave").style.opacity=.5;
   $("h-route").classList.remove("on");$("h-photo").classList.remove("on");$("h-links").innerHTML="";$("hero").classList.remove("overhead","emerg");
@@ -193,9 +198,9 @@ $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pi
 
 function renderCol(){
   const l=lvlOf(COL.pts),a=lvlPts(l),b=lvlPts(l+1);
-  $("c-lvl").textContent="Lvl "+(l+1)+" · "+LEVELS[l];$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
+  $("c-lvl").textContent="Lvl "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
   $("c-bar").style.width=(l>=LEVELS.length-1?100:Math.min(100,(COL.pts-a)/(b-a)*100))+"%";
-  $("c-next").textContent=l>=LEVELS.length-1?"Si na vrchole. Respekt. 🫡":"Ďalší level: "+LEVELS[l+1]+" (ešte "+(b-COL.pts)+" b)";
+  $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
   const types=Object.entries(COL.types);
   $("c-n").textContent=COL.n;$("c-t").textContent=types.length;$("c-r").textContent=types.filter(([,v])=>v.r==="r"||v.r==="l").reduce((s,[,v])=>s+v.n,0);
   $("c-ach").innerHTML=ACH.map(x=>`<div class="${COL.ach[x.id]?"got":""}"><i>${x.i}</i>${x.n}</div>`).join("");
@@ -301,21 +306,22 @@ async function share(){
     x.fillStyle="rgba(0,0,0,.3)";rr(x,90,y-110,W-180,260,40);x.fill();
     x.fillStyle="#fff";x.font="800 110px Unbounded, sans-serif";x.fillText(rt.origin.iata_code||"?",140,y+30);x.textAlign="right";x.fillText(rt.destination.iata_code||"?",W-140,y+30);
     x.font="500 34px Inter, sans-serif";x.fillStyle="#97a3c7";x.fillText(clip(x,rt.destination.municipality||"",360),W-140,y+95);x.textAlign="left";x.fillText(clip(x,rt.origin.municipality||"",360),140,y+95);
-    x.textAlign="center";x.font="70px sans-serif";x.fillText("✈️",W/2,y+20);x.textAlign="left";y+=260;
+    x.textAlign="center";x.font="70px sans-serif";x.fillText("✈️",W/2,y+20);x.textAlign="left";y+=230;
   }
   const stats=[[a.alt!=null?nf(a.alt)+" m":"—",altCompare(a.alt)],[a.spd!=null?nf(a.spd)+" km/h":"—",spdCompare(a.spd)],[nf(a.dist/1000,1)+" km","odo mňa"],[nf(Math.max(0,a.el))+"°","nad obzorom"]];
-  stats.forEach((s,i)=>{const cx=90+(i%2)*((W-200)/2+20),cy=y+Math.floor(i/2)*220;x.fillStyle="rgba(255,255,255,.07)";rr(x,cx,cy,(W-200)/2,190,32);x.fill();
-    x.fillStyle="#fff";x.font="800 60px Unbounded, sans-serif";x.fillText(s[0],cx+36,cy+90);x.fillStyle="#97a3c7";x.font="500 30px Inter, sans-serif";x.fillText(clip(x,s[1],(W-200)/2-60),cx+36,cy+145)});
-  y=Math.min(y+480,H-480);
-  x.fillStyle="rgba(255,79,216,.2)";rr(x,90,y,W-180,230,36);x.fill();
-  x.fillStyle="#fff";x.font="600 44px Inter, sans-serif";wrapText(x,quip(a,m),130,y+80,W-260,58,3);
-  x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.textAlign="center";x.fillText(t("title"),W/2,H-165);
-  x.fillStyle="#97a3c7";x.font="500 36px Inter, sans-serif";x.fillText(location.host||"",W/2,H-110);
-  x.fillStyle="#fff";x.font="500 30px Inter, sans-serif";x.fillText(new Date().toLocaleString("sk-SK",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"}),W/2,H-60);
+  stats.forEach((s,i)=>{const cx=90+(i%2)*((W-200)/2+20),cy=y+Math.floor(i/2)*195;x.fillStyle="rgba(255,255,255,.07)";rr(x,cx,cy,(W-200)/2,175,32);x.fill();
+    x.fillStyle="#fff";x.font="800 56px Unbounded, sans-serif";x.fillText(s[0],cx+36,cy+82);x.fillStyle="#97a3c7";x.font="500 30px Inter, sans-serif";x.fillText(clip(x,s[1],(W-200)/2-60),cx+36,cy+134)});
+  y=y+410;
+  x.fillStyle="rgba(255,79,216,.2)";rr(x,90,y,W-180,170,36);x.fill();
+  x.fillStyle="#fff";x.font="600 40px Inter, sans-serif";wrapText(x,quip(a,m),130,y+72,W-260,54,2);
+  x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.textAlign="center";x.fillText(t("title"),W/2,H-300);
+  x.fillStyle="#97a3c7";x.font="500 36px Inter, sans-serif";x.fillText(APP_HOST,W/2,H-250);
+  x.fillStyle="#fff";x.font="500 30px Inter, sans-serif";x.textAlign="right";x.fillStyle="#97a3c7";x.fillText(new Date().toLocaleString("sk-SK",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}),W-90,300);
   c.toBlob(async blob=>{
     const file=new File([blob],"co-to-leti.png",{type:"image/png"});
-    try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:"Práve nado mnou letí "+titleOf(a)+" ✈️ "+location.href});return}}catch(e){if(e.name==="AbortError")return}
-    shareBlob(blob,"co-to-leti.png","Práve nado mnou letí "+titleOf(a)+" ✈️ "+location.href);
+    const txt="Práve nado mnou letí "+titleOf(a)+" ✈️ Zamávaj aj ty: "+planeLink(a)+TAGS;ev("share");
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:txt});return}}catch(e){if(e.name==="AbortError")return}
+    shareBlob(blob,"co-to-leti.png",txt);
   },"image/png");
 }
 function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
@@ -344,12 +350,15 @@ function startGps(){
   },posErr,{enableHighAccuracy:true,maximumAge:15000,timeout:30000});
 }
 function gotPos(p,first){
+  ev("gps_ok");
   S.pos={lat:p.coords.latitude,lon:p.coords.longitude,alt:p.coords.altitude||0};LS.set("ctl_pos",S.pos);showPos();
   $("posBtns").style.display="none";err("");
   if(!S.raw.length){$("h-type").textContent="Poloha OK ✓ Hľadám lietadlá…";setStatus("Načítavam lietadlá…",false)}
   if(first)fetchPlanes();
 }
 function posErr(e){
+  if(S.manual)return;
+  if(e.code===1)ev("gps_deny");
   if(S.raw.length&&e.code!==1)return;
   $("posBtns").style.display="flex";
   if(!S.raw.length)$("h-type").textContent="Bez polohy to nepôjde 🙈";
@@ -382,7 +391,7 @@ $("t-vych").onclick=()=>{S.vych=!S.vych;LS.set("ctl_vych",S.vych);syncToggles();
 $("b-comp").onclick=enableCompass;
 $("compass").onclick=()=>{if(S.heading==null)enableCompass()};
 $("radius").value=String(LS.get("ctl_radius",25));$("radius").onchange=()=>{LS.set("ctl_radius",+$("radius").value);fetchPlanes(true)};
-function setManual(la,lo,name){S.manual=true;S.pos={lat:la,lon:lo,alt:0};LS.set("ctl_pos",S.pos);LS.set("ctl_manual",true);err("");showPos();$("posBtns").style.display="none";fetchPlanes(true);toast("📍 "+(name||"Poloha nastavená"),name?"Ukazujem oblohu nad týmto miestom":la.toFixed(3)+", "+lo.toFixed(3))}
+function setManual(la,lo,name){S.manual=true;ev("manual");if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}S.pos={lat:la,lon:lo,alt:0};LS.set("ctl_pos",S.pos);LS.set("ctl_manual",true);err("");showPos();$("posBtns").style.display="none";fetchPlanes(true);toast("📍 "+(name||"Poloha nastavená"),name?"Ukazujem oblohu nad týmto miestom":la.toFixed(3)+", "+lo.toFixed(3))}
 $("mset").onclick=()=>{
   const la=parseFloat(($("mlat").value||"").replace(",",".")),lo=parseFloat(($("mlon").value||"").replace(",","."));
   if(isNaN(la)||isNaN(lo)||Math.abs(la)>90||Math.abs(lo)>180){err("Zadaj platné súradnice, napr. 48.1486 a 17.1077.");return}
@@ -406,7 +415,8 @@ function showCities(onb){
 $("cities").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=CITIES.find(x=>x[0]===b.dataset.c);if(!c)return;closeOnb();setManual(c[1],c[2],c[0])};
 $("noGps").onclick=()=>showCities(true);
 function closeOnb(){LS.set("ctl_onb",1);$("onb").classList.add("hide");setTimeout(()=>$("onb").style.display="none",460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
-$("go").onclick=()=>{closeOnb();LS.set("ctl_manual",false);startGps();if(S.pos)fetchPlanes(true)};
+$("go").onclick=()=>{closeOnb();ev("onboard");LS.set("ctl_manual",false);startGps();if(S.pos)fetchPlanes(true);
+  try{if(typeof DeviceOrientationEvent!=="undefined"&&DeviceOrientationEvent.requestPermission)enableCompass()}catch(e){}};
 async function boot(){
   SKY.cv=$("sky");SKY.c=SKY.cv.getContext("2d");skySize();addEventListener("resize",()=>skySize());skyFrame();
   paintSky();
@@ -467,3 +477,71 @@ $("nightSel").onchange=()=>{LS.set("ctl_night",$("nightSel").value);nightApply()
 setInterval(nightApply,60000);setTimeout(nightApply,3000);
 const openFriends=()=>{if(/tim=|vyzva=/.test(location.hash))$("friendsBox").open=true};
 openFriends();addEventListener("hashchange",openFriends);
+
+/* ============ 📊 anonymné meranie (bez id, bez IP) + hlásenie chýb ============ */
+function ev(step){
+  try{const done=LS.get("ctl_ev",{});if(done[step])return;done[step]=1;LS.set("ctl_ev",done);
+    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({step,r:LS.get("ctl_ref","")}),keepalive:true}).catch(()=>{})}catch(e){}
+}
+{let errN=0;const rep=m=>{if(errN++>5)return;try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:String(m).slice(0,200)}))}catch(e){}};
+  addEventListener("error",e=>rep((e.message||"err")+" @"+String(e.filename||"").split("/").pop()+":"+e.lineno));
+  addEventListener("unhandledrejection",e=>rep("promise: "+(e.reason&&e.reason.message||e.reason)));}
+// kto ma pozval (odkaz ?r=)
+{const r=new URLSearchParams(location.search).get("r");
+  if(r&&/^[A-Za-z0-9]{16}$/.test(r)&&!LS.get("ctl_ref","")&&!LS.get("ctl_onb",0)){LS.set("ctl_ref",r);ev("ref_join")}
+  if(r)try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}}
+ev("open");
+{const last=LS.get("ctl_lastDay",""),td=new Date().toLocaleDateString("sv-SE");if(last&&last!==td)ev("day2");LS.set("ctl_lastDay",td)}
+if(matchMedia("(display-mode: standalone)").matches||navigator.standalone)ev("install");
+HOOKS.caught.push(()=>{ev("catch1");if(COL.n>=5)ev("catch5")});
+// pamätaj si údaje natrvalo (Safari inak po 7 dňoch nečinnosti maže)
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+
+/* ============ 📱 iPhone a prehliadače v appkách ============ */
+const UA=navigator.userAgent,isIPad=/Macintosh/.test(UA)&&navigator.maxTouchPoints>1;
+const inApp=/FBAN|FBAV|Instagram|musical_ly|Bytedance|TikTok|Messenger|Snapchat|Line\//i.test(UA);
+if(inApp&&!LS.get("ctl_inappX",false)){
+  const b=document.createElement("div");b.className="inappBar glass";
+  b.innerHTML=`<b>Otvor v Safari / Chrome</b><span>Tu nefungujú upozornenia ani pridanie na plochu. Ťukni na ⋯ a „Otvoriť v prehliadači“.</span><button aria-label="Zavrieť">✕</button>`;
+  b.querySelector("button").onclick=()=>{LS.set("ctl_inappX",true);b.remove()};document.body.appendChild(b);
+}
+// obrazovka nezhasne počas AR a spoločného momentu
+const WAKE={l:null,want:false};
+async function wakeOn(){WAKE.want=true;try{if(navigator.wakeLock&&!WAKE.l){WAKE.l=await navigator.wakeLock.request("screen");WAKE.l.addEventListener("release",()=>{WAKE.l=null})}}catch(e){}}
+function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l=null}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
+
+/* ============ 🔁 prenos zbierky (Safari → appka na ploche, nový mobil) ============ */
+function restoreLink(){
+  const keys=["ctl_cid","ctl_tok","ctl_pid","ctl_fk","ctl_col","ctl_nick","ctl_daily","ctl_log","ctl_team"],o={};
+  keys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)o[k]=v});
+  return location.origin+location.pathname+"#prenos="+b64e(JSON.stringify(o));
+}
+function restoreFromHash(){
+  const m=location.hash.match(/prenos=([\w-]+)/);if(!m)return;
+  try{const o=JSON.parse(b64d(m[1]));
+    if(o.ctl_cid&&/^v2[A-Za-z0-9]{30}$/.test(JSON.parse(o.ctl_cid))&&(COL.n<3||confirm("Nahradiť zbierku v tomto mobile prenesenou?"))){
+      Object.entries(o).forEach(([k,v])=>{if(k.startsWith("ctl_"))localStorage.setItem(k,v)});LS.set("ctl_onb",1);
+      history.replaceState(null,"",location.pathname);location.reload();return}
+  }catch(e){}
+  try{history.replaceState(null,"",location.pathname)}catch(e){}
+}
+restoreFromHash();
+$("b-transfer").onclick=async()=>{
+  const url=restoreLink();
+  try{await navigator.clipboard.writeText(url);toast("🔁 Odkaz na prenos skopírovaný","Vlož ho do Safari v appke na ploche alebo v novom mobile. Nikomu ho neposielaj – je to tvoj kľúč.")}
+  catch(e){prompt("Tvoj odkaz na prenos (nikomu ho neposielaj):",url)}
+};
+/* návod na pridanie na plochu */
+function installGuide(){
+  const ios=/iPhone|iPod/.test(UA)||isIPad,crios=/CriOS/.test(UA);
+  $("instSteps").innerHTML=ios?`<li>Ťukni na <b>Zdieľať</b> ${crios?"(⬆️ hore vpravo)":"(⬆️ dole v strede, v novom iOS pod ⋯)"}</li><li>Posuň nižšie a vyber <b>Pridať na plochu</b></li><li>Ťukni <b>Pridať</b>. Potom otvor appku z plochy a v Nastaveniach ťukni <b>Prenos zbierky</b>, ak chceš zachovať body.</li>`
+    :`<li>Ťukni na <b>⋮</b> vpravo hore</li><li>Vyber <b>Pridať na plochu</b> alebo <b>Inštalovať aplikáciu</b></li>`;
+  $("instM").classList.add("on");
+}
+$("instClose").onclick=()=>$("instM").classList.remove("on");
+$("instCopy").onclick=()=>$("b-transfer").click();
+// modálne okná: zatvorenie klávesom Esc a návrat zamerania
+addEventListener("keydown",e=>{if(e.key!=="Escape")return;const m=[...document.querySelectorAll(".modal.on")].pop();if(m){m.classList.remove("on");if(m.id==="ar"&&typeof closeAR==="function")closeAR()}});
+// odznak na ikone zmizne, keď otvoríš appku
+try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}

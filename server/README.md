@@ -1,5 +1,5 @@
 # Server pre „Čo to letí?“
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Slovakiana/cotoleti-app/tree/main/server)
+Cloudflare Worker (`worker.js`) + databáza Durable Object. Nasadzuje sa **automaticky** z koreňového `wrangler.jsonc` pri každej zmene na GitHube (Cloudflare → Workers → cotoleti-app → Builds).
 
-Malý Cloudflare Worker, ktorý appke sprostredkuje dáta o lietadlách, trasách, satelitoch a počasí.
+Pozri aj [RUNBOOK.md](../RUNBOOK.md) – čo robiť pri výpadku.

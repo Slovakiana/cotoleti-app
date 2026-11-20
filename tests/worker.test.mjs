@@ -55,6 +55,7 @@ await t("čerstvý účet nevyhrá zlaté lietadlo", async () => assert.equal((a
 Date.now = () => fixed + 20 * 60e3;
 await t("zo zahraničia nevyhrá", async () => assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}, "5.6.7.8", "US")).j.golden, false));
 db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
+await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11&hexes=aabbcc`, null, "9.9.9.9");
 await t("poctivý hráč vyhrá", async () => assert.equal((await call("/api/wave", {id: C, tok: hc.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true, nick: "Maťo"}, "9.9.9.9")).j.golden, true));
 Date.now = realNow;
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
@@ -63,7 +64,8 @@ await t("max 6 nových účtov z jednej siete za deň", async () => {
   assert.deepEqual(codes.slice(-2), [429, 429]);
 });
 await t("kamarát vidí len prezývku", async () => {
-  await call("/api/friend", {id: A, tok: ha.tok, pid: hc.pid});
+  assert.equal((await call("/api/friend", {id: A, tok: ha.tok, pid: hc.pid})).s, 400); // bez kľúča z odkazu nie
+  await call("/api/friend", {id: A, tok: ha.tok, pid: hc.pid, fk: hc.fk});
   const s = (await call(`/api/sky?id=${A}&tok=${ha.tok}&lat=48.15&lon=17.11&hexes=aabbcc`)).j;
   assert.deepEqual(s.friends.aabbcc, [{n: "Maťo"}]); assert.ok(Array.isArray(s.krajeWeek));
 });
@@ -73,9 +75,28 @@ await t("upozornenia len na povolené servery", async () => {
 });
 await t("nevhodné meno zmizne po 3 nahláseniach", async () => {
   await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Zlý tím"}, "9.9.9.9");
-  for (const [id, tok] of [[A, ha.tok], [B, hb.tok], [C, hc.tok]]) await call("/api/report", {id, tok, name: "Zlý tím"});
+  db.exec("UPDATE ids SET t=0");
+  await call("/api/report", {id: A, tok: ha.tok, name: "Neexistuje"}); assert.equal(db.prepare("SELECT COUNT(*) c FROM reports").get().c, 0);
+  for (const [id, tok, ip] of [[A, ha.tok, "1.1.1.1"], [B, hb.tok, "2.2.2.2"], [C, hc.tok, "3.3.3.3"]]) await call("/api/report", {id, tok, name: "ZLÝ TÍM"}, ip);
   assert.equal(db.prepare("SELECT name FROM teams").get().name.startsWith("Tím "), true);
   assert.equal((await call("/api/team", {id: A, tok: ha.tok, action: "create", name: "zlý tím"})).s, 400);
+});
+await t("liga: max 25 mávnutí na účet a deň, mesto pevné", async () => {
+  const before = db.prepare("SELECT SUM(n) s FROM kraje").get().s;
+  for (let i = 0; i < 30; i++) { plane.hex = "ab" + String(1000 + i); await call("/api/wave", {id: C, tok: hc.tok, hex: plane.hex, lat: 48.15 + (i % 2) * 0.6, lon: 17.11 + (i % 2) * 1.5}, "9.9.9.9"); }
+  plane.hex = "aabbcc";
+  assert.ok(db.prepare("SELECT SUM(n) s FROM kraje").get().s - before <= 25);
+  assert.deepEqual(db.prepare("SELECT DISTINCT town FROM towns").all().map(r => r.town), ["Bratislava"]);
+});
+await t("IPv6 z jedného bloku = jedna sieť", async () => {
+  const codes = []; for (let i = 0; i < 8; i++) codes.push((await call("/api/hello", {id: "v2yyyyyyyyyyyyyyyyyyyy" + i}, "2001:db8:1:2:" + i + "::1")).s);
+  assert.deepEqual(codes.slice(-2), [429, 429]);
+});
+await t("lievik a chyby sa počítajú anonymne", async () => {
+  await call("/api/ev", {step: "open"}); await call("/api/ev", {step: "nieco"}); await call("/api/err", {m: "TypeError x at https://a.b/c.js"});
+  assert.equal(db.prepare("SELECT n FROM funnel WHERE step='open'").get().n, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM funnel").get().c, 1);
+  assert.ok(!db.prepare("SELECT msg FROM errs").get().msg.includes("https"));
 });
 await t("zdravie servera", async () => assert.equal((await call("/api/health")).s, 200));
 await t("štatistiky len s kľúčom", async () => {

@@ -2,7 +2,7 @@
 /* ============ 🔔 Upozornenia + spoločný moment ============ */
 const PUSH={on:LS.get("ctl_push",false),moment:LS.get("ctl_moment",true),joined:LS.get("ctl_momJoined","")};
 const pushSupported=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
-const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
+const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
 const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
 const u8=s=>{s=s.replace(/-/g,"+").replace(/_/g,"/");s+="===".slice((s.length+3)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
 async function swTell(){try{const r=await navigator.serviceWorker.ready;await ensureTok();(r.active||navigator.serviceWorker.controller)?.postMessage({cid:SOC.cid,api:SOC.api,tok:TOK})}catch(e){}}
@@ -35,11 +35,12 @@ $("t-moment").onclick=async()=>{
 };
 // ponuka (priming) – až pri 2. návšteve a len raz
 function maybeAskPush(){
-  if(!SOC.api||PUSH.on||LS.get("ctl_pushAsked",false)||(LS.get("ctl_visits",0)|0)<2)return;
+  // ponúkni hneď, keď človek niečo zažil (úlovok/mávnutie), nie až pri 2. návšteve
+  if(!SOC.api||PUSH.on||LS.get("ctl_pushAsked",false)||((LS.get("ctl_visits",0)|0)<2&&COL.n<1&&!(LS.get("ctl_waveN",0)|0)))return;
   if(isIOS()&&!isStandalone())$("pushAskTxt").textContent="Raz denne ti v náhodnej chvíli dáme vedieť. Na iPhone treba appku najprv pridať na plochu (Zdieľať ⬆️ → Pridať na plochu).";
   $("pushAsk").classList.add("on");
 }
-$("pushYes").onclick=async()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on");PUSH.moment=true;LS.set("ctl_moment",true);if(await enablePush())toast("🔔 Hotovo!","Dáme ti vedieť, keď sa celé Slovensko pozrie hore")};
+$("pushYes").onclick=async()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on");PUSH.moment=true;LS.set("ctl_moment",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush()){ev("push_ok");}if(PUSH.on)toast("🔔 Hotovo!","Dáme ti vedieť, keď sa celé Slovensko pozrie hore")};
 $("pushNo").onclick=()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on")};
 
 // spoločný moment v appke
@@ -48,6 +49,7 @@ function momentUI(mo){
   const bar=$("momentBar");
   if(mo&&mo.live){
     const left=Math.max(0,Math.round((mo.end-(Date.now()+(SOC.skew||0)))/1000));
+    if(!document.body.classList.contains("moment"))wakeOn();
     bar.classList.add("on");document.body.classList.add("moment");
     bar.textContent=`🔴 SPOLOČNÝ MOMENT · ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")} · ${nf(mo.n||0)} 👀`;
     const d=dayKey();
@@ -55,7 +57,7 @@ function momentUI(mo){
       apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{SOC.data.moment.n=j.n;toast("👀 Si pri tom!","Spolu s tebou sa práve pozerá hore "+nf(j.n)+" "+ludia(j.n));confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
     }
     if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data&&SOC.data.moment),1000);
-    if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500)}
+    if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500);if(!$("ar").classList.contains("on"))wakeOff()}
   }else{bar.classList.remove("on");document.body.classList.remove("moment");if(momTimer){clearInterval(momTimer);momTimer=null}}
 }
 $("momentBar").onclick=()=>{haptic(10);openAR()};
@@ -63,3 +65,4 @@ ACH.push({id:"moment",i:"👀",n:"Spoločný moment",c:()=>false});
 HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{if(D.now)SOC.skew=D.now-Date.now();momentUI(D.moment)});
 // pri spustení: obnov prihlásenie raz denne a pošli SW identitu
 setTimeout(()=>{syncPushUI();maybeAskPush();if(PUSH.on&&pushSupported()&&Notification.permission==="granted"){swTell();if(Date.now()-LS.get("ctl_pushT",0)>86400e3)enablePush(true)}},3000);
+HOOKS.caught.push(()=>{if(COL.n===1)setTimeout(maybeAskPush,5000)});

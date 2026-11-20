@@ -77,6 +77,8 @@ function sndSched(){
     SND.step++;SND.next+=EIGHTH;
   }
 }
+// po návrate z pozadia (iPhone zvuk „preruší“)
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&SND.ctx&&SND.ctx.state!=="running")try{unlockAudio(SND.ctx)}catch(e){}});
 function sndStop(){
   if(!SND.ctx)return;const c=SND.ctx;SND.master.gain.linearRampToValueAtTime(0,c.currentTime+1);
   clearInterval(SND.sched);clearInterval(SND.timer);

@@ -14,6 +14,8 @@ function santaRaw(now){
   const lat=S.pos.lat+dn/111320,lon=S.pos.lon+de/(111320*Math.cos(rad(S.pos.lat)));
   return {hex:SANTA.hex,call:"SANTA",reg:"HO-HO-HO",type:"SLEIGH",desc:"Santove sane 🎅",lat,lon,alt:2400,spd:900,trk:h,vr:0,ground:false,santa:true,cat:"A0"};
 }
+// prvý prelet nad tebou 24. 12. po 15:00
+function santaFirst(){const w=santaWin(),P=SANTA.P;return (Math.ceil(w.start/P-.5)+.5)*P}
 function santaNext(now=Date.now()){const f=(now%SANTA.P)/SANTA.P;return Math.round(((f<.5?.5-f:1.5-f)*SANTA.P)/60000)}
 // vloženie do zoznamu lietadiel
 {const base=enrich;enrich=function(now){
@@ -30,13 +32,14 @@ ACH.push({id:"santa",i:"🎅",n:"Videl som Santu",c:e=>e&&e.santa});
 function santaChip(){
   const w=santaWin(),c=$("santaChip");if(!c)return;
   if(w.live){c.style.display="";const n=santaNext();c.textContent=n<=1?"🎅 Santa je nad tebou – pozri hore!":`🎅 Santa nad tebou o ${n} min`}
-  else if(w.soon){c.style.display="";const ms=w.start-Date.now(),d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5);c.textContent=`🎅 Santa vzlietne o ${d?d+" d "+h+" h":h+" h "+Math.floor(ms%36e5/6e4)+" min"}`}
+  else if(w.soon){c.style.display="";const ms=w.start-Date.now(),d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5);c.textContent=`🎅 Santa nad tebou 24. 12. o ${new Date(santaFirst()).toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})} · pošli rodine`}
   else c.style.display="none";
 }
 $("santaChip").onclick=async()=>{
   const w=santaWin();haptic(8);
   if(w.live){toast("🎅 Santa letí nad Slovenskom","Každých 12 minút preletí presne nad tebou. Zamávaj mu 👋");return}
-  const url=shareUrl("santa",""),text="🎅 Santa poletí 24. 12. od 15:00 nad celým Slovenskom – v appke Čo to letí? mu môžeš zamávať ✈️";
+  const t1=santaFirst(),hm=new Date(t1).toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"}),town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";
+  const url=shareUrl("santa","",town?"m="+encodeURIComponent(town)+"&t="+encodeURIComponent(hm):""),text=`${town?"📍 "+town+": ":""}🎅 Santa preletí 24. 12. o ${hm} a potom každých 12 minút – v appke Čo to letí? mu môžete s deťmi zamávať ✈️`;ev("share");
   try{if(navigator.share){await navigator.share({title:"Santa nad Slovenskom",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho rodine")}catch(e){}
 };

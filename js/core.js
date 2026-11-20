@@ -121,7 +121,16 @@ const SOURCES=[
 const DEFAULT_PROXY="https://cotoleti-app.radovan-kudela.workers.dev";
 const MYPROXY=DEFAULT_PROXY;
 // odkazy na zdieľanie idú cez server -> pekný náhľad v Messengeri/WhatsAppe, potom presmerujú do appky
-const shareUrl=(kind,data,q)=>DEFAULT_PROXY+"/s/"+kind+"/"+data+(q?"?"+q:"");
+// r= kto zdieľal (anonymné verejné id) -> meriame, ako sa appka šíri
+const withRef=q=>[q,typeof PID!=="undefined"&&PID?"r="+PID:""].filter(Boolean).join("&");
+const shareUrl=(kind,data,q)=>{const w=withRef(q);return DEFAULT_PROXY+"/s/"+kind+"/"+data+(w?"?"+w:"")};
+const appLink=()=>shareUrl("x","");
+const APP_HOST="slovakiana.github.io/cotoleti-app",TAGS=" #čotoletí #lietadlo #slovensko";
+function planeLink(a){
+  if(!a||!/^[0-9a-f]{6}$/.test(a.hex))return appLink();
+  const rt=routeOf(a),town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";
+  return shareUrl("p",a.hex,["c="+encodeURIComponent(a.call||""),rt?"d="+encodeURIComponent(citySk(rt.destination.municipality)):"",town?"m="+encodeURIComponent(town):""].filter(Boolean).join("&"));
+}
 // len vlastný server a priamy prístup – žiadne cudzie proxy, ktoré by videli polohu
 const ROUTES=[
   {name:"server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)},
@@ -167,7 +176,7 @@ async function fetchPlanes(force){
     if(!S.raw.length)setStatus("Hľadám cestu k dátam…",false);
     const ctl=new AbortController(),fails=[];
     try{
-      const x=await Promise.any(COMBOS.map((_,i)=>tryCombo(i,r,ctl.signal).catch(e=>{fails.push(COMBOS[i].s.name+"/"+COMBOS[i].rt.name+": "+e.message);throw e})));
+      const x=await Promise.any(COMBOS.map((_,i)=>new Promise(res=>setTimeout(res,i*1500)).then(()=>{if(ctl.signal.aborted)throw new Error("stop");return tryCombo(i,r,ctl.signal)}).catch(e=>{fails.push(COMBOS[i].s.name+"/"+COMBOS[i].rt.name+": "+e.message);throw e})));
       ctl.abort();gotPlanes(x.i,x.list);
     }catch(e){
       setStatus("Bez spojenia",false);
@@ -241,6 +250,8 @@ function spdCompare(k){if(k==null)return "rýchlosť";if(k<150)return "ako auto 
 
 /* ============ zbierka ============ */
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
+// iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
+addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of Object.keys(COL))delete COL[k];Object.assign(COL,v);if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
 const ACH=[
   {id:"first",i:"🐣",n:"Prvý úlovok",c:()=>COL.n>=1},
   {id:"ten",i:"🔟",n:"Desiatka",c:()=>COL.n>=10},
@@ -262,7 +273,9 @@ const ACH=[
   {id:"home",i:"🏠",n:"Domov na Slovensko",c:e=>{const m=e&&S.meta.get(e.hex);return !!(m&&m.route&&m.route.destination&&m.route.destination.country_iso_name==="SK")}},
 ];
 const LEVELS=["Pozerač do zeme","Zvedavec","Mávač lietadlám","Spotter z balkóna","Expert od plota","Kapitán z gauča","Pán oblohy","Legenda z Ivanky","Nebeský šaman"];
-const lvlOf=p=>Math.min(LEVELS.length-1,Math.floor(Math.sqrt(p/6)));
+const lvlOf=p=>Math.floor(Math.sqrt(p/6));
+const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
+const lvlName=l=>l<LEVELS.length?LEVELS[l]:LEVELS[LEVELS.length-1]+" "+ROM[Math.min(ROM.length-1,l-LEVELS.length)];
 const lvlPts=l=>6*l*l;
 function tryCatch(a){
   if(a.el==null||a.el<25||COL.hex[a.hex])return;
@@ -276,7 +289,7 @@ function tryCatch(a){
   let T=t("caught")+" +"+pts+" "+(pts===1?"bod":pts<5?"body":"bodov"),Sub=titleOf(a)+" · "+typeName(a,S.meta.get(a.hex));
   if(newType)Sub+=" · nový typ!";
   if(newAch.length){T="🏅 Odznak: "+newAch[0].n;Sub="+"+pts+" b · "+titleOf(a)}
-  if(lvlOf(COL.pts)>prevLvl){T="⬆️ Level up: "+LEVELS[lvlOf(COL.pts)]}
+  if(lvlOf(COL.pts)>prevLvl){T="⬆️ Level up: "+lvlName(lvlOf(COL.pts))}
   toast(T,Sub,RAR[r].col);
   if(r!=="c"||newAch.length||newType)confetti(r==="l"?80:40);
   ping(r);

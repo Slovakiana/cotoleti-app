@@ -183,9 +183,9 @@ $("cardShare").onclick=async()=>{
     for(let i=0;i<120;i++){x.fillStyle=`rgba(255,255,255,${Math.random()*.6})`;x.beginPath();x.arc(Math.random()*W,Math.random()*H,Math.random()*2.2,0,7);x.fill()}
     x.textAlign="center";x.fillStyle="#fff";x.font="800 46px Unbounded, sans-serif";x.fillText(v.shiny?"✨ Mám SHINY kartičku!":"Nová kartička v zbierke!",W/2,200);
     x.drawImage(img,(W-860)/2,280,860,1204);
-    x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-170);
-    x.fillStyle="rgba(255,255,255,.85)";x.font="500 34px Inter, sans-serif";x.fillText("Ulovil som ho nad hlavou → "+location.host,W/2,H-105);
-    c.toBlob(b=>b&&shareBlob(b,"kartička.png",(v.shiny?"✨ SHINY ":"")+"kartička: "+(catGuess(cardK).name)+" ✈️ "+location.href),"image/png");
+    x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-360);
+    x.fillStyle="rgba(255,255,255,.85)";x.font="500 34px Inter, sans-serif";x.fillText("Ulovil som ho nad hlavou → "+APP_HOST,W/2,H-300);
+    c.toBlob(b=>b&&shareBlob(b,"kartička.png",(v.shiny?"✨ SHINY ":"")+"kartička: "+(catGuess(cardK).name)+" ✈️ "+appLink()+TAGS),"image/png");
   };
   img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
 };

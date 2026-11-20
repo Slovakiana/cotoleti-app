@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Čo to letí?">
 <meta name="description" content="Pozri hore. Zisti, čo ti práve letí nad hlavou, koľko ľudí v tom sedí a zamávaj im spolu s celým Slovenskom.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/ https://unpkg.com/leaflet@1.9.4/ https://unpkg.com/satellite.js@4.1.4/ https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/ https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'">
 <meta property="og:title" content="Čo to letí? ✈️ Pozri hore.">
 <meta property="og:description" content="Každé lietadlo nad tebou naživo – odkiaľ, kam a koľko ľudí v ňom sedí. Zamávaj mu s celým Slovenskom 👋">
 <meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og/default.jpg">
@@ -368,6 +369,10 @@ body.moment #top{opacity:0;pointer-events:none}
 /* liga */
 .lgTabs{display:flex;gap:6px;margin-top:10px}
 .wideB{width:100%;margin-top:10px;min-height:48px;justify-content:center}
+.inappBar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:120;padding:12px 44px 12px 14px;border-radius:18px;font-size:13px;line-height:1.4;display:flex;flex-direction:column;gap:2px}
+.inappBar b{font-size:14px}.inappBar button{position:absolute;right:8px;top:8px;width:36px;height:36px;font-size:16px;color:var(--mut)}
+.instSteps{margin:14px 0 10px;padding-left:22px;line-height:1.6;font-size:15px}.instSteps li{margin-bottom:6px}
+.swap{margin-left:6px;font-size:15px;min-width:36px;min-height:36px;opacity:.7}
 .rep{font-size:12px;opacity:.55;padding:2px 6px;min-width:28px;min-height:28px;color:var(--mut)}
 #friendsBox>.card{background:none;border:0;box-shadow:none;padding:14px 2px 4px}
 #friendsBox summary small{color:var(--mut);font-weight:500;margin-left:6px}
@@ -609,6 +614,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
       <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
       <div class="msg" id="err"></div>
     </div>
+    <div class="sr"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo nového mobilu</small></div><button class="ghost" id="b-transfer">Kopírovať</button></div>
     <div class="sr"><div>🔒 Súkromie a zdroje<small>Čo zbierame a odkiaľ sú dáta</small></div><button class="ghost" id="b-privacy">Otvoriť</button></div>
     <div class="sr"><div>🗑️ Zmazať moje údaje<small>Zo servera aj z tohto mobilu</small></div><button class="ghost" id="b-forget">Zmazať</button></div>
     <div class="sr"><div>Vymazať zbierku</div><button class="ghost" id="b-reset">Vymazať</button></div>
@@ -640,7 +646,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <div class="wacts" id="wacts" style="display:none"><button class="cta" id="wshare">📸 Zdieľať do stories</button><button class="btn ico" style="flex:none;width:100%;padding:14px" id="wduel">⚔️ Vyzvi kamaráta</button></div>
 </div>
 
-<div class="modal" id="trackM"><div class="mcard">
+<div class="modal" id="trackM" role="dialog" aria-modal="true"><div class="mcard">
   <div class="lbl"><span>✈️ Sleduj let</span></div>
   <div class="trTitle" style="margin-top:12px">Ktorý let?</div>
   <input class="field" id="trInput" placeholder="napr. FR1234 alebo W6 2201" autocapitalize="characters" autocorrect="off">
@@ -652,24 +658,24 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   </div>
   <div class="acts"><button class="ghost" id="trCancel" style="flex:1">Zrušiť</button></div>
 </div></div>
-<div class="modal" id="cardM" style="align-items:center"><div style="width:100%;max-width:420px">
+<div class="modal" id="cardM" role="dialog" aria-modal="true" style="align-items:center"><div style="width:100%;max-width:420px">
   <div id="cardBig"></div>
   <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardClose" style="flex:0 0 60px">✕</button></div>
 </div></div>
 
-<div class="modal" id="mailM"><div class="mcard">
+<div class="modal" id="mailM" role="dialog" aria-modal="true"><div class="mcard">
   <div class="lbl"><span>✉️ Pošli pozdrav lietadlom</span></div>
   <div class="trTitle" style="margin-top:10px" id="mailTo">Lietadlo ho doručí ľuďom, nad ktorými preletí</div>
   <div class="mailList" id="mailList"></div>
   <div class="acts"><button class="ghost" id="mailClose" style="flex:1">Zrušiť</button></div>
 </div></div>
-<div class="modal" id="postM" style="align-items:center"><div style="width:100%;max-width:420px">
+<div class="modal" id="postM" role="dialog" aria-modal="true" style="align-items:center"><div style="width:100%;max-width:420px">
   <div class="post" id="postCard"></div>
   <div class="acts"><button class="btn pri" id="postReply">↩️ Pošli pozdrav späť</button><button class="btn ico" id="postShare" style="flex:0 0 56px">↗</button><button class="btn ico" id="postClose" style="flex:0 0 56px">✕</button></div>
 </div></div>
-<div class="modal" id="cdM"><div class="mcard" id="cdBox"></div></div>
+<div class="modal" id="cdM" role="dialog" aria-modal="true"><div class="mcard" id="cdBox"></div></div>
 
-<div class="modal" id="privM"><div class="mcard">
+<div class="modal" id="privM" role="dialog" aria-modal="true"><div class="mcard">
   <div class="lbl"><span>🔒 Súkromie a zdroje</span></div>
   <div class="lookSub" style="margin-top:12px;line-height:1.55;color:var(--txt)">
   <b>Čo appka zbiera.</b> Tvoja presná poloha zostáva v mobile. Na náš server (Cloudflare) posielame len: náhodné id zariadenia, polohu zaokrúhlenú na ~1 km (na výpočet kraja a mesta a pri upozorneniach), prezývku, ak si ju zadáš, tvoje mávnutia, pozdravy, tím a sledované lety. IP adresu neukladáme, používame ju len zahashovanú na ochranu pred podvodmi.<br><br>
@@ -681,6 +687,13 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   </div>
   <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
 </div></div>
+<div class="modal" id="instM" role="dialog" aria-modal="true" aria-label="Pridať na plochu"><div class="mcard">
+  <div class="lbl"><span>📲 Pridaj si appku na plochu</span></div>
+  <div class="lookSub" style="margin-top:10px">Na ploche funguje ako skutočná appka: upozornenia, rýchly štart a celá obrazovka.</div>
+  <ol class="instSteps" id="instSteps"></ol>
+  <div class="fine">Na iPhone má appka na ploche vlastné úložisko. Aby si nestratil body, ťukni najprv na „Skopírovať prenos“ a odkaz potom otvor v appke na ploche.</div>
+  <div class="acts"><button class="btn pri" id="instCopy">🔁 Skopírovať prenos</button><button class="btn ico" id="instClose" style="flex:0 0 56px">✕</button></div>
+</div></div>
 <div id="nightTint" aria-hidden="true"></div>
 <div id="toast" class="glass" role="status" aria-live="polite"><b id="toastT"></b><span id="toastS"></span></div>
 
@@ -689,42 +702,43 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <p id="shareTxt">Podrž prst na obrázku a ulož ho.</p>
   <div class="acts" style="width:100%;max-width:340px"><a id="shareDl" download="co-to-leti.png" style="flex:1"><button class="solid" style="width:100%">⬇️ Stiahnuť</button></a><button class="ghost" id="shareClose">Zavrieť</button></div>
 </div>
-<div class="modal" id="shz"><div class="mcard">
+<div class="modal" id="shz" role="dialog" aria-modal="true"><div class="mcard">
   <div class="lbl"><span>👂 Čo to hučí?</span></div>
   <canvas id="shzWave" width="600" height="160"></canvas>
   <div id="shzRes"></div>
   <div class="acts"><button class="ghost" id="shzClose" style="flex:1">Zavrieť</button></div>
 </div></div>
-<div class="modal" id="mapM"><div class="mcard" style="padding:10px">
+<div class="modal" id="mapM" role="dialog" aria-modal="true"><div class="mcard" style="padding:10px">
   <div id="map"></div>
   <div style="padding:10px 6px 4px"><div id="mapInfo" class="lookSub"></div><div class="acts"><button class="ghost" id="mapClose" style="flex:1">Zavrieť</button></div></div>
 </div></div>
-<div class="modal" id="duelM" style="align-items:center"><div class="mcard" style="text-align:center">
+<div class="modal" id="duelM" role="dialog" aria-modal="true" style="align-items:center"><div class="mcard" style="text-align:center">
   <div style="font-size:54px">⚔️</div>
   <div class="big" style="font-size:26px" id="duelT"></div>
   <div class="sub" id="duelS"></div>
-  <div class="acts"><button class="btn sec" id="duelGo">Prijímam výzvu 💪</button></div>
+  <div class="acts" style="flex-direction:column"><button class="btn sec" id="duelGo">Prijímam výzvu 💪</button><button class="btn ghost" id="duelFr" style="display:none">👯 Pridať ako kamaráta</button></div>
+  <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=15"></script>
-<script src="js/ui.js?v=15"></script>
-<script src="js/ar.js?v=15"></script>
-<script src="js/space.js?v=15"></script>
-<script src="js/weather.js?v=15"></script>
-<script src="js/extras.js?v=15"></script>
-<script src="js/social.js?v=15"></script>
-<script src="js/wrapped.js?v=15"></script>
-<script src="js/push.js?v=15"></script>
-<script src="js/track.js?v=15"></script>
-<script src="js/towns.js?v=15"></script>
-<script src="js/catalog.js?v=15"></script>
-<script src="js/cards.js?v=15"></script>
-<script src="js/mail.js?v=15"></script>
-<script src="js/golden.js?v=15"></script>
-<script src="js/teams.js?v=15"></script>
-<script src="js/duel.js?v=15"></script>
-<script src="js/sound.js?v=15"></script>
-<script src="js/santa.js?v=15"></script>
-<script src="js/main.js?v=15"></script>
+<script src="js/core.js?v=16"></script>
+<script src="js/ui.js?v=16"></script>
+<script src="js/ar.js?v=16"></script>
+<script src="js/space.js?v=16"></script>
+<script src="js/weather.js?v=16"></script>
+<script src="js/extras.js?v=16"></script>
+<script src="js/social.js?v=16"></script>
+<script src="js/wrapped.js?v=16"></script>
+<script src="js/push.js?v=16"></script>
+<script src="js/track.js?v=16"></script>
+<script src="js/towns.js?v=16"></script>
+<script src="js/catalog.js?v=16"></script>
+<script src="js/cards.js?v=16"></script>
+<script src="js/mail.js?v=16"></script>
+<script src="js/golden.js?v=16"></script>
+<script src="js/teams.js?v=16"></script>
+<script src="js/duel.js?v=16"></script>
+<script src="js/sound.js?v=16"></script>
+<script src="js/santa.js?v=16"></script>
+<script src="js/main.js?v=16"></script>
 </body>
 </html>

@@ -94,7 +94,7 @@ $("wshare").onclick=async()=>{
   cells.forEach((q,i)=>{const cx=90+(i%2)*460,cy=960+Math.floor(i/2)*300;x.fillStyle="rgba(255,255,255,.12)";rr(x,cx,cy,440,260,40);x.fill();
     x.fillStyle="#fff";let f2=72;x.font=`800 ${f2}px Unbounded, sans-serif`;while(x.measureText(String(q[0])).width>380&&f2>34){f2-=6;x.font=`800 ${f2}px Unbounded, sans-serif`}x.fillText(String(q[0]),cx+34,cy+130);
     x.fillStyle="rgba(255,255,255,.8)";x.font="500 32px Inter, sans-serif";x.fillText(clip(x,q[1],380),cx+34,cy+200)});
-  x.textAlign="center";x.fillStyle="#6dffc7";x.font="900 64px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-190);
-  x.fillStyle="rgba(255,255,255,.85)";x.font="500 36px Inter, sans-serif";x.fillText("Aký spotter typ si ty? → "+location.host,W/2,H-120);
-  c.toBlob(b=>b&&shareBlob(b,"moja-obloha.png","Môj spotter typ: "+s.type.e+" "+s.type.n+" ✈️ Aký si ty? "+location.href),"image/png");
+  x.textAlign="center";x.fillStyle="#6dffc7";x.font="900 64px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-300);
+  x.fillStyle="rgba(255,255,255,.85)";x.font="500 36px Inter, sans-serif";x.fillText("Aký spotter typ si ty? → "+APP_HOST,W/2,H-245);
+  c.toBlob(b=>b&&shareBlob(b,"moja-obloha.png","Môj spotter typ: "+s.type.e+" "+s.type.n+" ✈️ Aký si ty? "+appLink()+TAGS),"image/png");
 };

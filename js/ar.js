@@ -9,8 +9,17 @@ async function openAR(){
   AR.cv=$("arCanvas");AR.ctx=AR.cv.getContext("2d");AR.vid=$("arVid");
   sizeAR();
   cancelAnimationFrame(AR.raf);arFrame();
+  wakeOn();
   await arCam();
 }
+// iPhone pri prepnutí appky vypne kameru aj zvuk – po návrate ich obnovíme
+document.addEventListener("visibilitychange",()=>{
+  if(!$("ar").classList.contains("on"))return;
+  if(document.hidden){if(AR.rec&&AR.rec.state==="recording")stopRec();return}
+  const dead=!AR.stream||AR.stream.getVideoTracks().every(t=>t.readyState==="ended");
+  if(dead)arCam();else AR.vid.play().catch(()=>{});
+  try{AR.actx&&AR.actx.state!=="running"&&AR.actx.resume()}catch(e){}
+});
 async function arCam(){
   if(AR.stream){AR.stream.getTracks().forEach(x=>x.stop());AR.stream=null}
   try{
@@ -22,7 +31,7 @@ function sizeAR(){const d=Math.min(2,window.devicePixelRatio||1);AR.d=d;AR.cv.wi
 addEventListener("resize",()=>{if(AR.cv&&$("ar").classList.contains("on"))sizeAR()});
 function closeAR(){
   if(AR.rec&&AR.rec.state==="recording")stopRec();
-  $("ar").classList.remove("on");cancelAnimationFrame(AR.raf);
+  $("ar").classList.remove("on");cancelAnimationFrame(AR.raf);if(!document.body.classList.contains("moment"))wakeOff();
   if(AR.stream){AR.stream.getTracks().forEach(x=>x.stop());AR.stream=null}
   if(S.view==="ar")setView("now");
 }
@@ -129,7 +138,7 @@ function arFrame(){
   c.strokeStyle="rgba(255,255,255,.45)";c.lineWidth=1;c.beginPath();c.arc(W/2,H/2,16,0,7);c.stroke();
   // vodoznak (viditeľný aj vo videu)
   c.textAlign="left";c.fillStyle="rgba(255,255,255,.9)";c.font="900 15px Unbounded, sans-serif";c.fillText(t("title")+" ✈️",14,H-205);
-  c.fillStyle="rgba(255,255,255,.65)";c.font="500 11px Inter, sans-serif";c.fillText(location.host+location.pathname.replace(/index\.html$/,""),14,H-189);
+  c.fillStyle="rgba(255,255,255,.65)";c.font="500 11px Inter, sans-serif";c.fillText(APP_HOST,14,H-189);
   // nahrávanie
   if(AR.rec&&AR.rec.state==="recording"){
     const s=(now-AR.recStart)/1000;
@@ -168,13 +177,13 @@ function startRec(opt={}){
     const type=(AR.rec.mimeType||mime||"video/webm").split(";")[0],blob=new Blob(AR.chunks,{type});
     if(!blob.size){toast("Video je prázdne","Skús to znova");return}
     grantAch("video");
-    shareBlob(blob,"co-to-leti."+(type.includes("mp4")?"mp4":"webm"),"Pozri, čo mi letelo nad hlavou ✈️ "+location.href);
+    shareBlob(blob,"co-to-leti."+(type.includes("mp4")?"mp4":"webm"),"Pozri, čo mi letelo nad hlavou ✈️ "+(S.top?planeLink(S.top):appLink())+TAGS);
   };
   AR.rec.start(500);AR.recStart=Date.now();$("arRec").classList.add("on");
   if(navigator.vibrate)navigator.vibrate(40);
 }
 function stopRec(){try{if(AR.rec&&AR.rec.state==="recording")AR.rec.stop()}catch(e){}$("arRec").classList.remove("on")}
-function snapAR(){AR.cv.toBlob(b=>b&&shareBlob(b,"co-to-leti.png","Pozri, čo mi letí nad hlavou ✈️ "+location.href),"image/png")}
+function snapAR(){AR.cv.toBlob(b=>b&&shareBlob(b,"co-to-leti.png","Pozri, čo mi letí nad hlavou ✈️ "+(S.top?planeLink(S.top):appLink())+TAGS),"image/png")}
 
 async function shareBlob(blob,name,text){
   const file=new File([blob],name,{type:blob.type});

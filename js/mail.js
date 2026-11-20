@@ -43,9 +43,9 @@ $("postShare").onclick=()=>{
   x.fillStyle="#2b1d0e";x.font="900 76px Unbounded, sans-serif";wrapText(x,MAILS[m.msg]||"Ahoj!",160,760,760,92,3);
   x.fillStyle="#6b4a2a";x.font="500 40px Inter, sans-serif";x.fillText("od "+(m.nick||"niekoho")+(m.town?" · "+m.town:""),160,1180);
   x.font="160px sans-serif";x.textAlign="right";x.fillText(m.emoji||"✉️",940,1290);
-  x.textAlign="center";x.fillStyle="#fff";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-200);
-  x.font="500 36px Inter, sans-serif";x.fillText("Lietadlá roznášajú pozdravy po Slovensku → "+location.host,W/2,H-130);
-  c.toBlob(b=>b&&shareBlob(b,"pozdrav.png","Lietadlo mi prinieslo pozdrav "+(m.town?"z "+m.town:"")+" ✉️✈️ "+location.href),"image/png");
+  x.textAlign="center";x.fillStyle="#fff";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-450);
+  x.font="500 36px Inter, sans-serif";x.fillText("Lietadlá roznášajú pozdravy po Slovensku",W/2,H-385);x.fillText(APP_HOST,W/2,H-335);
+  c.toBlob(b=>b&&shareBlob(b,"pozdrav.png","Lietadlo mi prinieslo pozdrav "+(m.town?"z "+m.town:"")+" ✉️✈️ "+appLink()+TAGS),"image/png");
 };
 ACH.push({id:"mail",i:"✉️",n:"Prvý pozdrav lietadlom",c:()=>false},{id:"post",i:"📬",n:"Prišiel mi pozdrav",c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"mail",i:"✉️",n:"Pošli pozdrav lietadlom",h:"Mávni → ✉️",ev:true});
