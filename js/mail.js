@@ -28,8 +28,9 @@ $("mailList").onclick=async e=>{
 function showPost(){
   if(postCur||!POSTQ.length)return;postCur=POSTQ.shift();const m=postCur,pl=S.list.find(x=>x.hex===m.hex);
   $("postCard").innerHTML=`<div class="stamp">${esc(m.emoji||"✉️")}</div><div class="k">✉️ Lietadlo ti prinieslo pozdrav</div>
-    <div class="m">${esc(MAILS[m.msg]||"Ahoj!")}</div><div class="f">od <b>${esc(m.nick||"niekoho")}</b>${m.town?" · "+esc(m.town):m.k&&KRAJ[m.k]?" · "+esc(KRAJ[m.k][2])+" kraj":""}</div>
+    <div class="m">${esc(MAILS[m.msg]||"Ahoj!")}</div><div class="f">od <b>${esc(m.nick||"niekoho")}</b>${m.nick?` <button class="rep" id="postRep" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""}${m.town?" · "+esc(m.town):m.k&&KRAJ[m.k]?" · "+esc(KRAJ[m.k][2])+" kraj":""}</div>
     <div class="via">✈️ doručil ${esc(pl?[airlineOf(pl),titleOf(pl)].filter(Boolean).join(" "):"let nad tebou")} · ${new Date().toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})}</div>`;
+  if($("postRep"))$("postRep").onclick=e=>reportName(m.nick,e.currentTarget);
   $("postM").classList.add("on");haptic([30,60,30]);ping("r");grantAch("post");
 }
 $("postClose").onclick=()=>{$("postM").classList.remove("on");postCur=null;setTimeout(showPost,400)};

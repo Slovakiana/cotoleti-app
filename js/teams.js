@@ -29,7 +29,7 @@ $("teamBox").onclick=async e=>{
     if(id==="tmCreate"){const n=$("tmName").value.trim();if(!n){toast("Zadaj názov tímu","");return}const j=await teamCall({action:"create",name:n});if(j.ok){toast("👥 Tím založený!","Pozvi kamošov kódom "+j.code);grantAch("team");await socPoll();teamRender()}}
     if(id==="tmJoin"){const c=$("tmCode").value.trim();const j=await teamCall({action:"join",code:c});if(j.ok){LS.set("ctl_teamInvite","");toast("👥 Si v tíme "+j.name,"Každé tvoje mávnutie sa počíta");grantAch("team");await socPoll();teamRender()}else toast("Tím s týmto kódom neexistuje","Skontroluj kód")}
     if(id==="tmLeave"){await teamCall({action:"leave"});await socPoll();teamRender()}
-    if(id==="tmInvite"){const t=SOC.data.myTeam,url=location.origin+location.pathname+"#tim="+t.code,text=`👥 Pridaj sa do tímu „${t.name}“ v appke Čo to letí? ✈️ Mávame lietadlám a bojujeme o 1. miesto na Slovensku!`;
+    if(id==="tmInvite"){const t=SOC.data.myTeam,url=shareUrl("t",t.code),text=`👥 Pridaj sa do tímu „${t.name}“ v appke Čo to letí? ✈️ Mávame lietadlám a bojujeme o 1. miesto na Slovensku!`;
       try{if(navigator.share){await navigator.share({title:"Čo to letí? – tím",text,url});return}}catch(er){if(er.name==="AbortError")return}
       try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","")}catch(er){prompt("Skopíruj odkaz:",url)}}
   }catch(er){toast("Nepodarilo sa","Skús znova")}

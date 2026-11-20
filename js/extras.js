@@ -163,7 +163,7 @@ const nick=()=>($("nick").value||"").trim()||LS.get("ctl_nick","")||"Spotter";
 function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,pid:(typeof PID!=="undefined"?PID:"")}}
 async function sendDuel(){
   if(typeof ensureTok==="function")await ensureTok();
-  const me=myScore(),url=location.origin+location.pathname+"#vyzva="+b64e(JSON.stringify(me));
+  const me=myScore(),url=shareUrl("v",b64e(JSON.stringify(me)));
   const text=`⚔️ ${me.n} ťa vyzýva v appke Čo to letí? ✈️ Mám ${me.p} bodov, ${me.c} ulovených lietadiel a ${me.t} typov. Prekonáš ma?`;
   try{if(navigator.share){await navigator.share({title:"Čo to letí? – výzva",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamarátovi")}catch(e){prompt("Skopíruj odkaz:",url)}

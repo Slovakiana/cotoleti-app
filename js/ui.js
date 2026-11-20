@@ -13,7 +13,8 @@ function toastNext(){
   $("toastT").textContent=q[0];$("toastS").textContent=q[1]||"";$("toast").style.borderColor=q[2]||"";$("toast").classList.add("on");
   clearTimeout(toastT);toastT=setTimeout(()=>{$("toast").classList.remove("on");setTimeout(toastNext,450)},TQ.length?2400:3200);
 }
-function confetti(n){const cols=["#6dffc7","#4fc3ff","#ff4fd8","#ffcf4f","#fff"];for(let i=0;i<n;i++){const e=document.createElement("i");e.className="cf";e.style.left=Math.random()*96+"%";e.style.background=cols[i%cols.length];e.style.setProperty("--dx",(Math.random()*160-80)+"px");e.style.animationDelay=Math.random()*.4+"s";e.style.borderRadius=Math.random()<.5?"50%":"2px";$("fx").appendChild(e);setTimeout(()=>e.remove(),2200)}}
+const RM=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+function confetti(n){if(RM())n=Math.min(n,8);const cols=["#6dffc7","#4fc3ff","#ff4fd8","#ffcf4f","#fff"];for(let i=0;i<n;i++){const e=document.createElement("i");e.className="cf";e.style.left=Math.random()*96+"%";e.style.background=cols[i%cols.length];e.style.setProperty("--dx",(Math.random()*160-80)+"px");e.style.animationDelay=Math.random()*.4+"s";e.style.borderRadius=Math.random()<.5?"50%":"2px";$("fx").appendChild(e);setTimeout(()=>e.remove(),2200)}}
 let actx;
 function ping(r){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const notes=r==="l"?[523,659,784,1047]:r==="r"?[523,784,1047]:[784,1047];notes.forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type="triangle";o.frequency.value=f;g.gain.setValueAtTime(.0001,actx.currentTime+i*.09);g.gain.exponentialRampToValueAtTime(.15,actx.currentTime+i*.09+.02);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+i*.09+.25);o.connect(g).connect(actx.destination);o.start(actx.currentTime+i*.09);o.stop(actx.currentTime+i*.09+.3)})}catch(e){}}
 /* zvuk na iPhone: hrať ako médium (aj pri tichom režime) a odomknúť v rámci ťuknutia */
@@ -102,12 +103,12 @@ function skyFrame(){
     if(tr.length>1){c.beginPath();tr.forEach((q,i)=>{const pp=skyProj(q.az,q.el);i?c.lineTo(pp.x,pp.y):c.moveTo(pp.x,pp.y)});c.lineTo(p.x,p.y);
       c.strokeStyle=isTop?"rgba(109,255,199,.55)":"rgba(255,255,255,.22)";c.lineWidth=isTop?2.2:1.2;c.stroke()}
     if(isTop){const pr=10+5*Math.sin(now/260);c.strokeStyle="rgba(109,255,199,.8)";c.lineWidth=2;c.beginPath();c.arc(p.x,p.y,pr+6,0,7);c.stroke();
-      c.shadowColor="#6dffc7";c.shadowBlur=18}
+      c.fillStyle="rgba(109,255,199,.18)";c.beginPath();c.arc(p.x,p.y,13,0,7);c.fill()}
     c.save();c.translate(p.x,p.y);c.rotate(rad((a.trk??0)+(S.heading!=null?-S.heading:0)));
-    const s=isTop?1.5:1;c.fillStyle=col;c.beginPath();c.moveTo(0,-7*s);c.lineTo(5*s,6*s);c.lineTo(0,3.5*s);c.lineTo(-5*s,6*s);c.closePath();c.fill();c.restore();c.shadowBlur=0;
+    const s=isTop?1.5:1;c.fillStyle=col;c.beginPath();c.moveTo(0,-7*s);c.lineTo(5*s,6*s);c.lineTo(0,3.5*s);c.lineTo(-5*s,6*s);c.closePath();c.fill();c.restore();
     if(isTop||list.length<8||a.el>45){const rt=routeOf(a),hide=$("guess").classList.contains("on")&&$("guess").dataset.hex===a.hex,lab=titleOf(a)+(isTop&&rt&&!hide?" → "+citySk(rt.destination.municipality):"");
       c.font=(isTop?"700 12px":"600 10px")+" Inter, sans-serif";c.textAlign="left";c.fillStyle=isTop?"#fff":"rgba(255,255,255,.75)";
-      c.shadowColor="rgba(0,0,0,.6)";c.shadowBlur=6;c.fillText(lab,p.x+(isTop?18:9),p.y);c.shadowBlur=0}
+      c.lineWidth=3;c.strokeStyle="rgba(0,0,0,.45)";c.lineJoin="round";c.strokeText(lab,p.x+(isTop?18:9),p.y);c.fillText(lab,p.x+(isTop?18:9),p.y)}
   });
   // ty
   c.fillStyle="#fff";c.beginPath();c.arc(cx,cy,4,0,7);c.fill();
@@ -454,3 +455,15 @@ $("b-forget").onclick=async()=>{
   try{Object.keys(localStorage).filter(k=>k.startsWith("ctl_")||k.startsWith("nm_")).forEach(k=>localStorage.removeItem(k))}catch(e){}
   toast("🗑️ Údaje zmazané","Zo servera aj z tohto mobilu");setTimeout(()=>location.reload(),1500);
 };
+
+/* ============ 🌙 nočný režim ============ */
+function nightApply(){
+  const m=LS.get("ctl_night","auto"),dark=typeof SPACE!=="undefined"&&S.pos?SPACE.sunAlt()<-8:false;
+  const mode=m==="auto"?(dark?"warm":"off"):m;
+  document.body.classList.toggle("n-warm",mode==="warm");document.body.classList.toggle("n-red",mode==="red");
+}
+$("nightSel").value=LS.get("ctl_night","auto");
+$("nightSel").onchange=()=>{LS.set("ctl_night",$("nightSel").value);nightApply();haptic(6)};
+setInterval(nightApply,60000);setTimeout(nightApply,3000);
+const openFriends=()=>{if(/tim=|vyzva=/.test(location.hash))$("friendsBox").open=true};
+openFriends();addEventListener("hashchange",openFriends);

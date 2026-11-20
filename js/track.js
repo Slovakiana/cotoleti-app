@@ -93,7 +93,8 @@ function trSubmit(me){
 }
 async function trShareLink(){
   if(!TR)return;
-  const url=location.origin+location.pathname+"#let="+encodeURIComponent(TR.cs)+(TR.me&&LS.get("ctl_nick","")?"&n="+encodeURIComponent(LS.get("ctl_nick","")):TR.label?"&n="+encodeURIComponent(TR.label):"");
+  const nn=TR.me&&LS.get("ctl_nick","")?LS.get("ctl_nick",""):TR.label||"";
+  const url=shareUrl("l",encodeURIComponent(TR.cs),nn?"n="+encodeURIComponent(nn):"");
   const text=TR.me?`✈️ Letím ${TR.disp||TR.cs}! Keď budem letieť nad tebou, zamávaj mi 👋 Appka ti dá vedieť:`:`✈️ Sleduj let ${TR.disp||TR.cs}${TR.label?" ("+TR.label+")":""} a zamávaj, keď bude nad tebou 👋`;
   try{if(navigator.share){await navigator.share({title:"Čo to letí?",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamošom")}catch(e){prompt("Skopíruj odkaz:",url)}

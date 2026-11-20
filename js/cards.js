@@ -18,6 +18,7 @@ const SPEC={
 };
 /* silueta zhora (tak ho vidíš zo zeme), v presných pomeroch dĺžky a rozpätia */
 function planeSVG(c,o){
+  if(c.code==="SLEIGH"){const b=o.box||200;return `<g font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif" text-anchor="middle"><text x="${b/2}" y="${b*.62}" font-size="${b*.42}">🛷</text><text x="${b*.36}" y="${b*.46}" font-size="${b*.26}">🎅</text><text x="${b*.82}" y="${b*.4}" font-size="${b*.2}">🦌</text><text x="${b*.2}" y="${b*.22}" font-size="${b*.1}">✨</text><text x="${b*.86}" y="${b*.78}" font-size="${b*.09}">⭐</text></g>`}
   const box=o.box||200,cx=box/2,cy=box/2,col=o.body||"#f4f7ff",acc=o.acc||"#3d7bff",sh=o.shade||"#c9d3ea",id=o.id||"p";
   if(c.fam==="heli"){
     const k=(box*.84)/Math.max(c.len,c.span),L=c.len*k,R=c.span*k/2,bw=L*.26,by=cy-L*.5;

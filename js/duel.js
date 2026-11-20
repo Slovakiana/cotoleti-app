@@ -21,7 +21,7 @@ function cdStart(){
 async function cdSendLink(){
   const seed=Math.floor(Math.random()*1e6),cats=[0,1,2].map(i=>CD_CATS[hash(String(seed)+i)%CD_CATS.length][0]);
   await ensureTok();const p={n:nick(),c:CD.sel,k:cats,s:seed};
-  const url=location.origin+location.pathname+"#kd="+b64e(JSON.stringify(p));
+  const url=shareUrl("k",b64e(JSON.stringify(p)));
   const text=`⚔️ ${p.n} ťa vyzýva na súboj kartičiek lietadiel v appke Čo to letí? ✈️ Trúfneš si?`;
   cdClose();
   try{if(navigator.share){await navigator.share({title:"Súboj kartičiek",text,url});return}}catch(e){if(e.name==="AbortError")return}

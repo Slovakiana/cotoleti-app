@@ -120,6 +120,8 @@ const SOURCES=[
 // Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
 const DEFAULT_PROXY="https://cotoleti-app.radovan-kudela.workers.dev";
 const MYPROXY=DEFAULT_PROXY;
+// odkazy na zdieľanie idú cez server -> pekný náhľad v Messengeri/WhatsAppe, potom presmerujú do appky
+const shareUrl=(kind,data,q)=>DEFAULT_PROXY+"/s/"+kind+"/"+data+(q?"?"+q:"");
 // len vlastný server a priamy prístup – žiadne cudzie proxy, ktoré by videli polohu
 const ROUTES=[
   {name:"server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)},

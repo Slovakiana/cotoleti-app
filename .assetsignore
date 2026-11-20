@@ -3,3 +3,5 @@ node_modules
 server
 wrangler.jsonc
 .wrangler
+tests
+.github

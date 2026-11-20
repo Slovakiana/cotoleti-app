@@ -1,0 +1,16 @@
+name: Testy
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Kontrola syntaxe
+        run: for f in js/*.js sw.js server/worker.js; do node --check "$f"; done
+      - name: Testy servera (súťaže, bezpečnosť)
+        run: node tests/worker.test.mjs

@@ -1,0 +1,19 @@
+name: Strážca servera
+# Každých 30 minút skontroluje, či server beží. Ak nie, GitHub pošle e-mail o zlyhaní.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Server odpovedá a minútový časovač beží
+        run: |
+          for i in 1 2 3; do
+            if curl -fsS --max-time 20 https://cotoleti-app.radovan-kudela.workers.dev/api/health | grep -q '"ok":true'; then exit 0; fi
+            sleep 30
+          done
+          echo "Server neodpovedá správne"; exit 1
+      - name: Appka na GitHub Pages
+        run: curl -fsS --max-time 20 -o /dev/null https://slovakiana.github.io/cotoleti-app/

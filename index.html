@@ -11,7 +11,7 @@
 <meta name="description" content="Pozri hore. Zisti, čo ti práve letí nad hlavou, koľko ľudí v tom sedí a zamávaj im spolu s celým Slovenskom.">
 <meta property="og:title" content="Čo to letí? ✈️ Pozri hore.">
 <meta property="og:description" content="Každé lietadlo nad tebou naživo – odkiaľ, kam a koľko ľudí v ňom sedí. Zamávaj mu s celým Slovenskom 👋">
-<meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og.png">
+<meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og/default.jpg">
 <meta property="og:url" content="https://slovakiana.github.io/cotoleti-app/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -367,6 +367,13 @@ body.moment #top{opacity:0;pointer-events:none}
 .post .via{margin-top:12px;font-size:13px;color:#8a6a4a}
 /* liga */
 .lgTabs{display:flex;gap:6px;margin-top:10px}
+.wideB{width:100%;margin-top:10px;min-height:48px;justify-content:center}
+.rep{font-size:12px;opacity:.55;padding:2px 6px;min-width:28px;min-height:28px;color:var(--mut)}
+#friendsBox>.card{background:none;border:0;box-shadow:none;padding:14px 2px 4px}
+#friendsBox summary small{color:var(--mut);font-weight:500;margin-left:6px}
+#nightTint{position:fixed;inset:0;pointer-events:none;z-index:9999;mix-blend-mode:multiply;display:none}
+body.n-warm #nightTint{display:block;background:rgb(235,185,150)}
+body.n-red #nightTint{display:block;background:rgb(255,45,25)}
 .lgTabs button{flex:1;padding:8px;border-radius:12px;font-size:13px;background:rgba(255,255,255,.06);border:1px solid var(--gline);color:var(--mut)}
 .lgTabs button.on{background:rgba(255,255,255,.16);color:#fff}
 /* súboj kartičiek */
@@ -454,10 +461,10 @@ body.moment #top{opacity:0;pointer-events:none}
 
   <div class="chips">
       <button class="chip glass" id="goldChip" style="display:none"></button>
+      <button class="chip glass gold" id="santaChip" style="display:none"></button>
       <button class="chip glass" id="b-track">✈️ Sleduj let</button>
       <button class="chip glass" id="dailyStrip"><span id="dailyTxt">🎯 Výzvy 0/3</span></button>
       <button class="chip glass gold" id="issStrip" style="display:none"><span id="issTxt"></span></button>
-      <button class="chip glass" id="b-sound">🎵 Počúvaj oblohu</button>
       <button class="chip glass" id="installBar" style="display:none"><span id="installTxt">📲 Na plochu</span><span class="x" id="b-installX">✕</span></button>
     </div>
 
@@ -492,6 +499,7 @@ body.moment #top{opacity:0;pointer-events:none}
         <button class="btn" id="b-shazam"><i>👂</i>Čo to hučí?</button>
         <button class="btn" id="b-voice"><i>🔇</i>Hlas</button>
       </div>
+      <button class="btn wideB" id="b-sound">🎵 Počúvaj oblohu</button>
       <div class="links" id="h-links"></div>
     </div>
   </details>
@@ -499,7 +507,7 @@ body.moment #top{opacity:0;pointer-events:none}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
-    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Kraje</button><button data-t="m">Mestá</button><button data-t="t">Tímy</button></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="t">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
   </section>
 
@@ -564,15 +572,18 @@ body.moment #top{opacity:0;pointer-events:none}
     <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
     <div id="d-list" style="margin-top:6px"></div>
   </section>
-  <section class="card glass" id="teamCard">
+  <details class="more glass" id="friendsBox">
+  <summary>🤝 Hraj s kamarátmi <small>tím · výzva</small></summary>
+  <section class="card" id="teamCard">
     <div class="lbl"><span>👥 Tím</span><span id="teamRank"></span></div>
     <div id="teamBox"></div>
   </section>
-  <section class="card glass">
+  <section class="card">
     <div class="lbl"><span>⚔️ Súboj s kamarátom</span></div>
     <div id="duel"><div class="lookSub" style="margin-top:8px">Pošli kamarátovi výzvu. Keď otvorí odkaz, uvidí tvoje skóre.</div></div>
     <div class="acts"><button class="btn pri" id="b-duel">⚔️ Vyzvi kamaráta</button></div>
   </section>
+  </details>
   <section class="card glass">
     <div class="lbl"><span>🏅 Odznaky</span><span id="c-achN"></span></div>
     <div class="ach" id="c-ach"></div>
@@ -588,6 +599,7 @@ body.moment #top{opacity:0;pointer-events:none}
     <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
     <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess" role="switch" aria-label="Tipovačka"></button></div>
     <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice" role="switch" aria-label="Hlasové ohlásenie"></button></div>
+    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby si v tme videl hviezdy</small></div><select id="nightSel"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
     <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib" role="switch" aria-label="Vibrovanie"></button></div>
     <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
     <div class="sr"><div>📡 Okruh</div><select id="radius"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
@@ -669,6 +681,7 @@ body.moment #top{opacity:0;pointer-events:none}
   </div>
   <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
 </div></div>
+<div id="nightTint" aria-hidden="true"></div>
 <div id="toast" class="glass" role="status" aria-live="polite"><b id="toastT"></b><span id="toastS"></span></div>
 
 <div id="shareM">
@@ -693,24 +706,25 @@ body.moment #top{opacity:0;pointer-events:none}
   <div class="acts"><button class="btn sec" id="duelGo">Prijímam výzvu 💪</button></div>
 </div></div>
 
-<script src="js/core.js?v=14"></script>
-<script src="js/ui.js?v=14"></script>
-<script src="js/ar.js?v=14"></script>
-<script src="js/space.js?v=14"></script>
-<script src="js/weather.js?v=14"></script>
-<script src="js/extras.js?v=14"></script>
-<script src="js/social.js?v=14"></script>
-<script src="js/wrapped.js?v=14"></script>
-<script src="js/push.js?v=14"></script>
-<script src="js/track.js?v=14"></script>
-<script src="js/towns.js?v=14"></script>
-<script src="js/catalog.js?v=14"></script>
-<script src="js/cards.js?v=14"></script>
-<script src="js/mail.js?v=14"></script>
-<script src="js/golden.js?v=14"></script>
-<script src="js/teams.js?v=14"></script>
-<script src="js/duel.js?v=14"></script>
-<script src="js/sound.js?v=14"></script>
-<script src="js/main.js?v=14"></script>
+<script src="js/core.js?v=15"></script>
+<script src="js/ui.js?v=15"></script>
+<script src="js/ar.js?v=15"></script>
+<script src="js/space.js?v=15"></script>
+<script src="js/weather.js?v=15"></script>
+<script src="js/extras.js?v=15"></script>
+<script src="js/social.js?v=15"></script>
+<script src="js/wrapped.js?v=15"></script>
+<script src="js/push.js?v=15"></script>
+<script src="js/track.js?v=15"></script>
+<script src="js/towns.js?v=15"></script>
+<script src="js/catalog.js?v=15"></script>
+<script src="js/cards.js?v=15"></script>
+<script src="js/mail.js?v=15"></script>
+<script src="js/golden.js?v=15"></script>
+<script src="js/teams.js?v=15"></script>
+<script src="js/duel.js?v=15"></script>
+<script src="js/sound.js?v=15"></script>
+<script src="js/santa.js?v=15"></script>
+<script src="js/main.js?v=15"></script>
 </body>
 </html>
