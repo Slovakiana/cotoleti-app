@@ -675,3 +675,15 @@ function seasonUpd(){
   return {...n,pts:Math.max(0,COL.pts-z.base),best:z.best||0};
 }
 if(typeof ACH!=="undefined")ACH.push({id:"season100",i:"🗓️",n:"100 bodov za jednu sezónu",c:()=>false});
+
+/* 🔠 veľkosť písma: systémová (Dynamic Type na iPhone) × vlastné „Väčšie písmo“ */
+function fsApply(){
+  let sys=1;
+  try{const pr=document.createElement("div");pr.style.cssText="font:-apple-system-body;position:absolute;visibility:hidden";document.body.appendChild(pr);
+    const px=parseFloat(getComputedStyle(pr).fontSize);pr.remove();if(px&&CSS.supports("font","-apple-system-body"))sys=px/17}catch(e){}
+  const big=LS.get("ctl_big",false),f=Math.max(.9,Math.min(1.35,sys*(big?1.15:1)));
+  document.documentElement.style.setProperty("--fs",f.toFixed(3));
+  if($("t-big"))$("t-big").classList.toggle("on",big),$("t-big").setAttribute("aria-checked",big);
+}
+if($("t-big"))$("t-big").onclick=()=>{LS.set("ctl_big",!LS.get("ctl_big",false));fsApply();haptic(10)};
+fsApply();addEventListener("pageshow",fsApply);

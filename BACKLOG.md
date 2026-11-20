@@ -55,3 +55,6 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 ## Hotové 20. 11. 2026 (v24)
 - Starosta oblohy: najaktívnejší spotter mesta v mesiaci (len overené mávnutia, deti bez mena) + odznak
 - Pripomienka preletu ISS/Tiangong: appka vypočíta čas, server pošle upozornenie 5 min vopred (max 5 pripomienok)
+
+## Hotové 20. 11. 2026 (v25)
+- Dynamic Type: písmo sa riadi veľkosťou textu v iPhone + prepínač „Väčšie písmo“ v nastaveniach
