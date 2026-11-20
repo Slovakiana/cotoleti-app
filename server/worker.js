@@ -112,6 +112,7 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS ids(id TEXT PRIMARY KEY, t INTEGER, iph TEXT);
       CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY, w INTEGER, n INTEGER);
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
+      CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
       CREATE INDEX IF NOT EXISTS pres_t ON pres(t);
       CREATE INDEX IF NOT EXISTS mails_dh ON mails(day, hex);
       CREATE TABLE IF NOT EXISTS seen(day TEXT, id TEXT, PRIMARY KEY(day, id));
@@ -155,6 +156,7 @@ export class Sky extends DurableObject {
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE wavelog ADD COLUMN pid TEXT"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS wavelog_pid ON wavelog(pid, day)"); } catch (e) {}
+    try { this.sql.exec("CREATE INDEX IF NOT EXISTS idday_town ON idday(town, day)"); } catch (e) {}
   }
   day(t = Date.now()) { return SKDAY.format(new Date(t)); }
   // meno prejde filtrom aj zoznamom nahlásených mien
@@ -416,6 +418,11 @@ export class Sky extends DurableObject {
       const y = this.day(now - 86400e3);
       for (const s of this.sql.exec("SELECT s.id FROM subs s WHERE EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) AND NOT EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) LIMIT 5000", y, d).toArray())
         this.notify(s.id, "🔥 Tvoja séria je v ohrození", "Dnes si ešte nikomu nezamával. Pozri hore – stačí jedno lietadlo.", "./");
+    }
+    // 🛰️ pripomienky preletov (vypočítané v appke)
+    for (const r of this.sql.exec("SELECT id, at, title, body FROM reminders WHERE at <= ? LIMIT 2000", now).toArray()) {
+      this.sql.exec("DELETE FROM reminders WHERE id=? AND at=?", r.id, r.at);
+      if (now - r.at < 10 * 60e3) this.notify(r.id, r.title, r.body, "./#vesmir");
     }
     // týždenný súhrn v pondelok ráno
     const wk = this.week(), prev = this.week(now - 7 * 86400e3);
@@ -717,6 +724,16 @@ export class Sky extends DurableObject {
       if (b.action === "leave") { this.sql.exec("DELETE FROM tmembers WHERE id=?", id); return json({ok: true}); }
       return json({error: "bad"}, 400);
     }
+    if (p === "/api/remind" && req.method === "POST") {
+      const b = await body(), id = cleanId(b.id), at = Math.round(num(b.at, 0));
+      if (!this.row("SELECT 1 AS x FROM subs WHERE id=?", id)) return json({error: "nosub"}, 400);
+      if (!(at > now && at < now + 48 * 3600e3)) return json({error: "bad"}, 400);
+      if ((this.row("SELECT COUNT(*) AS c FROM reminders WHERE id=?", id) || {c: 0}).c >= 5) return json({error: "rate"}, 429);
+      const nm = b.kind === "css" ? "Čínska stanica Tiangong" : "ISS";
+      const dir = String(b.dir || "").replace(/[^a-záäčďéíĺľňóôŕšťúýž -]/gi, "").slice(0, 20), mx = Math.max(10, Math.min(90, Math.round(num(b.max, 30))));
+      this.sql.exec("INSERT OR REPLACE INTO reminders(id, at, title, body) VALUES(?, ?, ?, ?)", id, at, `🛰️ ${nm} o 5 minút nad tebou`, `Pozri na ${dir || "oblohu"}, vystúpi až ${mx}° nad obzor. Jasná „hviezda“, ktorá nebliká.`);
+      return json({ok: true});
+    }
     if (p === "/api/sub" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
       let host = ""; try { host = new URL(b.sub && b.sub.endpoint).hostname; } catch (e) {}
@@ -814,7 +831,21 @@ export class Sky extends DurableObject {
       const myInvites = myPid ? (this.row("SELECT n FROM refs WHERE pid=?", myPid) || {n: 0}).n : 0;
       const gw = id ? this.row("SELECT seq FROM golden WHERE day=? AND wid=? AND state=1", d, id) : null;
       const goldIn = id && G.golden && G.golden.state === 0 ? !!this.row("SELECT 1 AS x FROM gcand WHERE day=? AND seq=? AND id=?", d, G.golden.seq, id) : false;
-      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, flags: this.flags()});
+      // 🏛️ Starosta oblohy: najaktívnejší spotter mesta v tomto mesiaci (len overené mávnutia do líg, deti bez mena)
+      let mayor = null;
+      const mTown = (id.length >= 8 && (this.row("SELECT town FROM idday WHERE day=? AND id=?", d, id) || {}).town) || myTown;
+      if (mTown) {
+        const mc = this.mayorC || (this.mayorC = new Map()), c = mc.get(mTown);
+        let top = c && now - c.t < 60e3 ? c.v : null;
+        if (!top) {
+          const m0 = d.slice(0, 8) + "01";
+          top = this.sql.exec("SELECT d.id, SUM(d.n) AS n, x.nick, i.kid FROM idday d LEFT JOIN nicks x ON x.id = d.id LEFT JOIN ids i ON i.id = d.id WHERE d.town=? AND d.day>=? GROUP BY d.id ORDER BY n DESC LIMIT 1", mTown, m0).toArray()[0] || null;
+          if (mc.size > 3000) mc.clear(); mc.set(mTown, {t: now, v: top});
+        }
+        const mine = id.length >= 8 ? (this.row("SELECT SUM(n) AS n FROM idday WHERE town=? AND id=? AND day>=?", mTown, id, d.slice(0, 8) + "01") || {n: 0}).n || 0 : 0;
+        mayor = {town: mTown, nick: top && top.n > 0 ? (top.kid || !top.nick ? "Spotter" : top.nick) : "", n: top ? top.n || 0 : 0, me: !!(top && top.id === id && top.n > 0), mine};
+      }
+      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, flags: this.flags()});
     }
     return json({error: "not found"}, 404);
   }

@@ -51,3 +51,7 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - Sviatočné výzvy: Mikuláš 6. 12., Deň civilného letectva 7. 12., Silvester, Štefánik 4. 5., SNP 29. 8. + odznaky
 - Encyklopédia: neulovené lietadlo v atlase ukáže parametre, zaujímavosť a kde ho hľadať
 - Preklady odložené – zatiaľ len slovenský trh
+
+## Hotové 20. 11. 2026 (v24)
+- Starosta oblohy: najaktívnejší spotter mesta v mesiaci (len overené mávnutia, deti bez mena) + odznak
+- Pripomienka preletu ISS/Tiangong: appka vypočíta čas, server pošle upozornenie 5 min vopred (max 5 pripomienok)

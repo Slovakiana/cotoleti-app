@@ -36,7 +36,7 @@ const dayKey=()=>SKD.format(new Date());
 const dayAgo=n=>SKD.format(new Date(Date.now()-n*864e5));
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 
-ACH.push({id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
+ACH.push({id:"mayor",i:"🏛️",n:"Starosta oblohy",c:()=>false},{id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár (pozval si kamaráta)",c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"wave",i:"👋",n:"Zamávaj lietadlu",h:"Ťukni na „Mávni“ pri lietadle nad tebou",ev:true});
 
 async function socPoll(){
@@ -70,7 +70,7 @@ function socRender(){
     const rec=D.record;
     $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Rekord dňa: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · chýba "+nf(Math.max(0,rec.n-w+1))}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
     if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
-    renderLeague();
+    renderLeague();renderMayor();
   }
   waveInfo(S.top);
   if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
@@ -86,6 +86,16 @@ function renderLeague(){
   else rows=(D.teamsTop||[]).map(x=>[x.name,x.n,x.me,!x.me]);
   const max=Math.max(1,...rows.map(r=>r[1]));
   $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v sekcii Ja 👥":"Dnes ešte nikto nemával. Buď prvý 👋"}</div>`;
+}
+function renderMayor(){
+  const M=SOC.data&&SOC.data.mayor,el=$("mayor");if(!el)return;
+  if(!M||!M.town){el.hidden=true;return}
+  const was=LS.get("ctl_mayor","");
+  if(M.me&&was!==M.town+dayKey().slice(0,7)){LS.set("ctl_mayor",M.town+dayKey().slice(0,7));grantAch("mayor");setTimeout(()=>{toast("🏛️ Si Starosta oblohy!",M.town+" – najaktívnejší spotter mesiaca","#ffcf4f");confetti(60)},1500)}
+  el.hidden=false;
+  el.innerHTML=M.me?`🏛️ <b>Si Starosta oblohy – ${esc(M.town)}</b><br><small>Najviac mávnutí v meste tento mesiac (${M.n}). Udrž si titul do konca mesiaca!</small>`
+    :M.nick?`🏛️ Starosta oblohy – ${esc(M.town)}: <b>${esc(M.nick)}</b> (${M.n} 👋)<br><small>Ty máš tento mesiac ${M.mine|0}. ${M.n-(M.mine|0)+1>0?"Chýba ti "+(M.n-(M.mine|0)+1)+" na titul.":""}</small>`
+    :`🏛️ <b>${esc(M.town)}</b> ešte nemá Starostu oblohy<br><small>Zamávaj ako prvý a titul je tvoj.</small>`;
 }
 $("kraje").onclick=e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)};
 // nahlásenie nevhodného mena (po 3 nahláseniach od rôznych ľudí zmizne všade)

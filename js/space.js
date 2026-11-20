@@ -142,6 +142,7 @@ const SPACE=(()=>{
     if(st.err){$("sp-err").textContent="Vesmírne dáta sa nenačítali: "+st.err+". Skúsim znova neskôr.";}else $("sp-err").textContent="";
     if(st.loading||!st.sats.length){$("sp-name").textContent=st.err?"Zatiaľ bez dát":"Počítam dráhy…";return}
     const p=nextVisible(),now=Date.now();
+    window.SPACE_NEXT=p?{t:p.visStart||p.start,kind:p.sat.kind,dir:dirL(p.azMax),max:Math.round(p.max)}:null;if($("sp-remind"))$("sp-remind").hidden=!p||p.start-now<6*60e3||!SOC.api||(typeof KID==="function"&&KID());
     if(p){
       const live=now>=p.start&&now<=p.end;
       $("sp-name").textContent=(live?"🔴 PRÁVE TERAZ: ":"")+LONG[p.sat.kind];

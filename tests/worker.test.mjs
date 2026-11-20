@@ -86,9 +86,20 @@ await t("spoločné mávnutie s kamarátom", async () => {
   const r = await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11});
   assert.deepEqual(r.j.together, {n: "Maťo"});
 });
+await t("starosta oblohy", async () => {
+  const s = (await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11`, null, "9.9.9.9")).j;
+  assert.ok(s.mayor && s.mayor.town); assert.equal(s.mayor.me, true); assert.equal(s.mayor.nick, "Maťo");
+});
 await t("upozornenia len na povolené servery", async () => {
   assert.equal((await call("/api/sub", {id: A, tok: ha.tok, sub: {endpoint: "https://evil.com/x"}})).s, 400);
   assert.equal((await call("/api/sub", {id: A, tok: ha.tok, sub: {endpoint: "https://fcm.googleapis.com/fcm/send/abc"}, lat: 48.1234, lon: 17.5678})).s, 200);
+});
+await t("pripomienka preletu ISS", async () => {
+  assert.equal((await call("/api/remind", {id: B, tok: hb.tok, at: Date.now() + 3600e3}, "5.6.7.8")).s, 400); // bez upozornení nie
+  assert.equal((await call("/api/remind", {id: A, tok: ha.tok, at: Date.now() + 99 * 3600e3})).s, 400);
+  const r = await call("/api/remind", {id: A, tok: ha.tok, at: Date.now() + 3600e3, kind: "iss", dir: "juhozápadnej<script>", max: 55});
+  assert.equal(r.s, 200);
+  const row = db.prepare("SELECT body FROM reminders WHERE id=?").get(A); assert.ok(!row.body.includes("<"));
 });
 await t("nevhodné meno zmizne po 3 nahláseniach", async () => {
   await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Zlý tím"}, "9.9.9.9");
