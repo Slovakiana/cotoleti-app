@@ -5,12 +5,14 @@ const SOC={api:MYPROXY||"",data:null,busy:false,waved:LS.get("ctl_waved",{}),loc
 SOC.cid=(()=>{let v=LS.get("ctl_cid","");if(!/^v2[A-Za-z0-9]{30}$/.test(v)){const b=new Uint8Array(24);crypto.getRandomValues(b);v="v2"+Array.from(b,x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[x%56]).join("").slice(0,30);LS.set("ctl_cid",v);LS.set("ctl_tok","");LS.set("ctl_pid","")}return v})();
 /* identita: server vydá podpísaný token, bez neho sa nič nezapočíta */
 let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid",""),FK=LS.get("ctl_fk","");
+// pozvánkový kľúč platí 24 h – obnov ho, ak je starší
+if(Date.now()-LS.get("ctl_fkT",0)>12*3600e3)FK="";
 function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.set(k,""));location.reload()}
 async function ensureTok(){
   if((TOK&&FK)||!SOC.api)return TOK;
   try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref","")})});const j=await r.json();
     if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
-    if(j.tok){LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK)}}catch(e){}
+    if(j.tok){LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())}}catch(e){}
   return TOK;
 }
 async function apiPost(path,obj){
@@ -133,13 +135,14 @@ async function doWave(e){
     SOC.waved[key]=e;
     for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
     LS.set("ctl_waved",SOC.waved);
-    COL.pts+=2;LS.set("ctl_col",COL);
+    // body za mávanie: +1, najviac 20 denne (hra je o pozeraní hore, nie o ťukaní)
+    {const wd=LS.get("ctl_wpd",{d:"",n:0});if(wd.d!==dayKey()){wd.d=dayKey();wd.n=0}if(wd.n<20){COL.pts+=1;wd.n++}LS.set("ctl_wpd",wd)}LS.set("ctl_col",COL);
     const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
-    grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");
+    grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");if(n===1&&typeof inAppBar==="function")setTimeout(inAppBar,6000);
     if(typeof dailyEvent==="function")dailyEvent("wave");
     if(typeof maybeAskPush==="function")setTimeout(maybeAskPush,8000);
   };
-  if(!SOC.api){credit();toast(e+" Zamávané! +2 body","Lietadlu"+to);return}
+  if(!SOC.api){credit();toast(e+" Zamávané! +1 bod","Lietadlu"+to);return}
   let r,j={};
   try{
     const body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""};
@@ -148,7 +151,7 @@ async function doWave(e){
     j=await r.json().catch(()=>({}));
   }catch(err){ // bez internetu – mávnutie platí aspoň u teba
     credit();const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};waveInfo(a);
-    toast(e+" Zamávané! +2 body","Odošleme, keď budeš online");return}
+    toast(e+" Zamávané! +1 bod","Odošleme, keď budeš online");return}
   if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
   if(j.error==="rate"){toast("Spomaľ 🙂","Mávať môžeš znova o chvíľu");return}
   if(!r.ok||!j.ok){toast("Mávnutie sa nepodarilo odoslať","Skús to o chvíľu znova");return}
@@ -157,7 +160,7 @@ async function doWave(e){
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);
   const tot=j.plane?j.plane.total:1;
-  toast(e+" Zamávané! +2 body",tot>1?`Si ${nf(tot)}. zo Slovenska, kto mu dnes mával`:"Prvé mávnutie dňa je tvoje!");
+  toast(e+" Zamávané! +1 bod",tot>1?`Si ${nf(tot)}. zo Slovenska, kto mu dnes mával`:"Prvé mávnutie dňa je tvoje!");
   setTimeout(socPoll,800);
 }
 {let lp=null,long=false;const bw=$("b-wave");
@@ -168,3 +171,13 @@ async function doWave(e){
   document.addEventListener("click",e=>{if($("wavePick").classList.contains("on")&&!e.target.closest("#wavePick,#b-wave"))$("wavePick").classList.remove("on")});}
 $("wavePick").onclick=ev=>{const b=ev.target.closest("button");if(!b)return;if(b.dataset.mail){$("wavePick").classList.remove("on");if(typeof openMail==="function")openMail();return}doWave(b.textContent)};
 if(SOC.api){(function loop(){setTimeout(async()=>{if(!document.hidden)await socPoll();loop()},(45000+Math.random()*18000-9000)*Math.min(8,SOC.back||1))})();setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}
+
+/* 👯 zoznam kamarátov s možnosťou odobrať */
+async function friendsRender(){
+  const box=$("frList");if(!box||!SOC.api)return;
+  try{const r=await apiPost("/api/friends",{});const j=await r.json();const fr=j.friends||[];
+    box.innerHTML=fr.length?fr.map(f=>`<div class="sr"><div>👯 ${esc(f.n)}</div><button class="ghost" data-unf="${esc(f.p)}">Odobrať</button></div>`).join(""):'<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';
+  }catch(e){}
+}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-unf]");if(!b)return;await apiPost("/api/friends",{remove:b.dataset.unf}).catch(()=>{});toast("Kamarát odobratý","Už neuvidíte svoje mávnutia");friendsRender()});
+if($("friendsBox"))$("friendsBox").addEventListener("toggle",()=>{if($("friendsBox").open)friendsRender()});

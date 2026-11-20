@@ -6,9 +6,12 @@ let toastT;
 const TQ=[];let tBusy=false;
 function toast(a,b,col){
   if(TQ.some(q=>q[0]===a)||(tBusy&&$("toastT").textContent===a))return; // bez duplicít
+  // viac odznakov naraz = jedno oznámenie
+  if(/^🏅/.test(a)){const q=TQ.find(x=>/^🏅/.test(x[0]));if(q){const n=(q.n||1)+1;q.n=n;q[0]=`🏅 ${n} nové odznaky`;q[1]="Pozri si ich v sekcii Ja";return}}
   TQ.push([a,b,col]);if(TQ.length>4)TQ.splice(1,TQ.length-4);if(!tBusy)toastNext();
 }
 function toastNext(){
+  if(document.querySelector(".modal.on")&&TQ.length&&!/^(📬|🔁|Kód|Bez)/.test(TQ[0][0])){tBusy=true;setTimeout(toastNext,900);return}
   const q=TQ.shift();if(!q){tBusy=false;return}tBusy=true;
   $("toastT").textContent=q[0];$("toastS").textContent=q[1]||"";$("toast").style.borderColor=q[2]||"";$("toast").classList.add("on");
   clearTimeout(toastT);toastT=setTimeout(()=>{$("toast").classList.remove("on");setTimeout(toastNext,450)},TQ.length?2400:3200);
@@ -39,6 +42,7 @@ const SEATS={A318:110,A319:144,A320:180,A20N:186,A321:220,A21N:230,BCS1:115,BCS3
 function pax(a){
   if(a.ground)return 0;
   if(/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL|Cargolux/.test(airlineOf(a)))return 2;
+  if(/^(CLX|GEC|BOX|ABW|ICV|CKS|FDX|UPS|DHK|BCS|GTI|SQC|CAO|CKK|MPH|TAY|SWN|NPT|QAC|AZG|CMB|RCH|EXS|LGL|AHK|DHX|BDA|SRR|TPA)/.test((a.call||"").toUpperCase())||/F$/.test(a.type||""))return 2;
   if(a.mil)return 6;
   if(isHeli(a))return 3;
   if(a.cat==="A1")return 2;if(a.cat==="A2")return 5;
@@ -136,6 +140,8 @@ function heroEmpty(){
   }
   $("h-quip").textContent="";["h-st3","h-dir","h-eta"].forEach(id=>$(id).style.display="none");
   $("b-wave").disabled=true;$("b-wave").style.opacity=.5;
+  if(S.pos&&S.raw.length&&$("h-call").textContent===t("empty")){$("h-quip").innerHTML='<span class="emptyActs"><button class="ghost" id="eRad">📡 Hľadať ďalej (93 km)</button><button class="ghost" id="eSpace">🛰️ Pozri ISS</button></span>';
+    $("eRad").onclick=()=>{$("radius").value="50";$("radius").dispatchEvent(new Event("change"));fetchPlanes(true);toast("📡 Hľadám ďalej","Okruh 93 km")};$("eSpace").onclick=()=>setView("space")}
   $("h-route").classList.remove("on");$("h-photo").classList.remove("on");$("h-links").innerHTML="";$("hero").classList.remove("overhead","emerg");
 }
 function renderHeroStatic(a){
@@ -145,12 +151,16 @@ function renderHeroStatic(a){
   $("h-lbl").textContent=S.pick&&S.pick===a.hex?"Vybrané lietadlo":t("now");
   $("h-rar").style.display=r==="c"&&!a.mil?"none":"";$("h-rar").textContent=(a.mil?"VOJENSKÉ · ":"")+RAR[r].n.toUpperCase();$("h-rar").style.color=RAR[r].col;
   $("h-call").textContent=rt?"→ "+citySk(rt.destination.municipality||rt.destination.name):(al||titleOf(a));
-  $("h-type").textContent=[rt&&al?al:"",typeName(a,m),rt||al?titleOf(a):""].filter(Boolean).join(" · ");
+  $("h-type").textContent=[rt&&al?al:"",typeName(a,m),rt||al?(a.priv?"":titleOf(a)):""].filter(Boolean).join(" · ");
+  // núdzový kód: žiadna hra ani zdieľanie, neutrálny text
+  const emg=!!a.emg;$("b-wave").disabled=emg;$("b-wave").style.opacity=emg?.5:1;$("b-share").style.display=emg||a.priv?"none":"";
+  if(emg)setTimeout(()=>{if(S.top&&S.top.hex===a.hex)$("h-quip").textContent="Lietadlo hlási neobvyklý kód. Hra je pre tento let vypnutá."},0);
+  $("spotLine").textContent=[a.priv?"":a.reg,a.fl!=null?"FL"+String(a.fl).padStart(3,"0"):"",a.kt!=null?a.kt+" kt":"",a.vr!=null?(a.vr>0?"+":"")+Math.round(a.vr)+" ft/min":"",a.sq&&!a.priv?"sq "+a.sq:""].filter(Boolean).join(" · ");
   if(rt){$("r-o").textContent=rt.origin.iata_code||rt.origin.icao_code||"?";$("r-on").textContent=citySk(rt.origin.municipality||rt.origin.name);
     $("r-d").textContent=rt.destination.iata_code||rt.destination.icao_code||"?";$("r-dn").textContent=citySk(rt.destination.municipality||rt.destination.name);$("h-route").classList.add("on")}
   else $("h-route").classList.remove("on");
   const ph=m.ac&&(m.ac.url_photo||m.ac.url_photo_thumbnail);
-  if(ph){const img=new Image();img.onload=()=>{if(S.top&&S.top.hex===a.hex){$("h-photo").style.backgroundImage="url('"+ph.replace(/'/g,"%27")+"')";$("h-photo").classList.add("on")}};img.src=ph}
+  if(ph){const img=new Image();img.onload=()=>{if(S.top&&S.top.hex===a.hex){$("h-photo").style.backgroundImage="url('"+ph.replace(/'/g,"%27")+"')";$("h-photo").classList.add("on");$("h-photo").querySelector("small").innerHTML='foto © autor · <a href="'+esc(m.ac.url_photo||ph)+'" target="_blank" rel="noopener">airport-data.com</a>'}};img.src=ph}
   else $("h-photo").classList.remove("on");
   $("h-quip").textContent=quip(a,m);
   $("hero").classList.toggle("emerg",a.sq==="7700");
@@ -190,7 +200,7 @@ function renderPax(){
 function renderList(list){
   const rest=list.filter(a=>!S.top||a.hex!==S.top.hex).slice(0,12);
   $("radarCnt").textContent=list.filter(a=>a.el>0).length+" nad obzorom";
-  $("list").innerHTML=rest.length?rest.map(a=>{const m=S.meta.get(a.hex),rt=routeOf(a);return `<div class="row" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div></div>
+  $("list").innerHTML=rest.length?rest.map(a=>{const m=S.meta.get(a.hex),rt=routeOf(a);return `<div class="row" role="button" tabindex="0" aria-label="${esc(titleOf(a)+", "+RAR[rarity(a)].n+", "+dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov")}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div></div>
     <div class="r"><b>${a.alt!=null?nf(a.alt/1000,1)+" km":"—"}</b><br>${dirS(a.bear)} · ${nf(Math.max(0,a.el??0))}°</div></div>`}).join(""):'<div class="lookSub">Nič ďalšie v okolí.</div>';
 }
 $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pick=r.dataset.hex;haptic(10);tick(true);window.scrollTo({top:0,behavior:"smooth"})}};
@@ -198,7 +208,7 @@ $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pi
 function renderCol(){
   const l=lvlOf(COL.pts),a=lvlPts(l),b=lvlPts(l+1);
   $("c-lvl").textContent="Lvl "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
-  $("c-bar").style.width=(l>=LEVELS.length-1?100:Math.min(100,(COL.pts-a)/(b-a)*100))+"%";
+  $("c-bar").style.width=Math.min(100,(COL.pts-a)/(b-a)*100)+"%";
   $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
   const types=Object.entries(COL.types);
   $("c-n").textContent=COL.n;$("c-t").textContent=types.length;$("c-r").textContent=types.filter(([,v])=>v.r==="r"||v.r==="l").reduce((s,[,v])=>s+v.n,0);
@@ -314,7 +324,7 @@ async function share(){
   x.fillStyle="rgba(255,79,216,.2)";rr(x,90,y,W-180,170,36);x.fill();
   x.fillStyle="#fff";x.font="600 40px Inter, sans-serif";wrapText(x,quip(a,m),130,y+72,W-260,54,2);
   x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.textAlign="center";x.fillText(t("title"),W/2,H-300);
-  x.fillStyle="#97a3c7";x.font="500 36px Inter, sans-serif";x.fillText(APP_HOST,W/2,H-250);
+  x.fillStyle="#97a3c7";x.font="500 36px Inter, sans-serif";x.fillText(APP_HOST,W/2,H-250);x.font="500 24px Inter, sans-serif";x.fillStyle="rgba(151,163,199,.8)";x.fillText("Dáta: adsb.lol (ODbL 1.0) · nie sme spojení s aerolinkami",W/2,H-205);
   x.fillStyle="#fff";x.font="500 30px Inter, sans-serif";x.textAlign="right";x.fillStyle="#97a3c7";x.fillText(new Date().toLocaleString("sk-SK",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}),W-90,300);
   c.toBlob(async blob=>{
     const file=new File([blob],"co-to-leti.png",{type:"image/png"});
@@ -361,6 +371,7 @@ function posErr(e){
   if(S.raw.length&&e.code!==1)return;
   $("posBtns").style.display="flex";
   if(!S.raw.length)$("h-type").textContent="Bez polohy to nepôjde 🙈";
+  if(e.code===1&&!S.raw.length){heroCities();$("err").innerHTML='<details><summary>Ako povoliť polohu?</summary>iPhone: Nastavenia → Súkromie → Polohové služby → Safari → „Pri používaní“. Android: ťukni na zámok vedľa adresy → Povolenia → Poloha. Potom stránku obnov.</details>';setStatus("Chýba poloha",false);$("b-man").className="solid";$("b-pos").className="ghost";return}
   err(e.code===1?"Poloha je zablokovaná. iPhone: Nastavenia → Súkromie → Polohové služby → Safari → „Pri používaní“. Android: ťukni na zámok vedľa adresy → Povolenia → Poloha. Potom stránku obnov."
     :e.code===3?"Poloha sa ešte hľadá – si vnútri? Skúšam znova, alebo vyber mesto.":"Polohu sa nepodarilo zistiť. Skontroluj, či máš zapnutú polohu v mobile.");
   setStatus("Chýba poloha",false);
@@ -371,8 +382,8 @@ function showPos(){if(S.pos){$("posTxt").textContent=(S.manual?"ručne · ":"GPS
 /* ============ navigácia a ovládanie ============ */
 function setView(v){
   if(v==="ar"){openAR();return}
-  S.view=v;
   const prev=S.view;S.scroll=S.scroll||{};if(prev&&prev!==v)S.scroll[prev]=scrollY;
+  S.view=v;
   document.querySelectorAll("nav button").forEach(b=>{b.classList.toggle("on",b.dataset.v===v);b.setAttribute("aria-current",b.dataset.v===v?"page":"false")});
   ["now","space","col"].forEach(k=>$("v-"+k).classList.toggle("on",k===v));
   if(v==="col")renderCol();
@@ -450,7 +461,7 @@ function guessUI(a,rt){
 function guessDone(hex){GUESSED[hex]=Date.now();const ks=Object.keys(GUESSED);if(ks.length>300)ks.slice(0,ks.length-300).forEach(k=>delete GUESSED[k]);LS.set("ctl_guessed",GUESSED);$("guess").classList.remove("on");if(S.top)renderHeroStatic(S.top)}
 $("gOpts").onclick=e=>{
   const b=e.target.closest("button");if(!b)return;const box=$("guess"),ok=b.dataset.c===box.dataset.right;
-  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);COL.pts+=5;LS.set("ctl_col",COL);toast("🎯 Trafil si! +5 bodov",st>1?"Séria "+st+" za sebou 🔥":"Cieľ: "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
+  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);const gd=LS.get("ctl_gday",{d:"",n:0});if(gd.d!==dayKey()){gd.d=dayKey();gd.n=0}const gp=gd.n<10?3+(st>=3?2:0):0;gd.n++;LS.set("ctl_gday",gd);COL.pts+=gp;LS.set("ctl_col",COL);toast(gp?"🎯 Trafené! +"+gp+" bodov":"🎯 Trafené!",st>1?"Séria "+st+" za sebou 🔥":"Cieľ: "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
   else{LS.set("ctl_gstreak",0);toast("😅 Vedľa!","Cieľ: "+box.dataset.right);haptic(60)}
   guessDone(box.dataset.hex);
 };
@@ -559,11 +570,14 @@ try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
 /* ============ 🧒 režim pre deti do 16 rokov (bez prezývky, pošty, kamarátov a upozornení) ============ */
 const KID=()=>LS.get("ctl_kid",false);
 function kidApply(){const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);$("nick").disabled=k;if(k){LS.set("ctl_nick","");$("nick").value="";LS.set("ctl_pushAsked",true)}}
-$("t-kid").onclick=()=>{LS.set("ctl_kid",!KID());kidApply();haptic(6)};
-if($("onbKid"))$("onbKid").onchange=e=>{LS.set("ctl_kid",e.target.checked);kidApply()};
+function kidSet(on){LS.set("ctl_kid",on);kidApply();if(typeof apiPost==="function")apiPost("/api/kid",{on:on?1:0}).catch(()=>{})}
+$("t-kid").onclick=()=>{if(KID()&&!confirm("Naozaj máš 16 alebo viac rokov? Ak nie, nechaj tento režim zapnutý – chráni ťa."))return;kidSet(!KID());haptic(6)};
+if($("onbKid"))$("onbKid").onchange=e=>kidSet(e.target.checked);
 kidApply();
 $("b-mydata").onclick=async()=>{
   try{const r=await apiPost("/api/mydata",{});const j=await r.json();
+    const sum=`Na serveri o tebe máme:\n• ${j.wavelog?j.wavelog.length:0} mávnutí (posledných 8 dní)\n• ${j.subs&&j.subs.length?"zapnuté upozornenia":"žiadne upozornenia"}\n• ${j.nicks&&j.nicks[0]?"prezývku „"+j.nicks[0].nick+"“":"žiadnu prezývku"}\n• ${j.kamarati||0} kamarátov\n\nStiahnuť všetko ako súbor?`;
+    if(!confirm(sum))return;
     const blob=new Blob([JSON.stringify({zariadenie:Object.fromEntries(Object.keys(localStorage).filter(k=>k.startsWith("ctl_")&&!/tok|cid|fk/.test(k)).map(k=>[k,localStorage.getItem(k)])),server:j},null,1)],{type:"application/json"});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="moje-udaje-cotoleti.json";a.click();toast("📄 Údaje stiahnuté","Súbor moje-udaje-cotoleti.json");
   }catch(e){toast("Bez internetu","Skús to znova")}
@@ -579,3 +593,7 @@ function heroCities(){
   box.style.display="block";
   $("heroCities").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=CITIES.find(x=>x[0]===b.dataset.c);if(c){box.innerHTML="";setManual(c[1],c[2],c[0])}};
 }
+
+{const onb=$("onb");if(onb&&onb.style.display!=="none"&&!LS.get("ctl_onb",0)){onb.setAttribute("role","dialog");onb.setAttribute("aria-modal","true");document.querySelectorAll("main,nav,#top,header").forEach(e=>e.inert=true);
+  const rel=()=>document.querySelectorAll("main,nav,#top,header").forEach(e=>e.inert=false);new MutationObserver(()=>{if(onb.style.display==="none"||onb.classList.contains("hide"))rel()}).observe(onb,{attributes:true});}}
+$("list").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const r=e.target.closest(".row");if(r){e.preventDefault();r.click()}}});

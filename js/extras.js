@@ -126,9 +126,9 @@ function dailyEnsure(){
 }
 function dailyComplete(id){
   const D=dailyEnsure();if(D.done[id])return;
-  D.done[id]=Date.now();COL.pts+=15;
+  D.done[id]=Date.now();COL.pts+=10;
   const x=DAILY_POOL.find(q=>q.id===id);
-  toast("🎯 Výzva splnená! +15 b",x.n,"#6dffc7");confetti(40);ping("u");
+  toast("🎯 Výzva splnená! +10 bodov",x.n,"#6dffc7");confetti(40);ping("u");
   // séria rastie už pri prvej splnenej výzve dňa (včera = kalendárny deň, funguje aj pri zmene času)
   if(D.lastDay!==D.date){
     const yd=new Date();yd.setDate(yd.getDate()-1);const y=yd.toLocaleDateString("sv-SE");
@@ -136,8 +136,8 @@ function dailyComplete(id){
     if(D.streak>1)setTimeout(()=>toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"),"Príď aj zajtra a splň aspoň jednu výzvu","#ff4fd8"),3400);
   }
   if(D.ids.every(i=>D.done[i])){
-    D.lastFull=D.date;COL.pts+=25;
-    setTimeout(()=>{toast("🎉 Všetky 3 výzvy! +25 b","Bonus za celý deň","#ff4fd8");confetti(90)},5600);
+    D.lastFull=D.date;const bonus=15+Math.min(D.streak||0,7);COL.pts+=bonus;
+    setTimeout(()=>{toast("🎉 Všetky 3 výzvy! +"+bonus+" bodov","Bonus za celý deň + séria","#ff4fd8");confetti(90)},5600);
   }
   LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();if(S.view==="col")renderCol();
 }
@@ -157,7 +157,7 @@ function renderDaily(){
   $("dailyTxt").textContent=`🎯 Dnešné výzvy ${n}/3`+(D.streak?` · 🔥 ${D.streak}`:"")+(n===3?" ✅":"");
   $("d-streak").textContent=D.streak?"🔥 séria "+D.streak:"";
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
-    return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+15</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
+    return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
 }
 $("dailyStrip").onclick=()=>setView("col");
 
@@ -184,11 +184,14 @@ function checkDuelLink(){
   const m=location.hash.match(/vyzva=([\w-]+)/);if(!m)return;
   try{
     const r=JSON.parse(b64d(m[1]));if(typeof r.p!=="number")return;
-    r.n=String(r.n||"Kamoš").slice(0,20);LS.set("ctl_rival",r);
+    r.n=String(r.n||"Kamarát").replace(/[^\p{L}\p{N} ._-]/gu,"").slice(0,20)||"Kamarát";
+    if(/kokot|pic[aeiu]|kurv|jeb|debil|chuj|hovn|srac|fuck|shit|negr|cigan|buzn|zmrd|retard/i.test(r.n.normalize("NFD").replace(/[\u0300-\u036f]/g,"")))r.n="Kamarát";
+    LS.set("ctl_rival",r);
     // kamarátom až po ťuknutí (súhlas oboch: on poslal odkaz, ty potvrdíš)
     const canFr=r.pid&&/^[A-Za-z0-9]{16}$/.test(r.pid)&&/^[A-Za-z0-9]{10}$/.test(r.fk||"");
     $("duelFr").style.display=canFr?"":"none";
-    $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(x=>x.ok&&toast("👯 Ste kamaráti","Uvidíš, ktorým lietadlám dnes mával – a on tebe")).catch(()=>{});$("duelM").classList.remove("on")};
+    $("duelFr").style.display=canFr&&!LS.get("ctl_kid",false)?"":"none";
+    $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(async x=>{const j=await x.json().catch(()=>({}));if(x.ok)toast("👯 Ste kamaráti","Uvidíte, ktorým lietadlám ste dnes mávali. Odobrať sa dá v sekcii Ja.");else toast("Pozvánka už neplatí","Platí 24 hodín – popros o novú")}).catch(()=>{});$("duelM").classList.remove("on")};
     $("duelT").textContent=r.n+" ťa vyzýva!";
     $("duelS").textContent=`Má ${r.p} bodov, ${r.c} ulovených lietadiel a ${r.t} typov (level ${r.l}). Dokážeš ho prekonať?`;
     $("duelM").classList.add("on");

@@ -169,7 +169,7 @@ HOOKS.caught.push(a=>{
   const ty=a.type||"?",v=COL.types[ty];if(!v)return;
   const h=new Date().getHours();let msg=null;
   if(!v.shiny&&Math.random()<.05){v.shiny=Date.now();msg=["✨ SHINY KARTIČKA!",(v.name||ty)+" – lesklá verzia, má ju len málokto"]}
-  else if(!v.night&&(h>=20||h<5)){v.night=Date.now();msg=["🌙 Nočná edícia",(v.name||ty)+" – ulovené v noci"]}
+  else if(!v.night&&(typeof SPACE!=="undefined"?SPACE.sunAlt()<-6:(h>=20||h<5))){v.night=Date.now();msg=["🌙 Nočná edícia",(v.name||ty)+" – ulovené v noci"]}
   if(!CAT[ty]&&!v.offset){v.offset=1;msg=msg||["⭐ Mimo série!",(v.name||ty)+" – typ, ktorý nie je ani v atlase"]}
   LS.set("ctl_col",COL);
   if(msg)setTimeout(()=>{toast(msg[0],msg[1],"#ff4fd8");if(msg[0].includes("SHINY")){confetti(110);haptic([40,60,40,60,120])}},3500);

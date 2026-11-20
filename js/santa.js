@@ -12,7 +12,7 @@ function santaRaw(now){
   const k=Math.floor(now/SANTA.P),f=(now%SANTA.P)/SANTA.P,h=(k*137+43)%360;
   const s=(f-.5)*SANTA.L,o=900,dn=s*Math.cos(rad(h))-o*Math.sin(rad(h)),de=s*Math.sin(rad(h))+o*Math.cos(rad(h));
   const lat=S.pos.lat+dn/111320,lon=S.pos.lon+de/(111320*Math.cos(rad(S.pos.lat)));
-  return {hex:SANTA.hex,call:"SANTA",reg:"HO-HO-HO",type:"SLEIGH",desc:"Santove sane 🎅",lat,lon,alt:2400,spd:900,trk:h,vr:0,ground:false,santa:true,cat:"A0"};
+  return {hex:SANTA.hex,call:"SANTA",reg:"HO-HO-HO",type:"SLEIGH",desc:"Santove sane 🎅 · vianočná hra",lat,lon,alt:2400,spd:900,trk:h,vr:0,ground:false,santa:true,cat:"A0"};
 }
 // prvý prelet nad tebou 24. 12. po 15:00
 function santaFirst(){const w=santaWin(),P=SANTA.P;return (Math.ceil(w.start/P-.5)+.5)*P}

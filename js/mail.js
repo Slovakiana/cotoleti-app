@@ -1,6 +1,6 @@
 "use strict";
 /* ============ ✉️ Lietadlo ako poštár ============ */
-const MAILS=["Pekný deň! ☀️","Pozdrav zo Slovenska 🇸🇰","Šťastnú cestu! ✈️","Mávam ti zdola 👋","Dobrú noc 🌙","Posielam objatie 🤗","Usmej sa 😊","Si super! 🔥","Bezpečný let 🙏","Ahoj z gauča 🛋️","Vidím ťa! 👀","Zober ma so sebou 🥺"];
+const MAILS=["Pekný deň! ☀️","Pozdrav zo Slovenska 🇸🇰","Šťastnú cestu! ✈️","Mávam ti zdola 👋","Dobrú noc 🌙","Zdravím z oblakov ☁️","Usmej sa 😊","Si super! 🔥","Bezpečný let 🙏","Ahoj z gauča 🛋️","Pekný výhľad! 🌄","Ahoj z okna 🪟"];
 const MAIL_EMO=["☀️","🇸🇰","✈️","👋","🌙","❤️","😊","🔥","🙏","🛋️","👀","🥺"];
 const POSTQ=[];let postCur=null;
 function openMail(){

@@ -27,7 +27,7 @@ function contrail(alt){
   if(T==null||RH==null)return null;
   const RHi=RH*esW(T)/esI(T);
   let p=T>-38?8:Math.round(Math.max(25,Math.min(95,25+(RHi-40)*1.15)));
-  const txt=p>=75?"dlhá – ostane visieť na oblohe":p>=45?"krátka – rýchlo zmizne":p>=20?"skôr žiadna, nanajvýš kúsok":"žiadna – vzduch je tam suchý alebo teplý";
+  const txt=p>=75?"asi dlhá – môže ostať visieť na oblohe":p>=45?"asi krátka – rýchlo zmizne":p>=20?"skôr žiadna, nanajvýš kúsok":"žiadna – vzduch je tam suchý alebo teplý";
   return {p,t:txt,T,RHi};
 }
 function visibility(a){

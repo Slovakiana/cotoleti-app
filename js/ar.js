@@ -194,6 +194,8 @@ async function shareBlob(blob,name,text){
   if(isV){$("shareVid").src=url;$("shareVid").play().catch(()=>{})}else $("shareImg").src=url;
   $("shareDl").href=url;$("shareDl").download=name;
   $("shareTxt").textContent=isV?"Video je hotové. Stiahni si ho a pridaj na TikTok alebo do Reels.":"Podrž prst na obrázku a ulož ho, alebo ho stiahni.";
+  $("shareDl").style.display="";
+  if(typeof inApp!=="undefined"&&inApp){$("shareDl").style.display="none";$("shareTxt").textContent=isV?"Video ulož cez Safari/Chrome: ⋯ → Otvoriť v prehliadači.":"Podrž prst na obrázku → Uložiť obrázok."}
   $("shareM").classList.add("on");
 }
 

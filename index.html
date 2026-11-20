@@ -450,6 +450,18 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
 .onbLive{font-size:14px;color:var(--mut);font-weight:600;margin:10px 0 0;min-height:20px}
 .onbLive b{color:var(--mint)}
 @media (prefers-reduced-motion:reduce){.mcard{animation:none}#toast{transition:none}}
+
+/* vlna 4: persony, deti, spotteri */
+.modal{z-index:90}
+#onb .sky{pointer-events:none}
+#onb{overflow-y:auto;justify-content:safe flex-end}
+.acts{flex-wrap:wrap}
+#momentBar{white-space:normal}
+body.kid .frLine{display:none}
+.spotLine{font:600 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mut);margin:10px 2px 0;letter-spacing:.02em}
+.spotLine:empty{display:none}
+.emptyActs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.emptyActs button{flex:1;min-height:44px}
+details summary{cursor:pointer}
 </style>
 </head>
 <body>
@@ -558,6 +570,7 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
         <button class="btn" id="b-voice"><i>🔇</i>Hlas</button>
       </div>
       <button class="btn wideB" id="b-sound">🎵 Počúvaj oblohu</button>
+      <div class="spotLine" id="spotLine"></div>
       <div class="links" id="h-links"></div>
     </div>
   </details>
@@ -645,7 +658,8 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
   <div class="ach" id="c-ach" style="margin-top:12px"></div>
   </details>
   <details class="more glass" id="friendsBox">
-  <summary>🤝 Hraj s kamarátmi <small>tím · výzva</small></summary>
+  <summary>🤝 Hraj s kamarátmi <small>tím · výzva · kamaráti</small></summary>
+  <section class="card"><div class="lbl"><span>👯 Moji kamaráti</span></div><div id="frList" style="margin-top:6px"><div class="lookSub">Načítavam…</div></div></section>
   <section class="card" id="teamCard">
     <div class="lbl"><span>👥 Tím</span><span id="teamRank"></span></div>
     <div id="teamBox"></div>
@@ -659,7 +673,7 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
   <details class="set glass" id="settings">
     <summary>⚙️ Nastavenia</summary>
     <div class="setH">Profil</div>
-    <div class="sr"><div>😎 Prezývka<small>Uvidia ju ostatní. Nepíš svoje skutočné meno.</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
+    <div class="sr"><div>😎 Prezývka<small>Uvidia ju ostatní. Nepíš svoje skutočné meno.</small></div><input id="nick" aria-label="Prezývka" maxlength="20" placeholder="Spotter" style="width:140px"></div>
     <div class="sr"><div>🧒 Mám menej ako 16 rokov<small>Bez prezývky, pošty, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
     <div class="setH">Pri prelete</div>
     <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
@@ -667,14 +681,14 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
     <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice" role="switch" aria-label="Hlasové ohlásenie"></button></div>
     <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib" role="switch" aria-label="Vibrovanie"></button></div>
     <div class="setH">Obloha a poloha</div>
-    <div class="sr"><div>📡 Okruh</div><select id="radius"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
+    <div class="sr"><div>📡 Okruh</div><select id="radius" aria-label="Okruh"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
     <div class="sr"><div>🧭 Kompas<small id="compStat">Šípka ukáže smer k lietadlu</small></div><button class="ghost" id="b-comp">Zapnúť</button></div>
     <div class="sr" style="display:block"><div>📍 Poloha <small id="posTxt"></small></div>
       <div class="manual"><input id="mlat" inputmode="decimal" placeholder="Šírka 48.1486"><input id="mlon" inputmode="decimal" placeholder="Dĺžka 17.1077"></div>
       <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
       <div class="msg" id="err"></div>
     </div>
-    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby si v tme videl hviezdy</small></div><select id="nightSel"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
+    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby si v tme videl hviezdy</small></div><select id="nightSel" aria-label="Nočný režim"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
     <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
     <div class="setH">Údaje a súkromie</div>
     <div class="sr" style="display:block"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo do nového mobilu – jednorazový kód na 10 minút</small></div>
@@ -749,9 +763,10 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
   <b>Na čo a na akom základe.</b> Aby fungovalo mávanie, rebríčky, pošta a ochrana súťaží (oprávnený záujem a poskytovanie služby), upozornenia len s tvojím súhlasom (dá sa kedykoľvek vypnúť).<br><br>
   <b>Ako dlho.</b> Mávnutia, pozdravy a denné rebríčky 8 dní · denné mesto a kraj do polnoci · záznam o návštevách 35 dní · upozornenia 90 dní od poslednej obnovy · správy upozornení 30 dní · sledovaný let 36 hodín · nahlásenia 30 dní · id zariadenia a prezývka do 12 mesiacov nečinnosti · tím, kým ho neopustíš. Body a zbierka sú len v tvojom mobile.<br><br>
   <b>Deti.</b> Ak máš menej ako 16 rokov, zapni v nastaveniach „Mám menej ako 16 rokov“ – appka potom nepoužíva prezývku, poštu, kamarátov ani upozornenia.<br><br>
+  <b>Kamaráti a pozdravy.</b> Kamarátom sa stanete len cez pozvánku platnú 24 hodín a obaja to potvrdíte; v sekcii Ja ho kedykoľvek odoberieš. Pozdravy od cudzích ukazujú len kraj odosielateľa, deti ich nedostávajú.<br><br>
   <b>Tvoje práva.</b> V nastaveniach si údaje stiahneš („Moje údaje“) alebo zmažeš („Zmazať moje údaje“ – zo servera aj z mobilu, token prestane platiť). Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
   <b>Komu sa dáta dostanú.</b> Cloudflare (server a databáza), GitHub (hosting appky), Apple/Google/Mozilla (doručenie upozornení, len ak ich zapneš), Google Fonts a CDN unpkg/jsDelivr/cdnjs (písmo a knižnice mapy a satelitov – vidia tvoju IP pri stiahnutí). Niektorí sídlia v USA (EU-US Data Privacy Framework). Dáta o lietadlách sťahuje náš server bez tvojich údajov.<br><br>
-  <b>Pravidlá.</b> Prezývka ani názov tímu nesmú byť urážlivé ani obsahovať cudzie osobné údaje – nevhodné mená server odmieta a po nahlásení skryje. Zlaté lietadlo sa žrebuje zo všetkých, ktorí mu zamávali; pri podozrení z podvodu výhru neuznáme. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolínií sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
+  <b>Pravidlá.</b> Nepoužívaj skutočné meno, školu ani triedu. Nikomu nesľubuj stretnutie. Všetko podozrivé nahlás 🚩. Prezývka ani názov tímu nesmú byť urážlivé ani obsahovať cudzie osobné údaje – nevhodné mená server odmieta a po nahlásení skryje. Zlaté lietadlo sa žrebuje zo všetkých, ktorí mu zamávali – odmenou sú len body v hre, žiadne ceny; pri podozrení z podvodu body neuznáme. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolínií sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
   <b>Zdroje dát.</b> Lietadlá: adsb.lol (ODbL 1.0), airplanes.live, adsb.fi, The OpenSky Network, adsbdb.com · fotky lietadiel: airport-data.com, © autori · satelity: CelesTrak, výpočet satellite.js · počasie: Open-Meteo.com (CC BY 4.0) · mapa: © OpenStreetMap contributors, © CARTO.
   </div>
   <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
@@ -796,25 +811,25 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=18"></script>
-<script src="js/ui.js?v=18"></script>
-<script src="js/ar.js?v=18"></script>
-<script src="js/space.js?v=18"></script>
-<script src="js/weather.js?v=18"></script>
-<script src="js/extras.js?v=18"></script>
-<script src="js/social.js?v=18"></script>
-<script src="js/wrapped.js?v=18"></script>
-<script src="js/push.js?v=18"></script>
-<script src="js/track.js?v=18"></script>
-<script src="js/towns.js?v=18"></script>
-<script src="js/catalog.js?v=18"></script>
-<script src="js/cards.js?v=18"></script>
-<script src="js/mail.js?v=18"></script>
-<script src="js/golden.js?v=18"></script>
-<script src="js/teams.js?v=18"></script>
-<script src="js/duel.js?v=18"></script>
-<script src="js/sound.js?v=18"></script>
-<script src="js/santa.js?v=18"></script>
-<script src="js/main.js?v=18"></script>
+<script src="js/core.js?v=19"></script>
+<script src="js/ui.js?v=19"></script>
+<script src="js/ar.js?v=19"></script>
+<script src="js/space.js?v=19"></script>
+<script src="js/weather.js?v=19"></script>
+<script src="js/extras.js?v=19"></script>
+<script src="js/social.js?v=19"></script>
+<script src="js/wrapped.js?v=19"></script>
+<script src="js/push.js?v=19"></script>
+<script src="js/track.js?v=19"></script>
+<script src="js/towns.js?v=19"></script>
+<script src="js/catalog.js?v=19"></script>
+<script src="js/cards.js?v=19"></script>
+<script src="js/mail.js?v=19"></script>
+<script src="js/golden.js?v=19"></script>
+<script src="js/teams.js?v=19"></script>
+<script src="js/duel.js?v=19"></script>
+<script src="js/sound.js?v=19"></script>
+<script src="js/santa.js?v=19"></script>
+<script src="js/main.js?v=19"></script>
 </body>
 </html>

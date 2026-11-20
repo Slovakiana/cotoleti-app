@@ -37,26 +37,26 @@ E170:"Embraer E170",E75L:"Embraer E175",E190:"Embraer E190",E195:"Embraer E195",
 CRJ2:"Bombardier CRJ200",CRJ7:"Bombardier CRJ700",CRJ9:"Bombardier CRJ900",CRJX:"Bombardier CRJ1000",MD11:"McDonnell Douglas MD-11",SU95:"Suchoj Superjet 100",
 C172:"Cessna 172",C152:"Cessna 152",C182:"Cessna 182",P28A:"Piper Cherokee",DA40:"Diamond DA40",DA42:"Diamond DA42",SR22:"Cirrus SR22",PC12:"Pilatus PC-12",PC24:"Pilatus PC-24",C25A:"Cessna Citation CJ2",C56X:"Cessna Citation Excel",C68A:"Cessna Citation Latitude",C700:"Cessna Citation Longitude",
 GLF4:"Gulfstream IV",GLF5:"Gulfstream V",GLF6:"Gulfstream G650",GL5T:"Bombardier Global 5000",GLEX:"Bombardier Global Express",GL7T:"Bombardier Global 7500",CL35:"Bombardier Challenger 350",CL60:"Bombardier Challenger 600",F900:"Dassault Falcon 900",FA7X:"Dassault Falcon 7X",FA8X:"Dassault Falcon 8X",LJ45:"Learjet 45",E55P:"Embraer Phenom 300",
-A400:"Airbus A400M Atlas",C130:"C-130 Hercules",C30J:"C-130J Super Hercules",C17:"Boeing C-17 Globemaster",K35R:"KC-135 Stratotanker",A332T:"Airbus A330 MRTT",E3TF:"Boeing E-3 AWACS",E3CF:"Boeing E-3 AWACS",B52:"B-52 Stratofortress",C5M:"C-5 Galaxy",
+A400:"Airbus A400M Atlas",C130:"C-130 Hercules",C30J:"C-130J Super Hercules",C17:"Boeing C-17 Globemaster",K35R:"KC-135 Stratotanker",A332MRTT_:"Airbus A330 MRTT",E3TF:"Boeing E-3 AWACS",E3CF:"Boeing E-3 AWACS",B52:"B-52 Stratofortress",C5M:"C-5 Galaxy",
 A124:"Antonov An-124 Ruslan",A225:"Antonov An-225 Mrija",AN12:"Antonov An-12",AN26:"Antonov An-26",IL76:"Iljušin Il-76",BLCF:"Boeing Dreamlifter",A3ST:"Airbus Beluga",A337:"Airbus BelugaXL",
 F16:"F-16 Fighting Falcon",F35:"F-35 Lightning II",EUFI:"Eurofighter Typhoon",GRIF:"Saab Gripen",L39:"Aero L-39 Albatros",C27J:"Alenia C-27J Spartan",
-EC35:"Airbus H135",EC45:"Airbus H145",EC30:"Airbus H130",EC55:"Airbus H155",AS50:"Airbus H125",A109:"Leonardo AW109",A139:"Leonardo AW139",A169:"Leonardo AW169",B06:"Bell 206",B407:"Bell 407",R44:"Robinson R44",R22:"Robinson R22",UH60:"Black Hawk",H60:"Black Hawk",MI8:"Mil Mi-8/17",MI17:"Mil Mi-17",S92:"Sikorsky S-92"};
+EC35:"Airbus H135",B429:"Bell 429",EC45:"Airbus H145",EC30:"Airbus H130",EC55:"Airbus H155",AS50:"Airbus H125",A109:"Leonardo AW109",A139:"Leonardo AW139",A169:"Leonardo AW169",B06:"Bell 206",B407:"Bell 407",R44:"Robinson R44",R22:"Robinson R22",UH60:"Black Hawk",H60:"Black Hawk",MI8:"Mil Mi-8/17",MI17:"Mil Mi-17",S92:"Sikorsky S-92"};
 const AIRLINES={RYR:"Ryanair",RUK:"Ryanair UK",LDM:"Lauda Europe",MAY:"Malta Air",WZZ:"Wizz Air",WMT:"Wizz Air Malta",WUK:"Wizz Air UK",WAZ:"Wizz Air Abu Dhabi",AUA:"Austrian",DLH:"Lufthansa",EWG:"Eurowings",CFG:"Condor",BAW:"British Airways",EZY:"easyJet",EJU:"easyJet Europe",EZS:"easyJet Switzerland",
 AFR:"Air France",KLM:"KLM",TRA:"Transavia",THY:"Turkish Airlines",PGT:"Pegasus",SXS:"SunExpress",UAE:"Emirates",QTR:"Qatar Airways",ETD:"Etihad",FDB:"flydubai",SVA:"Saudia",MSR:"EgyptAir",ELY:"El Al",LOT:"LOT",CSA:"Czech Airlines",TVS:"Smartwings",SWR:"Swiss",ITY:"ITA Airways",
 IBE:"Iberia",VLG:"Vueling",SAS:"SAS",FIN:"Finnair",AEE:"Aegean",ROT:"TAROM",BTI:"airBaltic",CTN:"Croatia Airlines",ASL:"Air Serbia",LGL:"Luxair",BEL:"Brussels Airlines",TAP:"TAP Air Portugal",EIN:"Aer Lingus",NOZ:"Norwegian",NSZ:"Norwegian",
 TUI:"TUI",TOM:"TUI",TFL:"TUI",ENT:"Enter Air",AIC:"Air India",SIA:"Singapore Airlines",CPA:"Cathay Pacific",CCA:"Air China",CES:"China Eastern",CSN:"China Southern",KAL:"Korean Air",AAL:"American Airlines",UAL:"United",DAL:"Delta",ACA:"Air Canada",
 DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",NJE:"NetJets",VJT:"VistaJet",
 RCH:"US Air Force",GAF:"Nemecké letectvo",IAM:"Talianske letectvo",CEF:"České letectvo",PLF:"Poľské letectvo",BAF:"Belgické letectvo",NATO:"NATO",HUF:"Maďarské letectvo",AME:"Španielske letectvo",FAF:"Francúzske letectvo",RRR:"Kráľovské letectvo (RAF)"};
-const LEG=new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","E3TF","E3CF","U2","AN22","B2","VC25","F35","F16","EUFI","GRIF","F18","F15"]);
-const RARE=new Set(["A388","B748","B744","B742","A400","C17","C130","C30J","K35R","A332T","IL76","AN12","AN26","MD11","DC10","A346","A343","L39","C27J","SU95","GL7T","B779","B778"]);
-const WIDE=new Set(["A306","A310","A332","A333","A338","A339","A359","A35K","B762","B763","B764","B772","B77W","B77L","B788","B789","B78X","B753","B752"]);
-const HELI=new Set(["EC35","EC45","EC30","EC55","AS50","A109","A139","A169","B06","B407","R44","R22","UH60","H60","MI8","MI17","S92"]);
-const RAR={c:{n:"Bežné",p:1,col:"#97a3c7"},u:{n:"Nezvyčajné",p:3,col:"#4fc3ff"},r:{n:"Vzácne",p:10,col:"#c77dff"},l:{n:"Legendárne",p:50,col:"#ffcf4f"}};
+const LEG=new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","F16","EUFI","GRIF","F18","F15"]);
+const RARE=new Set(["E3TF","E3CF","GLF5","Q4","RQ4","B748","B744","B742","A400","C17","C130","C30J","K35R","IL76","AN12","AN26","MD11","DC10","A346","A343","L39","C27J","SU95","GL7T","B779","B778"]);
+const WIDE=new Set(["A306","A310","A332","A333","A338","A339","A359","A35K","B762","B763","B764","B772","B77W","B77L","B788","B789","B78X","B753_","B752_"]);
+const HELI=new Set(["EC35","EC45","EC30","EC55","AS50","A109","A139","A169","B06","B407","R44","R22","H60","MI8","S92","B429"]);
+const RAR={c:{n:"Bežné",p:2,col:"#97a3c7"},u:{n:"Nezvyčajné",p:5,col:"#4fc3ff"},r:{n:"Vzácne",p:15,col:"#c77dff"},l:{n:"Legendárne",p:40,col:"#ffcf4f"}};
 const isHeli=a=>a.cat==="A7"||HELI.has(a.type);
 function rarity(a){
   if(LEG.has(a.type))return "l";
   if(a.mil||RARE.has(a.type))return "r";
-  if(WIDE.has(a.type)||isHeli(a)||(a.type&&/^(GLF|GL|CL|FA|F9|C68|C700|PC24|LJ)/.test(a.type)))return "u";
+  if(WIDE.has(a.type)||/^B75/.test(a.type||"")||isHeli(a)||(a.type&&/^(GLF|GL|CL|FA|F9|C68|C700|PC24|LJ)/.test(a.type)))return "u";
   return "c";
 }
 const airlineOf=a=>{const p=(a.call||"").slice(0,3).toUpperCase();return AIRLINES[p]||(a.call||"").slice(0,4).toUpperCase()==="NATO"&&"NATO"||""};
@@ -103,7 +103,7 @@ function normReadsb(j){
   return (j.ac||j.aircraft||[]).filter(a=>a.lat!=null&&a.lon!=null).map(a=>{
     const ground=a.alt_baro==="ground";
     const altFt=typeof a.alt_geom==="number"?a.alt_geom:(typeof a.alt_baro==="number"?a.alt_baro:null);
-    return {hex:a.hex,call:(a.flight||"").trim(),reg:a.r||"",type:a.t||"",desc:"",op:a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),
+    return {hex:a.hex,call:(a.flight||"").trim(),reg:a.r||"",type:a.t||"",desc:"",op:a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),priv:!!(a.dbFlags&12),emg:/^7[567]00$/.test(a.squawk||"")||!!(a.emergency&&a.emergency!=="none"),fl:typeof a.alt_baro==="number"?Math.round(a.alt_baro/100):null,kt:a.gs!=null?Math.round(a.gs):null,
       lat:a.lat,lon:a.lon,alt:ground?0:(altFt!=null?altFt*FT:null),ground,spd:a.gs!=null?a.gs*KT:null,trk:a.track??a.true_heading??null,
       vr:a.baro_rate??a.geom_rate??null,sq:a.squawk||""};
   });
@@ -159,6 +159,7 @@ async function tryCombo(i,r,signal){
   return {i,list:c.s.parse(j)};
 }
 function gotPlanes(i,list){S.failN=0;S.nextTry=0;
+  if(typeof SOC!=="undefined"&&SOC.data&&SOC.data.flags&&SOC.data.flags.hideMil)list=list.filter(a=>!a.mil);
   S.raw=list;S.rawT=Date.now();comboIdx=i;LS.set("ctl_combo",i);err("");
   const c=COMBOS[i];
   {const n=S.raw.filter(a=>!a.ground).length;setStatus(n+" "+(n===1?"lietadlo":n>=2&&n<=4?"lietadlá":"lietadiel")+" naživo",true);S.src=c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:"")}
@@ -212,7 +213,7 @@ async function loadMeta(a){
 function quip(a,m){
   const h=hash(a.hex),pick=arr=>arr[h%arr.length],V=S.vych;
   if(a.sq==="7700")return "Hlási núdzovú situáciu. Držme palce posádke. 🙏";
-  if(a.mil)return pick(V?["Vojenske. Ľepši ňemachaj.","Vojaci. Vecej ci ňepoveme. 🤫"]:["Vojenské. Radšej nemávaj. 🫡","Vojenský let. Viac ti nepovieme. 🤫"]);
+  if(a.mil)return V?"Vojenski let.":"Vojenský let. Lieta tu kvôli bezpečnosti nás všetkých.";
   if(isHeli(a))return pick(["Vrtuľník. Buď záchranka, alebo niekto veľmi bohatý. 🚁","Helikoptéra. Ak je žltá, niekomu práve pomáhajú. ❤️"]);
   const al=airlineOf(a),rt=m&&m.route,d=rt&&rt.destination,o=rt&&rt.origin,dc=d&&d.country_iso_name,oc=o&&o.country_iso_name,city=(d&&(d.municipality||d.name)||"");
   if(dc==="SK")return pick(V?["Ľeci domu. Mamka už vari. 🍲","Ľeci na Slovensko. Vitajce doma!"]:["Letí domov na Slovensko. Mama už varí. 🍲","Návrat domov. Bryndzové halušky už čakajú. 🧀"]);
@@ -261,10 +262,10 @@ const ACH=[
   {id:"wide",i:"🐋",n:"Obor",c:e=>e&&WIDE.has(e.type)},
   {id:"a380",i:"👑",n:"Kráľ oblohy (A380)",c:e=>e&&e.type==="A388"},
   {id:"jumbo",i:"🐘",n:"Jumbo (747)",c:e=>e&&/^B74/.test(e.type)},
-  {id:"mil",i:"🫡",n:"Vojenská tajnosť",c:e=>e&&e.mil},
+  {id:"mil",i:"🫡",n:"Vojenský let",c:e=>e&&e.mil},
   {id:"heli",i:"🚁",n:"Vrtuľka",c:e=>e&&isHeli(e)},
   {id:"cargo",i:"📦",n:"Tvoj balík",c:e=>e&&/DHL|UPS|FedEx|Cargo/.test(airlineOf(e))},
-  {id:"night",i:"🦉",n:"Nočná sova",c:e=>e&&new Date().getHours()<4},
+  {id:"night",i:"🦉",n:"Nočná sova",c:e=>e&&typeof SPACE!=="undefined"&&SPACE.sunAlt()<-6},
   {id:"zenith",i:"🎯",n:"Presne nad hlavou",c:e=>e&&e.el>=80},
   {id:"legend",i:"🌟",n:"Legenda",c:e=>e&&rarity(e)==="l"},
   {id:"iss",i:"🛰️",n:"ISS na vlastné oči",c:()=>false},
@@ -272,11 +273,11 @@ const ACH=[
   {id:"video",i:"🎬",n:"Režisér oblohy",c:()=>false},
   {id:"home",i:"🏠",n:"Domov na Slovensko",c:e=>{const m=e&&S.meta.get(e.hex);return !!(m&&m.route&&m.route.destination&&m.route.destination.country_iso_name==="SK")}},
 ];
-const LEVELS=["Nováčik","Zvedavec","Mávač lietadlám","Spotter z balkóna","Expert od plota","Kapitán z gauča","Pán oblohy","Legenda z Ivanky","Nebeský šaman"];
-const lvlOf=p=>Math.floor(Math.sqrt(p/6));
+const LEVELS=["Nováčik","Zvedavec","Mávač lietadlám","Pozorovateľ z okna","Spotter z balkóna","Lovec kondenzačiek","Expert od plota","Kapitán z gauča","Navigátor z lavičky","Pán oblohy","Strážca trate","Legenda z Ivanky","Šerif letových ciest","Majster radaru","Nebeský šaman","Veliteľ oblakov","Tatranský orol","Duch stratosféry","Admirál oblohy","Legenda Slovenska"];
+const lvlPts=l=>Math.round(10*Math.pow(l,1.8));
+const lvlOf=p=>{let l=0;while(lvlPts(l+1)<=p)l++;return l};
 const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
 const lvlName=l=>l<LEVELS.length?LEVELS[l]:LEVELS[LEVELS.length-1]+" "+ROM[Math.min(ROM.length-1,l-LEVELS.length)];
-const lvlPts=l=>6*l*l;
 function tryCatch(a){
   if(a.el==null||a.el<25||COL.hex[a.hex])return;
   const r=rarity(a),pts=RAR[r].p;
