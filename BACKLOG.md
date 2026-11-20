@@ -25,8 +25,16 @@ Majiteľ: passkey/2FA (GitHub, Cloudflare, iCloud) · ruleset pre main · secret
 Claude: knižnice a fonty lokálne + SRI · /api/planes + edge cache rebríčkov · moduly servera a verzované migrácie · viac DO · liga podľa spotterov + shadow-ban · testy klienta a Playwright v CI · nasadenie len pri zelených testoch · výkon oblohy a AR · outbox offline · passkey · odobrať kamaráta · vlastná doména (WAF, Bot Fight) · podmienky, DSA pravidlá, bezpečnostná politika, prístupnosť, NIS2.
 
 ## UX/UI vlna (zostáva)
-Dynamic Type (rem) · pull-to-refresh · zmenšovanie lišty pri scrolle · plávajúce „Mávni“ · splash obrázky + maskable ikona · modály (fokus, zatváracia animácia, swipe) · skeleton + radar sweep · rarita aj textom · design tokeny naplno (52 inline štýlov) · prázdna obloha: väčší okruh + mávnutie najbližšiemu · onboarding: živý počet lietadiel nad SR.
+Dynamic Type (rem) · pull-to-refresh · zmenšovanie lišty pri scrolle · plávajúce „Mávni“ · modály (fokus, zatváracia animácia, swipe) · skeleton + radar sweep · rarita aj textom · design tokeny naplno (52 inline štýlov) · prázdna obloha: väčší okruh + mávnutie najbližšiemu · onboarding: živý počet lietadiel nad SR.
 
 ## Vlna 4 (zostáva)
 Majiteľ: OZ v decembri · granty ESET/Orange/Erasmus+ 2027 · abuse@ e-mail a kontakt (DSA) · rešerš názvu + známka + .sk doména · pred monetizáciou OpenSky/CARTO/súhlasy · krízové vyhlásenia do Poznámok.
-Claude: i18n (hu, cs, en) a CZ kraje · meno fotografa · nahlásenie s dôvodom + ľudská kontrola + odvolanie · LADD/PIA aj na serveri, potvrdenie núdzového kódu · zberateľské sady a mesačné výzvy · liga na hráča a dedín · sezóny · encyklopédia, „včera nad domom“, dráha ISS · body na serveri · Twemoji v OG.
+Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontrola + odvolanie · LADD/PIA aj na serveri, potvrdenie núdzového kódu · zberateľské sady a mesačné výzvy · liga na hráča a dedín · sezóny · encyklopédia, „včera nad domom“, dráha ISS · body na serveri · Twemoji v OG.
+
+## Hotové 20. 11. 2026 (v21)
+- Úlovok iba zamávaním (nie pasívne), min. 10° nad obzorom; „Dnes/Včera nad tebou“ (zazreté vs. ulovené)
+- Server overuje lietadlo v 3 sieťach; ak ho nenájde, mávnutie prijme, ale nepočíta do ligy
+- iCloud Private Relay (Cloudflare ASN 13335) už nie je považovaný za VPN
+- Chyba mávania ukáže kód a zapíše sa do /api/err; mávnutie sa vtedy zaráta aspoň lokálne
+- Fotky lietadiel len s menom fotografa (airport-data.com cez proxy)
+- Splash obrazovky pre iPhony + samostatná maskable ikona
