@@ -176,7 +176,7 @@ const SPACE=(()=>{
     const key=p.sat.id+p.start;
     if(!st.notified.has(key)&&p.start-Date.now()<120e3&&p.start>Date.now()-30e3){
       st.notified.add(key);
-      toast("🛰️ O chvíľu "+(p.sat.kind==="iss"?"ISS":"Tiangong")+"!","Pozri na "+dirL(p.azStart)+" oblohu","#ffcf4f");
+      toast("🛰️ O chvíľu "+(p.sat.kind==="iss"?"ISS":"Tiangong")+"!","Pozri smerom na "+dirL(p.azStart),"#ffcf4f");
       if(S.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
       if(S.voice)voiceSay("Pozor! O chvíľu nad tebou preletí "+(p.sat.kind==="iss"?"Medzinárodná vesmírna stanica":"čínska vesmírna stanica")+". Pozri na "+dirL(p.azStart)+".");
     }

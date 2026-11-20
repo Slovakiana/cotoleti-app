@@ -21,7 +21,7 @@ const TX={
   go:["Pozri hore 👆","Pozri še hore 👆"],
   now:["Práve nad tebou","Teraz nad tebu"],
   empty:["Obloha je čistá","Ňič ňeľeci"],
-  emptySub:["Teraz v okolí nič neletí. Skús väčší okruh v nastaveniach.","Ľem mraki. Skus vekši okruh."],
+  emptySub:["Piloti majú pauzu. O chvíľu niečo preletí – alebo zväčši okruh.","Ľem mraki. Skus vekši okruh."],
   look:["POZRI HORE 👆","HĽEDZ HORE 👆"],
   overhead:["Je priamo nad tebou!","Je pravo nad tebu!"],
   caught:["Ulovené!","Mace ho!"],
@@ -173,7 +173,7 @@ async function fetchPlanes(force){
     // 1) naposledy fungujúca cesta
     if(comboIdx>=0){try{const x=await tryCombo(comboIdx,r);gotPlanes(x.i,x.list);return}catch(e){}}
     // 2) všetky cesty naraz – vyhráva prvá, ktorá odpovie
-    if(!S.raw.length)setStatus("Hľadám cestu k dátam…",false);
+    if(!S.raw.length)setStatus("Pripájam sa…",false);
     const ctl=new AbortController(),fails=[];
     try{
       const x=await Promise.any(COMBOS.map((_,i)=>new Promise(res=>setTimeout(res,i*1500)).then(()=>{if(ctl.signal.aborted)throw new Error("stop");return tryCombo(i,r,ctl.signal)}).catch(e=>{fails.push(COMBOS[i].s.name+"/"+COMBOS[i].rt.name+": "+e.message);throw e})));
@@ -182,7 +182,7 @@ async function fetchPlanes(force){
       setStatus("Bez spojenia",false);
       S.failN=(S.failN||0)+1;S.nextTry=Date.now()+Math.min(60000,10000*S.failN);
       err("Dáta o lietadlách sú dočasne nedostupné, skúšam znova…");console.warn("fetchPlanes",fails);
-      if(!S.raw.length)$("h-type").textContent="Poloha OK ✓ Dáta o lietadlách zatiaľ nedostupné…";
+      if(!S.raw.length)$("h-type").textContent="Polohu máme ✓ Lietadlá sa ešte načítavajú…";
     }
   }finally{busy=false}
 }
@@ -212,12 +212,12 @@ async function loadMeta(a){
 function quip(a,m){
   const h=hash(a.hex),pick=arr=>arr[h%arr.length],V=S.vych;
   if(a.sq==="7700")return "Hlási núdzovú situáciu. Držme palce posádke. 🙏";
-  if(a.mil)return pick(V?["Vojenske. Ľepši ňemachaj.","Vojaci. Vecej ci ňepoveme. 🤫"]:["Vojenské. Radšej nemávaj. 🫡","Vojenský let. Viac ti nepovieme. 🤫","Armáda na výlete. Asi nie do Chorvátska."]);
-  if(isHeli(a))return pick(["Vrtuľník. Buď záchranka, alebo niekto veľmi bohatý. 🚁","Vrtuľka nad hlavou. Dúfajme, že len preletí.","Helikoptéra. Ak je žltá, niekomu práve pomáhajú. ❤️"]);
+  if(a.mil)return pick(V?["Vojenske. Ľepši ňemachaj.","Vojaci. Vecej ci ňepoveme. 🤫"]:["Vojenské. Radšej nemávaj. 🫡","Vojenský let. Viac ti nepovieme. 🤫"]);
+  if(isHeli(a))return pick(["Vrtuľník. Buď záchranka, alebo niekto veľmi bohatý. 🚁","Helikoptéra. Ak je žltá, niekomu práve pomáhajú. ❤️"]);
   const al=airlineOf(a),rt=m&&m.route,d=rt&&rt.destination,o=rt&&rt.origin,dc=d&&d.country_iso_name,oc=o&&o.country_iso_name,city=(d&&(d.municipality||d.name)||"");
   if(dc==="SK")return pick(V?["Ľeci domu. Mamka už vari. 🍲","Ľeci na Slovensko. Vitajce doma!"]:["Letí domov na Slovensko. Mama už varí. 🍲","Návrat domov. Bryndzové halušky už čakajú. 🧀"]);
   if(dc){
-    if(dc==="GB")return pick(["Ďalší, čo ide za bratrancom do Anglicka. 🇬🇧","Do Londýna. Dážď a čaj s mliekom v cene letenky.","Do Británie. Jazdia vľavo, pozor na to."]);
+    if(dc==="GB")return pick(["Do Londýna. Dážď a čaj s mliekom v cene letenky.","Do Británie. Jazdia vľavo, pozor na to."]);
     if(dc==="TR"||dc==="EG"||dc==="TN")return pick(["All inclusive, náramok na ruke, prvý drink o 9:00. 🍹","Dovolenka na pláži, kým ty tu škrabeš námrazu zo skla.","Smer: ležadlo pri bazéne. Uterák už je tam od šiestej."]);
     if(dc==="ES"||dc==="PT")return pick(["Niekto letí za slnkom, kým ty tu mrzneš. ☀️","Do Španielska. Siesta až do večera.","Tapas, more, 25 stupňov. Nezávidíme. (Závidíme.)"]);
     if(dc==="AE"||dc==="QA")return pick(["Do Dubaja. Fotky z hotela budú na IG do hodiny. 🏙️","Púšť, mrakodrapy a klimatizácia na 18 °C."]);
@@ -267,12 +267,12 @@ const ACH=[
   {id:"night",i:"🦉",n:"Nočná sova",c:e=>e&&new Date().getHours()<4},
   {id:"zenith",i:"🎯",n:"Presne nad hlavou",c:e=>e&&e.el>=80},
   {id:"legend",i:"🌟",n:"Legenda",c:e=>e&&rarity(e)==="l"},
-  {id:"iss",i:"🛰️",n:"Videl som ISS",c:()=>false},
+  {id:"iss",i:"🛰️",n:"ISS na vlastné oči",c:()=>false},
   {id:"shazam",i:"👂",n:"Shazam na lietadlo",c:()=>false},
   {id:"video",i:"🎬",n:"Režisér oblohy",c:()=>false},
   {id:"home",i:"🏠",n:"Domov na Slovensko",c:e=>{const m=e&&S.meta.get(e.hex);return !!(m&&m.route&&m.route.destination&&m.route.destination.country_iso_name==="SK")}},
 ];
-const LEVELS=["Pozerač do zeme","Zvedavec","Mávač lietadlám","Spotter z balkóna","Expert od plota","Kapitán z gauča","Pán oblohy","Legenda z Ivanky","Nebeský šaman"];
+const LEVELS=["Nováčik","Zvedavec","Mávač lietadlám","Spotter z balkóna","Expert od plota","Kapitán z gauča","Pán oblohy","Legenda z Ivanky","Nebeský šaman"];
 const lvlOf=p=>Math.floor(Math.sqrt(p/6));
 const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
 const lvlName=l=>l<LEVELS.length?LEVELS[l]:LEVELS[LEVELS.length-1]+" "+ROM[Math.min(ROM.length-1,l-LEVELS.length)];
@@ -289,12 +289,12 @@ function tryCatch(a){
   let T=t("caught")+" +"+pts+" "+(pts===1?"bod":pts<5?"body":"bodov"),Sub=titleOf(a)+" · "+typeName(a,S.meta.get(a.hex));
   if(newType)Sub+=" · nový typ!";
   if(newAch.length){T="🏅 Odznak: "+newAch[0].n;Sub="+"+pts+" b · "+titleOf(a)}
-  if(lvlOf(COL.pts)>prevLvl){T="⬆️ Level up: "+lvlName(lvlOf(COL.pts))}
+  if(lvlOf(COL.pts)>prevLvl){T="⬆️ Nový level: "+lvlName(lvlOf(COL.pts));Sub="Obloha ťa začína poznávať."}
   toast(T,Sub,RAR[r].col);
   if(r!=="c"||newAch.length||newType)confetti(r==="l"?80:40);
   ping(r);
   HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
   if(S.view==="col")renderCol();
 }
-function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);toast("🏅 Odznak: "+x.n,"Gratulujem!","#ffcf4f");confetti(50);ping("r");if(S.view==="col")renderCol()}
+function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);toast("🏅 Nový odznak: "+x.n,"Máš ho v zbierke. Ktorý bude ďalší?","#ffcf4f");confetti(50);ping("r");if(S.view==="col")renderCol()}
 

@@ -94,13 +94,16 @@ function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}
   if(!a){$("waveInfo").textContent="";$("waveN").style.display="none";return}
   const p=planeWaves(a.hex),mine=SOC.waved[dayKey()+a.hex];
-  $("waveN").style.display=p.total?"":"none";$("waveN").textContent=nf(p.total);
+  $("waveN").style.display=p.total?"":"none";if($("waveN").textContent!==nf(p.total)){$("waveN").textContent=nf(p.total);$("waveN").classList.remove("bump");void $("waveN").offsetWidth;$("waveN").classList.add("bump")}
+  // stav tlačidla: po mávnutí je jasné, že je hotovo
+  $("b-wave").classList.toggle("waved",!!mine);$("waveLbl").textContent=mine?"✓ Zamávané":"👋 Mávni";
+  $("waveHint").style.display=mine||(LS.get("ctl_waveN",0)|0)>=3?"none":"";
   const em=Object.entries(p.emoji||{}).sort((x,y)=>y[1]-x[1]).slice(0,4).map(([e,n])=>e+" "+n).join("  ");
   const fr=SOC.data&&SOC.data.friends&&SOC.data.friends[a.hex];
   const frTxt=fr&&fr.length?`<div class="frLine">👯 ${fr.slice(0,3).map(f=>esc(f.n)).join(", ")} ${fr.length===1?"mu dnes zamával":"mu dnes zamávali"}</div>`:"";
   const mOn=SOC.data&&SOC.data.mailOn&&SOC.data.mailOn[a.hex];
   const mailTxt=mOn?`<div class="frLine" style="color:#ffcf8a">✉️ Nesie ${mOn} ${mOn===1?"pozdrav":mOn<5?"pozdravy":"pozdravov"} po Slovensku</div>`:"";
-  $("waveInfo").innerHTML=(p.total?`${mine?"Ty a ďalší – zamávalo":"Zamávalo"} mu už <b>${nf(p.total)} ${ludia(p.total)}</b> · ${em}`:"Buď prvý, kto mu dnes zamáva 👋")+frTxt+mailTxt;
+  $("waveInfo").innerHTML=(p.total?`Zamávalo mu už <b>${nf(p.total)} ${ludia(p.total)}</b>${mine?" vrátane teba":""} · ${em}`:"Buď prvý, kto mu dnes zamáva 👋")+frTxt+mailTxt;
 }
 HOOKS.heroStatic.push(a=>waveInfo(a));
 
@@ -123,7 +126,7 @@ async function doWave(e){
   if(a.santa){toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
   const key=dayKey()+a.hex,already=!!SOC.waved[key];
   const rt=routeOf(a),to=rt?" → "+citySk(rt.destination.municipality):"";
-  if(already){toast(e+" Zamával si znova","Lietadlu"+to+" si už dnes zamával – počíta sa raz");return}
+  if(already){toast("👋 Dnes už zamávané","Každému lietadlu sa ráta 1 mávnutie denne");return}
   ping("u");
   // body a výzvy sa pripíšu až keď server mávnutie prijme (alebo keď sme offline)
   const credit=()=>{
@@ -134,9 +137,9 @@ async function doWave(e){
     const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
     grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");
     if(typeof dailyEvent==="function")dailyEvent("wave");
-    if(typeof maybeAskPush==="function")setTimeout(maybeAskPush,4000);
+    if(typeof maybeAskPush==="function")setTimeout(maybeAskPush,8000);
   };
-  if(!SOC.api){credit();toast(e+" Zamával si lietadlu"+to,"+2 body");return}
+  if(!SOC.api){credit();toast(e+" Zamávané! +2 body","Lietadlu"+to);return}
   let r,j={};
   try{
     const body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""};
@@ -145,18 +148,23 @@ async function doWave(e){
     j=await r.json().catch(()=>({}));
   }catch(err){ // bez internetu – mávnutie platí aspoň u teba
     credit();const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};waveInfo(a);
-    toast(e+" Zamával si lietadlu"+to,"+2 body (offline)");return}
+    toast(e+" Zamávané! +2 body","Odošleme, keď budeš online");return}
   if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
-  if(j.error==="rate"){toast("Pomalšie 🙂","Skús o chvíľu");return}
+  if(j.error==="rate"){toast("Spomaľ 🙂","Mávať môžeš znova o chvíľu");return}
   if(!r.ok||!j.ok){toast("Mávnutie sa nepodarilo odoslať","Skús to o chvíľu znova");return}
   credit();
-  if(j.golden==="entered")setTimeout(()=>toast("🏆 Si v žrebovaní o zlaté lietadlo!","Víťaza vyžrebujeme do 10 minút zo všetkých, čo mu zamávali","#ffcf4f"),1800);
+  if(j.golden==="entered")setTimeout(()=>toast("🏆 Si v žrebovaní!","Víťaza vyžrebujeme do 10 minút 🤞","#ffcf4f"),1800);
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);
   const tot=j.plane?j.plane.total:1;
-  toast(e+" Zamával si lietadlu"+to,tot>1?`Si ${nf(tot)}. človek zo Slovenska, ktorý mu dnes zamával · +2 b`:"Si prvý, kto mu dnes zamával! +2 body");
+  toast(e+" Zamávané! +2 body",tot>1?`Si ${nf(tot)}. zo Slovenska, kto mu dnes mával`:"Prvé mávnutie dňa je tvoje!");
   setTimeout(socPoll,800);
 }
-$("b-wave").onclick=()=>{if(!S.top)return;haptic(8);$("wavePick").classList.toggle("on")};
+{let lp=null,long=false;const bw=$("b-wave");
+  bw.addEventListener("pointerdown",()=>{long=false;clearTimeout(lp);lp=setTimeout(()=>{if(!S.top)return;long=true;haptic(12);$("wavePick").classList.add("on")},380)});
+  ["pointerup","pointerleave","pointercancel"].forEach(t=>bw.addEventListener(t,()=>clearTimeout(lp)));
+  bw.addEventListener("contextmenu",e=>e.preventDefault());
+  bw.onclick=()=>{if(!S.top||long){long=false;return}haptic(8);$("wavePick").classList.remove("on");doWave("👋")};
+  document.addEventListener("click",e=>{if($("wavePick").classList.contains("on")&&!e.target.closest("#wavePick,#b-wave"))$("wavePick").classList.remove("on")});}
 $("wavePick").onclick=ev=>{const b=ev.target.closest("button");if(!b)return;if(b.dataset.mail){$("wavePick").classList.remove("on");if(typeof openMail==="function")openMail();return}doWave(b.textContent)};
 if(SOC.api){(function loop(){setTimeout(async()=>{if(!document.hidden)await socPoll();loop()},(45000+Math.random()*18000-9000)*Math.min(8,SOC.back||1))})();setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}

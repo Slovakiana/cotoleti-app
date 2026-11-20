@@ -396,6 +396,60 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
 .cdCat{font:900 24px var(--disp);margin-top:6px}
 .cdScore{font:900 34px var(--disp);text-align:center;margin:10px 0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== UX/UI upgrade 2026 (odporúčania 10 expertov) ===== */
+:root{--mut2:rgba(235,240,255,.66);--on-accent:#04140e;--tile:rgba(255,255,255,.06);--fill-1:rgba(255,255,255,.08);--divider:rgba(255,255,255,.08);--r-sm:14px;--r-md:20px}
+body{padding-bottom:calc(var(--bot) + 104px)}
+/* tab bar: menej priesvitný + prechod obsahu do tmy pod ním */
+nav{background:rgba(10,14,32,.66);backdrop-filter:blur(40px) saturate(190%);-webkit-backdrop-filter:blur(40px) saturate(190%)}
+body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--bot) + 92px);background:linear-gradient(rgba(5,7,15,0),var(--bg) 72%);pointer-events:none;z-index:39}
+nav button i svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--mint)}
+/* toast dole nad lištou, čitateľný na každej oblohe */
+#toast{top:auto;bottom:calc(var(--bot) + 88px);transform:translate(-50%,40px);opacity:0;visibility:hidden;background:rgba(14,18,40,.92);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);transition:transform .32s cubic-bezier(.2,1,.3,1)}
+#toast.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .32s cubic-bezier(.2,1,.3,1),opacity .2s}
+/* jedna hlavná akcia: Nájdi je sekundárne sklo */
+.btn.sec{background:var(--fill-1);color:var(--txt);border:1px solid var(--gline)}
+.btn.ico{flex:0 0 52px}
+#b-wave{white-space:nowrap}#b-wave.waved #waveLbl{font-size:15px}
+#b-wave.waved{background:linear-gradient(135deg,#2bd6a0,#4fc3ff);box-shadow:0 10px 30px rgba(79,195,255,.3)}
+#b-wave .n.bump{animation:bump .35s ease}
+@keyframes bump{40%{transform:scale(1.45)}}
+.waveHint{font-size:11.5px;color:var(--mut2);margin-top:6px;text-align:left}
+.wavePick button{font-size:24px;min-height:44px}
+/* menej farieb pod tlačidlami */
+.waveInfo,.frLine{color:var(--mut);font-size:13.5px}
+.waveInfo b{color:var(--txt)}
+/* typografia: 900 len pre najväčšie titulky */
+.st3 b,.grid2 b,.st3b b{font-weight:700}
+.kick,.lbl{letter-spacing:.08em;font-size:11px;font-weight:600}
+/* vnorené dlaždice svetlejšie, nie ako diery */
+.st3 div,.grid2 div,.st3b div,.wx>div,.route,.dir{background:var(--tile);border:1px solid var(--divider)}
+/* čitateľnosť textu na oblohe */
+.stageTxt{text-shadow:0 1px 3px rgba(0,0,0,.6),0 2px 16px rgba(0,0,0,.45);width:40%}
+body.moment #liveLine{display:none}
+#hero.golden{outline:2px solid rgba(255,207,79,.5);outline-offset:3px}
+/* prístupnosť */
+:focus-visible{outline:3px solid #6dffc7;outline-offset:2px}
+.rep,.swap,.inappBar button{min-width:44px;min-height:44px}
+#trClose{padding:12px}
+.cities button{min-height:44px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* nastavenia v skupinách */
+.setH{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2);font-weight:700;margin:20px 2px 2px}
+.setH:first-of-type{margin-top:12px}
+.danger{color:#ff7a8a;border-color:rgba(255,122,138,.35)!important}
+details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-size:12px}
+/* modály ako iOS sheet */
+.mcard{border-radius:28px;max-height:88dvh;overscroll-behavior:contain;animation:sheetUp .32s cubic-bezier(.2,.9,.3,1);position:relative}
+.modal:not([style*="center"]) .mcard{padding-top:24px}
+.modal:not([style*="center"]) .mcard::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,.35)}
+@keyframes sheetUp{from{transform:translateY(28px);opacity:0}}
+/* onboarding: živý počet */
+.kidLbl{display:block;margin-top:8px}.kidLbl input{vertical-align:middle;margin-right:6px;width:18px;height:18px}
+.onbLive{font-size:14px;color:var(--mut);font-weight:600;margin:10px 0 0;min-height:20px}
+.onbLive b{color:var(--mint)}
+@media (prefers-reduced-motion:reduce){.mcard{animation:none}#toast{transition:none}}
 </style>
 </head>
 <body>
@@ -412,9 +466,10 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     <div><i>👋</i>Zamávaj im s celým Slovenskom</div>
     <div><i>🛰️</i>ISS, Starlink a satelity nad tebou</div>
   </div>
-  <button class="cta" id="go">📍 Ukáž mi moju oblohu</button>
-  <label class="fine" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px"><input type="checkbox" id="onbKid"> Mám menej ako 16 rokov</label>
-  <div class="fine">Polohu potrebujeme, aby sme vedeli, čo je nad tebou. Na server posielame len zaokrúhlenú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
+  <div class="onbLive" id="onbLive"></div>
+  <button class="cta" id="go">📍 Povoliť polohu a ukázať oblohu</button>
+  <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
+  <label class="fine kidLbl"><input type="checkbox" id="onbKid"> Mám menej ako 16 rokov · bez prezývky, správ a upozornení</label>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
 </div>
@@ -439,28 +494,29 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     <div class="kick"><span id="h-lbl">Práve nad tebou</span><span class="sp"></span><span class="rar" id="h-rar" style="display:none"></span><span class="lookup" id="lookupBadge">POZRI HORE 👆</span><span class="goldTag">🏆 ZLATÉ LIETADLO</span></div>
     <div class="big" id="h-call">—</div>
     <div class="sub" id="h-type">Čakám na polohu…</div>
-    <div id="guess"><div class="gOpts" id="gOpts"></div><button class="gSkip" id="gSkip">Preskočiť a ukázať</button></div>
+    <div id="guess"><div class="gOpts" id="gOpts"></div><button class="gSkip" id="gSkip">Neviem, ukáž cieľ</button></div>
 
     <div class="acts">
-      <button class="btn pri" id="b-wave">👋 Mávni <span class="n" id="waveN" style="display:none">0</span></button>
+      <button class="btn pri" id="b-wave" aria-label="Mávni lietadlu (podrž pre výber reakcie)"><span id="waveLbl">👋 Mávni</span> <span class="n" id="waveN" style="display:none">0</span></button>
       <button class="btn sec" id="b-ar">🔭 Nájdi</button>
-      <button class="btn ico" id="b-share" aria-label="Zdieľať">↗</button>
+      <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
     </div>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
+    <div class="waveHint" id="waveHint">Ťukni a zamávaj · podrž pre výber reakcie</div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
-    <div class="st3" id="h-st3">
-      <div><b id="g-alt">—</b><span id="g-altC">výška</span></div>
-      <div><b id="g-pax">—</b><span>ľudí na palube</span></div>
-      <div><b id="g-dist">—</b><span>od teba</span></div>
-    </div>
     <div class="dir" id="h-dir">
-      <div class="compass" id="compass"><span class="n" id="compN">S</span>
+      <div class="compass" id="compass" aria-hidden="true"><span class="n" id="compN">S</span>
         <svg viewBox="0 0 84 84" id="arrow"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6dffc7"/><stop offset="1" stop-color="#4fc3ff"/></linearGradient></defs><path d="M42 12 L56 52 L42 44 L28 52 Z" fill="url(#ag)"/></svg>
       </div>
       <div class="dirT"><b id="h-look">—</b><span id="h-lookSub"></span><div class="gauge"><i id="h-gauge"></i></div></div>
     </div>
     <div class="eta" id="h-eta"></div>
+    <div class="st3" id="h-st3">
+      <div><b id="g-alt">—</b><span id="g-altC">výška</span></div>
+      <div><b id="g-pax">—</b><span>ľudí na palube</span></div>
+      <div><b id="g-dist">—</b><span>od teba</span></div>
+    </div>
 
     <div class="msg" id="heroErr"></div>
     <div class="posBtns" id="posBtns"><button class="solid" id="b-pos">📍 Povoliť polohu</button><button class="ghost" id="b-man">Vybrať mesto</button></div>
@@ -476,21 +532,16 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     </div>
 
   <section class="glass" id="trackCard">
-    <div class="kick"><span id="trKick">Sleduješ let</span><span class="sp"></span><button id="trClose" style="font-size:18px;color:var(--mut)">✕</button></div>
+    <div class="kick"><span id="trKick">Sleduješ let</span><span class="sp"></span><button id="trClose" aria-label="Prestať sledovať" style="font-size:18px;color:var(--mut)">✕</button></div>
     <div class="trTitle" id="trTitle">—</div>
     <div class="trLine" id="trLine"></div>
     <div class="trEta" id="trEta"></div>
     <div class="frLine" id="trWaves"></div>
     <div class="trActs"><button class="p" id="trNotify">🔔 Upozorni ma</button><button id="trShare">📤 Pošli odkaz</button></div>
   </section>
-  <section class="glass" id="pushAsk">
-    <div class="kick"><span>🔔 Spoločný moment</span></div>
-    <div class="trTitle">Raz denne sa celé Slovensko naraz pozrie hore</div>
-    <div class="trLine" id="pushAskTxt">Pošleme ti upozornenie v náhodnej chvíli. Máš 3 minúty pozrieť sa na oblohu – spolu so všetkými ostatnými.</div>
-    <div class="trActs"><button class="p" id="pushYes">Zapnúť</button><button id="pushNo">Teraz nie</button></div>
-  </section>
+
   <details class="more glass" id="more">
-    <summary>Viac o tomto lete</summary>
+    <summary>Detail letu <small>trasa · foto · zvuk</small></summary>
     <div class="moreIn">
       <div class="photo" id="h-photo"><small>foto: airport-data.com</small></div>
       <div class="route" id="h-route">
@@ -510,7 +561,10 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
       <div class="links" id="h-links"></div>
     </div>
   </details>
-
+  <section class="card glass" id="nearCard">
+    <div class="lbl"><span>Ďalšie lietadlá okolo teba</span><span id="radarCnt"></span></div>
+    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
+  </section>
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
@@ -524,9 +578,11 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     <div class="trLine" id="weekS"></div>
     <div class="trActs"><button id="weekShare">📸 Zdieľať</button></div>
   </section>
-  <section class="card glass">
-    <div class="lbl"><span>Okolo teba</span><span id="radarCnt"></span></div>
-    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
+  <section class="glass" id="pushAsk">
+    <div class="kick"><span>🔔 Spoločný moment</span></div>
+    <div class="trTitle">Raz denne sa celé Slovensko naraz pozrie hore</div>
+    <div class="trLine" id="pushAskTxt">Pošleme ti upozornenie v náhodnej chvíli. Máš 3 minúty pozrieť sa na oblohu – spolu so všetkými ostatnými.</div>
+    <div class="trActs"><button class="p" id="pushYes">Zapnúť</button><button id="pushNo">Teraz nie</button></div>
   </section>
   <footer>Dáta: adsb.lol (ODbL), airplanes.live, <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>, adsbdb.com, CelesTrak, Open-Meteo (CC BY 4.0).<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie a zdroje</a></footer>
 </main>
@@ -565,7 +621,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <section class="card glass prof">
     <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
     <div class="lvl" id="c-lvl">—</div>
-    <div class="ptype" id="c-type">☁️ Snílek oblakov</div>
+    <div class="ptype" id="c-type">☁️ Snívač v oblakoch</div>
     <div class="xp"><i id="c-bar"></i></div>
     <div class="lookSub" id="c-next"></div>
     <div class="st3b">
@@ -579,6 +635,15 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
     <div id="d-list" style="margin-top:6px"></div>
   </section>
+  <section class="card glass">
+    <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
+    <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
+    <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
+  </section>
+  <details class="more glass" id="achBox">
+  <summary>🏅 Odznaky <small id="c-achN"></small></summary>
+  <div class="ach" id="c-ach" style="margin-top:12px"></div>
+  </details>
   <details class="more glass" id="friendsBox">
   <summary>🤝 Hraj s kamarátmi <small>tím · výzva</small></summary>
   <section class="card" id="teamCard">
@@ -591,24 +656,17 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
     <div class="acts"><button class="btn pri" id="b-duel">⚔️ Vyzvi kamaráta</button></div>
   </section>
   </details>
-  <section class="card glass">
-    <div class="lbl"><span>🏅 Odznaky</span><span id="c-achN"></span></div>
-    <div class="ach" id="c-ach"></div>
-  </section>
-  <section class="card glass">
-    <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
-    <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
-    <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
-  </section>
   <details class="set glass" id="settings">
     <summary>⚙️ Nastavenia</summary>
+    <div class="setH">Profil</div>
     <div class="sr"><div>😎 Prezývka<small>Uvidia ju ostatní. Nepíš svoje skutočné meno.</small></div><input id="nick" maxlength="20" placeholder="Spotter" style="width:140px"></div>
+    <div class="sr"><div>🧒 Mám menej ako 16 rokov<small>Bez prezývky, pošty, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
+    <div class="setH">Pri prelete</div>
     <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
     <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess" role="switch" aria-label="Tipovačka"></button></div>
     <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice" role="switch" aria-label="Hlasové ohlásenie"></button></div>
-    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby si v tme videl hviezdy</small></div><select id="nightSel"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
     <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib" role="switch" aria-label="Vibrovanie"></button></div>
-    <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
+    <div class="setH">Obloha a poloha</div>
     <div class="sr"><div>📡 Okruh</div><select id="radius"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
     <div class="sr"><div>🧭 Kompas<small id="compStat">Šípka ukáže smer k lietadlu</small></div><button class="ghost" id="b-comp">Zapnúť</button></div>
     <div class="sr" style="display:block"><div>📍 Poloha <small id="posTxt"></small></div>
@@ -616,21 +674,24 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
       <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
       <div class="msg" id="err"></div>
     </div>
+    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby si v tme videl hviezdy</small></div><select id="nightSel"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
+    <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
+    <div class="setH">Údaje a súkromie</div>
     <div class="sr" style="display:block"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo do nového mobilu – jednorazový kód na 10 minút</small></div>
       <div class="acts"><button class="ghost" id="b-transfer" style="flex:1">Vytvoriť kód</button><button class="ghost" id="b-claim" style="flex:1">Mám kód</button></div></div>
-    <div class="sr"><div>🧒 Mám menej ako 16 rokov<small>Bez prezývky, pošty, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
     <div class="sr"><div>📄 Moje údaje<small>Stiahni si všetko, čo o tebe server má</small></div><button class="ghost" id="b-mydata">Stiahnuť</button></div>
     <div class="sr"><div>🔒 Súkromie a zdroje<small>Čo zbierame a odkiaľ sú dáta</small></div><button class="ghost" id="b-privacy">Otvoriť</button></div>
-    <div class="sr"><div>🗑️ Zmazať moje údaje<small>Zo servera aj z tohto mobilu</small></div><button class="ghost" id="b-forget">Zmazať</button></div>
-    <div class="sr"><div>Vymazať zbierku</div><button class="ghost" id="b-reset">Vymazať</button></div>
+    <div class="setH">Nebezpečná zóna</div>
+    <div class="sr"><div>🧹 Vymazať zbierku<small>Body, úlovky a odznaky v tomto mobile</small></div><button class="ghost" id="b-reset">Vymazať</button></div>
+    <div class="sr"><div>🗑️ Zmazať moje údaje<small>Zo servera aj z tohto mobilu</small></div><button class="ghost danger" id="b-forget">Zmazať</button></div>
   </details>
   <footer>Čo to letí? · vyrobené na Slovensku 🇸🇰</footer>
 </main>
 
-<nav class="glass">
-  <button data-v="now" class="on"><i>✈️</i>Nebo</button>
-  <button data-v="space"><i>🛰️</i>Vesmír</button>
-  <button data-v="col"><i>😎</i>Ja</button>
+<nav class="glass" aria-label="Hlavná navigácia">
+  <button data-v="now" class="on" aria-current="page"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></i>Obloha</button>
+  <button data-v="space"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M3.5 15.5c-1.5 2.6 3.5 2.3 9.5-1.2s9.5-7.4 8-10-5.4.1-5.4.1"/></svg></i>Vesmír</button>
+  <button data-v="col"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></i>Ja</button>
 </nav>
 
 <!-- AR -->
@@ -639,13 +700,13 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <canvas id="arCanvas"></canvas>
   <div class="arTop"><button class="ghost" id="arAuto">🎯 Auto-záber</button><button class="ghost" id="arClose">✕ Zavrieť</button></div>
   <div class="arHint" id="arHint">Namier mobil na oblohu</div>
-  <div class="arCtl"><button class="ghost" id="arSnap">📷</button><button id="arRec" class="rec"><i></i></button><button class="ghost" id="arFlip">🤳</button></div>
+  <div class="arCtl"><button class="ghost" id="arSnap" aria-label="Odfotiť">📷</button><button id="arRec" aria-label="Nahrávať video" class="rec"><i></i></button><button class="ghost" id="arFlip" aria-label="Prepnúť kameru">🤳</button></div>
 </div>
 
 <!-- MOJA OBLOHA -->
 <div id="wrap">
   <div class="wbars" id="wbars"></div>
-  <button class="wclose" id="wclose">✕</button>
+  <button class="wclose" id="wclose" aria-label="Zavrieť">✕</button>
   <div id="wslides"></div>
   <div class="wtap"><div id="wprev"></div><div id="wnext"></div></div>
   <div class="wacts" id="wacts" style="display:none"><button class="cta" id="wshare">📸 Zdieľať do stories</button><button class="btn ico" style="flex:none;width:100%;padding:14px" id="wduel">⚔️ Vyzvi kamaráta</button></div>
@@ -665,7 +726,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
 </div></div>
 <div class="modal" id="cardM" role="dialog" aria-modal="true" style="align-items:center"><div style="width:100%;max-width:420px">
   <div id="cardBig"></div>
-  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardClose" style="flex:0 0 60px">✕</button></div>
+  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
 </div></div>
 
 <div class="modal" id="mailM" role="dialog" aria-modal="true"><div class="mcard">
@@ -676,7 +737,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
 </div></div>
 <div class="modal" id="postM" role="dialog" aria-modal="true" style="align-items:center"><div style="width:100%;max-width:420px">
   <div class="post" id="postCard"></div>
-  <div class="acts"><button class="btn pri" id="postReply">↩️ Pošli pozdrav späť</button><button class="btn ico" id="postShare" style="flex:0 0 56px">↗</button><button class="btn ico" id="postClose" style="flex:0 0 56px">✕</button></div>
+  <div class="acts"><button class="btn pri" id="postReply">↩️ Pošli pozdrav späť</button><button class="btn ico" id="postShare" aria-label="Zdieľať" style="flex:0 0 56px">↗</button><button class="btn ico" id="postClose" aria-label="Zavrieť" style="flex:0 0 56px">✕</button></div>
 </div></div>
 <div class="modal" id="cdM" role="dialog" aria-modal="true"><div class="mcard" id="cdBox"></div></div>
 
@@ -700,9 +761,9 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <div class="lookSub" style="margin-top:10px">Na ploche funguje ako skutočná appka: upozornenia, rýchly štart a celá obrazovka.</div>
   <ol class="instSteps" id="instSteps"></ol>
   <div class="fine">Na iPhone má appka na ploche vlastné úložisko. Aby si nestratil body, vytvor si kód na prenos a v appke na ploche ho zadaj v Nastaveniach → Prenos zbierky → Mám kód.</div>
-  <div class="acts"><button class="btn pri" id="instCopy">🔁 Vytvoriť kód na prenos</button><button class="btn ico" id="instClose" style="flex:0 0 56px">✕</button></div>
+  <div class="acts"><button class="btn pri" id="instCopy">🔁 Vytvoriť kód na prenos</button><button class="btn ico" id="instClose" aria-label="Zavrieť" style="flex:0 0 56px">✕</button></div>
 </div></div>
-<div class="modal" id="xM" role="dialog" aria-modal="true" style="align-items:center"><div class="mcard" style="text-align:center">
+<div class="modal" id="xM" role="dialog" aria-modal="true"><div class="mcard" style="text-align:center">
   <div class="lbl"><span>🔁 Kód na prenos</span></div>
   <div class="big" id="xCode" style="font-size:40px;letter-spacing:4px;margin:16px 0">—</div>
   <div class="lookSub">V druhom mobile (alebo v appke na ploche) otvor Nastavenia → Prenos zbierky → <b>Mám kód</b>. Kód platí 10 minút a len raz. Tento mobil potom zbierku stratí.</div>
@@ -727,7 +788,7 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <div id="map"></div>
   <div style="padding:10px 6px 4px"><div id="mapInfo" class="lookSub"></div><div class="acts"><button class="ghost" id="mapClose" style="flex:1">Zavrieť</button></div></div>
 </div></div>
-<div class="modal" id="duelM" role="dialog" aria-modal="true" style="align-items:center"><div class="mcard" style="text-align:center">
+<div class="modal" id="duelM" role="dialog" aria-modal="true"><div class="mcard" style="text-align:center">
   <div style="font-size:54px">⚔️</div>
   <div class="big" style="font-size:26px" id="duelT"></div>
   <div class="sub" id="duelS"></div>
@@ -735,25 +796,25 @@ body.n-red #nightTint{display:block;background:rgb(255,45,25)}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=17"></script>
-<script src="js/ui.js?v=17"></script>
-<script src="js/ar.js?v=17"></script>
-<script src="js/space.js?v=17"></script>
-<script src="js/weather.js?v=17"></script>
-<script src="js/extras.js?v=17"></script>
-<script src="js/social.js?v=17"></script>
-<script src="js/wrapped.js?v=17"></script>
-<script src="js/push.js?v=17"></script>
-<script src="js/track.js?v=17"></script>
-<script src="js/towns.js?v=17"></script>
-<script src="js/catalog.js?v=17"></script>
-<script src="js/cards.js?v=17"></script>
-<script src="js/mail.js?v=17"></script>
-<script src="js/golden.js?v=17"></script>
-<script src="js/teams.js?v=17"></script>
-<script src="js/duel.js?v=17"></script>
-<script src="js/sound.js?v=17"></script>
-<script src="js/santa.js?v=17"></script>
-<script src="js/main.js?v=17"></script>
+<script src="js/core.js?v=18"></script>
+<script src="js/ui.js?v=18"></script>
+<script src="js/ar.js?v=18"></script>
+<script src="js/space.js?v=18"></script>
+<script src="js/weather.js?v=18"></script>
+<script src="js/extras.js?v=18"></script>
+<script src="js/social.js?v=18"></script>
+<script src="js/wrapped.js?v=18"></script>
+<script src="js/push.js?v=18"></script>
+<script src="js/track.js?v=18"></script>
+<script src="js/towns.js?v=18"></script>
+<script src="js/catalog.js?v=18"></script>
+<script src="js/cards.js?v=18"></script>
+<script src="js/mail.js?v=18"></script>
+<script src="js/golden.js?v=18"></script>
+<script src="js/teams.js?v=18"></script>
+<script src="js/duel.js?v=18"></script>
+<script src="js/sound.js?v=18"></script>
+<script src="js/santa.js?v=18"></script>
+<script src="js/main.js?v=18"></script>
 </body>
 </html>

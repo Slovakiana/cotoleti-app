@@ -7,16 +7,17 @@ function goldRender(){
   const g=GOLD.g,ch=$("goldChip");
   if(!g){ch.style.display="none";return}
   ch.style.display="";ch.classList.toggle("goldOn",g.state===0);
-  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · zamávaj a si v žrebe`:g.state===1?`🏆 Zlaté lietadlo chytil${g.winner&&g.winner.n?" "+g.winner.n:""}${g.winner&&g.winner.k&&KRAJ[g.winner.k]&&g.winner.k!=="XX"?" ("+KRAJ[g.winner.k][2]+" kraj)":""}`:"🏆 Zlaté lietadlo uletelo nechytené 😢";
+  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · zamávaj a si v žrebovaní`:g.state===1?`🏆 Zlaté lietadlo vyhral(a)${g.winner&&g.winner.n?" "+g.winner.n:""}${g.winner&&g.winner.k&&KRAJ[g.winner.k]&&g.winner.k!=="XX"?" ("+KRAJ[g.winner.k][2]+" kraj)":""}`:"🏆 Zlaté lietadlo uletelo nechytené 😢";
   // je nad nami?
   const here=goldActive()&&S.list.find(a=>a.hex===g.hex&&a.el>2);
   $("hero").classList.toggle("golden",!!(here&&S.top&&S.top.hex===g.hex));
+  if(here&&S.top&&S.top.hex===g.hex)ch.style.display="none";
   const key=dayKey()+g.seq;
-  if(here&&GOLD.alerted!==key){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 ZLATÉ LIETADLO je nad tebou!","Zamávaj mu a zaradíme ťa do žrebovania 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
+  if(here&&GOLD.alerted!==key){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 Zlaté lietadlo je nad tebou!","Zamávaj a si v žrebovaní 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
 }
 async function goldTap(){
   const g=GOLD.g;if(!g)return;
-  if(g.state!==0){toast(g.state===1?"🏆 Dnes ho už niekto chytil":"🏆 Uletelo","Ďalšie zlaté lietadlo sa objaví neskôr. Majú ho len 4 denne.");return}
+  if(g.state!==0){toast(g.state===1?"🏆 Toto už má víťaza":"🏆 Uletelo","Zlaté lietadlá sú 4 denne – ďalšie príde neskôr");return}
   const here=S.list.find(a=>a.hex===g.hex);
   if(here){S.pick=g.hex;tick(true);window.scrollTo({top:0,behavior:"smooth"});return}
   toast("🏆 Hľadám zlaté lietadlo…",g.call);
@@ -29,7 +30,7 @@ $("goldChip").onclick=goldTap;
 function goldenWon(a){
   const seq=SOC.data&&SOC.data.goldMine||(GOLD.g?GOLD.g.seq:"");const key=dayKey()+seq;if(GOLD.won===key)return;GOLD.won=key;LS.set("ctl_goldWon",key);
   COL.pts+=100;LS.set("ctl_col",COL);grantAch("golden");
-  setTimeout(()=>{toast("🏆 VYHRAL SI ZLATÉ LIETADLO DŇA!","+100 bodov · vyžrebovali sme práve teba!","#ffcf4f");confetti(160);haptic([80,50,80,50,80,50,400]);ping("l")},600);
+  setTimeout(()=>{toast("🏆 Zlaté lietadlo dňa je tvoje!","+100 bodov – žreb padol na teba","#ffcf4f");confetti(160);haptic([80,50,80,50,80,50,400]);ping("l")},600);
 }
 ACH.push({id:"golden",i:"🏆",n:"Zlaté lietadlo",c:()=>false});
 // lietadlo týždňa

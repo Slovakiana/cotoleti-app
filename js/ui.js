@@ -28,7 +28,7 @@ function unlockAudio(ctx){
   try{if(ctx&&ctx.state!=="running")ctx.resume()}catch(e){}
 }
 function releaseAudio(){try{SILENT&&SILENT.pause()}catch(e){}}
-const haptic=p=>{try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}};
+const haptic=p=>{try{if(S.vib===false)return;if(navigator.vibrate)navigator.vibrate(p)}catch(e){}};
 function applyTexts(){$("logo").textContent=t("title");$("lookupBadge").textContent=t("look");document.title=t("title")+" ✈️"}
 
 /* ============ koľko ľudí sedí v lietadle ============ */
@@ -132,7 +132,7 @@ function heroEmpty(){
   // namiesto slepej uličky: čo sa blíži
   if(S.pos&&S.list&&S.list.length){
     const nx=S.list.map(a=>({a,p:approach(a)})).filter(x=>x.p&&x.p.t>20&&x.p.t<1200&&x.p.el!=null&&x.p.el>12).sort((x,y)=>x.p.t-y.p.t)[0];
-    if(nx){const m=Math.max(1,Math.round(nx.p.t/60));$("h-call").textContent="O "+m+" min priletí";$("h-type").textContent=titleOf(nx.a)+" · príde od "+dirL(nx.a.bear)+" · "+Math.round(nx.p.el)+"° nad obzorom"}
+    if(nx){const m=Math.max(1,Math.round(nx.p.t/60));$("h-call").textContent="O "+m+" min priletí";$("h-type").textContent=titleOf(nx.a)+" · priletí zo smeru "+dirS(nx.a.bear)+" · "+Math.round(nx.p.el)+"° nad obzorom"}
   }
   $("h-quip").textContent="";["h-st3","h-dir","h-eta"].forEach(id=>$(id).style.display="none");
   $("b-wave").disabled=true;$("b-wave").style.opacity=.5;
@@ -155,8 +155,7 @@ function renderHeroStatic(a){
   $("h-quip").textContent=quip(a,m);
   $("hero").classList.toggle("emerg",a.sq==="7700");
   guessUI(a,rt);
-  $("h-links").innerHTML=`<a href="https://globe.adsb.lol/?icao=${esc(a.hex)}" target="_blank" rel="noopener">Mapa letu ↗</a>`+
-    (a.call?`<a href="https://www.flightradar24.com/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">Flightradar24 ↗</a>`:"")+
+  $("h-links").innerHTML=(a.call?`<a href="https://www.flightradar24.com/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">Flightradar24 ↗</a>`:"")+
     (a.reg?`<a href="https://www.jetphotos.com/registration/${encodeURIComponent(a.reg)}" target="_blank" rel="noopener">Fotky ↗</a>`:"");
   HOOKS.heroStatic.forEach(f=>{try{f(a)}catch(e){console.error(e)}});
 }
@@ -177,7 +176,7 @@ function renderHeroLive(a){
   $("g-trk").textContent=a.trk!=null?dirS(a.trk)+" "+nf(a.trk)+"°":"—";
   $("g-trkC").textContent=a.vr>300?"letí smerom · stúpa ↗":a.vr<-300?"letí smerom · klesá ↘":"letí smerom";
   const ap=approach(a),eta=$("h-eta");eta.style.display="";
-  if(ap&&ap.t>3&&ap.t<900&&ap.el!=null&&ap.el>=20){const mm=Math.floor(ap.t/60),ss=Math.floor(ap.t%60);eta.innerHTML=`⏱ Najbližšie k tebe o <b>${mm}:${String(ss).padStart(2,"0")}</b> · ${nf(ap.el)}° nad obzorom`;eta.classList.add("on")}
+  if(ap&&ap.t>3&&ap.t<900&&ap.el!=null&&ap.el>=20){const mm=Math.floor(ap.t/60),ss=Math.floor(ap.t%60);eta.innerHTML=`⏱ Najbližšie k tebe o <b>${mm?mm+" min ":""}${ss} s</b> · ${nf(ap.el)}° nad obzorom`;eta.classList.add("on")}
   else if(ap&&ap.t<=3&&ap.t>-60&&el>=40){eta.innerHTML="🎯 Práve je najbližšie k tebe!";eta.classList.add("on")}
   else eta.classList.remove("on");
 }
@@ -319,7 +318,7 @@ async function share(){
   x.fillStyle="#fff";x.font="500 30px Inter, sans-serif";x.textAlign="right";x.fillStyle="#97a3c7";x.fillText(new Date().toLocaleString("sk-SK",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}),W-90,300);
   c.toBlob(async blob=>{
     const file=new File([blob],"co-to-leti.png",{type:"image/png"});
-    const txt="Práve nado mnou letí "+titleOf(a)+" ✈️ Zamávaj aj ty: "+planeLink(a)+TAGS;ev("share");
+    const txt="Práve nado mnou letí "+titleOf(a)+" ✈️ A čo letí nad tebou? "+planeLink(a)+TAGS;ev("share");
     try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:txt});return}}catch(e){if(e.name==="AbortError")return}
     shareBlob(blob,"co-to-leti.png",txt);
   },"image/png");
@@ -363,7 +362,7 @@ function posErr(e){
   $("posBtns").style.display="flex";
   if(!S.raw.length)$("h-type").textContent="Bez polohy to nepôjde 🙈";
   err(e.code===1?"Poloha je zablokovaná. iPhone: Nastavenia → Súkromie → Polohové služby → Safari → „Pri používaní“. Android: ťukni na zámok vedľa adresy → Povolenia → Poloha. Potom stránku obnov."
-    :e.code===3?"Poloha sa hľadá príliš dlho (si vnútri?). Skúšam znova – alebo zadaj polohu ručne.":"Polohu sa nepodarilo zistiť. Skontroluj, či máš zapnutú polohu v mobile.");
+    :e.code===3?"Poloha sa ešte hľadá – si vnútri? Skúšam znova, alebo vyber mesto.":"Polohu sa nepodarilo zistiť. Skontroluj, či máš zapnutú polohu v mobile.");
   setStatus("Chýba poloha",false);
 }
 function showPos(){if(S.pos){$("posTxt").textContent=(S.manual?"ručne · ":"GPS · ")+S.pos.lat.toFixed(3)+", "+S.pos.lon.toFixed(3);$("mlat").placeholder=S.pos.lat.toFixed(4);$("mlon").placeholder=S.pos.lon.toFixed(4)}}
@@ -373,17 +372,22 @@ function showPos(){if(S.pos){$("posTxt").textContent=(S.manual?"ručne · ":"GPS
 function setView(v){
   if(v==="ar"){openAR();return}
   S.view=v;
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  const prev=S.view;S.scroll=S.scroll||{};if(prev&&prev!==v)S.scroll[prev]=scrollY;
+  document.querySelectorAll("nav button").forEach(b=>{b.classList.toggle("on",b.dataset.v===v);b.setAttribute("aria-current",b.dataset.v===v?"page":"false")});
   ["now","space","col"].forEach(k=>$("v-"+k).classList.toggle("on",k===v));
   if(v==="col")renderCol();
   HOOKS.view.forEach(f=>{try{f(v)}catch(e){}});
-  window.scrollTo({top:0});
+  // každá záložka si pamätá, kde si skončil; opakované ťuknutie = hore
+  window.scrollTo({top:prev===v?0:(S.scroll[v]||0)});
   if(v==="now")requestAnimationFrame(skySize);
 }
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{haptic(8);setView(b.dataset.v)});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{haptic(8);if(document.startViewTransition&&S.view!==b.dataset.v&&!(typeof RM==="function"&&RM()))document.startViewTransition(()=>setView(b.dataset.v));else setView(b.dataset.v)});
 $("b-ar").onclick=()=>{haptic(10);openAR()};$("arClose").onclick=()=>closeAR();
 $("b-share").onclick=share;$("shareClose").onclick=()=>{$("shareM").classList.remove("on");try{$("shareVid").pause()}catch(e){}};
-function syncToggles(){$("t-voice").classList.toggle("on",S.voice);$("t-vib").classList.toggle("on",S.vib);$("t-vych").classList.toggle("on",S.vych);$("b-voice").innerHTML=(S.voice?"<i>🔊</i>Hlas zap.":"<i>🔇</i>Hlas")}
+function syncToggles(){$("t-voice").classList.toggle("on",S.voice);$("t-vib").classList.toggle("on",S.vib);$("t-vych").classList.toggle("on",S.vych);$("b-voice").innerHTML=(S.voice?"<i>🔊</i>Čítam nahlas":"<i>🔈</i>Čítaj nahlas")}
+// prepínače hlásia stav čítačkám (VoiceOver)
+new MutationObserver(ms=>ms.forEach(m=>{const t=m.target;if(t.classList&&t.classList.contains("tog"))t.setAttribute("aria-checked",String(t.classList.contains("on")))})).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
+document.querySelectorAll(".tog").forEach(t=>t.setAttribute("aria-checked",String(t.classList.contains("on"))));
 function toggleVoice(){S.voice=!S.voice;LS.set("ctl_voice",S.voice);syncToggles();if(S.voice){S.announced.clear();voiceSay(S.vych?"Hlas zapnuti. Ňič ci ňeujďe.":"Hlas zapnutý. Nič ti neujde.");setTimeout(()=>S.top&&announce(S.top),2500)}else try{speechSynthesis.cancel()}catch(e){}}
 $("b-voice").onclick=toggleVoice;$("t-voice").onclick=toggleVoice;
 $("t-vib").onclick=()=>{S.vib=!S.vib;LS.set("ctl_vib",S.vib);syncToggles();if(S.vib)haptic(80)};
@@ -408,6 +412,7 @@ $("sky").addEventListener("click",skyTap);
 const CITIES=[["Bratislava",48.1486,17.1077],["Košice",48.7164,21.2611],["Prešov",48.9984,21.2339],["Žilina",49.2231,18.7394],["Banská Bystrica",48.7363,19.1462],["Nitra",48.3061,18.0764],["Trnava",48.3774,17.5872],["Trenčín",48.8945,18.0444],["Poprad",49.0598,20.2976],["Martin",49.0636,18.9214],["Praha",50.0755,14.4378],["Viedeň",48.2082,16.3738]];
 function showCities(onb){
   const box=onb&&$("onb").style.display!=="none"?$("cities"):null;
+  if(!box){heroCities();return}
   if(box){box.innerHTML=CITIES.map(c=>`<button data-c="${c[0]}">${c[0]}</button>`).join("");box.classList.add("on");return}
   // mimo onboardingu: jednoduchý výber cez toast-modal
   setView("col");$("settings").open=true;$("mlat").focus();
@@ -445,8 +450,8 @@ function guessUI(a,rt){
 function guessDone(hex){GUESSED[hex]=Date.now();const ks=Object.keys(GUESSED);if(ks.length>300)ks.slice(0,ks.length-300).forEach(k=>delete GUESSED[k]);LS.set("ctl_guessed",GUESSED);$("guess").classList.remove("on");if(S.top)renderHeroStatic(S.top)}
 $("gOpts").onclick=e=>{
   const b=e.target.closest("button");if(!b)return;const box=$("guess"),ok=b.dataset.c===box.dataset.right;
-  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);COL.pts+=5;LS.set("ctl_col",COL);toast("🎯 Trafil si! +5 bodov",st>1?"Séria "+st+" za sebou 🔥":"Letí do "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
-  else{LS.set("ctl_gstreak",0);toast("😅 Vedľa!","Letí do "+box.dataset.right);haptic(60)}
+  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);COL.pts+=5;LS.set("ctl_col",COL);toast("🎯 Trafil si! +5 bodov",st>1?"Séria "+st+" za sebou 🔥":"Cieľ: "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
+  else{LS.set("ctl_gstreak",0);toast("😅 Vedľa!","Cieľ: "+box.dataset.right);haptic(60)}
   guessDone(box.dataset.hex);
 };
 $("gSkip").onclick=()=>guessDone($("guess").dataset.hex);
@@ -501,11 +506,14 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}ca
 /* ============ 📱 iPhone a prehliadače v appkách ============ */
 const UA=navigator.userAgent,isIPad=/Macintosh/.test(UA)&&navigator.maxTouchPoints>1;
 const inApp=/FBAN|FBAV|Instagram|musical_ly|Bytedance|TikTok|Messenger|Snapchat|Line\//i.test(UA);
-if(inApp&&!LS.get("ctl_inappX",false)){
+function inAppBar(){
+  if(!inApp||LS.get("ctl_inappX",false)||document.querySelector(".inappBar"))return;
   const b=document.createElement("div");b.className="inappBar glass";
-  b.innerHTML=`<b>Otvor v Safari / Chrome</b><span>Tu nefungujú upozornenia ani pridanie na plochu. Ťukni na ⋯ a „Otvoriť v prehliadači“.</span><button aria-label="Zavrieť">✕</button>`;
+  b.innerHTML=`<b>Uložiť si body?</b><span>Otvor appku v Safari alebo Chrome: ťukni na ⋯ → „Otvoriť v prehliadači“. Tu sa body môžu stratiť.</span><button aria-label="Zavrieť">✕</button>`;
   b.querySelector("button").onclick=()=>{LS.set("ctl_inappX",true);b.remove()};document.body.appendChild(b);
-}
+}// až po prvom mávnutí (nech to nepreruší prvý zážitok)
+if((LS.get("ctl_waveN",0)|0)>0)setTimeout(inAppBar,4000);
+
 // obrazovka nezhasne počas AR a spoločného momentu
 const WAKE={l:null,want:false};
 async function wakeOn(){WAKE.want=true;try{if(navigator.wakeLock&&!WAKE.l){WAKE.l=await navigator.wakeLock.request("screen");WAKE.l.addEventListener("release",()=>{WAKE.l=null})}}catch(e){}}
@@ -560,3 +568,14 @@ $("b-mydata").onclick=async()=>{
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="moje-udaje-cotoleti.json";a.click();toast("📄 Údaje stiahnuté","Súbor moje-udaje-cotoleti.json");
   }catch(e){toast("Bez internetu","Skús to znova")}
 };
+
+/* onboarding: živé číslo ešte pred otázkou na polohu */
+(async()=>{try{if(LS.get("ctl_onb",0))return;const r=await fetch(DEFAULT_PROXY+"/api/sky",{cache:"no-store"});const j=await r.json();
+  const w=j.wavesToday||0,a=j.active||0;if(!w&&!a)return;
+  $("onbLive").innerHTML=(w?`Dnes už zamávalo <b>${nf(w)}</b> ${ludia(w)}`:"")+(w&&a?" · ":"")+(a?`práve sa pozerá <b>${nf(a)}</b>`:"");}catch(e){}})();
+/* poloha nedostupná: hneď ponúknuť mestá (nie súradnice) */
+function heroCities(){
+  const box=$("heroErr");box.innerHTML=`<div style="margin:6px 0 8px">Nevadí! Vyber mesto a hneď uvidíš, čo nad ním letí 👇</div><div class="cities on" id="heroCities">${CITIES.map(c=>`<button data-c="${c[0]}">${c[0]}</button>`).join("")}</div>`;
+  box.style.display="block";
+  $("heroCities").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=CITIES.find(x=>x[0]===b.dataset.c);if(c){box.innerHTML="";setManual(c[1],c[2],c[0])}};
+}

@@ -36,7 +36,7 @@ function spotterType(L=weekLog()){
   if(sh("cg")>=.15)return {e:"📦",n:"Kuriér oblohy",d:"Polovicu tvojich balíkov si videl letieť ešte skôr, než prišli."};
   if(cs>=8)return {e:"🌍",n:"Svetobežník z gauča",d:"Precestoval si "+cs+" krajín bez jediného kufra."};
   if(n>=50)return {e:"🦅",n:"Strážca oblohy",d:"Nič ti neujde. Nebo nad tebou máš v malíčku."};
-  return {e:"☁️",n:"Snílek oblakov",d:"Pozeráš hore, keď ostatní pozerajú do mobilu. Teda… aj ty do mobilu. Ale hore!"};
+  return {e:"☁️",n:"Snívač v oblakoch",d:"Pozeráš hore, keď ostatní pozerajú do mobilu. Teda… aj ty do mobilu. Ale hore!"};
 }
 function weekStats(){
   const L=weekLog(),n=L.length,pax=L.reduce((s,e)=>s+(e.pax||0),0);

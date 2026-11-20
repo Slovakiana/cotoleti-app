@@ -208,7 +208,7 @@ const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator
 const visits=(LS.get("ctl_visits",0)|0)+1;LS.set("ctl_visits",visits);
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)&&visits>=2){$("installBar").style.display="";$("installTxt").textContent="📲 Pridať na plochu"}});
 function installHint(){
-  if(standalone()||LS.get("ctl_noinst",false)||visits<2)return;
+  if(standalone()||LS.get("ctl_noinst",false)||inApp||(visits<2&&(LS.get("ctl_waveN",0)|0)<3))return;
   if(isIOS()){$("installBar").style.display="";$("installTxt").textContent="📲 Na plochu"}
 }
 $("installBar").onclick=async()=>{

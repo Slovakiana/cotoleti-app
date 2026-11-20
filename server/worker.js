@@ -246,7 +246,7 @@ export class Sky extends DurableObject {
       const first = this.row("SELECT MIN(t) AS t, COUNT(*) AS c FROM gcand WHERE day=? AND seq=?", d, g.seq);
       const draw = c => { const all = this.sql.exec("SELECT * FROM gcand WHERE day=? AND seq=?", d, g.seq).toArray(), w = all[Math.floor(Math.random() * all.length)];
         this.sql.exec("UPDATE golden SET state=1, wid=?, wnick=?, wk=?, wtown=?, wt=? WHERE day=? AND seq=?", w.id, w.nick, w.k, w.town, now, d, g.seq);
-        this.notify(w.id, "🏆 Vyhral si zlaté lietadlo!", `Zo ${all.length} ${all.length === 1 ? "spottera" : "spotterov"} si vyžrebovaný práve ty. Otvor appku 🎉`, "./"); this.bump("gold_win"); };
+        this.notify(w.id, "🏆 Zlaté lietadlo je tvoje!", `${all.length === 1 ? "Jediné mávnutie bolo tvoje" : "Z " + all.length + " ľudí, čo mu mávali, padol žreb na teba"}. Poď si po body.`, "./"); this.bump("gold_win"); };
       if (first && first.c && now - first.t >= 10 * 60e3) { draw(); return; }
       let ac = null;
       try { const j = await (await fetch("https://api.adsb.lol/v2/hex/" + g.hex, {headers: {"User-Agent": UA}})).json(); ac = (j.ac || [])[0] || null; } catch (e) { return; }
@@ -380,13 +380,13 @@ export class Sky extends DurableObject {
     const F = this.flags();
     if (F.santaPush && dt.getUTCMonth() === 11 && dt.getUTCDate() === 24 && dt.getUTCHours() >= 14 && this.getMeta("santa") !== String(dt.getUTCFullYear())) {
       this.setMeta("santa", dt.getUTCFullYear());
-      for (const s of this.sql.exec("SELECT id FROM subs").toArray()) this.notify(s.id, "🎅 Santa vzlietol!", "Do 22:00 preletí aj nad tebou. Otvor appku a zamávaj mu 👋", "./#santa");
+      for (const s of this.sql.exec("SELECT id FROM subs").toArray()) this.notify(s.id, "🎅 Santa práve vzlietol!", "Do 22:00 preletí aj nad vašou strechou. Zavolaj deti k oknu.", "./#santa");
     }
     // 🌊 nedeľná spoločná vlna o 18:00 slovenského času
     const skH = Number(new Intl.DateTimeFormat("en-GB", {timeZone: "Europe/Bratislava", hour: "2-digit", hour12: false}).format(dt)), skD = new Intl.DateTimeFormat("en-GB", {timeZone: "Europe/Bratislava", weekday: "short"}).format(dt);
     if (F.sunWave && skD === "Sun" && skH === 17 && dt.getUTCMinutes() >= 55 && this.getMeta("sunwave") !== d) {
       this.setMeta("sunwave", d);
-      for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray()) this.notify(s.id, "🌊 Nedeľná vlna o 18:00", "O 5 minút máva celé Slovensko naraz. Ktorý kraj vyhrá? 👋", "./");
+      for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray()) this.notify(s.id, "🌊 O 5 minút mávame všetci", "Nedeľná vlna o 18:00. Pomôž svojmu kraju vyhrať.", "./");
     }
     // týždenný súhrn v pondelok ráno
     const wk = this.week(), prev = this.week(now - 7 * 86400e3);
@@ -398,7 +398,7 @@ export class Sky extends DurableObject {
     if (!m.sent && now >= m.start && now < m.start + MOMENT_MS) {
       this.sql.exec("UPDATE moments SET sent=1 WHERE day=?", d);
       for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray())
-        this.notify(s.id, "✈️ POZRI HORE!", "Spoločný moment – celé Slovensko sa práve pozerá na oblohu. Máš 3 minúty 👆", "./#moment");
+        this.notify(s.id, "👆 Pozri hore. Teraz.", "Celé Slovensko sa práve pozerá na oblohu. Máš 3 minúty.", "./#moment");
     } else if (!m.sent && now >= m.start + MOMENT_MS) this.sql.exec("UPDATE moments SET sent=1 WHERE day=?", d);
     // 2) zlaté lietadlo dňa
     if (Math.floor(now / 60e3) % 5 === 0) await this.pickGolden(d, now);
@@ -422,7 +422,7 @@ export class Sky extends DurableObject {
         if (soon) {
           this.sql.exec("UPDATE tracks SET notified=1 WHERE id=? AND cs=?", t.id, cs);
           const mins = a.t != null && a.t > 1 ? `o ~${Math.round(a.t)} min` : "práve teraz";
-          this.notify(t.id, `✈️ ${who} letí nad tebou ${mins}!`, "Vyjdi von a zamávaj 👋 Ťukni a nájdi lietadlo na oblohe.", "./#let=" + cs);
+          this.notify(t.id, `✈️ ${who} bude nad tebou ${mins}`, "Vybehni von a zamávaj. Ťukni a ukážeme ti, kam sa pozrieť.", "./#let=" + cs);
         }
       }
     }
@@ -687,7 +687,7 @@ export class Sky extends DurableObject {
     if (p === "/api/msg") {
       const mid = cleanId(qp("id"));
       const m = (await this.authed(mid, qp("tok"))) ? this.row("SELECT title, body, url FROM msgs WHERE id=?", mid) : null;
-      return json(m || {title: "✈️ Pozri hore!", body: "Niečo zaujímavé letí nad tebou.", url: "./"});
+      return json(m || {title: "✈️ Nad tebou sa niečo deje", body: "Ťukni a pozri, čo to letí.", url: "./"});
     }
     if (p === "/api/moment" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), m = this.moment(d);
@@ -790,7 +790,7 @@ function b64json(s) { try { const b = atob(String(s).replace(/-/g, "+").replace(
 async function sharePage(url, env, ctx) {
   const [, , kind, raw = ""] = url.pathname.split("/"), data = raw.slice(0, 1500);
   const nm = v => cleanName(v, 20) || "Kamoš";
-  let title = "Čo to letí? ✈️ Pozri hore.", desc = "Každé lietadlo nad tebou naživo. Zamávaj mu s celým Slovenskom 👋", img = "default", hash = "";
+  let title = "Čo to letí? ✈️ Zisti za 2 sekundy", desc = "Pozri hore a uvidíš, kam letí každé lietadlo nad tebou. Máva celé Slovensko.", img = "default", hash = "";
   if (kind === "v" && /^[\w-]+$/.test(data)) { const j = b64json(data) || {}; hash = "vyzva=" + data; img = "vyzva";
     title = `⚔️ ${nm(j.n)} ťa vyzýva!`; desc = `Má ${Number(j.p) | 0} bodov a ${Number(j.c) | 0} ulovených lietadiel. Prekonáš ho?`; }
   else if (kind === "k" && /^[\w-]+$/.test(data)) { const j = b64json(data) || {}; hash = "kd=" + data; img = "duel";
@@ -799,11 +799,11 @@ async function sharePage(url, env, ctx) {
     try { if (env.SKY) n = (await (await env.SKY.get(env.SKY.idFromName("slovensko")).fetch("https://do/api/tname?c=" + data)).json()).name; } catch (e) {}
     title = `👥 Pridaj sa do tímu${n ? " „" + n + "“" : ""}`; desc = "Mávame lietadlám a bojujeme o 1. miesto na Slovensku ✈️"; }
   else if (kind === "l" && /^[A-Z0-9]{2,8}$/i.test(data)) { const n = url.searchParams.get("n"); hash = "let=" + data.toUpperCase() + (n ? "&n=" + encodeURIComponent(nm(n)) : ""); img = "let";
-    title = `✈️ ${n ? nm(n) + " letí" : "Let " + data.toUpperCase()} – sleduj ho naživo`; desc = "Upozorníme ťa, keď bude nad tebou. Vyjdi von a zamávaj 👋"; }
+    title = `✈️ ${n ? nm(n) + " je na ceste" : "Let " + data.toUpperCase()} – zamávaj, keď poletí nad tebou`; desc = "Upozorníme ťa, keď bude nad tebou. Vyjdi von a zamávaj 👋"; }
   else if (kind === "santa") { hash = "santa"; img = "santa"; const m0 = cleanName(url.searchParams.get("m"), 24) || "", m = TOWNS.some(x => x[0] === m0) ? m0 : ""; let t = String(url.searchParams.get("cas") || url.searchParams.get("t") || "").replace(/[^0-9:]/g, "").slice(0, 5); if (!/^(1[5-9]|2[0-2]):[0-5][0-9]$/.test(t)) t = "";
-    title = m && t ? `🎅 ${m}: Santa preletí 24. 12. o ${t}` : "🎅 Santa nad Slovenskom"; desc = m && t ? "Potom každých 12 minút. Ukáž to deťom a zamávajte mu spolu 👋" : "24. 12. od 15:00 preletí nad každým z nás. Zamávaj mu!"; }
+    title = m && t ? `🎅 ${m}: Santa preletí 24. 12. o ${t}` : "🎅 Santa nad Slovenskom"; desc = m && t ? "A potom každých 12 minút. Nastavte si budík a mávajte spolu." : "24. 12. od 15:00 preletí nad každým z nás. Zamávaj mu!"; }
   else if (kind === "p" && /^[0-9a-f]{6}$/.test(data)) { const q = k => { const v = cleanName(url.searchParams.get(k), 24) || ""; return k === "m" ? (TOWNS.some(t => t[0] === v) ? v : "") : /^[\p{L} .'-]{2,24}$/u.test(v) ? v : ""; }; const c = (url.searchParams.get("c") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 8), dd = q("d"), m = q("m");
-    title = `✈️ ${m ? m + ": práve letí" : "Práve letí"} ${c || "lietadlo"}${dd ? " → " + dd : ""}`; desc = "Pozri hore a zamávaj mu s celým Slovenskom 👋 Čo letí nad tebou?"; }
+    title = `✈️ ${m ? m + ": práve letí" : "Práve letí"} ${c || "lietadlo"}${dd ? " → " + dd : ""}`; desc = "A čo letí nad tebou? Pozri hore."; }
   const r = /^[A-Za-z0-9]{16}$/.test(url.searchParams.get("r") || "") ? url.searchParams.get("r") : "";
   if (env.SKY && ctx && ctx.waitUntil) ctx.waitUntil(env.SKY.get(env.SKY.idFromName("slovensko")).fetch(new Request("https://do/api/ev", {method: "POST", body: JSON.stringify({step: "click"})})).catch(() => {}));
   const to = APP_URL + (r ? "?r=" + r : "") + (hash ? "#" + hash : "");

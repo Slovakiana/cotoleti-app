@@ -157,7 +157,7 @@ function openCard(k){
   $("cardM").classList.add("on");haptic(15);bindTilt();
 }
 $("cardClose").onclick=()=>$("cardM").classList.remove("on");
-function tiltTo(rx,ry){const c=$("cardBig").firstElementChild;if(!c)return;c.style.setProperty("--rx",rx+"deg");c.style.setProperty("--ry",ry+"deg");c.style.setProperty("--mx",(50+ry*3)+"%");c.style.setProperty("--my",(50-rx*3)+"%");c.style.setProperty("--ang",(ry*10+rx*6)+"deg")}
+function tiltTo(rx,ry){const c=$("cardBig").firstElementChild;if(!c)return;if(typeof RM==="function"&&RM()){rx=0;ry=0}c.style.setProperty("--rx",rx+"deg");c.style.setProperty("--ry",ry+"deg");c.style.setProperty("--mx",(50+ry*3)+"%");c.style.setProperty("--my",(50-rx*3)+"%");c.style.setProperty("--ang",(ry*10+rx*6)+"deg")}
 let tiltBound=false;
 function bindTilt(){
   if(tiltBound)return;tiltBound=true;
