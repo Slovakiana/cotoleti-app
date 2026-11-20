@@ -26,3 +26,7 @@ Claude: knižnice a fonty lokálne + SRI · /api/planes + edge cache rebríčkov
 
 ## UX/UI vlna (zostáva)
 Dynamic Type (rem) · pull-to-refresh · zmenšovanie lišty pri scrolle · plávajúce „Mávni“ · splash obrázky + maskable ikona · modály (fokus, zatváracia animácia, swipe) · skeleton + radar sweep · rarita aj textom · design tokeny naplno (52 inline štýlov) · prázdna obloha: väčší okruh + mávnutie najbližšiemu · onboarding: živý počet lietadiel nad SR.
+
+## Vlna 4 (zostáva)
+Majiteľ: OZ v decembri · granty ESET/Orange/Erasmus+ 2027 · abuse@ e-mail a kontakt (DSA) · rešerš názvu + známka + .sk doména · pred monetizáciou OpenSky/CARTO/súhlasy · krízové vyhlásenia do Poznámok.
+Claude: i18n (hu, cs, en) a CZ kraje · meno fotografa · nahlásenie s dôvodom + ľudská kontrola + odvolanie · LADD/PIA aj na serveri, potvrdenie núdzového kódu · zberateľské sady a mesačné výzvy · liga na hráča a dedín · sezóny · encyklopédia, „včera nad domom“, dráha ISS · body na serveri · Twemoji v OG.
