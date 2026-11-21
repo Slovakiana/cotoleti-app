@@ -63,6 +63,7 @@ const CATALOG=[
 ["GRIF","Saab Gripen","Saab","delta",14.1,8.4,2100,3200,1,1988,"Švédska stíhačka – lieta aj v Česku a Maďarsku."],
 ["F35","F-35 Lightning II","Lockheed","fighter",15.7,10.7,1900,2200,1,2006,"Pre radary ťažko zachytiteľná."],
 ["GLF6","Gulfstream G650","Gulfstream","rj",30.4,30.4,950,13000,18,2009,"Obľúbený súkromný jet miliardárov."],
+["GA6C","Gulfstream G600","Gulfstream","rj",29.4,29.4,925,12000,19,2019,"Novší rýchly biznis jet, letí aj cez oceán bez medzipristátia."],
 ["GLEX","Bombardier Global Express","Bombardier","rj",30.3,28.6,900,11100,17,1996,"Dolieta z Európy do Ázie bez zastávky."],
 ["GL7T","Bombardier Global 7500","Bombardier","rj",33.8,31.7,950,14200,19,2016,"Jeden z najväčších súkromných jetov – má aj spálňu."],
 ["CL35","Bombardier Challenger 350","Bombardier","rj",20.9,21.0,850,5900,10,2013,"Najpredávanejší biznis jet strednej veľkosti."],
@@ -106,7 +107,7 @@ const MAKER_COL={Airbus:"#3d7bff",Boeing:"#1f4fbf",Embraer:"#00a86b",ATR:"#f57c0
 // odhad pre typ, ktorý v atlase nie je
 function catGuess(code,a){
   if(CAT[code])return CAT[code];
-  const v=COL.types[code]||{},fam=HELI.has(code)||(a&&a.cat==="A7")?"heli":WIDE.has(code)?"twinW":/^(GLF|GL|CL|FA|C25|C56|C68|C700|LJ|E55|H25)/.test(code)?"rj":/^(C1|PA|P28|DA|SR2)/.test(code)?"ga":"twin";
+  const v=COL.types[code]||{},fam=HELI.has(code)||(a&&a.cat==="A7")?"heli":WIDE.has(code)?"twinW":/^(GLF|GA[5-8]C|GL|CL|FA|C25|C56|C68|C700|LJ|E55|H25)/.test(code)?"rj":/^(C1|PA|P28|DA|SR2)/.test(code)?"ga":"twin";
   const d={heli:[12,11,250,700,6],twinW:[62,60,880,12000,280],rj:[20,20,850,5000,10],ga:[8,11,230,1100,4],twin:[36,34,820,4500,150]}[fam];
   return {code,name:v.name||code,maker:(v.name||"").split(" ")[0]||"?",fam,len:d[0],span:d[1],spd:d[2],range:d[3],seats:SEATS[code]||d[4],year:null,fact:"Typ mimo Atlasu – vzácny úlovok mimo série!",no:null,guess:true};
 }

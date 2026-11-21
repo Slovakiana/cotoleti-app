@@ -10,10 +10,11 @@ if(Date.now()-LS.get("ctl_fkT",0)>12*3600e3)FK="";
 function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.set(k,""));location.reload()}
 async function ensureTok(){
   if((TOK&&FK)||!SOC.api)return TOK;
+  if(!TOK&&SOC.helloNext&&Date.now()<SOC.helloNext)return TOK; // po chybe chvíľu počkaj, nezahlcuj server
   try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref","")})});const j=await r.json();
     if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
-    if(!j.tok){SOC.helloErr=r.status+"/"+(j.error||"?");try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+SOC.helloErr}))}catch(x){}}
-    if(j.tok){SOC.helloErr="";LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())}}catch(e){}
+    if(!j.tok){SOC.helloErr=r.status+"/"+(j.error||"?");SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+SOC.helloErr}))}catch(x){}}
+    if(j.tok){const was=!!SOC.helloFail;SOC.helloErr="";SOC.helloFail=0;SOC.helloNext=0;if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())}}catch(e){}
   return TOK;
 }
 async function apiPost(path,obj){
@@ -222,7 +223,9 @@ async function doWave(e){LASTWAVE=null;
     const code=r.status+(j.error?"/"+j.error:"")+(SOC.helloErr?" h"+SOC.helloErr:"");
     try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"wave fail "+code}))}catch(x){}
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
-    LASTWAVE=null;credit();fin("server nedvíha (kód "+code+"), zapísané u teba");return}
+    // prihlásenie/server zlyhali – mávnutie si odložíme a o chvíľu ho pošleme znova (overí sa, kým je lietadlo blízko)
+    if(r.status===401||r.status>=500||(r.status===429&&j.error!=="rate")){try{const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(q.length<20&&body)q.push({d:dayKey(),b:body,t:Date.now()});LS.set("ctl_wq",q)}catch(x){}setTimeout(flushWq,15000)}
+    LASTWAVE=null;credit();fin("overím o chvíľu (kód "+code+")");return}
   LASTWAVE={hex:a.hex,...j};credit();
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
@@ -261,8 +264,14 @@ if($("friendsBox"))$("friendsBox").addEventListener("toggle",()=>{if($("friendsB
 async function flushWq(){
   const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(!q.length||!SOC.api||!navigator.onLine)return;
   LS.set("ctl_wq",[]);let ok=0;
-  for(const x of q){try{const r=await apiPost("/api/wave",x.b);if(r.ok)ok++}catch(e){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]))}}
-  if(ok)toast("✅ Odoslané do ligy",ok+" "+(ok===1?"mávnutie":ok<5?"mávnutia":"mávnutí")+" z času bez signálu");
+  let ver=0,back=0;
+  for(const x of q){try{let r=await apiPost("/api/wave",x.b);if(r.status===401)r=await apiPost("/api/wave",x.b);
+      if(r.ok){ok++;const j=await r.json().catch(()=>({}));if(j.ver){const v=COL.types[j.type||x.b.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}}}
+      else if(r.status===401||r.status>=500){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
+    }catch(e){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}}
+  if(ver)LS.set("ctl_col",COL);
+  if(back)setTimeout(flushWq,30000);
+  if(ok)toast("✅ Odoslané na server",ok+" "+(ok===1?"mávnutie":ok<5?"mávnutia":"mávnutí")+(ver?" · overené: "+ver:""));
 }
 addEventListener("online",()=>setTimeout(flushWq,1500));setTimeout(flushWq,5000);
 

@@ -22,7 +22,7 @@ const UA = "cotoleti-app/1.0 (+https://github.com/Slovakiana/cotoleti-app)";
 const T_L = new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
 const T_E = new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","L159"]);
 const T_R = new Set(["A388","B744","B748","B742","A343","B779","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","H60","MI8"]);
-const T_U = /^(A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12)/;
+const T_U = /^(A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
 const TYPES_SRV = {A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
 const tierOf = t => !t ? "c" : T_L.has(t) ? "l" : T_E.has(t) ? "e" : T_R.has(t) ? "r" : T_U.test(t) ? "u" : "c";
 const TIER_W = {c: 3, u: 8, r: 25, e: 45, l: 80};
@@ -79,7 +79,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "2026-11-20b";
+const VERSION = "2026-11-21a";
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
 const lc = v => String(v || "").normalize("NFKC").trim().toLocaleLowerCase("sk");
@@ -373,7 +373,14 @@ export class Sky extends DurableObject {
   async tok(id) { const r = this.row("SELECT ep FROM ids WHERE id=?", id); return this.tokE(id, r ? r.ep || 0 : 0); }
   async tokOld(id) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("id:" + id))).slice(0, 24); }
   // token platí len pre existujúci účet a aktuálnu „epochu“ (po prenose alebo zmazaní prestane platiť)
-  async authed(id, tok) { if (!id || id.length < 8 || !tok) return false; const r = this.row("SELECT ep FROM ids WHERE id=?", id); if (!r) return false; return sameStr(await this.tokE(id, r.ep || 0), tok); }
+  async authed(id, tok) {
+    if (!id || id.length < 8 || !tok) return false;
+    const r = this.row("SELECT ep FROM ids WHERE id=?", id);
+    if (r) return sameStr(await this.tokE(id, r.ep || 0), tok);
+    // platný token, ale účet chýba v tabuľke (starší alebo stratený záznam) – zaregistrovať a pustiť ďalej
+    if (id.length >= 16 && sameStr(await this.tokE(id, 0), tok)) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
+    return false;
+  }
   bump(k) { try { this.sql.exec("INSERT INTO sig(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", this.day(), k); } catch (e) {} }
   async iph(ip) { await this.secret(); return b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(this.day() + "|" + this._salt + "|" + ipKey(ip || "?")))).slice(0, 16); }
   // obmedzenie počtu požiadaviek: true = povolené
@@ -545,7 +552,8 @@ export class Sky extends DurableObject {
         // starší používateľ s platným tokenom (z čias pred tabuľkou ids) – zaregistrovať bez limitu
         const legacy = !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
         // limit nových zariadení na IP je vysoký: iCloud Private Relay a mobilní operátori zdieľajú IP medzi tisíckami ľudí
-        if (!legacy && !this.rate("mint:" + iph, 40, 86400e3)) { this.bump("mint_block"); return json({error: "rate"}, 429); }
+        // zdieľané IP (operátori, iCloud Private Relay) majú tisíce ľudí – brzdíme len nárazy, nie denný počet
+        if (!legacy && (!this.rate("mintm:" + iph, 20, 60e3) || !this.rate("mint:" + iph, 5000, 86400e3))) { this.bump("mint_block"); return json({error: "rate"}, 429); }
         this.sql.exec("INSERT INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, now);
         // pozvanie sa ráta len pri skutočne novom zariadení
         if (!legacy && /^[A-Za-z0-9]{16}$/.test(b.r || "") && this.rate("ref:" + iph, 3, 86400e3)) this.sql.exec("INSERT INTO refs(pid, n) VALUES(?, 1) ON CONFLICT(pid) DO UPDATE SET n = n + 1", b.r);
@@ -570,7 +578,7 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/xclaim" && req.method === "POST") {
       // prenos zbierky: jednorazový kód (10 min) -> nové zariadenie dostane účet, staré stratí platnosť
-      if (!this.rate("xclaim:" + iph, 10, 3600e3)) return json({error: "rate"}, 429);
+      if (!this.rate("xclaim:" + iph, 60, 3600e3)) return json({error: "rate"}, 429);
       const b = await body(), code = String(b.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
       const x = code.length === 8 ? this.row("SELECT * FROM xfer WHERE code=?", code) : null;
       if (!x || now - x.t > 10 * 60e3) { this.bump("xclaim_bad"); return json({error: "code"}, 404); }
@@ -581,7 +589,7 @@ export class Sky extends DurableObject {
     }
     const OPEN = ["/api/sky", "/api/msg", "/api/admin"];
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {
-      if (!this.rate("post:" + iph, 90, 60e3)) { this.bump("429:post"); return json({error: "rate"}, 429); }
+      if (!this.rate("post:" + iph, 1500, 60e3)) { this.bump("429:post"); return json({error: "rate"}, 429); }
       const b = await body();
       if (!(await this.authed(cleanId(b.id), b.tok))) { this.bump("401"); return json({error: "auth"}, 401); }
     }
@@ -659,7 +667,7 @@ export class Sky extends DurableObject {
       const hex = cleanHex(b.hex), id = cleanId(b.id), la = num(b.lat), lo = num(b.lon);
       const emoji = EMO.includes(b.emoji) ? b.emoji : "👋";
       if (!hex || id.length < 8 || la == null || lo == null || Math.abs(la) > 90 || Math.abs(lo) > 180) return json({error: "bad"}, 400);
-      if (!this.rate("wave:" + iph, 400, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) { this.bump("429:wave"); return json({error: "rate"}, 429); }
+      if (!this.rate("wave:" + iph, 30000, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) { this.bump("429:wave"); return json({error: "rate"}, 429); }
       const vp = await this.verifyPlane(hex, la, lo);
       if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const pdx = await this.pid(id);
@@ -675,7 +683,7 @@ export class Sky extends DurableObject {
       const near = dd && dd.la != null ? distKm(la, lo, dd.la, dd.lo) <= 30 : true;
       if (dd && !near) this.bump("teleport");
       // do líg sa ráta max 25 mávnutí na účet a 60 na sieť za deň a len overené lietadlo
-      const league = fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 60, 86400e3);
+      const league = fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 5000, 86400e3);
       const k = fair && dd ? dd.k : "XX";
       const nk = this.nm(b.nick);
       if (nk) this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
@@ -794,7 +802,7 @@ export class Sky extends DurableObject {
     if (p === "/api/report" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), name = lc(b.name).slice(0, 24);
       if (!name || name === "spotter") return json({ok: true});
-      if (!this.rate("rep:" + id, 10, 86400e3) || !this.rate("repip:" + iph, 10, 86400e3)) return json({error: "rate"}, 429);
+      if (!this.rate("rep:" + id, 10, 86400e3) || !this.rate("repip:" + iph, 100, 86400e3)) return json({error: "rate"}, 429);
       const acct = this.row("SELECT t FROM ids WHERE id=?", id), days = (this.row("SELECT COUNT(*) AS c FROM seen WHERE id=?", id) || {c: 0}).c;
       if (!acct || now - acct.t < 86400e3 || days < 2) return json({ok: true}); // nové účty sa nerátajú
       const exists = ["nicks", "teams", "mails", "tmembers"].some(t => this.row(`SELECT 1 AS x FROM ${t} WHERE lc=? LIMIT 1`, name));
@@ -817,7 +825,7 @@ export class Sky extends DurableObject {
       if (other.length !== 16 || other === me) return json({error: "bad"}, 400);
       if (!(await this.fkOk(other, b.fk))) return json({error: "expired"}, 400);
       if (this.isKid(cleanId(b.id))) return json({error: "kid"}, 403);
-      if (!this.rate("friend:" + iph, 30, 86400e3)) return json({error: "rate"}, 429);
+      if (!this.rate("friend:" + iph, 500, 86400e3)) return json({error: "rate"}, 429);
       this.sql.exec("INSERT OR IGNORE INTO friends(a, b) VALUES(?, ?)", me, other);
       this.sql.exec("INSERT OR IGNORE INTO friends(a, b) VALUES(?, ?)", other, me);
       return json({ok: true});
@@ -825,6 +833,8 @@ export class Sky extends DurableObject {
     if (p === "/api/forget" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
       for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+        // náhrobok: starý token sa už nedá použiť ani na samoopravu účtu
+        this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, Date.now(), 1e6 + Math.floor(Math.random() * 1e6));
       this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
       this.sql.exec("DELETE FROM mails WHERE id=?", id);
       this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
@@ -839,7 +849,7 @@ export class Sky extends DurableObject {
       if (this.isKid(cleanId((await body()).id))) return json({error: "kid"}, 403);
       const b = await body(), id = cleanId(b.id), hex = cleanHex(b.hex), msg = Math.max(0, Math.min(11, num(b.msg, 0) | 0)), la = num(b.lat), lo = num(b.lon);
       if (id.length < 8 || !hex || la == null || lo == null) return json({error: "bad"}, 400);
-      if (!this.rate("mail:" + iph, 40, 86400e3)) return json({error: "limit"}, 429);
+      if (!this.rate("mail:" + iph, 600, 86400e3)) return json({error: "limit"}, 429);
       const vp = await this.verifyPlane(hex, la, lo);
       if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const fair = country === "SK" && !ipFar(la, lo);
@@ -857,14 +867,14 @@ export class Sky extends DurableObject {
       if (this.isKid(id) && (b.action === "create" || b.action === "join")) { /* deti môžu byť v tíme, ale bez prezývky */ }
       if (b.action === "create") {
         const name = this.nm(b.name, 24); if (!name) return json({error: "name"}, 400);
-        if (!this.rate("team:" + iph, 3, 86400e3)) return json({error: "rate"}, 429);
+        if (!this.rate("team:" + iph, 40, 86400e3)) return json({error: "rate"}, 429);
         let code; do { code = Array.from({length: 6}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join(""); } while (this.row("SELECT 1 AS x FROM teams WHERE code=?", code));
         this.sql.exec("INSERT INTO teams(code, name, t, lc) VALUES(?, ?, ?, ?)", code, name, now, lc(name));
         this.sql.exec("INSERT INTO tmembers(id, code, nick, lc, jt) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET code=excluded.code, nick=excluded.nick, lc=excluded.lc, jt=CASE WHEN tmembers.code=excluded.code THEN tmembers.jt ELSE excluded.jt END", id, code, nick, lc(nick), now);
         return json({ok: true, code, name});
       }
       if (b.action === "join") {
-        if (!this.rate("tjoin:" + iph, 20, 3600e3)) return json({error: "rate"}, 429);
+        if (!this.rate("tjoin:" + iph, 200, 3600e3)) return json({error: "rate"}, 429);
         const code = String(b.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6), t = this.row("SELECT * FROM teams WHERE code=?", code);
         if (!t) return json({error: "notfound"}, 404);
         this.sql.exec("INSERT INTO tmembers(id, code, nick, lc, jt) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET code=excluded.code, nick=excluded.nick, lc=excluded.lc, jt=CASE WHEN tmembers.code=excluded.code THEN tmembers.jt ELSE excluded.jt END", id, code, nick, lc(nick), now);
@@ -933,7 +943,7 @@ export class Sky extends DurableObject {
       const b = await body(), id = cleanId(b.id);
       let host = ""; try { host = new URL(b.sub && b.sub.endpoint).hostname; } catch (e) {}
       if (id.length < 8 || !host || !/^https:\/\//.test(b.sub.endpoint) || !PUSH_HOSTS.some(h => host === h || host.endsWith("." + h))) return json({error: "bad"}, 400);
-      if (!this.rate("sub:" + iph, 10, 86400e3)) return json({error: "rate"}, 429);
+      if (!this.rate("sub:" + iph, 300, 86400e3)) return json({error: "rate"}, 429);
       if (b.keep) { this.sql.exec("UPDATE subs SET sub=?, t=? WHERE id=?", JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), now, id); return json({ok: true}); }
       this.sql.exec("INSERT INTO subs(id, sub, lat, lon, k, moment, t) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, lat=excluded.lat, lon=excluded.lon, k=excluded.k, moment=excluded.moment, t=excluded.t",
         id, JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), round2(b.lat), round2(b.lon), krajOf(num(b.lat), num(b.lon)), b.moment ? 1 : 0, now);
@@ -950,7 +960,7 @@ export class Sky extends DurableObject {
       if (id.length < 8) return json({error: "bad"}, 400);
       if (!cs || b.off) { this.sql.exec("DELETE FROM tracks WHERE id=?" + (cs ? " AND cs=?" : ""), ...(cs ? [id, cs] : [id])); return json({ok: true}); }
       if ((this.row("SELECT COUNT(*) AS c FROM tracks WHERE id=? AND cs<>?", id, cs) || {c: 0}).c >= 5) return json({error: "limit"}, 429);
-      if (!/^[A-Z]{2,3}[0-9][0-9A-Z]{0,4}$|^[A-Z0-9]{3,8}$/.test(cs) || !this.rate("trk:" + iph, 20, 86400e3)) return json({error: "limit"}, 429);
+      if (!/^[A-Z]{2,3}[0-9][0-9A-Z]{0,4}$|^[A-Z0-9]{3,8}$/.test(cs) || !this.rate("trk:" + iph, 400, 86400e3)) return json({error: "limit"}, 429);
       this.sql.exec("INSERT INTO tracks(id, cs, label, lat, lon, notified, t) VALUES(?, ?, ?, ?, ?, 0, ?) ON CONFLICT(id, cs) DO UPDATE SET label=excluded.label, lat=excluded.lat, lon=excluded.lon, notified=0, t=excluded.t",
         id, cs, cleanName(b.label, 30) || "", round2(b.lat), round2(b.lon), now);
       return json({ok: true});
@@ -969,7 +979,7 @@ export class Sky extends DurableObject {
       return json({ok: true, n: (this.row("SELECT n FROM moments WHERE day=?", d) || {n: 0}).n});
     }
     if (p === "/api/sky") {
-      if (!this.rate("sky:" + iph, 120, 60e3)) { this.bump("429:sky"); return json({error: "rate"}, 429); }
+      if (!this.rate("sky:" + iph, 2000, 60e3)) { this.bump("429:sky"); return json({error: "rate"}, 429); }
       const okId = await this.authed(cleanId(qp("id")), qp("tok"));
       const id = okId ? cleanId(qp("id")) : "";
       const sla = num(qp("lat")), slo = num(qp("lon"));
@@ -1113,7 +1123,7 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       if (!env.SKY) return json({error: "no sky"}, 503);
       if (Number(req.headers.get("content-length") || 0) > 4096) return json({error: "big"}, 413);
-      if (!isoRate("api:" + (req.headers.get("cf-connecting-ip") || ""), 600)) return json({error: "rate"}, 429, {"Retry-After": "30"});
+      if (!isoRate("api:" + (req.headers.get("cf-connecting-ip") || ""), 3000)) return json({error: "rate"}, 429, {"Retry-After": "30"});
       const h = new Headers();
       for (const [k, v] of req.headers) if (!k.toLowerCase().startsWith("x-cc-")) h.set(k, v);
       h.set("x-cc-ip", req.headers.get("cf-connecting-ip") || "");

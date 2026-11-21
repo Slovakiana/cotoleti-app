@@ -70,7 +70,7 @@ function pax(a){
   if(a.mil)return 6;
   if(isHeli(a))return 3;
   if(a.cat==="A1")return 2;if(a.cat==="A2")return 5;
-  if(/^(GLF|GL|CL|FA|F9|C25|C56|C68|C700|PC12|PC24|LJ|E55|H25)/.test(a.type||""))return 6;
+  if(/^(GLF|GA[5-8]C|GL|CL|FA|F9|C25|C56|C68|C700|PC12|PC24|LJ|E55|H25)/.test(a.type||""))return 6;
   const s=SEATS[a.type];if(s)return Math.round(s*.85);
   if(a.cat==="A3"||a.cat==="A4"||a.cat==="A5"||airlineOf(a))return 150;
   return 4;

@@ -66,9 +66,21 @@ await t("zlatá posádka sa uzavrie po 40 minútach (bez žrebu)", async () => {
 });
 Date.now = realNow;
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
-await t("max 40 nových účtov z jednej siete za deň", async () => {
-  const codes = []; for (let i = 0; i < 42; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
+await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
+  const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
+  assert.deepEqual(codes.slice(0, 20).filter(c => c !== 200), [], codes.join(","));
   assert.deepEqual(codes.slice(-2), [429, 429], codes.join(","));
+  const old = Date.now; let off = 0; Date.now = () => old() + (off += 61e3);
+  const more = []; for (let i = 0; i < 40; i++) more.push((await call("/api/hello", {id: "v2wwwwwwwwwwwwwwwwwww" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
+  Date.now = old;
+  assert.deepEqual(more.filter(c => c !== 200), [], more.join(","));
+});
+await t("platný token bez záznamu účtu sa sám opraví (mávnutie prejde)", async () => {
+  const id = "v2healhealhealhealhealheal01";
+  const tok = (await call("/api/hello", {id}, "6.6.6.6")).j.tok;
+  db.prepare("DELETE FROM ids WHERE id=?").run(id);
+  const r = await call("/api/mywhy", {id, tok}, "6.6.6.6");
+  assert.equal(r.s, 200);
 });
 await t("starý používateľ s platným tokenom sa zaregistruje aj nad limitom", async () => {
   const id = "v2legacylegacylegacylegacy01";

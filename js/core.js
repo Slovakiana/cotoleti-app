@@ -62,7 +62,7 @@ const isHeli=a=>a.cat==="A7"||HELI.has(a.type);
 function typeTier(t){
   if(!t)return "c";
   if(LEG.has(t))return "l";if(EPIC.has(t))return "e";if(RARE.has(t))return "r";
-  if(WIDE.has(t)||HELI.has(t)||/^(B75|AT4|AT7|DH8|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12)/.test(t))return "u";
+  if(WIDE.has(t)||HELI.has(t)||/^(B75|AT4|AT7|DH8|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/.test(t))return "u";
   return "c";
 }
 // vzácnosť ÚLOVKU: typ + osobitosti kusu (vojenské, 🇸🇰 OM-, zaujímavé) o stupeň vyššie
