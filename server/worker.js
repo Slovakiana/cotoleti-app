@@ -140,6 +140,7 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS catches(id TEXT, hex TEXT, t INTEGER, PRIMARY KEY(id, hex));
       CREATE TABLE IF NOT EXISTS typeseq(type TEXT, id TEXT, seq INTEGER, w INTEGER, k TEXT, town TEXT, t INTEGER, PRIMARY KEY(type, id));
       CREATE TABLE IF NOT EXISTS edcatch(ev TEXT, id TEXT, no INTEGER, type TEXT, t INTEGER, PRIMARY KEY(ev, id));
+      CREATE TABLE IF NOT EXISTS wavewhy(id TEXT, t INTEGER, hex TEXT, type TEXT, el REAL, ok INTEGER, why TEXT);
       CREATE TABLE IF NOT EXISTS gifts(code TEXT PRIMARY KEY, id TEXT, type TEXT, t INTEGER, used TEXT);
       CREATE TABLE IF NOT EXISTS mayorm(m TEXT, town TEXT, id TEXT, n INTEGER, PRIMARY KEY(m, town, id));
       CREATE TABLE IF NOT EXISTS yagg(y TEXT, k TEXT, n INTEGER, PRIMARY KEY(y, k));
@@ -269,7 +270,7 @@ export class Sky extends DurableObject {
         const yr = new Date(now - 365 * 86400e3).toISOString().slice(0, 10);
         this.sql.exec("DELETE FROM nicks WHERE id IN (SELECT id FROM ids WHERE COALESCE(ls, '') < ? AND t < ?)", yr, now - 365 * 86400e3);
         this.sql.exec("DELETE FROM ids WHERE COALESCE(ls, '') < ? AND t < ? AND id NOT IN (SELECT id FROM subs) AND id NOT IN (SELECT id FROM tmembers)", yr, now - 365 * 86400e3);
-        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); this.sql.exec("DELETE FROM meta WHERE k LIKE 'la:%' AND k < ?", "la:" + d); }
+        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); this.sql.exec("DELETE FROM meta WHERE k LIKE 'la:%' AND k < ?", "la:" + d); this.sql.exec("DELETE FROM wavewhy WHERE t < ?", now - 7 * 86400e3); }
         if (this.getMeta("rlDay") !== d) { this.setMeta("rlDay", d); this.sql.exec("DELETE FROM rl"); this.sql.exec("DELETE FROM idday WHERE day < ?", d); }
         this.sql.exec("DELETE FROM funnel WHERE day < ?", new Date(now - 60 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM errs WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
@@ -300,7 +301,7 @@ export class Sky extends DurableObject {
       // okno 40 minút – lietadlo preletí celé Slovensko, šancu má aj východ
       if (first && first.c && now - first.t >= 40 * 60e3) { draw(); return; }
       let ac = null;
-      try { const j = await (await fetch("https://api.adsb.lol/v2/hex/" + g.hex, {headers: {"User-Agent": UA}})).json(); ac = (j.ac || [])[0] || null; } catch (e) { return; }
+      { const j = await this.adsb("hex/" + g.hex); if (!j) return; ac = (j.ac || j.aircraft || [])[0] || null; }
       const out = !ac || ac.alt_baro === "ground" || ac.lat < 46.8 || ac.lat > 50.6 || ac.lon < 15.2 || ac.lon > 23.8;
       this.setMeta("upstream", now);
       if (out || now - g.t > 3 * 3600e3) { if (first && first.c) draw(); else this.sql.exec("UPDATE golden SET state=2 WHERE day=? AND seq=?", d, g.seq); }
@@ -308,7 +309,7 @@ export class Sky extends DurableObject {
     }
     if (h < 6 || h > 19 || n >= 4 || (g && now - (g.wt || g.t) < 25 * 60e3)) return;
     let list = [];
-    try { const j = await (await fetch("https://api.adsb.lol/v2/point/48.7/19.5/160", {headers: {"User-Agent": UA}})).json(); list = (j.ac || []).filter(a => !(a.dbFlags & 13) && !/^7[567]00$/.test(a.squawk || "") && !(a.emergency && a.emergency !== "none") && a.flight && typeof a.alt_baro === "number" && a.alt_baro > 12000 && a.gs > 250 && a.lat > 47.8 && a.lat < 49.5 && a.lon > 17 && a.lon < 22.4); } catch (e) { return; }
+    try { const j = await this.adsb("point/48.7/19.5/160"); if (!j) return; list = (j.ac || j.aircraft || []).filter(a => !(a.dbFlags & 13) && !/^7[567]00$/.test(a.squawk || "") && !(a.emergency && a.emergency !== "none") && a.flight && typeof a.alt_baro === "number" && a.alt_baro > 12000 && a.gs > 250 && a.lat > 47.8 && a.lat < 49.5 && a.lon > 17 && a.lon < 22.4); } catch (e) { return; }
     this.legendAlert(list, d, now);
     if (!list.length) return;
     const a = list[Math.floor(Math.random() * list.length)];
@@ -329,6 +330,14 @@ export class Sky extends DurableObject {
       m = this.row("SELECT * FROM moments WHERE day=?", d);
     }
     return m;
+  }
+  // ADS-B dotaz so zálohou: adsb.lol → airplanes.live → adsb.fi (každý max 4 s)
+  async adsb(path) {
+    const fi = path.startsWith("point/") ? "lat/" + path.split("/")[1] + "/lon/" + path.split("/")[2] + "/dist/" + path.split("/")[3] : path;
+    for (const u of ["https://api.adsb.lol/v2/" + path, "https://api.airplanes.live/v2/" + path, "https://opendata.adsb.fi/api/v2/" + fi]) {
+      try { const r = await fetch(u, {headers: {"User-Agent": UA}, signal: AbortSignal.timeout(4000)}); if (!r.ok) continue; const j = await r.json(); this.setMeta("upstream", Date.now()); return j; } catch (e) {}
+    }
+    this.bump("upstream_fail"); return null;
   }
   isKid(id) { return !!(this.row("SELECT kid FROM ids WHERE id=?", id) || {}).kid; }
   // ♛ legendárny poplach: epické/legendárne lietadlo nad SR → upozorni ľudí do 80 km (1× za lietadlo a deň)
@@ -733,6 +742,8 @@ export class Sky extends DurableObject {
       // 👯 spoločné mávnutie: kamarát zamával tomu istému lietadlu za posledných 10 minút
       let together = null;
       if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
+      // 🔎 diagnostika overenia (pre /admin, 7 dní)
+      if (!seen) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty, sel, cok ? 1 : 0, cok ? "" : why);
       return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
     if (p === "/api/kid" && req.method === "POST") {
@@ -774,7 +785,10 @@ export class Sky extends DurableObject {
       if (b.confirm) this.sql.exec("UPDATE banned SET ok=1 WHERE name=?", lc(b.confirm));
       const sig = this.sql.exec("SELECT day, k, n FROM sig WHERE day >= ? ORDER BY day DESC, n DESC", this.day(now - 3 * 86400e3)).toArray();
       const fronta = this.sql.exec("SELECT name, why, t FROM banned WHERE COALESCE(ok, 0)=0 ORDER BY t DESC LIMIT 30").toArray();
-      return json({flags: this.flags(), naKontrolu: fronta, signaly: sig});
+      let overenie = null;
+      if (b.nick) { const ids = this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 3", lc(String(b.nick))).toArray().map(r => r.id);
+        overenie = ids.map(i => ({karticky: (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE id=?", i) || {c: 0}).c, mavnutia: this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 15", i).toArray()})); }
+      return json({flags: this.flags(), naKontrolu: fronta, signaly: sig, overenie});
     }
     if (p === "/api/report" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), name = lc(b.name).slice(0, 24);
@@ -809,7 +823,7 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/forget" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
-      for (const t of ["typeseq", "edcatch", "gifts", "catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+      for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
       this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
       this.sql.exec("DELETE FROM mails WHERE id=?", id);
       this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
@@ -1027,13 +1041,14 @@ function adminPage() {
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
 <button id="s">📊 Štatistiky</button><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
-<button id="f">💾 Uložiť vypínače</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><pre id="o">Zadaj kľúč.</pre>
+<button id="f">💾 Uložiť vypínače</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><pre id="o">Zadaj kľúč.</pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 $("s").onclick=async()=>{o.textContent="…";const r=await fetch("/api/stats",{headers:H()});o.textContent=JSON.stringify(await r.json(),null,1)};
 $("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};
 const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify(x)});return r.json()};
 const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
-$("q").onclick=()=>Q();</script></body></html>`;
+$("q").onclick=()=>Q();
+$("ov").onclick=async()=>{o.textContent="…";const j=await A({nick:$("nk").value});o.textContent=(j.overenie||[]).map(x=>"Overených typov: "+x.karticky+"\n"+x.mavnutia.map(m=>new Date(m.t).toLocaleString("sk-SK")+" · "+(m.type||"?")+" · "+(m.el==null?"?":Math.round(m.el)+"°")+" · "+(m.ok?"✓ overené":"✗ "+m.why)).join("\n")).join("\n\n")||"Hráč sa nenašiel."};</script></body></html>`;
   return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"}});
 }
