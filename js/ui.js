@@ -235,12 +235,12 @@ $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pi
 function renderCol(){
   const l=lvlOf(COL.pts),a=lvlPts(l),b=lvlPts(l+1);
   $("c-lvl").textContent="Level "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
-  $("c-bar").style.width=Math.min(100,(COL.pts-a)/(b-a)*100)+"%";
+  $("c-bar").style.width=Math.max(0,Math.min(100,(COL.pts-a)/(b-a)*100))+"%";
   $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
   {const z=seasonUpd();$("c-season").innerHTML=`<b>${z.e} ${z.name}</b> · ${z.pts} b v sezóne · končí ${z.end}${z.best?` · rekord ${z.best} b`:""}`}
   {const sd=seenSum();$("c-seen").innerHTML=sd?sd:"";$("c-seen").hidden=!sd}
   const types=Object.entries(COL.types);
-  $("c-n").textContent=COL.n;$("c-t").textContent=types.length;$("c-r").textContent=types.filter(([,v])=>v.r==="r"||v.r==="l").reduce((s,[,v])=>s+v.n,0);
+  $("c-n").textContent=COL.n;$("c-t").textContent=types.length;$("c-r").textContent=types.filter(([,v])=>RORD[v.r]>=2).reduce((s,[,v])=>s+v.n,0);
   $("c-ach").innerHTML=ACH.map(x=>`<div class="${COL.ach[x.id]?"got":""}"><i>${x.i}</i>${x.n}</div>`).join("");
   $("c-achN").textContent=Object.keys(COL.ach).length+"/"+ACH.length;
   const order={l:0,r:1,u:2,c:3};
@@ -497,7 +497,7 @@ function guessUI(a,rt){
 function guessDone(hex){GUESSED[hex]=Date.now();const ks=Object.keys(GUESSED);if(ks.length>300)ks.slice(0,ks.length-300).forEach(k=>delete GUESSED[k]);LS.set("ctl_guessed",GUESSED);$("guess").classList.remove("on");if(S.top)renderHeroStatic(S.top)}
 $("gOpts").onclick=e=>{
   const b=e.target.closest("button");if(!b)return;const box=$("guess"),ok=b.dataset.c===box.dataset.right;
-  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);const gd=LS.get("ctl_gday",{d:"",n:0});if(gd.d!==dayKey()){gd.d=dayKey();gd.n=0}const gp=gd.n<10?3+(st>=3?2:0):0;gd.n++;LS.set("ctl_gday",gd);COL.pts+=gp;LS.set("ctl_col",COL);toast(gp?"🎯 Trafené! +"+gp+" bodov":"🎯 Trafené!",st>1?"Séria "+st+" za sebou 🔥":"Cieľ: "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
+  if(ok){const st=(LS.get("ctl_gstreak",0)|0)+1;LS.set("ctl_gstreak",st);const gd=LS.get("ctl_gday",{d:"",n:0});if(gd.d!==dayKey()){gd.d=dayKey();gd.n=0}const gp=gd.n<5?2+(st>=3?1:0):0;gd.n++;LS.set("ctl_gday",gd);COL.pts+=gp;LS.set("ctl_col",COL);toast(gp?"🎯 Trafené! +"+gp+" bodov":"🎯 Trafené!",st>1?"Séria "+st+" za sebou 🔥":"Cieľ: "+box.dataset.right,"#6dffc7");haptic([20,40,20]);confetti(st>=3?60:25);ping("u");if(st>=5)grantAch("oracle")}
   else{LS.set("ctl_gstreak",0);toast("😅 Vedľa!","Cieľ: "+box.dataset.right);haptic(60)}
   guessDone(box.dataset.hex);
 };

@@ -528,6 +528,28 @@ body[data-sky=d] .etaBox,body[data-sky=g] .etaBox{background:rgba(4,20,14,.45);b
 #b-cduel{background:rgba(255,255,255,.1)!important;color:#fff!important;border:1px solid var(--gline)!important}
 .onbInvite{margin:0 0 10px;padding:10px 12px;border-radius:14px;background:rgba(255,79,216,.18);border:1px solid rgba(255,79,216,.45);font-weight:700;font-size:calc(14px*var(--fs,1))}
 body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
+.shelf{display:flex;justify-content:center;gap:10px;margin:14px 0 4px;padding:14px 8px 10px;border-radius:18px;background:linear-gradient(#ffffff14,#ffffff05);border-top:1px solid #ffffff30;perspective:600px}
+.shelf button{flex:0 0 28%;border:0;background:none;padding:0;cursor:pointer}.shelf button:nth-child(1){transform:rotateY(12deg)}.shelf button:nth-child(3){transform:rotateY(-12deg)}.shelf button:nth-child(2){transform:scale(1.08)}
+.shelf .emp{aspect-ratio:200/280;border:2px dashed #ffffff30;border-radius:14px;display:grid;place-items:center;color:#ffffff66;font-size:12px}
+.mileBtn{display:block;width:100%;margin:8px 0;padding:10px;border-radius:14px;border:1px solid var(--gline);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:calc(14px*var(--fs,1));cursor:pointer}
+.shopRow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #ffffff14}.shopRow div{flex:1}.shopRow small{display:block;color:var(--mut)}
+.cardInfo{margin-top:10px}.cardInfo .lookSub{margin:6px 0}.formRow{display:flex;gap:6px;justify-content:center;margin:8px 0}.formRow span{flex:1;text-align:center;padding:6px 2px;border-radius:12px;background:#ffffff0d;opacity:.45;font-size:20px}.formRow span.on{opacity:1;background:#ffffff1f}.formRow small{display:block;font-size:10px;color:var(--mut)}
+.cardBtns{display:flex;gap:8px;margin-top:8px}.cardBtns .btn{flex:1;font-size:calc(14px*var(--fs,1))}
+.cardBack{aspect-ratio:600/840;max-width:min(80vw,380px);margin:0 auto;border-radius:24px;background:linear-gradient(135deg,#26336e,#121a45);display:grid;place-items:center;align-content:center;gap:10px;cursor:pointer;border:4px solid;animation:backPulse .9s ease-in-out infinite}
+.cardBack b{font-size:80px}.cardBack span{font:800 18px var(--disp);letter-spacing:.1em;opacity:.7}
+.cardBack.c{border-color:#e3e9f5}.cardBack.u{border-color:#5ee08a;box-shadow:0 0 40px #5ee08a88}.cardBack.r{border-color:#4fa3ff;box-shadow:0 0 50px #4fa3ffaa}.cardBack.e{border-color:#b56bff;box-shadow:0 0 70px #b56bffcc;animation:backShake .12s linear infinite}.cardBack.l{border-color:#ffcf4f;box-shadow:0 0 110px #ffcf4f;animation:backShake .1s linear infinite}
+@keyframes backPulse{50%{transform:scale(1.03)}}@keyframes backShake{0%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}100%{transform:rotate(-2deg)}}
+.albums{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.albums button{flex:0 0 auto;padding:8px 12px;border-radius:14px;border:1px solid var(--gline);background:#ffffff0d;color:inherit;font:inherit;font-size:13px}.albums button.on{background:#ffffff26}.albums small{display:block;font-size:11px;color:var(--mut)}
+.setSlots span{font-size:calc(12px*var(--fs,1));padding:7px 10px;border-radius:12px;border:1px solid var(--gline);background:rgba(255,255,255,.06)}.setSlots span.got{background:rgba(109,255,199,.12)}
+.mini.lock{opacity:.85}.mini.e svg,.mini.l svg{filter:drop-shadow(0 0 6px rgba(255,207,79,.35))}
+.holoWrap.e::before{content:"";position:absolute;z-index:1;background:conic-gradient(from var(--ang,0deg) at 50% 50%,#ff4fd8,#4fc3ff,#6dffc7,#ffcf4f,#ff4fd8);mix-blend-mode:color-dodge;pointer-events:none}
+.holoWrap.r::before,.holoWrap.e::before,.holoWrap.l::before{inset:12.4% 6% 48.3% 6%;border-radius:3%;opacity:.28}
+.holoWrap.l::after{animation:goldSweep 4s linear infinite}@keyframes goldSweep{0%{background-position:-40% 0}100%{background-position:140% 0}}
+.holoWrap.shiny::before{inset:0;opacity:.35}
+@media (prefers-reduced-motion:reduce){.holoWrap.l::after,.cardBack{animation:none!important}}
+.shopRow .btn{flex:0 0 auto;min-width:86px;padding:8px 12px}
+.lgTabs button,.atTabs button{font-size:calc(13px*var(--fs,1))!important;padding:7px 11px!important;min-height:36px!important}
+.atTabs{display:flex;flex-wrap:wrap;gap:6px}.atTabs button{flex:1 1 auto}
 </style>
 </head>
 <body>
@@ -656,7 +678,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
-    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="p">Na hráča</button><button data-t="m">Mestá</button><button data-t="s">Menšie mestá</button><button data-t="f">👯 Kamaráti</button><button data-t="t">Tímy</button></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="p">Na hráča</button><button data-t="m">Mestá</button><button data-t="s">Menšie mestá</button><button data-t="f">👯 Kamaráti</button><button data-t="a">🃏 Atlasy</button><button data-t="t">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
     <div id="mayor" class="mayor" hidden></div>
   </section>
@@ -721,6 +743,8 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
       <div><b id="c-t">0</b><span>typov</span></div>
       <div><b id="c-r">0</b><span>vzácnych</span></div>
     </div>
+    <div class="shelf" id="showcase" hidden></div>
+    <button class="mileBtn" id="b-miles">✈ <b id="c-miles">0</b> míľ · obchod</button>
     <button class="wrapBtn" id="b-wrapped">✨ Môj týždeň na oblohe</button>
     <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
   </section>
@@ -758,6 +782,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
     <div class="sr"><div>🧒 Mám menej ako 16 rokov<small>Bez prezývky, pošty, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
     <div class="setH">Pri prelete</div>
     <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
+    <div class="sr"><div>🔥 Pripomienka série<small>Jemné upozornenie večer, keď máš sériu 3+ dni</small></div><button class="tog" id="t-streakp" role="switch" aria-label="Pripomienka série"></button></div>
     <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess" role="switch" aria-label="Tipovačka"></button></div>
     <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice" role="switch" aria-label="Hlasové ohlásenie"></button></div>
     <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib" role="switch" aria-label="Vibrovanie"></button></div>
@@ -824,6 +849,12 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardVideo" aria-label="Video s odhalením kartičky" style="flex:0 0 60px" hidden>🎬</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
 </div></div>
 
+<div class="modal" id="shopM" role="dialog" aria-modal="true" aria-labelledby="shopT"><div class="mcard">
+  <div class="lbl"><span id="shopT">✈ Obchod s míľami</span><span id="shopMi"></span></div>
+  <div class="lookSub" style="margin-bottom:10px">Míle získavaš za všetko, čo robíš pod oblohou. Nič sa tu nekupuje za peniaze a nič nepridá kartičku – tú ti dá len zamávanie.</div>
+  <div id="shopList"></div>
+  <div class="acts" style="margin-top:12px"><button class="btn sec" id="shopClose">Zavrieť</button></div>
+</div></div>
 <div class="modal" id="yearM" role="dialog" aria-modal="true" aria-labelledby="yearT"><div class="mcard">
   <div class="lbl"><span id="yearT">🇸🇰 Súhrn roka</span><button class="btn ico" id="yearClose" aria-label="Zavrieť">✕</button></div>
   <div id="yearBody"><div class="lookSub">Načítavam…</div></div>
@@ -912,25 +943,25 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=27"></script>
-<script src="js/ui.js?v=27"></script>
-<script src="js/ar.js?v=27"></script>
-<script src="js/space.js?v=27"></script>
-<script src="js/weather.js?v=27"></script>
-<script src="js/extras.js?v=27"></script>
-<script src="js/social.js?v=27"></script>
-<script src="js/wrapped.js?v=27"></script>
-<script src="js/push.js?v=27"></script>
-<script src="js/track.js?v=27"></script>
-<script src="js/towns.js?v=27"></script>
-<script src="js/catalog.js?v=27"></script>
-<script src="js/cards.js?v=27"></script>
-<script src="js/mail.js?v=27"></script>
-<script src="js/golden.js?v=27"></script>
-<script src="js/teams.js?v=27"></script>
-<script src="js/duel.js?v=27"></script>
-<script src="js/sound.js?v=27"></script>
-<script src="js/santa.js?v=27"></script>
-<script src="js/main.js?v=27"></script>
+<script src="js/core.js?v=28"></script>
+<script src="js/ui.js?v=28"></script>
+<script src="js/ar.js?v=28"></script>
+<script src="js/space.js?v=28"></script>
+<script src="js/weather.js?v=28"></script>
+<script src="js/extras.js?v=28"></script>
+<script src="js/social.js?v=28"></script>
+<script src="js/wrapped.js?v=28"></script>
+<script src="js/push.js?v=28"></script>
+<script src="js/track.js?v=28"></script>
+<script src="js/towns.js?v=28"></script>
+<script src="js/catalog.js?v=28"></script>
+<script src="js/cards.js?v=28"></script>
+<script src="js/mail.js?v=28"></script>
+<script src="js/golden.js?v=28"></script>
+<script src="js/teams.js?v=28"></script>
+<script src="js/duel.js?v=28"></script>
+<script src="js/sound.js?v=28"></script>
+<script src="js/santa.js?v=28"></script>
+<script src="js/main.js?v=28"></script>
 </body>
 </html>

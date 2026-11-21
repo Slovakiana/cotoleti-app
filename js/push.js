@@ -79,3 +79,7 @@ if($("sp-remind"))$("sp-remind").onclick=async()=>{
 };
 // odkaz z upozornenia „./#vesmir“ otvorí záložku Vesmír
 if(/vesmir/.test(location.hash))setTimeout(()=>{try{setView("space");history.replaceState(null,"",location.pathname)}catch(e){}},600);
+
+// 🔥 pripomienka série sa dá vypnúť samostatne
+{const t=$("t-streakp");if(t){const on=()=>LS.get("ctl_streakp",true);const sync=()=>{t.classList.toggle("on",on());t.setAttribute("aria-checked",on())};sync();
+  t.onclick=()=>{LS.set("ctl_streakp",!on());sync();haptic(10);if(SOC.api)apiPost("/api/subopt",{streak:on()}).catch(()=>{})}}}

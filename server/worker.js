@@ -18,6 +18,30 @@ const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"
 const BIG_TOWNS = ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystrica", "Nitra", "Trnava", "Trenčín", "Martin", "Poprad"];
 const DC_ASN = new Set([16509, 14618, 15169, 396982, 8075, 14061, 16276, 24940, 9009, 60068, 63949, 20473, 51167, 31898, 45102, 12876, 60781, 212238, 136787]);
 const UA = "cotoleti-app/1.0 (+https://github.com/Slovakiana/cotoleti-app)";
+/* 🃏 vzácnosť typov (zhodná s js/core.js) – server z nej počíta zbierkové skóre a šancu na shiny */
+const T_L = new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
+const T_E = new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","L159"]);
+const T_R = new Set(["A388","B744","B748","B742","A343","B779","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","H60","MI8"]);
+const T_U = /^(A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12)/;
+const TYPES_SRV = {A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
+const tierOf = t => !t ? "c" : T_L.has(t) ? "l" : T_E.has(t) ? "e" : T_R.has(t) ? "r" : T_U.test(t) ? "u" : "c";
+const TIER_W = {c: 3, u: 8, r: 25, e: 45, l: 80};
+const SHINY_P = {c: 15, u: 30, r: 60, e: 80, l: 100}; // z 1000
+/* 📅 edície „Bol som pri tom“ – časové okná (UTC), číslované serverom */
+const EVENTS = [
+  {id: "silvester2026", n: "Posledné lietadlo 2026", from: "2026-12-31T19:00:00Z", to: "2026-12-31T23:00:00Z"},
+  {id: "novyrok2027", n: "Prvé lietadlo 2027", from: "2026-12-31T23:00:00Z", to: "2027-01-01T23:00:00Z"},
+  {id: "valentin2027", n: "Valentínske lietadlo 2027", from: "2027-02-13T23:00:00Z", to: "2027-02-14T23:00:00Z"},
+  {id: "rovnodennost2027", n: "Jarná rovnodennosť 2027", from: "2027-03-19T23:00:00Z", to: "2027-03-20T23:00:00Z"},
+  {id: "stefanik2027", n: "Deň Štefánika 2027", from: "2027-05-03T22:00:00Z", to: "2027-05-04T22:00:00Z"},
+  {id: "detom2027", n: "Deň detí 2027", from: "2027-05-31T22:00:00Z", to: "2027-06-01T22:00:00Z"},
+  {id: "slnovrat2027", n: "Letný slnovrat 2027", from: "2027-06-20T22:00:00Z", to: "2027-06-21T22:00:00Z"},
+  {id: "zatmenie2027", n: "Zatmenie Slnka 2027", from: "2027-08-02T08:10:00Z", to: "2027-08-02T10:30:00Z"},
+  {id: "perzeidy2027", n: "Noc Perzeíd 2027", from: "2027-08-12T20:00:00Z", to: "2027-08-13T02:00:00Z"},
+  {id: "snp2027", n: "Výročie SNP 2027", from: "2027-08-28T22:00:00Z", to: "2027-08-29T22:00:00Z"},
+  {id: "halloween2027", n: "Strašidelné lietadlo 2027", from: "2027-10-31T16:00:00Z", to: "2027-10-31T23:00:00Z"},
+];
+function elevDeg(km, altFt) { if (altFt == null || km == null) return null; const h = altFt * 0.3048, d = Math.max(km * 1000, 1); return Math.atan2(h - d * d / (2 * 6371e3), d) * 180 / Math.PI; }
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
 const cleanHex = h => String(h || "").toLowerCase().replace(/[^0-9a-f~]/g, "").slice(0, 8);
 const cleanCs = c => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
@@ -114,6 +138,9 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
       CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
       CREATE TABLE IF NOT EXISTS catches(id TEXT, hex TEXT, t INTEGER, PRIMARY KEY(id, hex));
+      CREATE TABLE IF NOT EXISTS typeseq(type TEXT, id TEXT, seq INTEGER, w INTEGER, k TEXT, town TEXT, t INTEGER, PRIMARY KEY(type, id));
+      CREATE TABLE IF NOT EXISTS edcatch(ev TEXT, id TEXT, no INTEGER, type TEXT, t INTEGER, PRIMARY KEY(ev, id));
+      CREATE TABLE IF NOT EXISTS gifts(code TEXT PRIMARY KEY, id TEXT, type TEXT, t INTEGER, used TEXT);
       CREATE TABLE IF NOT EXISTS mayorm(m TEXT, town TEXT, id TEXT, n INTEGER, PRIMARY KEY(m, town, id));
       CREATE TABLE IF NOT EXISTS yagg(y TEXT, k TEXT, n INTEGER, PRIMARY KEY(y, k));
       CREATE TABLE IF NOT EXISTS yplane(y TEXT, hex TEXT, call TEXT, type TEXT, dest TEXT, n INTEGER, PRIMARY KEY(y, hex));
@@ -160,6 +187,11 @@ export class Sky extends DurableObject {
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE wavelog ADD COLUMN pid TEXT"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS wavelog_pid ON wavelog(pid, day)"); } catch (e) {}
+    for (const c of ["type TEXT", "reg TEXT", "el REAL", "ok INTEGER", "shiny INTEGER"]) try { this.sql.exec("ALTER TABLE catches ADD COLUMN " + c); } catch (e) {}
+    try { this.sql.exec("ALTER TABLE golden ADD COLUMN crew INTEGER"); } catch (e) {}
+    try { this.sql.exec("ALTER TABLE subs ADD COLUMN streak INTEGER DEFAULT 1"); } catch (e) {}
+    try { this.sql.exec("CREATE INDEX IF NOT EXISTS typeseq_id ON typeseq(id)"); } catch (e) {}
+    try { this.sql.exec("CREATE INDEX IF NOT EXISTS typeseq_k ON typeseq(k, id)"); } catch (e) {}
   }
   day(t = Date.now()) { return SKDAY.format(new Date(t)); }
   // meno prejde filtrom aj zoznamom nahlásených mien
@@ -204,7 +236,7 @@ export class Sky extends DurableObject {
       // kraje na hráča: priemer mávnutí na aktívneho spottera (aspoň 3 hráči)
       const krajePP = this.sql.exec("SELECT k, SUM(n) AS s, COUNT(*) AS c FROM idday WHERE day=? AND n > 0 AND k <> 'XX' GROUP BY k HAVING c >= 3", d).toArray().map(r => ({k: r.k, n: Math.round(r.s / r.c * 10) / 10, p: r.c})).sort((a, b) => b.n - a.n);
       const g = this.goldenNow(d);
-      const golden = g ? {seq: g.seq, hex: g.hex, call: g.call, type: g.type, t: g.t, state: g.state, winner: g.state === 1 ? {k: g.wk} : null} : null;
+      const golden = g ? {seq: g.seq, hex: g.hex, call: g.call, type: g.type, t: g.t, state: g.state, crew: g.crew || 0} : null;
       const wk = this.week();
       const teamsTop = this.sql.exec("SELECT t.code, t.name, w.n FROM tweek w JOIN teams t ON t.code = w.code WHERE w.wk=? ORDER BY w.n DESC LIMIT 10", wk).toArray();
       // najzamávanejšie lietadlo týždňa
@@ -237,7 +269,7 @@ export class Sky extends DurableObject {
         const yr = new Date(now - 365 * 86400e3).toISOString().slice(0, 10);
         this.sql.exec("DELETE FROM nicks WHERE id IN (SELECT id FROM ids WHERE COALESCE(ls, '') < ? AND t < ?)", yr, now - 365 * 86400e3);
         this.sql.exec("DELETE FROM ids WHERE COALESCE(ls, '') < ? AND t < ? AND id NOT IN (SELECT id FROM subs) AND id NOT IN (SELECT id FROM tmembers)", yr, now - 365 * 86400e3);
-        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); }
+        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); this.sql.exec("DELETE FROM meta WHERE k LIKE 'la:%' AND k < ?", "la:" + d); }
         if (this.getMeta("rlDay") !== d) { this.setMeta("rlDay", d); this.sql.exec("DELETE FROM rl"); this.sql.exec("DELETE FROM idday WHERE day < ?", d); }
         this.sql.exec("DELETE FROM funnel WHERE day < ?", new Date(now - 60 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM errs WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
@@ -261,10 +293,12 @@ export class Sky extends DurableObject {
     if (g && g.state === 0) {
       // žreb: 10 minút po prvom prihlásenom mávnutí (alebo keď lietadlo zmizne)
       const first = this.row("SELECT MIN(t) AS t, COUNT(*) AS c FROM gcand WHERE day=? AND seq=?", d, g.seq);
-      const draw = c => { const all = this.sql.exec("SELECT * FROM gcand WHERE day=? AND seq=?", d, g.seq).toArray(), w = all[Math.floor(Math.random() * all.length)];
-        this.sql.exec("UPDATE golden SET state=1, wid=?, wnick=?, wk=?, wtown=?, wt=? WHERE day=? AND seq=?", w.id, w.nick, w.k, w.town, now, d, g.seq);
-        this.notify(w.id, "🏆 Zlaté lietadlo je tvoje!", `${all.length === 1 ? "Jediné mávnutie bolo tvoje" : "Z " + all.length + " ľudí, čo mu mávali, padol žreb na teba"}. Poď si po body.`, "./"); this.bump("gold_win"); };
-      if (first && first.c && now - first.t >= 10 * 60e3) { draw(); return; }
+      // 🏆 Zlatá posádka: žiadny žreb – odmenu dostane každý, kto zamával; spoločný bonus pri 20+ ľuďoch
+      const draw = c => { const all = this.sql.exec("SELECT id FROM gcand WHERE day=? AND seq=?", d, g.seq).toArray();
+        this.sql.exec("UPDATE golden SET state=1, crew=?, wt=? WHERE day=? AND seq=?", all.length, now, d, g.seq);
+        for (const w of all.slice(0, 2000)) this.notify(w.id, "🏆 Zlatá posádka: " + all.length + " " + (all.length === 1 ? "človek" : all.length < 5 ? "ľudia" : "ľudí"), all.length >= 20 ? "Spolu ste to dali – každý dostáva +25 bodov navyše!" : "Zlaté lietadlo odletelo. Tvoja zlatá kartička ostáva ✨", "./"); this.bump("gold_crew"); };
+      // okno 40 minút – lietadlo preletí celé Slovensko, šancu má aj východ
+      if (first && first.c && now - first.t >= 40 * 60e3) { draw(); return; }
       let ac = null;
       try { const j = await (await fetch("https://api.adsb.lol/v2/hex/" + g.hex, {headers: {"User-Agent": UA}})).json(); ac = (j.ac || [])[0] || null; } catch (e) { return; }
       const out = !ac || ac.alt_baro === "ground" || ac.lat < 46.8 || ac.lat > 50.6 || ac.lon < 15.2 || ac.lon > 23.8;
@@ -275,6 +309,7 @@ export class Sky extends DurableObject {
     if (h < 6 || h > 19 || n >= 4 || (g && now - (g.wt || g.t) < 25 * 60e3)) return;
     let list = [];
     try { const j = await (await fetch("https://api.adsb.lol/v2/point/48.7/19.5/160", {headers: {"User-Agent": UA}})).json(); list = (j.ac || []).filter(a => !(a.dbFlags & 13) && !/^7[567]00$/.test(a.squawk || "") && !(a.emergency && a.emergency !== "none") && a.flight && typeof a.alt_baro === "number" && a.alt_baro > 12000 && a.gs > 250 && a.lat > 47.8 && a.lat < 49.5 && a.lon > 17 && a.lon < 22.4); } catch (e) { return; }
+    this.legendAlert(list, d, now);
     if (!list.length) return;
     const a = list[Math.floor(Math.random() * list.length)];
     this.sql.exec("INSERT INTO golden(day, seq, hex, call, type, t) VALUES(?, ?, ?, ?, ?, ?)", d, n + 1, cleanHex(a.hex), String(a.flight).trim().slice(0, 8), String(a.t || "").slice(0, 6), now);
@@ -295,6 +330,23 @@ export class Sky extends DurableObject {
     }
     return m;
   }
+  isKid(id) { return !!(this.row("SELECT kid FROM ids WHERE id=?", id) || {}).kid; }
+  // ♛ legendárny poplach: epické/legendárne lietadlo nad SR → upozorni ľudí do 80 km (1× za lietadlo a deň)
+  legendAlert(list, d, now) {
+    for (const a of list) {
+      const ty = String(a.t || ""), tr = tierOf(ty);
+      if ((tr !== "l" && tr !== "e") || a.lat == null || (a.dbFlags & 12)) continue;
+      const hx = cleanHex(a.hex), key = "la:" + d + ":" + hx;
+      if (this.getMeta(key)) continue; this.setMeta(key, String(now));
+      const nm = TYPES_SRV[ty] || ty;
+      for (const s of this.sql.exec("SELECT id, lat, lon FROM subs WHERE lat IS NOT NULL LIMIT 20000").toArray()) {
+        const km = distKm(s.lat, s.lon, a.lat, a.lon);
+        if (km < 80) this.notify(s.id, (tr === "l" ? "♛ Legendárne" : "⬟ Epické") + " lietadlo pri tebe!", `${nm} je asi ${Math.round(km)} km od teba. Pozri hore a zamávaj!`, "./");
+      }
+    }
+  }
+  // ✨ shiny = vlastnosť lietadla v daný deň (rovnaká pre všetkých, nedá sa prelosovať)
+  async shinyOf(hex, d, tier) { const s = await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("sh:" + hex + ":" + d)); return new Uint16Array(s.slice(0, 2))[0] % 1000 < (SHINY_P[tier] || 15); }
   async secret() {
     if (this._sec) return this._sec;
     let raw = await this.ctx.storage.get("hmac");
@@ -342,7 +394,7 @@ export class Sky extends DurableObject {
         const a = (j.ac || j.aircraft || [])[0];
         if (!a || a.lat == null) continue;
         if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-        return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12)};
+        return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
       } catch (e) {}
     }
     // nenašli sme ho nikde: mávnutie prijmeme, ale do ligy sa neráta (vp.found = false)
@@ -420,8 +472,9 @@ export class Sky extends DurableObject {
     if (skH === 19 && this.getMeta("streakPush") !== d) {
       this.setMeta("streakPush", d);
       const y = this.day(now - 86400e3);
-      for (const s of this.sql.exec("SELECT s.id FROM subs s WHERE EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) AND NOT EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) LIMIT 5000", y, d).toArray())
-        this.notify(s.id, "🔥 Tvoja séria je v ohrození", "Dnes si ešte nikomu nezamával. Pozri hore – stačí jedno lietadlo.", "./");
+      const y2 = this.day(now - 2 * 86400e3), y3 = this.day(now - 3 * 86400e3);
+      for (const s of this.sql.exec("SELECT s.id FROM subs s WHERE COALESCE(s.streak, 1) = 1 AND (SELECT COUNT(DISTINCT w.day) FROM wavelog w WHERE w.id = s.id AND w.day IN (?, ?, ?)) = 3 AND NOT EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) LIMIT 5000", y, y2, y3, d).toArray())
+        this.notify(s.id, "🔥 Lietadlá dnes ešte letia", "Ak máš chuť, pozri hore – jedno zamávanie a séria pokračuje.", "./");
     }
     // 🛰️ pripomienky preletov (vypočítané v appke)
     for (const r of this.sql.exec("SELECT id, at, title, body FROM reminders WHERE at <= ? LIMIT 2000", now).toArray()) {
@@ -565,6 +618,32 @@ export class Sky extends DurableObject {
       }
       return json(this._year.v);
     }
+    if (p === "/api/cardstat") {
+      // 🇸🇰 koľko ľudí má kartičku a kto ju objavil prvý (len overené úlovky)
+      const ty = String(qp("type") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 6).toUpperCase();
+      if (!ty) return json({error: "bad"}, 400);
+      const c = this.cstat || (this.cstat = new Map()), hit = c.get(ty);
+      if (hit && now - hit.t < 600e3) return json(hit.v);
+      const own = (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE type=?", ty) || {c: 0}).c;
+      const pl = this._players && now - this._players.t < 3600e3 ? this._players.n : (this._players = {t: now, n: (this.row("SELECT COUNT(DISTINCT id) AS c FROM typeseq") || {c: 0}).c}).n;
+      const f = this.row("SELECT s.id, s.k, s.town, s.t, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id WHERE s.type=? AND s.seq=1", ty);
+      const v = {own, players: pl, first: f ? {nick: f.kid || !f.nick ? "Spotter" : f.nick, town: f.town || "", t: f.t} : null};
+      if (c.size > 500) c.clear(); c.set(ty, {t: now, v});
+      return json(v);
+    }
+    if (p === "/api/atlasy") {
+      // 🃏 rebríček zberateľov: súčet vzácnosti rôznych typov (overené serverom)
+      const bb = req.method === "POST" ? await body() : {};
+      const kk = /^[A-Z]{2}$/.test(bb.k || qp("k") || "") ? (bb.k || qp("k")) : "";
+      const key = "atl:" + kk;
+      if (!this.atlC || now - (this.atlC[key] || {}).t > 600e3) {
+        this.atlC = this.atlC || {};
+        const rows = this.sql.exec(`SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id ${kk ? "WHERE s.k = ?" : ""} GROUP BY s.id ORDER BY sc DESC LIMIT 20`, ...(kk ? [kk] : [])).toArray();
+        this.atlC[key] = {t: now, v: rows.map(r => ({id: r.id, sc: r.sc, n: r.n, nick: r.kid || !r.nick ? "Spotter" : r.nick}))};
+      }
+      const me = cleanId(bb.id || ""), mine = me.length >= 8 ? this.row("SELECT SUM(w) + 100 * SUM(seq = 1) AS sc, COUNT(*) AS n FROM typeseq WHERE id=?", me) : null;
+      return json({top: this.atlC[key].v.map(r => ({sc: r.sc, n: r.n, nick: r.nick, me: r.id === me})), me: mine && mine.n ? {sc: mine.sc, n: mine.n} : null});
+    }
     if (p === "/api/vapid") return json({key: (await this.keys()).pub});
     if (p === "/api/wave" && req.method === "POST") {
       const b = await body();
@@ -595,7 +674,31 @@ export class Sky extends DurableObject {
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
       let golden = false;
       // ✈️ úlovok overený serverom (lietadlo sme našli v sieti a je blízko)
-      if (!seen && vp.found && vp.km <= 130) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t) VALUES(?, ?, ?)", id, hex, now);
+      // výška nad obzorom počíta server – úlovok do súťaží len ≥ 8° (2° rezerva na oneskorenie dát)
+      const sel = vp.found ? elevDeg(vp.km, vp.alt) : null, ty = vp.type || "";
+      const cok = !seen && vp.found && (sel == null ? vp.km <= 60 : sel >= 8) && fair && near && b.gps === true;
+      const tier = tierOf(ty), shiny = vp.found && (sel == null || sel >= 8) ? (await this.shinyOf(hex, d, tier)) : false;
+      let seq = 0, firstK = false, firstT = false, ed = null;
+      if (!seen && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
+      if (cok && ty) {
+        const had = this.row("SELECT seq FROM typeseq WHERE type=? AND id=?", ty, id);
+        if (had) seq = had.seq;
+        else {
+          const kk = dd ? dd.k : "XX", tw = dd ? dd.town : "";
+          firstK = !this.row("SELECT 1 AS x FROM typeseq WHERE type=? AND k=? LIMIT 1", ty, kk);
+          firstT = !!tw && !this.row("SELECT 1 AS x FROM typeseq WHERE type=? AND town=? LIMIT 1", ty, tw);
+          seq = ((this.row("SELECT MAX(seq) AS m FROM typeseq WHERE type=?", ty) || {}).m || 0) + 1;
+          this.sql.exec("INSERT OR IGNORE INTO typeseq(type, id, seq, w, k, town, t) VALUES(?, ?, ?, ?, ?, ?, ?)", ty, id, seq, TIER_W[tier], kk, tw, now);
+          if (seq === 1) this.bump("first_sk");
+        }
+        // edícia „Bol som pri tom“
+        const ev = EVENTS.find(e => now >= Date.parse(e.from) && now < Date.parse(e.to));
+        if (ev) {
+          const h = this.row("SELECT no FROM edcatch WHERE ev=? AND id=?", ev.id, id);
+          if (h) ed = {id: ev.id, n: ev.n, no: h.no};
+          else { const no = ((this.row("SELECT MAX(no) AS m FROM edcatch WHERE ev=?", ev.id) || {}).m || 0) + 1; this.sql.exec("INSERT OR IGNORE INTO edcatch(ev, id, no, type, t) VALUES(?, ?, ?, ?, ?)", ev.id, id, no, ty, now); ed = {id: ev.id, n: ev.n, no}; }
+        }
+      }
       if (!seen) {
         const town = league ? dd.town : "";
         if (league) this.sql.exec("UPDATE idday SET n = n + 1 WHERE day=? AND id=?", d, id);
@@ -610,7 +713,7 @@ export class Sky extends DurableObject {
         // aktívny pred vyhlásením, aspoň 2 dni v appke, max 1 výhra za týždeň; víťaza žrebujeme, nie rýchlosť
         const pr = this.row("SELECT t FROM pres WHERE id=?", id), wonWk = this.row("SELECT 1 AS x FROM golden WHERE wid=? AND day >= ?", id, this.day(now - 7 * 86400e3));
         const days = (this.row("SELECT COUNT(*) AS c FROM seen WHERE id=?", id) || {c: 0}).c;
-        if (g && g.state === 0 && g.hex === hex && league && b.gps === true && vp.km <= 60 && acct && now - acct.t > 6 * 3600e3 && acct.t < g.t && pr && now - pr.t < 5 * 60e3 && days >= 2 && !wonWk && this.rate("gwin:" + iph, 1, 86400e3)) {
+        if (g && g.state === 0 && g.hex === hex && league && b.gps === true && vp.km <= 60 && acct && now - acct.t > 6 * 3600e3 && acct.t < g.t && pr && now - pr.t < 5 * 60e3 && days >= 2) {
           this.sql.exec("INSERT OR IGNORE INTO gcand(day, seq, id, nick, k, town, t) VALUES(?, ?, ?, ?, ?, ?, ?)", d, g.seq, id, nk || "Spotter", k, town, now); golden = "entered";
         }
         this.sql.exec("INSERT INTO waves(day, hex, emoji, n) VALUES(?, ?, ?, 1) ON CONFLICT(day, hex, emoji) DO UPDATE SET n = n + 1", d, hex, emoji);
@@ -627,7 +730,7 @@ export class Sky extends DurableObject {
       // 👯 spoločné mávnutie: kamarát zamával tomu istému lietadlu za posledných 10 minút
       let together = null;
       if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
-      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex)});
+      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, type: ty});
     }
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;
@@ -703,7 +806,7 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/forget" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
-      for (const t of ["catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+      for (const t of ["typeseq", "edcatch", "gifts", "catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
       this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
       this.sql.exec("DELETE FROM mails WHERE id=?", id);
       this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
@@ -761,6 +864,37 @@ export class Sky extends DurableObject {
       const dir = String(b.dir || "").replace(/[^a-záäčďéíĺľňóôŕšťúýž -]/gi, "").slice(0, 20), mx = Math.max(10, Math.min(90, Math.round(num(b.max, 30))));
       this.sql.exec("INSERT OR REPLACE INTO reminders(id, at, title, body) VALUES(?, ?, ?, ?)", id, at, `🛰️ ${nm} o 5 minút nad tebou`, `Pozri na ${dir || "oblohu"}, vystúpi až ${mx}° nad obzor. Jasná „hviezda“, ktorá nebliká.`);
       return json({ok: true});
+    }
+    if (p === "/api/subopt" && req.method === "POST") {
+      const b = await body(), id = cleanId(b.id);
+      this.sql.exec("UPDATE subs SET streak=? WHERE id=?", b.streak ? 1 : 0, id);
+      return json({ok: true});
+    }
+    if (p === "/api/gift" && req.method === "POST") {
+      // 🎁 daruj kópiu: len z overených duplikátov, len bežné/nezvyčajné, max 3 denne
+      const b = await body(), id = cleanId(b.id), ty = String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 6).toUpperCase();
+      if (this.isKid(id)) return json({error: "kid"}, 403);
+      if (!ty || !["c", "u"].includes(tierOf(ty))) return json({error: "tier"}, 400);
+      const acct = this.row("SELECT t FROM ids WHERE id=?", id);
+      if (!acct || now - acct.t < 7 * 86400e3) return json({error: "new"}, 403);
+      const have = (this.row("SELECT COUNT(*) AS c FROM catches WHERE id=? AND type=? AND ok=1", id, ty) || {c: 0}).c;
+      const given = (this.row("SELECT COUNT(*) AS c FROM gifts WHERE id=? AND type=?", id, ty) || {c: 0}).c;
+      if (have - 1 - given < 1) return json({error: "dup"}, 400);
+      if (!this.rate("gift:" + id, 3, 86400e3)) return json({error: "rate"}, 429);
+      const code = b64u(crypto.getRandomValues(new Uint8Array(6))).replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+      this.sql.exec("INSERT INTO gifts(code, id, type, t) VALUES(?, ?, ?, ?)", code, id, ty, now);
+      return json({code});
+    }
+    if (p === "/api/giftclaim" && req.method === "POST") {
+      const b = await body(), id = cleanId(b.id), code = String(b.code || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+      if (this.isKid(id)) return json({error: "kid"}, 403);
+      const g = this.row("SELECT * FROM gifts WHERE code=?", code);
+      if (!g || g.used || now - g.t > 14 * 86400e3) return json({error: "gone"}, 410);
+      if (g.id === id) return json({error: "self"}, 400);
+      if (!this.rate("gclaim:" + id, 5, 86400e3)) return json({error: "rate"}, 429);
+      this.sql.exec("UPDATE gifts SET used=? WHERE code=?", id, code);
+      const nk = this.row("SELECT x.nick, i.kid FROM nicks x LEFT JOIN ids i ON i.id = x.id WHERE x.id=?", g.id);
+      return json({type: g.type, from: nk && !nk.kid && nk.nick ? nk.nick : "Kamarát"});
     }
     if (p === "/api/sub" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
@@ -857,7 +991,7 @@ export class Sky extends DurableObject {
         }
       }
       const myInvites = myPid ? (this.row("SELECT n FROM refs WHERE pid=?", myPid) || {n: 0}).n : 0;
-      const gw = id ? this.row("SELECT seq FROM golden WHERE day=? AND wid=? AND state=1", d, id) : null;
+      const gw = id ? this.row("SELECT g.seq FROM golden g JOIN gcand c ON c.day = g.day AND c.seq = g.seq AND c.id = ? WHERE g.day=? AND g.state=1 AND g.crew >= 20 ORDER BY g.seq DESC LIMIT 1", id, d) : null;
       const goldIn = id && G.golden && G.golden.state === 0 ? !!this.row("SELECT 1 AS x FROM gcand WHERE day=? AND seq=? AND id=?", d, G.golden.seq, id) : false;
       // 🏛️ Starosta oblohy: najaktívnejší spotter mesta v tomto mesiaci (len overené mávnutia do líg, deti bez mena)
       let mayor = null;

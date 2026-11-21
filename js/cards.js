@@ -64,39 +64,44 @@ function svgDefs(id,col,sh,acc){
   <linearGradient id="bg${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${sh}"/><stop offset=".45" stop-color="${col}"/><stop offset="1" stop-color="${sh}"/></linearGradient>
   <linearGradient id="wg${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}"/><stop offset="1" stop-color="${sh}"/></linearGradient>`;
 }
-const RAR_SYM={c:"●",u:"◆",r:"★",l:"★★"};
-const FRAME={c:["#9fb3d9","#5b6f99"],u:["#7fd3ff","#2f6fd6"],r:["#e3a8ff","#7b3fe4"],l:["#fff1a8","#d9a000"]};
+const RAR_SYM={c:"●",u:"◆",r:"▲",e:"⬟",l:"♛"};
+const FRAME={c:["#e3e9f5","#8d9bb8"],u:["#a8f5c6","#1f9e5a"],r:["#a9d4ff","#2f6fd6"],e:["#e3a8ff","#7b3fe4"],l:["#fff1a8","#d9a000"]};
+// 🌙🌅🎯🏠❄️ formy kartičky – odomknú sa podmienkou pri úlovku (vedomosti o oblohe, nie náhoda)
+const FORMS=[["n","🌙","Nočná","po zotmení"],["g","🌅","Zlatá hodinka","pri západe/východe slnka"],["z","🎯","Zenit","priamo nad hlavou (80°+)"],["h","🏠","Domov","let na Slovensko"],["f","❄️","Mrazivá","pri mraze"]];
+const SEATSX={A124:150,IL76:50,BLCF:113,A3ST:47,A337:51,K35R:90,E3TF:0,C17:77,A400:37,C130:20,C30J:20,AN12:20,MD11:90,B748:137,B744:120};
 const SVGE=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function wrapLines(s,n){const out=[];let l="";for(const w of String(s).split(" ")){if((l+" "+w).trim().length>n&&l){out.push(l);l=w}else l=(l+" "+w).trim()}if(l)out.push(l);return out}
 const MAXS={spd:2400,range:16100,span:79.8,len:76.3};
 /* celá kartička ako SVG (rovnaká v appke aj pri zdieľaní) */
 function cardSVG(code,v,opt={}){
-  const c=catGuess(code),r=v?v.r:(LEG.has(code)?"l":RARE.has(code)?"r":WIDE.has(code)||HELI.has(code)?"u":"c");
-  const owned=!!v,shiny=owned&&v.shiny,night=owned&&v.night&&!shiny,id=(opt.id||"c")+code.replace(/\W/g,"");
+  const c=catGuess(code),r=typeTier(code);
+  const owned=!!v,shiny=owned&&v.shiny,night=owned&&v.night&&!shiny,gold=owned&&v.gold,id=(opt.id||"c")+code.replace(/\W/g,"");
   const fr=FRAME[r],acc=!owned?"#151b36":shiny?"#ff4fd8":(MAKER_COL[c.maker]||"#3d7bff");
   const body=!owned?"#28305a":shiny?"#ffe9a8":"#f4f7ff",shade=!owned?"#1a2042":shiny?"#e0a800":"#c3cde6";
-  const sky=night?["#050816","#1a1f4a"]:shiny?["#3a0647","#ff8a4f"]:r==="l"?["#3b2a00","#ffcf4f"]:r==="r"?["#21104a","#8e5cff"]:r==="u"?["#0b3a6e","#5cc3ff"]:["#1e3a73","#8fb8ff"];
-  const tot=CATALOG.length,no=c.no?String(c.no).padStart(3,"0")+"/"+tot:"★ mimo série";
+  const sky=night?["#050816","#1a1f4a"]:shiny?["#3a0647","#ff8a4f"]:r==="l"?["#3b2a00","#ffcf4f"]:r==="e"?["#21104a","#8e5cff"]:r==="r"?["#0a2a66","#4fa3ff"]:r==="u"?["#0b4a33","#5ee0a0"]:["#1e3a73","#8fb8ff"];
+  const tot=CATALOG.length,no=c.no?"č. "+String(c.no).padStart(3,"0")+"/"+tot:"mimo série";
   let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 840" font-family="Inter, system-ui, -apple-system, sans-serif"><defs>${svgDefs(id,body,shade,acc)}
     <linearGradient id="fr${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${fr[0]}"/><stop offset="1" stop-color="${fr[1]}"/></linearGradient>
     <linearGradient id="sk${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient>
     <linearGradient id="pn${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141a33"/><stop offset="1" stop-color="#0a0e1f"/></linearGradient>
     <clipPath id="ar${id}"><rect x="36" y="104" width="528" height="330" rx="18"/></clipPath></defs>
-    <rect x="4" y="4" width="592" height="832" rx="34" fill="url(#fr${id})"/>
-    <rect x="18" y="18" width="564" height="804" rx="24" fill="url(#pn${id})"/>`;
+    <linearGradient id="pr${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4fd8"/><stop offset=".33" stop-color="#4fc3ff"/><stop offset=".66" stop-color="#6dffc7"/><stop offset="1" stop-color="#ffcf4f"/></linearGradient>
+    <rect x="4" y="4" width="592" height="832" rx="34" fill="${shiny?`url(#pr${id})`:gold?"#ffcf4f":`url(#fr${id})`}"/>
+    <rect x="18" y="18" width="564" height="804" rx="24" fill="url(#pn${id})"/>`+(owned&&(r==="l"||r==="e")?Array.from({length:12},(_,i)=>`<circle cx="300" cy="640" r="${40+i*22}" fill="none" stroke="${fr[0]}" stroke-opacity=".06"/>`).join(""):"")+(owned&&cardLvl(v.n,code)>=3?`<path d="M30 60V30H60M540 30H570V60M570 780V810H540M60 810H30V780" fill="none" stroke="${fr[0]}" stroke-width="4"/>`:"")+(owned&&cardLvl(v.n,code)>=4?`<rect x="12" y="12" width="576" height="816" rx="28" fill="none" stroke="#ffcf4f" stroke-width="3"/>`:"");
   if(!owned){
     s+=`<rect x="36" y="104" width="528" height="330" rx="18" fill="#0d1226"/><g transform="translate(150 119) scale(1.5)">${planeSVG(c,{box:200,body,acc,shade,id})}</g>
-      <text x="300" y="72" text-anchor="middle" font-size="40" font-weight="900" fill="#6b7699">? ? ?</text>
+      <text x="300" y="72" text-anchor="middle" font-size="${c.name.length>18?30:36}" font-weight="900" fill="#6b7699">${SVGE(c.name)}</text>
       <text x="300" y="500" text-anchor="middle" font-size="22" fill="#6b7699">${SVGE(FAM_SK[c.fam]||"")}</text>
       <text x="300" y="560" text-anchor="middle" font-size="64" fill="${fr[0]}">${RAR_SYM[r]}</text>
-      <text x="300" y="620" text-anchor="middle" font-size="22" fill="#8a94b8">Ešte si ho neulovil</text>
-      <text x="300" y="800" text-anchor="middle" font-size="18" fill="#59648a">Atlas oblohy · Séria 1 · ${no}</text></svg>`;
+      <text x="300" y="610" text-anchor="middle" font-size="24" font-weight="800" fill="${fr[0]}">${RAR[r].n}</text>
+      <text x="300" y="660" text-anchor="middle" font-size="22" fill="#8a94b8">Zamávaj mu a je tvoja</text>
+      <text x="300" y="800" text-anchor="middle" font-size="18" fill="#59648a">Atlas oblohy · S1 · ${no}</text></svg>`;
     return s;
   }
   // hlavička
   const nm=c.name.length>20?28:c.name.length>15?32:36;
   s+=`<text x="40" y="74" font-size="${nm}" font-weight="900" fill="#fff" letter-spacing="-1">${SVGE(c.name)}</text>
-    <text x="560" y="62" text-anchor="end" font-size="34" font-weight="900" fill="#fff">${c.seats?c.seats:"📦"}</text>
+    <text x="560" y="62" text-anchor="end" font-size="34" font-weight="900" fill="#fff">${c.seats?c.seats:SEATSX[code]?SEATSX[code]+" t":"📦"}</text>
     <text x="560" y="84" text-anchor="end" font-size="13" font-weight="700" fill="#9aa6cc" letter-spacing="1.5">${c.seats?"MIEST":"NÁKLAD"}</text>`;
   // ilustrácia
   s+=`<g clip-path="url(#ar${id})"><rect x="36" y="104" width="528" height="330" fill="url(#sk${id})"/>`;
@@ -106,7 +111,11 @@ function cardSVG(code,v,opt={}){
   s+=`<g transform="translate(150 119) scale(1.5)">${planeSVG(c,{box:200,body,acc,shade,id})}</g></g>
     <rect x="36" y="104" width="528" height="330" rx="18" fill="none" stroke="${fr[0]}" stroke-opacity=".6" stroke-width="2"/>`;
   if(shiny)s+=`<rect x="50" y="118" width="128" height="34" rx="17" fill="#ff4fd8"/><text x="114" y="141" text-anchor="middle" font-size="16" font-weight="900" fill="#fff">✨ SHINY</text>`;
+  else if(gold)s+=`<rect x="50" y="118" width="196" height="34" rx="17" fill="#ffcf4f"/><text x="148" y="141" text-anchor="middle" font-size="15" font-weight="900" fill="#3b2a00">🏆 ZLATÁ POSÁDKA</text>`;
   else if(night)s+=`<rect x="50" y="118" width="168" height="34" rx="17" fill="#1a1f4a" stroke="#8fa2ff"/><text x="134" y="141" text-anchor="middle" font-size="15" font-weight="800" fill="#cfd8ff">🌙 NOČNÁ EDÍCIA</text>`;
+  // 🇸🇰 poradové číslo na Slovensku (server)
+  if(v.seq)s+=`<rect x="${v.seq===1?334:404}" y="118" width="${v.seq===1?216:146}" height="34" rx="17" fill="${v.seq===1?"#ffcf4f":v.seq<=10?"#e3c46a":"#000"}" fill-opacity="${v.seq<=10?1:.45}"/><text x="${v.seq===1?442:477}" y="141" text-anchor="middle" font-size="15" font-weight="900" fill="${v.seq<=10?"#3b2a00":"#fff"}">${v.seq===1?"PRVÝ NA SLOVENSKU":"#"+String(v.seq).padStart(4,"0")+" v SR"}</text>`;
+  if(v.gift&&!v.n)s+=`<rect x="36" y="396" width="528" height="38" fill="#c0c8dc" fill-opacity=".85"/><text x="300" y="421" text-anchor="middle" font-size="17" font-weight="800" fill="#1b2340">🤝 OD: ${SVGE(v.gift.from)} · zamávaj mu sám a bude plná</text>`;
   // typový pás
   s+=`<rect x="36" y="446" width="528" height="40" rx="12" fill="#ffffff" fill-opacity=".06"/>
     <text x="52" y="472" font-size="16" font-weight="700" fill="${acc==="#ff4fd8"?"#ff9fe8":"#cfd8ff"}">${SVGE(c.maker)} · ${SVGE(FAM_SK[c.fam]||"")}${c.year?" · od "+c.year:""}</text>`;
@@ -117,39 +126,62 @@ function cardSVG(code,v,opt={}){
       <rect x="160" y="${y+2}" width="250" height="14" rx="7" fill="#fff" fill-opacity=".08"/><rect x="160" y="${y+2}" width="${bw}" height="14" rx="7" fill="${fr[0]}"/>
       <text x="548" y="${y+15}" text-anchor="end" font-size="17" font-weight="800" fill="#fff">${q[3]}</text>`});
   // zaujímavosť
-  wrapLines(c.fact,46).slice(0,3).forEach((l,i)=>s+=`<text x="52" y="${688+i*24}" font-size="17" font-style="italic" fill="#dfe6ff">${SVGE(l)}</text>`);
+  wrapLines(c.fact,46).slice(0,2).forEach((l,i)=>s+=`<text x="52" y="${680+i*24}" font-size="17" font-style="italic" fill="#dfe6ff">${SVGE(l)}</text>`);
+  // formy (5 slotov)
+  const fm=v.forms||{};s+=`<text x="52" y="${742}" font-size="20">${FORMS.map(f=>fm[f[0]]?f[1]:"·").join("  ")}</text><text x="548" y="742" text-anchor="end" font-size="14" font-weight="700" fill="#9aa6cc">FORMY ${FORMS.filter(f=>fm[f[0]]).length}/5${v.al?" · "+Object.keys(v.al).length+" aeroliniek":""}</text>`;
   // päta
   s+=`<line x1="40" x2="560" y1="766" y2="766" stroke="#fff" stroke-opacity=".1"/>
     <text x="40" y="800" font-size="22" fill="${fr[0]}">${RAR_SYM[r]}</text>
-    <text x="${r==="l"?82:66}" y="798" font-size="15" font-weight="700" fill="#cfd8ff">${RAR[r].n}</text>
-    <text x="300" y="798" text-anchor="middle" font-size="14" fill="#8a94b8">ulovené ${v.n}× · ${new Date(v.first||Date.now()).toLocaleDateString("sk-SK")}</text>
-    <text x="560" y="798" text-anchor="end" font-size="14" font-weight="700" fill="#8a94b8">SK·1 ${no}</text></svg>`;
+    <text x="70" y="798" font-size="15" font-weight="700" fill="#cfd8ff">${RAR[r].n}</text>
+    <text x="300" y="798" text-anchor="middle" font-size="13" fill="#8a94b8">${SVGE(v.fp&&v.fp.town?"1.: nad "+v.fp.town.slice(0,14)+(v.fp.al&&AIRLINES[v.fp.al]?" · "+AIRLINES[v.fp.al].slice(0,12):""):v.n?"zamávané "+v.n+"× · "+new Date(v.first||Date.now()).toLocaleDateString("sk-SK"):"darovaná")}</text>
+    <text x="560" y="798" text-anchor="end" font-size="14" font-weight="700" fill="#8a94b8">S1 · ${no}</text></svg>`;
   return s;
 }
 
 /* ---- Atlas v sekcii Ja ---- */
 let atlasOpen=false;let atlasMode="mine";
+const cardRar=k=>typeTier(k);
+const inSeries=k=>CAT[k]&&!TROPHY.has(k);
+// 🃏 malá kartička do mriežky: čitateľná silueta, názov, stupeň, úroveň ako bodky
+function cardMini(k,v){
+  const c=catGuess(k),r=typeTier(k),fr=FRAME[r],own=!!v,id="n"+k.replace(/\W/g,""),lv=own?cardLvl(v.n,k):0;
+  const sh=own&&v.shiny,body=!own?"#28305a":sh?"#ffe9a8":"#f4f7ff",shade=!own?"#1a2042":sh?"#e0a800":"#c3cde6",acc=!own?"#151b36":(MAKER_COL[c.maker]||"#3d7bff");
+  const sky=!own?["#0d1226","#0d1226"]:r==="l"?["#3b2a00","#ffcf4f"]:r==="e"?["#21104a","#8e5cff"]:r==="r"?["#0a2a66","#4fa3ff"]:r==="u"?["#0b4a33","#5ee0a0"]:["#1e3a73","#8fb8ff"];
+  const nm=wrapLines(c.name,14).slice(0,2);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280"><defs><linearGradient id="k${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient>
+    <linearGradient id="f${id}" x1="0" y1="0" x2="1" y2="1">${sh?'<stop offset="0" stop-color="#ff4fd8"/><stop offset=".5" stop-color="#4fc3ff"/><stop offset="1" stop-color="#ffcf4f"/>':`<stop offset="0" stop-color="${fr[0]}"/><stop offset="1" stop-color="${fr[1]}"/>`}</linearGradient>${svgDefs(id,body,shade,acc)}</defs>
+    <rect x="2" y="2" width="196" height="276" rx="18" fill="url(#f${id})" ${own?"":'fill-opacity=".45"'}/><rect x="8" y="8" width="184" height="264" rx="13" fill="url(#k${id})"/>
+    <g transform="translate(20 36) scale(.8)">${planeSVG(c,{box:200,body,acc,shade,id})}</g>
+    <rect x="8" y="${nm.length>1?196:214}" width="184" height="${nm.length>1?76:58}" fill="#060a1a" fill-opacity=".72"/>
+    ${nm.map((l,i)=>`<text x="100" y="${(nm.length>1?222:248)+i*24}" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" font-weight="900" fill="${own?"#fff":"#8a94b8"}">${SVGE(l)}</text>`).join("")}
+    <text x="20" y="34" font-size="20" fill="${fr[0]}">${RAR_SYM[r]}</text>
+    ${own?[0,1,2,3].map(i=>`<circle cx="${132+i*14}" cy="27" r="5" fill="${i<lv?"#ffcf4f":"#fff"}" fill-opacity="${i<lv?1:.25}"/>`).join(""):""}
+    ${own&&v.night?'<text x="178" y="56" text-anchor="end" font-size="16">🌙</text>':""}${own&&v.seq&&v.seq<=10?'<text x="20" y="58" font-size="15">🥇</text>':""}${own&&v.gift&&!v.n?'<text x="178" y="56" text-anchor="end" font-size="16">🤝</text>':""}</svg>`;
+}
 function renderCards(){
-  const owned=COL.types,ownedKeys=Object.keys(owned),inCat=ownedKeys.filter(k=>CAT[k]).length,tot=CATALOG.length;
-  const shinyN=ownedKeys.filter(k=>owned[k].shiny).length;
+  const owned=COL.types,ownedKeys=Object.keys(owned).filter(k=>k!=="?"),inCat=ownedKeys.filter(k=>inSeries(k)&&owned[k].n).length,tot=CATALOG.filter(c=>!TROPHY.has(c[0])).length;
+  const shinyN=ownedKeys.filter(k=>owned[k].shiny).length,trN=ownedKeys.filter(k=>TROPHY.has(k)).length,edN=Object.keys(COL.ed||{}).length;
   $("c-cardsN").textContent=`${inCat}/${tot}`;
-  // chýbajúce: najprv tie, ktoré ulovíš najľahšie, a tie, čo dokončia rozbehnutú sadu
-  const order={c:0,u:1,r:2,l:3},inSet=k=>SETS.some(s=>!(COL.sets||{})[s.id]&&s.t.includes(k)&&s.t.some(x=>owned[x]))?-1:0;
+  const inSet=k=>SETS.some(s=>!(COL.sets||{})[s.id]&&s.t&&s.t.includes(k)&&s.t.some(x=>owned[x]))?-1:0;
   const mine=ownedKeys.sort((x,y)=>(owned[y].first||0)-(owned[x].first||0));
-  const missing=CATALOG.map(c=>c[0]).filter(k=>!owned[k]).sort((x,y)=>inSet(x)-inSet(y)||order[cardRar(x)]-order[cardRar(y)]||CAT[x].no-CAT[y].no);
-  let list=atlasMode==="mine"?mine:atlasMode==="sets"?[]:missing;
-  const more=!atlasOpen&&list.length>6?list.length-6:0;if(more)list=list.slice(0,6);
+  const missing=CATALOG.map(c=>c[0]).filter(k=>!owned[k]&&!TROPHY.has(k)).sort((x,y)=>inSet(x)-inSet(y)||RORD[typeTier(x)]-RORD[typeTier(y)]||CAT[x].no-CAT[y].no);
+  const trophies=CATALOG.map(c=>c[0]).filter(k=>TROPHY.has(k));
+  let list=atlasMode==="mine"?mine:atlasMode==="miss"?missing:atlasMode==="trophy"?trophies:[];
+  const more=!atlasOpen&&list.length>6&&atlasMode!=="trophy"?list.length-6:0;if(more)list=list.slice(0,6);
+  const tab=(m,l)=>`<button class="${atlasMode===m?"on":""}" data-m="${m}">${l}</button>`;
   $("c-types").innerHTML=`<div class="atlasTop" style="grid-column:1/-1"><div class="xp"><i style="width:${inCat/tot*100}%"></i></div>
-    <div class="lookSub">Zbieraš Sériu 1: ${inCat} z ${tot} typov${shinyN?" · ✨ "+shinyN+" shiny":""}. Každé lietadlo môže byť s 5 % šancou ✨ shiny.</div>
-    <div class="atTabs"><button class="${atlasMode==="mine"?"on":""}" data-m="mine">Moje (${ownedKeys.length})</button><button class="${atlasMode==="miss"?"on":""}" data-m="miss">Chýbajú (${missing.length})</button><button class="${atlasMode==="sets"?"on":""}" data-m="sets">Sady (${SETS.filter(s=>(COL.sets||{})[s.id]).length}/${SETS.length})</button></div></div>`+(atlasMode==="sets"?setsHTML():"")+
-    (atlasMode==="sets"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${cardRar(k)}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[cardRar(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n)+" zo 4":" · ešte nemáš"))}">${cardSVG(k,owned[k],{id:"m"})}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Každý nový typ lietadla nad tebou = nová kartička.":"Máš celú sériu! 🏆"}</div>`);
+    <div class="lookSub">Séria 1: ${inCat} z ${tot}${trN?" · 🏆 "+trN+(trN===1?" trofej":trN<5?" trofeje":" trofejí"):""}${shinyN?" · ✨ "+shinyN+" shiny":""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
+    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.length+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆")}</div></div>`+
+    (atlasMode==="sets"?setsHTML():atlasMode==="ed"?edHTML():"")+
+    (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
+    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n||1,k)+" zo 4":" · ešte nemáš"))}">${cardMini(k,owned[k])}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Každý nový typ lietadla nad tebou = nová kartička.":"Máš celú sériu! 🏆"}</div>`);
   if(more)$("c-types").insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ďalších ${more} ›</button>`);
 }
-const cardRar=k=>COL.types[k]?COL.types[k].r:(LEG.has(k)?"l":RARE.has(k)?"r":WIDE.has(k)||HELI.has(k)?"u":"c");
 HOOKS.view.push(v=>{if(v==="col")renderCards()});
 let cardK=null;
 $("c-types").onclick=e=>{
   const tb=e.target.closest(".atTabs button");if(tb){atlasMode=tb.dataset.m;renderCards();return}
+  const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();return}
   if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();return}
   const sr=e.target.closest(".setRow");if(sr){sr.classList.toggle("open");return}
   const sl=e.target.closest("[data-lk]");if(sl){const k=sl.dataset.lk;if(COL.types[k]){cardK=k;openCard(k)}else openLocked(k);return}
@@ -158,12 +190,44 @@ $("c-types").onclick=e=>{
   cardK=k;openCard(k);
 };
 function openCard(k,reveal){
-  const v=COL.types[k];if(!v)return;const r=v.r;
-  const own=Object.keys(COL.types).filter(x=>CAT[x]&&x!=="SLEIGH").length,tot=CATALOG.length;
-  $("cardBig").innerHTML=(reveal?`<div class="revealHd">${v.shiny?"✨ SHINY kartička!":"🃏 Nová kartička!"}<small>${own}. z ${tot} typov v tvojom atlase</small></div>`:"")+`<div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>`;
-  $("cardM").classList.add("on");haptic(15);bindTilt();
-  if($("cardVideo"))$("cardVideo").hidden=!vidOK();
+  const v=COL.types[k];if(!v)return;const r=typeTier(k);
+  const own=Object.keys(COL.types).filter(x=>inSeries(x)&&COL.types[x].n).length,tot=CATALOG.filter(c=>!TROPHY.has(c[0])).length;
+  const face=()=>{$("cardShare").style.visibility="";if($("cardVideo"))$("cardVideo").style.visibility="";$("cardBig").innerHTML=(reveal?`<div class="revealHd">${v.shiny?"…a je ✨ SHINY!":RAR[r].s+" Nová kartička: "+RAR[r].n+"!"}<small>${own}. z ${tot} typov v tvojom atlase${v.seq?" · #"+v.seq+" na Slovensku":""}</small></div>`:"")+`<div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>`+cardExtras(k,v);
+    cardStat(k);if(reveal){if(RORD[r]>=3){confetti(r==="l"?160:90);haptic(r==="l"?[60,80,60,80,200]:[20,40,20])}ping(r)}};
+  $("cardM").classList.add("on");bindTilt();
+  if($("cardVideo"))$("cardVideo").hidden=!vidOK()||!v.n;
+  if(reveal&&!(typeof RM==="function"&&RM())){
+    // ⏳ odhalenie s napätím: rub kartičky žiari farbou stupňa, čím vzácnejšia, tým dlhšie
+    const d=450+RORD[r]*450;
+    $("cardShare").style.visibility="hidden";if($("cardVideo"))$("cardVideo").style.visibility="hidden";
+    $("cardBig").innerHTML=`<div class="revealHd">Čo ti priletelo?<small>ťukni na kartičku</small></div><div class="cardBack ${r}" role="button" aria-label="Otočiť kartičku"><b>✈️</b><span>Atlas oblohy</span></div>`;
+    haptic(15);const bk=$("cardBig").querySelector(".cardBack");let done=false;const go=()=>{if(done)return;done=true;face()};
+    bk.onclick=go;setTimeout(go,d+600);
+  }else{face();haptic(15)}
 }
+function cardExtras(k,v){
+  const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
+  let h=`<div class="cardInfo">${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
+  h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:"?"}</small></span>`).join("")}</div>`;
+  if(v.fp)h+=`<div class="lookSub">🧾 Prvá: ${v.fp.town?"nad "+esc(v.fp.town):""}${v.fp.al&&AIRLINES[v.fp.al]?" · "+esc(AIRLINES[v.fp.al]):""}${v.fp.dest?" → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
+  if(al.length)h+=`<div class="lookSub">🎨 Aerolinky na tejto kartičke: ${al.map(x=>esc(AIRLINES[x]||x)).join(", ")}</div>`;
+  h+=`<div class="cardBtns">`;
+  const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
+  if(["c","u"].includes(r)&&(v.n|0)>=2&&!(typeof KID==="function"&&KID()))h+=`<button class="btn sec" data-gift="${esc(k)}">🎁 Daruj kópiu</button>`;
+  return h+`</div></div>`;
+}
+// 🇸🇰 „Má ju X % hráčov“ + objaviteľ (server)
+async function cardStat(k){
+  if(!SOC.api)return;try{const {ok,j}=await getJSON(SOC.api+"/api/cardstat?type="+encodeURIComponent(k),5000);const el=$("cardStat");if(!ok||!j||!el)return;
+    const pct=j.players?Math.max(.1,Math.round(j.own/j.players*1000)/10):0;
+    el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju má ${nf(j.own)} ${j.own===1?"spotter":j.own<5?"spotteri":"spotterov"}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
+}
+$("cardBig").addEventListener("click",async e=>{
+  const pn=e.target.closest("[data-pin]");if(pn){const k=pn.dataset.pin;COL.show=COL.show||[];const i=COL.show.indexOf(k);
+    if(i>=0)COL.show.splice(i,1);else{if(COL.show.length>=showSlots()){toast("🏛️ Vitrína je plná","Ďalšie miesto si odomkneš za míle ✈ v obchode");return}COL.show.push(k)}
+    LS.set("ctl_col",COL);pn.textContent=COL.show.includes(k)?"📌 Vo vitríne":"📌 Do vitríny";renderShow();haptic(10);return}
+  const gf=e.target.closest("[data-gift]");if(gf)giftMake(gf.dataset.gift);
+});
 $("cardClose").onclick=()=>$("cardM").classList.remove("on");
 function tiltTo(rx,ry){const c=$("cardBig").firstElementChild;if(!c)return;if(typeof RM==="function"&&RM()){rx=0;ry=0}c.style.setProperty("--rx",rx+"deg");c.style.setProperty("--ry",ry+"deg");c.style.setProperty("--mx",(50+ry*3)+"%");c.style.setProperty("--my",(50-rx*3)+"%");c.style.setProperty("--ang",(ry*10+rx*6)+"deg")}
 let tiltBound=false;
@@ -172,12 +236,26 @@ function bindTilt(){
   addEventListener("deviceorientation",e=>{if(!$("cardM").classList.contains("on")||e.beta==null)return;tiltTo(Math.max(-16,Math.min(16,(e.beta-45)/2)),Math.max(-16,Math.min(16,(e.gamma||0)/1.5)))});
   $("cardBig").addEventListener("pointermove",e=>{const el=$("cardBig").firstElementChild;if(!el)return;const r=el.getBoundingClientRect();tiltTo(-((e.clientY-r.top)/r.height-.5)*26,((e.clientX-r.left)/r.width-.5)*26)});
 }
-/* ---- variant pri ulovení: shiny 5 %, nočná edícia ---- */
+/* ---- varianty pri ulovení: ✨ shiny určí server (lietadlo + deň), formy podľa oblohy, poradie v SR ---- */
+let LASTWAVE=null;
 HOOKS.caught.push(a=>{
   const ty=a.type||"?",v=COL.types[ty];if(!v)return;
-  const h=new Date().getHours();let msg=null;
-  if(!v.shiny&&Math.random()<.05){v.shiny=Date.now();msg=["✨ SHINY KARTIČKA!",(v.name||ty)+" – lesklá verzia, má ju len málokto"]}
-  else if(!v.night&&(typeof SPACE!=="undefined"?SPACE.sunAlt()<-6:(h>=20||h<5))){v.night=Date.now();msg=["🌙 Nočná edícia",(v.name||ty)+" – ulovené v noci"]}
+  const W=LASTWAVE&&LASTWAVE.hex===a.hex?LASTWAVE:null;let msg=null;
+  if(W&&W.shiny){v.shinyN=(v.shinyN|0)+1;if(!v.shiny){v.shiny=Date.now();msg=["✨ SHINY KARTIČKA!",(v.name||ty)+" – dnes je toto lietadlo lesklé pre všetkých, čo mu zamávajú"]}}
+  if(W&&W.seq&&!v.seq)v.seq=W.seq;
+  if(W&&(W.firstK||W.firstT)&&W.seq!==1){v.firstK=W.firstK?1:0;v.firstT=W.firstT?1:0}
+  if(W&&W.ed){COL.ed=COL.ed||{};if(!COL.ed[W.ed.id]){COL.ed[W.ed.id]={n:W.ed.n,no:W.ed.no,t:Date.now(),ty};msg=msg||["📅 Edícia: "+W.ed.n,"Tvoja kartička má číslo "+W.ed.no+" – bol si pri tom!"]}}
+  // formy
+  v.forms=v.forms||{};const sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null,c=COL.cx&&COL.cx[a.hex],fm=v.forms,got=[];
+  const set=(k)=>{if(!fm[k]){fm[k]=Date.now();got.push(FORMS.find(f=>f[0]===k))}};
+  if(sa!=null&&sa<-6&&a.el>=20)set("n");
+  if(sa!=null&&sa>-4&&sa<6)set("g");
+  if(a.el>=80)set("z");
+  if(c&&c.dc==="SK")set("h");
+  try{if(WX&&WX.data&&WX.data.current&&WX.data.current.temperature_2m<0)set("f")}catch(e){}
+  if(fm.n&&!v.night)v.night=fm.n;
+  if(got.length&&!msg)msg=[got[0][1]+" Nová forma: "+got[0][2],(v.name||ty)+" · formy "+FORMS.filter(f=>fm[f[0]]).length+"/5"];
+  if(v.gift&&v.n===1){v.gift.done=1;COL.pts+=5;msg=msg||["🤝 Splnený sľub!",(v.name||ty)+" – darovaná kartička je teraz celá tvoja · +5 b"]}
   if(!CAT[ty]&&!v.offset){v.offset=1;msg=msg||["⭐ Mimo série!",(v.name||ty)+" – typ, ktorý nie je ani v atlase"]}
   LS.set("ctl_col",COL);
   if(msg)setTimeout(()=>{toast(msg[0],msg[1],"#ff4fd8");if(msg[0].includes("SHINY")){confetti(110);haptic([40,60,40,60,120])}},typeof WB!=="undefined"&&WB?0:3500);
@@ -187,9 +265,9 @@ $("cardShare").onclick=async()=>{
   const svg=cardSVG(cardK,v,{id:"s"}),img=new Image(),W=1080,H=1920;
   img.onload=()=>{
     const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
-    const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0d1430");g.addColorStop(1,v.shiny?"#5a1f6b":"#1b2a6b");x.fillStyle=g;x.fillRect(0,0,W,H);
+    const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0d1430");g.addColorStop(1,v.shiny?"#5a1f6b":{c:"#1b2a6b",u:"#0b4a33",r:"#0a2a66",e:"#3a1670",l:"#5a3d00"}[typeTier(cardK)]);x.fillStyle=g;x.fillRect(0,0,W,H);
     for(let i=0;i<120;i++){x.fillStyle=`rgba(255,255,255,${Math.random()*.6})`;x.beginPath();x.arc(Math.random()*W,Math.random()*H,Math.random()*2.2,0,7);x.fill()}
-    x.textAlign="center";x.fillStyle="#fff";x.font="800 46px Unbounded, sans-serif";x.fillText(v.shiny?"✨ Mám SHINY kartičku!":"Nová kartička v zbierke!",W/2,200);
+    x.textAlign="center";x.fillStyle="#fff";x.font="800 46px Unbounded, sans-serif";x.fillText(v.shiny?"✨ Mám SHINY kartičku!":RAR[typeTier(cardK)].n.toUpperCase()+" kartička!",W/2,200);if(v.seq){x.font="700 38px Inter, sans-serif";x.fillText(v.seq===1?"🧭 PRVÝ NA SLOVENSKU":"#"+v.seq+" na Slovensku",W/2,252)}
     x.drawImage(img,(W-860)/2,280,860,1204);
     x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-360);
     x.fillStyle="rgba(255,255,255,.85)";x.font="500 34px Inter, sans-serif";x.fillText("Letelo mi nad hlavou → "+APP_HOST,W/2,H-300);
@@ -198,58 +276,122 @@ $("cardShare").onclick=async()=>{
   img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
 };
 
-/* ============ 📚 zberateľské sady, úroveň kartičky a mesačná výzva ============ */
-const SETS=[
-  {id:"a320",i:"✈️",n:"Rodina A320",d:"Najčastejšie lietadlá nad Slovenskom",t:["A319","A320","A321","A20N","A21N"],b:40},
-  {id:"b737",i:"🛫",n:"Rodina 737",d:"Od klasiky po MAX",t:["B737","B738","B739","B38M","B39M"],b:40},
-  {id:"jumbo",i:"🐘",n:"Obri oblohy",d:"Najväčšie dopravné lietadlá",t:["A388","B744","B748","B77W","A35K"],b:80},
-  {id:"dream",i:"🌙",n:"Dreamlinery a spol.",d:"Moderné diaľkové stroje",t:["B788","B789","B78X","A359","A339"],b:60},
-  {id:"emb",i:"🇧🇷",n:"Embraery",d:"Menšie prúdové lietadlá",t:["E190","E195","E290","E295","E75L"],b:40},
-  {id:"prop",i:"🌀",n:"Vrtuľové",d:"Turbovrtuľové regionálky",t:["AT43","AT75","AT76","DH8D"],b:40},
-  {id:"heli",i:"🚁",n:"Záchranári a vrtuľníky",d:"Pozor, lietajú nízko",t:["B429","EC35","EC45","A109","A139","R44"],b:50},
-  {id:"biz",i:"💼",n:"Biznis jety",d:"Súkromné tryskáče",t:["GLF6","GL7T","GLEX","C68A","CL35","FA7X","PC24"],b:60},
-  {id:"heavy",i:"🏋️",n:"Ťažké transporty",d:"Nákladné a vojenské obry",t:["A400","C17","C130","C30J","IL76","A124","MD11"],b:80},
-  {id:"small",i:"🛩️",n:"Malé lietadielka",d:"Aerokluby a súkromníci",t:["C152","C172","P28A","SR22","DA40","PC12"],b:50}
-].map(s=>({...s,t:s.t.filter(k=>CAT[k])})).filter(s=>s.t.length>=3);
-// úroveň kartičky podľa počtu úlovkov toho typu
-const CARD_LV=[1,3,10,25];
-const cardLvl=n=>CARD_LV.filter(x=>n>=x).length;
+/* ============ 📚 zberateľské sady a albumy ============ */
+// typové sady – každá kartička série patrí aspoň do jednej
+const SETS_T=[
+  {id:"a320",i:"✈️",n:"Rodina A320",d:"Najčastejšie lietadlá nad Slovenskom",t:["A318","A319","A320","A321","A20N","A21N"]},
+  {id:"b737",i:"🛫",n:"Rodina 737",d:"Od klasiky po MAX",t:["B737","B738","B739","B38M","B39M"]},
+  {id:"jumbo",i:"🐘",n:"Obri oblohy",d:"Najväčšie dopravné lietadlá",t:["A388","B744","B748","B77W","A35K"]},
+  {id:"dream",i:"🌙",n:"Dreamlinery a spol.",d:"Moderné diaľkové stroje",t:["B788","B789","B78X","A359","A339"]},
+  {id:"a330",i:"🌍",n:"Rodina A330/A340",d:"Diaľkové Airbusy",t:["A332","A333","A339","A343","A346"]},
+  {id:"b7x7",i:"🇺🇸",n:"Boeing 7x7 klasika",d:"Staré dobré Boeingy",t:["B752","B763","B764","B772","B77L"]},
+  {id:"baby",i:"🛫",n:"Baby jety",d:"Malé prúdové dopravné",t:["BCS1","BCS3","CRJ7","CRJ9","CRJ2"]},
+  {id:"emb",i:"🇧🇷",n:"Embraery",d:"Menšie prúdové lietadlá",t:["E190","E195","E290","E295","E75L"]},
+  {id:"prop",i:"🌀",n:"Vrtuľové",d:"Turbovrtuľové regionálky",t:["AT43","AT75","AT76","DH8D"]},
+  {id:"heli",i:"🚁",n:"Záchranári a vrtuľníky",d:"Pozor, lietajú nízko",t:["B429","EC35","EC45","A109","A139","R44","B06"]},
+  {id:"biz",i:"💼",n:"Biznis jety",d:"Súkromné tryskáče",t:["GLF6","GLF5","GL7T","GLEX","C68A","CL35","FA7X","PC24","LJ45","E55P","C56X"]},
+  {id:"tprop",i:"🛩️",n:"Turbovrtuľové súkromné",d:"King Air, TBM a spol.",t:["BE20","TBM9","PC12","C208"]},
+  {id:"heavy",i:"🏋️",n:"Ťažké transporty",d:"Nákladné a vojenské obry",t:["A400","C17","C130","C30J","MD11","AN12"]},
+  {id:"nato",i:"🎖️",n:"NATO nad nami",d:"Tankery, AWACS a transporty",t:["E3TF","K35R","C17","A400","C130"]},
+  {id:"guard",i:"🛡️",n:"Strážcovia neba",d:"Stíhačky a cvičné tryskáče",t:["F16","GRIF","EUFI","L39"]},
+  {id:"cssr",i:"🇸🇰",n:"Made in ČSSR a naši",d:"Domáce legendy a slovenské letectvo",t:["L39","L410","C27J","H60","MI8"]},
+  {id:"para",i:"🪂",n:"Parašutisti",d:"Výsadkové lietadlá",t:["AN2","L410","C208"]},
+  {id:"small",i:"🛩️",n:"Malé lietadielka",d:"Aerokluby a súkromníci",t:["C152","C172","P28A","SR22","DA40"]},
+  {id:"whale",i:"🐳",n:"Lietajúce veľryby",d:"Trofeje – nad SR takmer nikdy",t:["A3ST","A337","BLCF","A124"]},
+].map(s=>({...s,alb:"typ",t:s.t.filter(k=>CAT[k])})).filter(s=>s.t.length>=3);
+// album Chvosty: aerolinky (skupiny kódov = jeden slot)
+const AL_SETS=[
+  ["lowcost","💸","Lowcost liga",[["Ryanair","RYR RUK LDM MAY"],["Wizz Air","WZZ WMT WUK WAZ"],["easyJet","EZY EJU EZS"],["Eurowings","EWG"],["Transavia","TRA"],["Vueling","VLG"],["Pegasus","PGT"],["Norwegian","NOZ NSZ"]]],
+  ["lhg","🦅","Lufthansa Group",[["Lufthansa","DLH"],["Austrian","AUA"],["Swiss","SWR"],["Eurowings","EWG"],["Brussels","BEL"],["ITA","ITY"]]],
+  ["sused","🧭","Susedia vlajkoví",[["Czech/Smartwings","CSA TVS"],["LOT","LOT"],["TAROM","ROT"],["airBaltic","BTI"],["Croatia","CTN"],["Air Serbia","ASL"],["Aegean","AEE"]]],
+  ["gulf","🕌","Zálivoví obri",[["Emirates","UAE"],["Qatar","QTR"],["Etihad","ETD"],["flydubai","FDB"],["Saudia","SVA"]]],
+  ["east","🐉","Ďaleký východ",[["Singapore","SIA"],["Cathay","CPA"],["Air China","CCA"],["China Eastern","CES"],["China Southern","CSN"],["Korean","KAL"],["Air India","AIC"]]],
+  ["atl","🗽","Cez Atlantik",[["American","AAL"],["United","UAL"],["Delta","DAL"],["Air Canada","ACA"]]],
+  ["cargo","📦","Kuriéri",[["DHL","DHK BCS DHX"],["UPS","UPS"],["FedEx","FDX"],["Cargolux","CLX"],["Lufthansa Cargo","GEC"],["ASL","ABR"],["Kalitta","CKS"],["Atlas","GTI"]]],
+  ["natoAF","🎖️","Letectvá NATO",[["USAF","RCH"],["Nemecko","GAF"],["Taliansko","IAM"],["Česko","CEF"],["Poľsko","PLF"],["Maďarsko","HUF"],["Belgicko","BAF"],["Francúzsko","FAF"],["RAF","RRR"],["NATO","NATO"]]],
+].map(([id,i,n,sl])=>({id:"al_"+id,i,n,d:"Album Chvosty · aerolinky",alb:"al",slots:sl.map(([l,c])=>({l,m:x=>c.split(" ").includes(x.al)||(c==="NATO"&&/^NATO/.test(x.al))}))}));
+// album Pečiatky: krajiny cieľa alebo odletu
+const CT_SETS=[
+  ["sused","🤝","Susedia","AT CZ PL HU UA"],["more","🌊","K moru","HR GR IT ES PT TR CY MT EG TN"],["zapad","🗼","Západ","GB IE FR BE NL DE CH LU"],
+  ["sever","❄️","Sever","NO SE FI DK IS"],["balkan","🌄","Balkán","SI RS BA ME MK AL BG RO"],["blv","🏜️","Blízky východ","AE QA SA IL JO KW BH OM"],
+  ["dv","🏯","Ďaleký východ","CN JP KR IN SG TH HK VN"],["ocean","🌎","Za oceánom","US CA MX BR"],["afr","🦁","Afrika","EG MA TN KE ET ZA"],
+].map(([id,i,n,cs])=>({id:"ct_"+id,i,n,d:"Album Pečiatky · krajiny",alb:"ct",slots:cs.split(" ").map(c=>({l:c,m:x=>x.dc===c||x.oc===c}))}));
+// album Rekordy a skryté sady
+const REC_SETS=[
+  {id:"rc_hi",i:"🏔️",n:"Výškari",d:"Album Rekordy",alb:"rec",slots:[[11500,"nad 11 500 m"],[12500,"nad 12 500 m"],[13500,"nad 13 500 m"]].map(([h,l])=>({l,m:x=>x.alt>=h}))},
+  {id:"rc_lo",i:"🛬",n:"Nízkoletci",d:"Album Rekordy",alb:"rec",slots:[[1500,"pod 1 500 m"],[800,"pod 800 m"],[400,"pod 400 m"]].map(([h,l])=>({l,m:x=>x.alt!=null&&x.alt<h}))},
+  {id:"rc_sp",i:"⚡",n:"Jet stream",d:"Album Rekordy",alb:"rec",slots:[[950,"nad 950 km/h"],[1050,"nad 1 050 km/h"],[1150,"nad 1 150 km/h"]].map(([v,l])=>({l,m:x=>x.spd>=v}))},
+  {id:"rc_ze",i:"🎯",n:"Zenit",d:"Album Rekordy",alb:"rec",slots:[[80,"80°+"],[85,"85°+"],[88,"88°+"]].map(([v,l])=>({l,m:x=>x.el>=v}))},
+  {id:"rc_hr",i:"🕐",n:"Okolo hodín",d:"Úlovok v každej hodine dňa",alb:"rec",slots:Array.from({length:24},(_,h)=>({l:h+"h",m:x=>new Date(x.t).getHours()===h}))},
+];
+const HID_SETS=[
+  {id:"h_abcd",i:"✉️",n:"A-B-C-D Airbusu",d:"Počítaj od najmenšieho.",alb:"hid",b:50,t:["A318","A319","A320","A321"]},
+  {id:"h_om",i:"✉️",n:"Domáca letka",d:"Hľadaj OM- na chvoste.",alb:"hid",b:50,slots:[1,5,15].map(n=>({l:n+"× OM-",m:()=>Object.keys(COL.om||{}).length>=n}))},
+  {id:"h_quad",i:"✉️",n:"Štvorlístok",d:"Štyri motory, štyri typy.",alb:"hid",b:50,t:["A388","B744","B748","A343","A346"].slice(0,4)},
+];
+const SETS=[...SETS_T,...AL_SETS,...CT_SETS,...REC_SETS,...HID_SETS];
+const ALBUMS=[["typ","🃏 Typy"],["al","💺 Chvosty"],["ct","🛂 Pečiatky"],["rec","📈 Rekordy"],["hid","✉️ Skryté"]];
+let albumSel="typ";
+// koľko slotov sady je splnených
+function setProg(s){
+  if(s.t)return s.t.map(k=>!!(COL.types[k]&&COL.types[k].n));
+  const cx=Object.values(COL.cx||{});return s.slots.map(sl=>cx.some(sl.m)||(sl.m.length===0&&sl.m()));
+}
+// odmena: 1,5× hodnota kartičiek sady, min. 25 b
+const setReward=s=>s.b||(s.t?Math.max(25,Math.round(1.5*s.t.reduce((a,k)=>a+RAR[typeTier(k)].p,0))):Math.max(25,s.slots.length*8));
+// úroveň ★ podľa vzácnosti: bežnú A320 nevymaxuješ za týždeň, legendu stačí pár razy
+const LVT={c:[1,5,20,60],u:[1,3,10,25],r:[1,2,5,10],e:[1,2,3,5],l:[1,2,3,5]};
+const lvTab=k=>LVT[typeTier(k)]||LVT.u;
+const CARD_LV=LVT.u;
+const cardLvl=(n,k)=>lvTab(k).filter(x=>n>=x).length;
+const nextLv=(n,k)=>lvTab(k).find(x=>x>n);
 const stars=l=>"★".repeat(l)+"☆".repeat(4-l);
 function monthKey(){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava",year:"numeric",month:"2-digit"}).format(new Date())}
-function monthNew(){const mk=monthKey();return Object.values(COL.types).filter(v=>v.first&&new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava",year:"numeric",month:"2-digit"}).format(new Date(v.first))===mk).length}
-const MONTH_GOAL=3,MONTH_BONUS=30;
+const mkOf=t=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava",year:"numeric",month:"2-digit"}).format(new Date(t));
+// mesačná výzva: 3 nové čokoľvek – typ, aerolinka na kartičke, krajina alebo OM- (nevyčerpá sa ani spotterovi)
+function monthNew(){const mk=monthKey();let n=Object.values(COL.types).filter(v=>v.first&&v.n&&mkOf(v.first)===mk).length;
+  const cx=Object.values(COL.cx||{}),old=cx.filter(c=>mkOf(c.t)!==mk),cur=cx.filter(c=>mkOf(c.t)===mk);
+  const oldAl=new Set(old.map(c=>c.ty+":"+c.al)),oldC=new Set(old.map(c=>c.dc));
+  n+=new Set(cur.filter(c=>c.al&&!oldAl.has(c.ty+":"+c.al)).map(c=>c.ty+":"+c.al)).size;
+  n+=new Set(cur.filter(c=>c.dc&&!oldC.has(c.dc)).map(c=>c.dc)).size;
+  n+=Object.values(COL.om||{}).filter(t=>mkOf(t)===mk).length;return n}
+const MONTH_GOAL=3,MONTH_BONUS=40;
 function monthHTML(){
   const mn=monthNew(),mdone=(COL.month||"")===monthKey();
   const mname=new Date().toLocaleDateString("sk-SK",{month:"long"});
-  return `<div class="monthly" style="grid-column:1/-1">🗓️ <b>Mesačná výzva (${mname}):</b> zamávaj ${MONTH_GOAL} novým typom lietadiel · ${Math.min(mn,MONTH_GOAL)}/${MONTH_GOAL}${mdone?" ✅ +"+MONTH_BONUS+" bodov":" · odmena +"+MONTH_BONUS+" bodov"}</div>`;
+  return `<div class="monthly" style="grid-column:1/-1">🗓️ <b>Mesačná výzva (${mname}):</b> ${MONTH_GOAL} nové objavy – typ, aerolinka na kartičke, krajina alebo OM- · ${Math.min(mn,MONTH_GOAL)}/${MONTH_GOAL}${mdone?" ✅ +"+MONTH_BONUS+" b":" · odmena +"+MONTH_BONUS+" b"}</div>`;
 }
 function setsHTML(){
   COL.sets=COL.sets||{};
-  const mn=monthNew(),mdone=(COL.month||"")===monthKey();
-  const mname=new Date().toLocaleDateString("sk-SK",{month:"long"});
-  return `<div class="monthly" hidden>🗓️ <b>Mesačná výzva (${mname}):</b> zamávaj ${MONTH_GOAL} novým typom lietadiel · ${Math.min(mn,MONTH_GOAL)}/${MONTH_GOAL}${mdone?" ✅ +"+MONTH_BONUS+" bodov":" · odmena +"+MONTH_BONUS+" bodov"}</div>
-  <div class="sets">${SETS.map(s=>{const h=s.t.filter(k=>COL.types[k]).length,done=!!COL.sets[s.id];
-    return `<div class="setRow ${done?"done":""}" role="button" tabindex="0"><span class="si" aria-hidden="true">${s.i}</span><span class="sn">${s.n}<small>${s.d} · ${done?"hotovo":"odmena +"+s.b+" b"}</small></span><span class="sp">${done?"✅":h+"/"+s.t.length} ›</span>
-      <div class="setSlots">${s.t.map(k=>`<button data-lk="${esc(k)}" class="${COL.types[k]?"got":""}">${COL.types[k]?"✅":"🔒"} ${esc(CAT[k]?CAT[k].name:k)}</button>`).join("")}</div></div>`}).join("")}</div>`;
+  const list=SETS.filter(s=>s.alb===albumSel),done=list.filter(s=>COL.sets[s.id]).length;
+  return `<div class="albums" style="grid-column:1/-1">${ALBUMS.map(([a,l])=>{const L=SETS.filter(s=>s.alb===a),d=L.filter(s=>COL.sets[s.id]).length;return `<button class="${albumSel===a?"on":""}" data-alb="${a}">${l}<small>${d}/${L.length}</small></button>`}).join("")}</div>
+  <div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets[s.id],hid=s.alb==="hid"&&!dn&&h===0;
+    const lab=(x,i)=>s.t?(CAT[s.t[i]]?CAT[s.t[i]].name:s.t[i]):s.slots[i].l;
+    return `<div class="setRow ${dn?"done":""}" role="button" tabindex="0"><span class="si" aria-hidden="true">${hid?"✉️":s.i}</span><span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+" b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} ›</span>
+      <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></div>`}).join("")}</div>`;
 }
 function setsCheck(a){
   COL.sets=COL.sets||{};let msg=null;
-  for(const s of SETS){if(COL.sets[s.id])continue;if(s.t.every(k=>COL.types[k])){COL.sets[s.id]=Date.now();COL.pts+=s.b;msg=["📚 Kompletná sada: "+s.n,"+"+s.b+" bodov · máš všetky "+s.t.length+" kartičky"]}}
-  const mk=monthKey();if(COL.month!==mk&&monthNew()>=MONTH_GOAL){COL.month=mk;COL.pts+=MONTH_BONUS;msg=msg||["🗓️ Mesačná výzva splnená!","+"+MONTH_BONUS+" bodov za "+MONTH_GOAL+" nové typy"]}
+  for(const s of SETS){if(COL.sets[s.id])continue;if(setProg(s).every(Boolean)){const b=setReward(s);COL.sets[s.id]=Date.now();COL.pts+=b;msg=["📚 Kompletná sada: "+s.n,"+"+b+" bodov"+(s.alb==="hid"?" · odhalil si skrytú sadu!":"")]}}
+  const mk=monthKey();if(COL.month!==mk&&monthNew()>=MONTH_GOAL){COL.month=mk;COL.pts+=MONTH_BONUS;msg=msg||["🗓️ Mesačná výzva splnená!","+"+MONTH_BONUS+" bodov za "+MONTH_GOAL+" nové objavy"]}
   if(msg){LS.set("ctl_col",COL);setTimeout(()=>{toast(msg[0],msg[1],"#ffcf4f");confetti(90)},typeof WB!=="undefined"&&WB?0:3600)}
+}
+/* 📅 edície „Bol som pri tom“ – číslované serverom, zmeškané sa nedajú doplniť */
+const EDS=[["santa2026","🛷","Santa 2026","24. 12. 2026"],["silvester2026","🎆","Posledné lietadlo 2026","31. 12. 2026 večer"],["novyrok2027","🥂","Prvé lietadlo 2027","1. 1. 2027"],["valentin2027","❤️","Valentínske lietadlo 2027","14. 2. 2027"],["rovnodennost2027","🌗","Jarná rovnodennosť 2027","20. 3. 2027"],["stefanik2027","⭐","Deň Štefánika 2027","4. 5. 2027"],["detom2027","🧒","Deň detí 2027","1. 6. 2027"],["slnovrat2027","☀️","Letný slnovrat 2027","21. 6. 2027"],["zatmenie2027","🌘","Zatmenie Slnka 2027","2. 8. 2027, 10:10–12:30 (do Slnka nepozeraj!)"],["perzeidy2027","🌠","Noc Perzeíd 2027","12./13. 8. 2027"],["snp2027","🇸🇰","Výročie SNP 2027","29. 8. 2027"],["halloween2027","🎃","Strašidelné lietadlo 2027","31. 10. 2027 po zotmení"]];
+function edHTML(){
+  const E=COL.ed||{};
+  return `<div class="lookSub" style="grid-column:1/-1">Kartičky „Bol som pri tom“: stačí v daný deň zamávať akémukoľvek lietadlu. Majú poradové číslo a zmeškané sa nedajú doplniť.</div><div class="sets" style="grid-column:1/-1">${EDS.map(([id,i,n,w])=>{const g=E[id];return `<div class="setRow ${g?"done":""}"><span class="si">${i}</span><span class="sn">${n}<small>${g?"č. "+g.no+" · "+new Date(g.t).toLocaleDateString("sk-SK"):w}</small></span><span class="sp">${g?"✅":"📅"}</span></div>`}).join("")}</div>`;
 }
 // opakovaný úlovok toho istého typu zvyšuje úroveň kartičky
 HOOKS.caught.push(a=>{
   const v=COL.types[a.type||"?"];if(!v)return;
-  const l=cardLvl(v.n),pl=cardLvl(v.n-1);
+  const l=cardLvl(v.n,a.type),pl=cardLvl(v.n-1,a.type);
   if(v.n>1&&l>pl)setTimeout(()=>toast("⭐ Kartička povýšená: "+(v.name||a.type),stars(l)+" · ulovená "+v.n+"×","#ffcf4f"),typeof WB!=="undefined"&&WB?0:2600);
   setsCheck(a);
 });
 // do atlasu: sady nad kartičkami, hviezdy na kartičkách
 {const base=renderCards;renderCards=function(){setsCheck();base();
-  const top=$("c-types").querySelector(".atlasTop");if(top&&atlasMode!=="sets")top.insertAdjacentHTML("afterend",monthHTML());
-  $("c-types").querySelectorAll(".mini[data-k]").forEach(m=>{const v=COL.types[m.dataset.k];if(v&&!m.querySelector(".stars"))m.insertAdjacentHTML("beforeend",`<span class="stars" aria-hidden="true">${stars(cardLvl(v.n))}</span>`)})}}
-{const base=openCard;openCard=function(k,rv){base(k,rv);const v=COL.types[k];if(v)$("cardBig").insertAdjacentHTML("beforeend",`<div class="lookSub" style="text-align:center;margin-top:10px">${stars(cardLvl(v.n))} · ulovená ${v.n}× · ďalšia úroveň pri ${CARD_LV.find(x=>x>v.n)||"max"} úlovkoch</div>`)}}
+  const top=$("c-types").querySelector(".atlasTop");if(top&&atlasMode!=="sets")top.insertAdjacentHTML("afterend",monthHTML());}}
 
 /* 📖 Encyklopédia: aj neulovené lietadlo má svoju stránku – vieš, čo hľadať */
 function openLocked(k){
@@ -321,3 +463,57 @@ if($("cardVideo"))$("cardVideo").onclick=()=>{
   img.onerror=done;
   img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(cardSVG(cardK,v,{id:"v"}));
 };
+
+/* 🏛️ vitrína: 3 najlepšie kartičky na profile (1 slot zadarmo, ďalšie za míle) */
+const prestige=(k,v)=>RAR[typeTier(k)].p*(v.shiny?3:1)*(v.night?1.3:1)+cardLvl(v.n||1,k)*2+(v.seq&&v.seq<=10?25:0)+(v.seq===1?100:0);
+function showSlots(){return 1+((COL.shop||{}).slot2?1:0)+((COL.shop||{}).slot3?1:0)}
+function showList(){const own=Object.keys(COL.types).filter(k=>k!=="?"&&COL.types[k].n);let L=(COL.show||[]).filter(k=>COL.types[k]);
+  if(!L.length)L=own.sort((a,b)=>prestige(b,COL.types[b])-prestige(a,COL.types[a])).slice(0,showSlots());return L.slice(0,showSlots())}
+function renderShow(){const el=$("showcase");if(!el)return;const L=showList();el.hidden=!L.length;if(!L.length)return;
+  el.innerHTML=L.map(k=>`<button data-sk="${esc(k)}" aria-label="${esc(catGuess(k).name)}">${cardMini(k,COL.types[k])}</button>`).join("")+Array.from({length:showSlots()-L.length},()=>'<div class="emp" style="flex:0 0 28%">📌 voľné</div>').join("")}
+$("showcase")&&($("showcase").onclick=e=>{const b=e.target.closest("[data-sk]");if(b){cardK=b.dataset.sk;openCard(cardK)}});
+/* ✈ míle: druhá mena bez platenia – z denných bodov (prvých 60 b naplno, potom 25 %) */
+function mileSync(){
+  COL.mi=COL.mi|0;if(COL.ptsSeen==null){COL.ptsSeen=COL.pts;COL.mi=Math.min(300,Math.round(COL.pts/10))}
+  const d=COL.pts-COL.ptsSeen;if(d<=0){COL.ptsSeen=COL.pts;return}
+  const day=dayKey();if(COL.miDay!==day){COL.miDay=day;COL.miToday=0}
+  const full=Math.max(0,Math.min(d,60-COL.miToday)),gain=full+Math.floor((d-full)*.25);
+  COL.mi+=gain;COL.miToday+=d;COL.ptsSeen=COL.pts;LS.set("ctl_col",COL);
+}
+const SHOP=[
+  {id:"freeze",i:"❄️",n:"Zmrazenie série",d:"Keď vynecháš deň, séria nespadne (max. 3)",c:80,ok:()=>((typeof DAILY!=="undefined"&&DAILY&&DAILY.freeze)|0)<3,buy:()=>{const D=dailyEnsure();D.freeze=(D.freeze|0)+1;LS.set("ctl_daily",D);renderDaily()}},
+  {id:"swap",i:"🔄",n:"Ďalšia výmena výzvy",d:"Vymeň dnes ešte jednu výzvu",c:25,ok:()=>true,buy:()=>{const D=dailyEnsure();D.swapped=false;LS.set("ctl_daily",D);renderDaily()}},
+  {id:"slot2",i:"🏛️",n:"2. miesto vo vitríne",d:"Ukáž kamarátom ďalšiu kartičku",c:200,once:1},
+  {id:"slot3",i:"🏛️",n:"3. miesto vo vitríne",d:"Plná vitrína",c:500,once:1,ok:()=>!!(COL.shop||{}).slot2},
+  {id:"fr_tatry",i:"🏔️",n:"Rám Tatry",d:"Kozmetický rám na zdieľané kartičky",c:150,once:1},
+  {id:"fr_dunaj",i:"🌊",n:"Rám Dunaj",d:"Kozmetický rám na zdieľané kartičky",c:250,once:1},
+  {id:"fr_noc",i:"🌃",n:"Rám Noc nad mestom",d:"Kozmetický rám na zdieľané kartičky",c:400,once:1},
+];
+function shopOpen(){mileSync();COL.shop=COL.shop||{};
+  $("shopMi").textContent="✈ "+nf(COL.mi)+" míľ";
+  $("shopList").innerHTML=SHOP.map(x=>{const own=x.once&&COL.shop[x.id],can=!own&&(!x.ok||x.ok())&&COL.mi>=x.c;
+    return `<div class="shopRow"><span style="font-size:26px">${x.i}</span><div>${x.n}<small>${x.d}</small></div><button class="btn ${can?"pri":"sec"}" data-buy="${x.id}" ${can?"":"disabled"}>${own?"✓ máš":"✈ "+x.c}</button></div>`}).join("");
+  $("shopM").classList.add("on")}
+$("b-miles")&&($("b-miles").onclick=shopOpen);$("shopClose")&&($("shopClose").onclick=()=>$("shopM").classList.remove("on"));
+$("shopList")&&($("shopList").onclick=e=>{const b=e.target.closest("[data-buy]");if(!b)return;const x=SHOP.find(q=>q.id===b.dataset.buy);if(!x||COL.mi<x.c)return;
+  COL.mi-=x.c;if(x.once)COL.shop[x.id]=Date.now();if(x.buy)x.buy();LS.set("ctl_col",COL);haptic(20);toast(x.i+" "+x.n,"Hotovo · zostáva ✈ "+nf(COL.mi)+" míľ");shopOpen();renderShow();if(x.id.startsWith("fr_"))COL.frame=x.id,LS.set("ctl_col",COL)});
+/* 🎁 daruj kópiu – odkaz pre kamaráta (server overí duplikát) */
+async function giftMake(k){
+  if(!SOC.api)return;try{const r=await apiPost("/api/gift",{type:k});const j=await r.json();
+    if(!j.code){toast("🎁 Darovať sa nedá",{dup:"Potrebuješ aspoň 2 overené úlovky tohto typu",tier:"Darovať sa dajú len bežné a nezvyčajné – legendu musí každý vidieť sám",new:"Darovať môžeš po 7 dňoch v appke",rate:"Dnes si už darúval 3×",kid:"V detskom režime to nejde"}[j.error]||"Skús to neskôr");return}
+    const url=location.origin+location.pathname+"#dar="+j.code,text=`🎁 Darujem ti kartičku ${catGuess(k).name} z appky Čo to letí? ✈️ Keď mu potom sám zamávaš, bude celá tvoja.`;
+    try{if(navigator.share){await navigator.share({title:"Darček",text,url});return}}catch(e){if(e.name==="AbortError")return}
+    await navigator.clipboard.writeText(text+" "+url);toast("🎁 Odkaz skopírovaný","Pošli ho kamarátovi – platí 14 dní")}catch(e){toast("Bez internetu","Darovať môžeš, keď budeš online")}
+}
+async function giftClaim(){const m=location.hash.match(/dar=([A-Za-z0-9]{6,8})/);if(!m)return;
+  if(!LS.get("ctl_onb",0)){afterOnb(giftClaim);return}if(typeof KID==="function"&&KID())return;
+  history.replaceState(null,"",location.pathname);
+  try{const r=await apiPost("/api/giftclaim",{code:m[1]});const j=await r.json();if(!j.type){toast("🎁 Darček už nie je platný",j.error==="self"?"Toto je tvoj vlastný darček 🙂":"Možno ho už niekto použil");return}
+    const v=COL.types[j.type];if(v&&v.n){toast("🎁 Túto kartičku už máš","Ďakujeme "+j.from+" aj tak 💛");return}
+    COL.types[j.type]={n:0,r:typeTier(j.type),name:catGuess(j.type).name,first:Date.now(),gift:{from:j.from,t:Date.now()}};LS.set("ctl_col",COL);
+    toast("🎁 Darček od "+j.from+"!",catGuess(j.type).name+" – zamávaj mu sám a kartička bude plná");confetti(60);renderCol();
+  }catch(e){}}
+setTimeout(giftClaim,1500);addEventListener("hashchange",giftClaim);
+HOOKS.view.push(v=>{if(v==="col"){mileSync();$("c-miles")&&($("c-miles").textContent=nf(COL.mi|0));renderShow()}});
+// 🛷 Santa = edícia roka
+HOOKS.caught.push(a=>{if(a.santa){COL.ed=COL.ed||{};const id="santa"+new Date().getFullYear();if(!COL.ed[id]){COL.ed[id]={n:"Santa "+new Date().getFullYear(),no:0,t:Date.now(),ty:"SLEIGH"};LS.set("ctl_col",COL)}}});

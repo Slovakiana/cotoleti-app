@@ -23,7 +23,6 @@ const CATALOG=[
 ["E295","Embraer E195-E2","Embraer","twin",41.5,35.1,830,4800,132,2017,"Niektoré majú na nose namaľovaného žraloka 🦈."],
 ["CRJ7","Bombardier CRJ700","Bombardier","rj",32.5,23.2,830,2600,70,1999,"Motory má vzadu pri chvoste."],
 ["CRJ9","Bombardier CRJ900","Bombardier","rj",36.2,24.9,830,2900,90,2001,"Vďaka motorom vzadu je v prednej časti kabíny ticho."],
-["SU95","Suchoj Superjet 100","Suchoj","twin",29.9,27.8,830,3000,98,2008,"Ruský regionálny tryskáč."],
 ["AT43","ATR 42","ATR","prop",22.7,24.6,500,1300,48,1984,"Francúzsko-taliansky turbovrtuľák pre krátke trate."],
 ["AT75","ATR 72-500","ATR","prop",27.2,27.1,510,1500,70,1996,"Krídlo má nad trupom – z okna vidíš celú krajinu."],
 ["AT76","ATR 72-600","ATR","prop",27.2,27.1,510,1500,72,2009,"Na krátkych tratiach míňa menej paliva než tryskáč."],
@@ -50,7 +49,7 @@ const CATALOG=[
 ["BLCF","Boeing Dreamlifter","Boeing","quad",71.7,64.4,880,7800,0,2006,"Vozí krídla a časti trupu pre Boeing 787."],
 ["A3ST","Airbus Beluga","Airbus","beluga",56.2,44.8,750,2800,0,1994,"Lietadlo v tvare veľryby vozí časti Airbusov medzi továrňami."],
 ["A337","Airbus BelugaXL","Airbus","beluga",63.1,60.3,750,4000,0,2018,"Na nose má namaľované oči a úsmev 😄."],
-["A124","Antonov An-124 Ruslan","Antonov","quad",69.1,73.3,800,4800,0,1982,"Uvezie 150 ton – pokojne aj rušeň."],
+["A124","Antonov An-124 Ruslan","Antonov","quad",69.1,73.3,800,4800,0,1982,"Uvezie 150 ton – pokojne aj rušeň. Nad Slovenskom takmer nikdy – trofej z dovolenky."],
 ["IL76","Iljušin Il-76","Iljušin","quad",46.6,50.5,780,4400,0,1971,"Nákladný štvormotorák so sklenenou „navigátorskou“ špičkou."],
 ["A400","Airbus A400M Atlas","Airbus","prop4",45.1,42.4,780,3300,116,2009,"Vrtule na každom krídle sa točia proti sebe."],
 ["C130","C-130 Hercules","Lockheed","prop4",29.8,40.4,590,3800,92,1954,"Vyrába sa už vyše 70 rokov."],
@@ -86,8 +85,22 @@ const CATALOG=[
 ["H60","UH-60 Black Hawk","Sikorsky","heli",19.8,16.4,280,590,11,1974,"Používa ho aj slovenská armáda."],
 ["MI8","Mil Mi-8/17","Mil","heli",18.4,21.3,230,950,30,1961,"Robustný transportný vrtuľník – Mi-8 aj Mi-17 vysielajú rovnaký kód."],
 ["B429","Bell 429","Bell","heli",13.1,11.0,270,760,7,2007,"Hlavný vrtuľník slovenskej leteckej záchrannej služby a polície."],
+["L410","Let L-410 Turbolet","Let Kunovice","prop",14.4,19.5,310,1400,19,1969,"Československá legenda z Kunovíc – vozí parašutistov aj cestujúcich po celom svete."],
+["C27J","Alenia C-27J Spartan","Leonardo","prop",22.7,28.7,580,1850,60,1999,"Transportné lietadlo slovenského letectva zo základne Malacky-Kuchyňa."],
+["AN2","Antonov An-2","Antonov","ga1",12.4,18.2,190,850,12,1947,"„Anduľa“ – najväčší jednomotorový dvojplošník, dodnes vozí parašutistov."],
+["AN12","Antonov An-12","Antonov","prop4",33.1,38.0,670,3600,0,1957,"Sovietsky nákladný štvorvrtuľák, ešte stále ho občas vidno nad Európou."],
+["E55P","Embraer Phenom 300","Embraer","rj",15.6,16.2,839,3650,9,2008,"Najpredávanejší ľahký biznis jet sveta."],
+["C56X","Cessna Citation Excel","Cessna","rj",15.8,17.2,800,3400,9,1996,"Obľúbené aerotaxi – nad Európou ich lietajú stovky."],
+["BE20","Beechcraft King Air","Beechcraft","prop",13.4,16.6,535,3300,9,1972,"Dvojmotorová turbovrtuľová klasika – lieta aj ako lietajúca ambulancia."],
+["TBM9","Daher TBM 900","Daher","ga1",10.7,12.8,610,3300,5,2014,"Najrýchlejší jednomotorový turbovrtuľák – súkromný „športiak“ oblohy."],
+["C208","Cessna 208 Caravan","Cessna","ga1",11.5,15.9,340,1700,12,1982,"Ťahúň parašutistov a horských letísk."],
+["GLF5","Gulfstream G550","Gulfstream","rj",29.4,28.5,900,12500,16,2003,"Diaľkový biznis jet – lieta aj ako vládny špeciál."],
 ];
-const CAT={};CATALOG.forEach((c,i)=>CAT[c[0]]={code:c[0],name:c[1],maker:c[2],fam:c[3],len:c[4],span:c[5],spd:c[6],range:c[7],seats:c[8],year:c[9],fact:c[10],no:i+1});
+const CAT={};
+// číslovanie po stupňoch vzácnosti: 001… bežné, potom nezvyčajné, vzácne, epické, legendárne; trofejné na koniec
+const _ord=c=>(typeof TROPHY!=="undefined"&&TROPHY.has(c[0])?9:0)+({c:0,u:1,r:2,e:3,l:4}[typeTier(c[0])]);
+CATALOG.sort((a,b)=>_ord(a)-_ord(b));
+CATALOG.forEach((c,i)=>CAT[c[0]]={code:c[0],name:c[1],maker:c[2],fam:c[3],len:c[4],span:c[5],spd:c[6],range:c[7],seats:c[8],year:c[9],fact:c[10],no:i+1});
 const FAM_SK={twin:"Úzkotrupé",twinW:"Širokotrupé",quad:"Štvormotorové",tri:"Trojmotorové",rj:"Motory vzadu",prop:"Turbovrtuľové",prop4:"Štvorvrtuľové",mil:"Vojenský transport",beluga:"Špeciálny náklad",fighter:"Stíhačka",delta:"Stíhačka (delta)",jetT:"Cvičný tryskáč",ga:"Malé lietadlo",ga1:"Turbovrtuľový jednomotorák",heli:"Vrtuľník"};
 const MAKER_COL={Airbus:"#3d7bff",Boeing:"#1f4fbf",Embraer:"#00a86b",ATR:"#f57c00","De Havilland":"#d32f2f",Bombardier:"#c62828","McDonnell Douglas":"#5d4037",Antonov:"#f9a825","Iljušin":"#6d4c41",Lockheed:"#455a64",Eurofighter:"#37474f",Saab:"#1565c0","Aero Vodochody":"#2e7d32",Gulfstream:"#7e57c2",Cessna:"#ef6c00",Dassault:"#283593",Learjet:"#6a1b9a",Pilatus:"#c62828",Piper:"#f9a825",Diamond:"#0097a7",Cirrus:"#ad1457",Leonardo:"#00897b",Bell:"#1e88e5",Robinson:"#e53935",Sikorsky:"#556b2f",Mil:"#6b7b3a","Suchoj":"#8d6e63"};
 // odhad pre typ, ktorý v atlase nie je

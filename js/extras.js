@@ -151,18 +151,22 @@ const STREAK_MS={3:[20,""],7:[50,"streak7"],14:[80,""],30:[200,"streak30"],60:[3
 ACH.push({id:"streak7",i:"🔥",n:"Týždeň pod oblohou",c:()=>false},{id:"streak30",i:"🌟",n:"Verný spotter (30 dní)",c:()=>false},{id:"streak100",i:"💯",n:"Sto dní pod oblohou",c:()=>false});
 function dAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"})}
 function streakTouch(){
-  const D=dailyEnsure();if(D.lastDay===D.date)return;
+  const D=dailyEnsure();
+  if(D.lastDay===D.date){ // 🔧 oprava série: po výpadku stačia dnes 2 mávnutia (1× za 30 dní)
+    if(D.repair&&D.repair.day===D.date){D.repair.cnt=(D.repair.cnt|0)+1;if(D.repair.cnt>=2){D.streak=D.repair.from+1;D.repairT=Date.now();D.repair=null;toast("🔧 Séria opravená!","Pokračuješ: "+D.streak+" dní 🔥");LS.set("ctl_daily",D);streakChip()}else LS.set("ctl_daily",D)}
+    return}
   const prev=D.streak||0;let used=false;
   if(D.lastDay===dAgo(1))D.streak=prev+1;
   else if(D.lastDay===dAgo(2)&&(D.freeze|0)>0){D.freeze--;D.streak=prev+1;used=true}
-  else{if(prev>=3)D.lost=prev;D.streak=1}
+  else{if(prev>=3)D.lost=prev;D.streak=1;if(prev>=3&&D.lastDay===dAgo(2)&&(!D.repairT||Date.now()-D.repairT>30*864e5))D.repair={from:prev,day:D.date,cnt:1}}
+  D.best=Math.max(D.best|0,D.streak);
   D.lastDay=D.date;D.days=[D.date,...(D.days||[])].slice(0,14);
   if(D.streak%7===0&&(D.freeze|0)<2){D.freeze=(D.freeze|0)+1;toast("❄️ Zmrazenie série +1","Keď raz vynecháš deň, séria nespadne")}
   if(used)toast("❄️ Zmrazenie zachránilo sériu","Včera si nemával, séria "+D.streak+" ide ďalej");
   const ms=STREAK_MS[D.streak];
   if(ms){COL.pts+=ms[0];if(ms[1])grantAch(ms[1]);toast("🔥 Séria "+D.streak+" dní! +"+ms[0]+" bodov")}
   else if(D.streak>1)toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"));
-  else if(D.lost)toast("💔 Séria "+D.lost+" dní skončila","Začni novú – dnes je deň 1");
+  else if(D.lost)toast("🏅 "+D.lost+" dní – tvoj rekord ostáva",D.repair?"Zamávaj dnes ešte raz a séria sa obnoví 🔧":"Dnes začína nová séria");
   if(D.streak>1)D.lost=0;
   LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();streakChip();
 }
@@ -170,8 +174,9 @@ function streakChip(){
   const D=dailyEnsure(),el=$("streakChip");if(!el)return;
   const live=D.lastDay===D.date||D.lastDay===dAgo(1)||(D.lastDay===dAgo(2)&&(D.freeze|0)>0);
   const n=live?D.streak|0:0;el.hidden=n<2;
-  el.textContent="🔥 "+n+(D.lastDay===D.date?"":" · dnes ešte nie")+((D.freeze|0)?" · ❄️"+D.freeze:"");
-  el.classList.toggle("pend",D.lastDay!==D.date);
+  const wk=(D.days||[]).filter(x=>x>=dAgo(6)).length;
+  el.textContent="🔥 "+n+((D.freeze|0)?" · ❄️"+D.freeze:"")+" · týždeň "+wk+"/7";
+  el.classList.toggle("pend",D.lastDay!==D.date&&!(typeof KID==="function"&&KID()));
 }
 function dailyEvent(id){const D=dailyEnsure();if(D.ids.includes(id))dailyComplete(id)}
 HOOKS.caught.push(a=>{

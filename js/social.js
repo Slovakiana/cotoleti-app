@@ -36,7 +36,7 @@ const dayKey=()=>SKD.format(new Date());
 const dayAgo=n=>SKD.format(new Date(Date.now()-n*864e5));
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 
-ACH.push({id:"mayor",i:"🏛️",n:"Starosta oblohy",c:()=>false},{id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár · priviesť kamaráta",c:()=>false});
+ACH.push({id:"discover",i:"🧭",n:"Objaviteľ – prvý na Slovensku",c:()=>false},{id:"mayor",i:"🏛️",n:"Starosta oblohy",c:()=>false},{id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár · priviesť kamaráta",c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"wave",i:"👋",n:"Zamávaj lietadlu",h:"Ťukni na „Mávni“ pri lietadle nad tebou",ev:true});
 
 async function socPoll(){
@@ -82,6 +82,15 @@ function renderLeague(){
   let rows=[];
   if(LG==="k"||LG==="w"){const me=krajOf(S.pos),all=((LG==="w"?D.krajeWeek:D.kraje)||[]).filter(x=>x.n>0&&x.k!=="XX");rows=all.slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2],x.n,x.k===me]);
     const mi=all.findIndex(x=>x.k===me);if(mi>=8)rows.push([(mi+1)+". "+(KRAJ[me]||KRAJ.XX)[2]+" (tvoj kraj)",all[mi].n,true])}
+  else if(LG==="a"){
+    // 🃏 rebríček zberateľov v kraji: vzácnosť rôznych typov (overené serverom) + 100 b za každé prvenstvo v SR
+    const kk=krajOf(S.pos);
+    if(!SOC.atl||SOC.atl.k!==kk||Date.now()-SOC.atl.t>300e3){if(!SOC.atlL){SOC.atlL=1;apiPost("/api/atlasy",{k:kk}).then(r=>r.json()).then(j=>{SOC.atlL=0;j=j&&j.top?j:{top:[]};if(1){SOC.atl={k:kk,t:Date.now(),j};if(LG==="a")renderLeague()}}).catch(()=>{SOC.atlL=0})}}
+    const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
+    rows=(j.top||[]).slice(0,10).map(r=>[r.nick+" · "+r.n+" typov",r.sc,r.me,!r.me&&r.nick!=="Spotter"]);
+    if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" typov",j.me.sc,true]);
+    if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏</div>';return}
+  }
   else if(LG==="f"){
     if(!SOC.frw||Date.now()-SOC.frw.t>120e3){if(!SOC.frwL){SOC.frwL=1;apiPost("/api/friends",{}).then(r=>r.json()).then(j=>{SOC.frw={t:Date.now(),j};SOC.frwL=0;if(LG==="f")renderLeague()}).catch(()=>{SOC.frwL=0})}}
     const j=SOC.frw&&SOC.frw.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
@@ -138,13 +147,20 @@ HOOKS.heroStatic.push(a=>{waveInfo(a);cardHint(a)});
 /* 🃏 čo ti zamávanie prinesie – ešte PRED mávnutím (prepojenie hlavnej akcie a zbierky) */
 function cardHint(a){
   const el=$("cardHint");if(!el)return;if(!a||a.santa){el.innerHTML="";return}
-  const ty=a.type,v=ty&&COL.types[ty],c=ty&&CAT[ty],out=[];
+  const ty=a.type,v=ty&&COL.types[ty]&&COL.types[ty].n?COL.types[ty]:null,c=ty&&CAT[ty],out=[];
   if(a.el!=null&&a.el<10)out.push(`<span class="low">📉 Je nízko (${Math.max(0,Math.round(a.el))}°) – do zbierky až nad 10°</span>`);
   else if(COL.hex[a.hex])out.push(`<span>✓ Toto lietadlo už máš v zbierke</span>`);
   else if(!v&&c)out.push(`<span class="new">🃏 Nová kartička! č. ${String(c.no).padStart(3,"0")} z ${CATALOG.length}</span>`);
   else if(!v)out.push(`<span class="new">🃏 Nové lietadlo do zbierky</span>`);
-  else{const nx=CARD_LV.find(x=>x>v.n);out.push(`<span>${stars(cardLvl(v.n))}${nx?" · ešte "+(nx-v.n)+"× do ďalšej ★":" · max. úroveň"}</span>`)}
-  try{const r=rarity(a);if((r==="r"||r==="l")&&!COL.hex[a.hex])out.push(`<span class="new">${r==="l"?"💎 Legendárne":"◆ Vzácne"} +${RAR[r].p} b</span>`)}catch(e){}
+  else{const nx=nextLv(v.n,ty);out.push(`<span>${stars(cardLvl(v.n,ty))}${nx?" · ešte "+(nx-v.n)+"× do ďalšej ★":" · max. úroveň"}</span>`)}
+  try{const r=rarity(a);if(RORD[r]>=2&&!COL.hex[a.hex])out.push(`<span class="new">${RAR[r].s} ${RAR[r].n} +${RAR[r].p} b</span>`);
+    // 🌅/🎯 chýbajúca forma, ktorá sa dá získať práve teraz
+    if(v&&!COL.hex[a.hex]){const fm=v.forms||{},sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null;
+      if(!fm.g&&sa!=null&&sa>-4&&sa<6)out.push('<span class="new">🌅 Zlatá hodinka – chýba ti táto forma</span>');
+      else if(!fm.z&&a.el>=80)out.push('<span class="new">🎯 Zenit – chýba ti táto forma</span>')}
+    // 📚 dokončí sadu?
+    if(!v&&typeof SETS!=="undefined"){const st=SETS.find(s=>!(COL.sets||{})[s.id]&&s.t&&s.t.includes(ty)&&s.t.filter(k=>k!==ty).every(k=>COL.types[k]));if(st)out.push(`<span class="new">📚 Dokončí sadu ${esc(st.n)}</span>`)}
+  }catch(e){}
   try{const D=dailyEnsure();if(!COL.hex[a.hex]&&(a.el??0)>=10&&D.ids.some(id=>{const x=DAILY_POOL.find(q=>q.id===id);return x&&!D.done[id]&&!x.ev&&!x.need&&!x.key&&x.t&&x.t(a)}))out.push(`<span class="new">🎯 Splní výzvu +10</span>`)}catch(e){}
   const h=out.join("");if(el.innerHTML!==h)el.innerHTML=h;
 }
@@ -162,7 +178,7 @@ function flyEmoji(e,fromEl){
     document.body.appendChild(el);setTimeout(()=>el.remove(),1600+i*70);
   }
 }
-async function doWave(e){
+async function doWave(e){LASTWAVE=null;
   const a=S.top;if(!a)return;
   $("wavePick").classList.remove("on");
   haptic([18,40,18]);flyEmoji(e,$("b-wave"));
@@ -180,7 +196,7 @@ async function doWave(e){
     for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
     LS.set("ctl_waved",SOC.waved);
     // body za mávanie: +1, najviac 20 denne (hra je o pozeraní hore, nie o ťukaní)
-    {const wd=LS.get("ctl_wpd",{d:"",n:0});if(wd.d!==dayKey()){wd.d=dayKey();wd.n=0}if(wd.n<20){COL.pts+=1;wd.n++}LS.set("ctl_wpd",wd)}LS.set("ctl_col",COL);
+    {const wd=LS.get("ctl_wpd",{d:"",n:0});if(wd.d!==dayKey()){wd.d=dayKey();wd.n=0}if(wd.n<10){COL.pts+=1;wd.n++}LS.set("ctl_wpd",wd)}LS.set("ctl_col",COL);
     const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
     grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");if(n===1&&typeof inAppBar==="function")setTimeout(inAppBar,6000);
     if(typeof dailyEvent==="function")dailyEvent("wave");
@@ -204,10 +220,12 @@ async function doWave(e){
     const code=r.status+(j.error?"/"+j.error:"")+(SOC.helloErr?" h"+SOC.helloErr:"");
     try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"wave fail "+code}))}catch(x){}
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
-    credit();fin("server nedvíha (kód "+code+"), zapísané u teba");return}
-  credit();
+    LASTWAVE=null;credit();fin("server nedvíha (kód "+code+"), zapísané u teba");return}
+  LASTWAVE={hex:a.hex,...j};credit();
+  if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["#"+j.seq+" na Slovensku"]);
+  if(j.seq===1){grantAch("discover");confetti(160)}
   if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");WB&&WB.items.push(["👯 Spoločné mávnutie s "+j.together.n]);confetti(40)}
-  if(j.golden==="entered")WB&&WB.items.push(["🏆 Si v žrebovaní o zlaté lietadlo"]);
+  if(j.golden==="entered"){const v=COL.types[a.type||"?"];if(v&&!v.gold){v.gold=Date.now();COL.pts+=25;LS.set("ctl_col",COL);grantAch("golden")}WB&&WB.items.push(["🏆 Zlatá posádka – zlatá kartička"])}
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);
   const tot=j.plane?j.plane.total:1;

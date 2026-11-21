@@ -89,3 +89,26 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - Hlavná karta kratšia (slot „Teraz“ namiesto čipov, detail letu ako panel), menší radar
 - Jeden systém tlačidiel a zaoblení, jednotné zatváranie modálov, nadpisy h2 pre VoiceOver, „Jednoduchý režim“, vyhľadávanie v appke
 - Mini kartičky ako vlastný náhľad, varianty (bežná/nočná/shiny) ako sloty, „Daruj kópiu“, „Tvoj štamgast“, rozlúčka s lietadlom
+
+## Vlna 6 – gamifikácia kartičiek (21. 11. 2026) · hotové vo v28
+- 5 stupňov vzácnosti ● Bežná / ◆ Nezvyčajná / ▲ Vzácna / ⬟ Epická / ♛ Legendárna (vzácnosť podľa typu, nie podľa prvého úlovku); exemplár OM-/vojenský o stupeň vyššie
+- Server: úlovok s typom, registráciou a výškou nad obzorom (overený ≥ 8°), poradové číslo „#37 na Slovensku“, Objaviteľ (prvý v SR/kraji/meste), „Má ju X % hráčov“
+- ✨ Shiny určuje server pre lietadlo a deň (rovnaké pre všetkých), šanca podľa vzácnosti
+- Formy kartičky 🌙🌅🎯🏠❄️, pamäť prvého úlovku, aerolinky na kartičke, OM- registrácie + odznaky
+- Nový vzhľad: tierové rámy, holo len v ilustrácii, zlatá legenda, mini kartičky, odhalenie „rub → otoč“ s napätím podľa stupňa, vitrína 3 kartičiek
+- Katalóg: + L-410, C-27J, An-2, An-12, Phenom 300, Citation Excel, King Air, TBM 900, Caravan, G550; Su-95 von; trofejná polička (An-124, Beluga, Dreamlifter, F-35) mimo 100 %; číslovanie po stupňoch
+- Albumy: Typy (19 sád, pokryjú celú sériu), Chvosty (aerolinky), Pečiatky (krajiny), Rekordy, Skryté sady s hádankou; odmena 1,5× hodnota sady; mesačná výzva „3 nové objavy“
+- Edície „Bol som pri tom“ číslované serverom (Silvester, Nový rok, Valentín, Štefánik, zatmenie 2027, Perzeidy, SNP…) + Santa ročník
+- Ekonomika: body c3/u8/r25/e45/l80 (×2 za nový typ), nová krivka levelov (50 mien, level sa pri prechode neznížil), limity na mávnutia, tipy, pozdravy a súboje; míle ✈ a obchod (zmrazenie, výmena výzvy, vitrína, kozmetické rámy)
+- Liga „🃏 Atlasy“ – rebríček zberateľov v kraji podľa vzácnosti (overené serverom)
+- Zlaté lietadlo bez žrebu: Zlatá posádka (zlatá kartička +25 b každému, spoločný bonus pri 20+), okno 40 min
+- Séria mäkšia: rekord ostáva, oprava série 2 mávnutiami, týždeň X/7, pripomienka série len pri 3+ dňoch a dá sa vypnúť
+- Súboj kartičiek: detský režim bez výziev, filter mien, len skutočné kartičky, obaja si vyberajú naslepo, kapacita pre nákladné, ★/shiny bonus, max. 3 odmenené výhry denne
+- 🎁 Daruj kópiu (len overené duplikáty, bežné/nezvyčajné, od 7. dňa, max 3 denne) – darovaná kartička sa stane celou, keď jej zamávaš sám
+- ♛ Legendárny poplach: push ľuďom do 80 km, keď nad SR letí epické/legendárne lietadlo
+
+### Zostáva z vlny 6
+- Výmena cez QR na mieste a „Dvor“ (burza triedy), rodinný/triedny spoločný atlas
+- Divízie po 30 hráčoch v pásmach oblohy, domovské mesto na sezónu
+- Lov špeciálnych náterov (treba overený zoznam registrácií), prvé lety z BTS/KSC a SIAF cez /admin (dátumy zadá majiteľ)
+- Lokálna vzácnosť podľa kraja (z dát po pár týždňoch prevádzky)

@@ -58,9 +58,10 @@ db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
 db.exec(`INSERT OR IGNORE INTO seen(day, id) VALUES('2000-01-01', '${C}')`);
 await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11&hexes=aabbcc`, null, "9.9.9.9");
 await t("poctivý hráč sa dostane do žrebu", async () => assert.equal((await call("/api/wave", {id: C, tok: hc.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true, nick: "Maťo"}, "9.9.9.9")).j.golden, "entered"));
-await t("žreb po 10 minútach vyberie víťaza", async () => {
-  Date.now = () => fixed + 35 * 60e3; await sky.cron();
-  const g = db.prepare("SELECT state, wnick FROM golden").get(); assert.equal(g.state, 1); assert.equal(g.wnick, "Maťo");
+await t("zlatá posádka sa uzavrie po 40 minútach (bez žrebu)", async () => {
+  Date.now = () => fixed + 35 * 60e3; await sky.cron(); assert.equal(db.prepare("SELECT state FROM golden").get().state, 0);
+  Date.now = () => fixed + 65 * 60e3; await sky.cron();
+  const g = db.prepare("SELECT state, crew FROM golden").get(); assert.equal(g.state, 1); assert.equal(g.crew, 1);
 });
 Date.now = realNow;
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
@@ -199,4 +200,22 @@ await (async () => {
   const f = (await call("/api/friends", {id: C, tok: hc.tok}, "9.9.9.9")).j;
   assert.ok(f.meC >= 1, JSON.stringify(f));
   console.log("✓ úlovky overené serverom");
+})();
+await (async () => {
+  const ts = db.prepare("SELECT * FROM typeseq").all();
+  assert.ok(ts.length >= 1 && ts[0].type === "A21N", JSON.stringify(ts));
+  const cs = (await call("/api/cardstat?type=A21N")).j; assert.ok(cs.own >= 1, JSON.stringify(cs));
+  const at = (await call("/api/atlasy", {id: C, tok: hc.tok}, "9.9.9.9")).j; assert.ok(at.top.length >= 1 && at.me && at.me.sc >= 3, JSON.stringify(at));
+  const c = db.prepare("SELECT type, ok, el FROM catches WHERE id=?").get(C); assert.equal(c.type, "A21N"); assert.ok(c.el > 8);
+  console.log("✓ zbierka na serveri: poradie, objaviteľ, atlasy");
+  // dar: nový účet nesmie, starý s duplikátom áno
+  db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
+  assert.equal((await call("/api/gift", {id: C, tok: hc.tok, type: "A21N"}, "9.9.9.9")).j.error, "dup");
+  db.exec(`INSERT INTO catches(id, hex, t, type, ok) VALUES('${C}', 'ffeedd', 1, 'A21N', 1)`);
+  const g = (await call("/api/gift", {id: C, tok: hc.tok, type: "A21N"}, "9.9.9.9")).j; assert.ok(g.code, JSON.stringify(g));
+  assert.equal((await call("/api/gift", {id: C, tok: hc.tok, type: "A388"}, "9.9.9.9")).j.error, "tier");
+  const hd = (await call("/api/hello", {id: "v2dddddddddddddddddddddd4"}, "4.4.4.4")).j;
+  const cl = (await call("/api/giftclaim", {id: "v2dddddddddddddddddddddd4", tok: hd.tok, code: g.code}, "4.4.4.4")).j; assert.equal(cl.type, "A21N");
+  assert.equal((await call("/api/giftclaim", {id: "v2dddddddddddddddddddddd4", tok: hd.tok, code: g.code}, "4.4.4.4")).s, 410);
+  console.log("✓ darovanie kópie");
 })();

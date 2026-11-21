@@ -47,17 +47,30 @@ IBE:"Iberia",VLG:"Vueling",SAS:"SAS",FIN:"Finnair",AEE:"Aegean",ROT:"TAROM",BTI:
 TUI:"TUI",TOM:"TUI",TFL:"TUI",ENT:"Enter Air",AIC:"Air India",SIA:"Singapore Airlines",CPA:"Cathay Pacific",CCA:"Air China",CES:"China Eastern",CSN:"China Southern",KAL:"Korean Air",AAL:"American Airlines",UAL:"United",DAL:"Delta",ACA:"Air Canada",
 DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",NJE:"NetJets",VJT:"VistaJet",
 RCH:"US Air Force",GAF:"Nemecké letectvo",IAM:"Talianske letectvo",CEF:"České letectvo",PLF:"Poľské letectvo",BAF:"Belgické letectvo",NATO:"NATO",HUF:"Maďarské letectvo",AME:"Španielske letectvo",FAF:"Francúzske letectvo",RRR:"Kráľovské letectvo (RAF)"};
-const LEG=new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","F16","EUFI","GRIF","F18","F15"]);
-const RARE=new Set(["E3TF","E3CF","GLF5","Q4","RQ4","B748","B744","B742","A400","C17","C130","C30J","K35R","IL76","AN12","AN26","MD11","DC10","A346","A343","L39","C27J","SU95","GL7T","B779","B778","A388"]);
+/* 🃏 5 stupňov vzácnosti (zhodné so serverom): ● Bežná · ◆ Nezvyčajná · ▲ Vzácna · ⬟ Epická · ♛ Legendárna */
+const LEG=new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
+const EPIC=new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","L159"]);
+const RARE=new Set(["A388","B744","B748","B742","A343","B779","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","H60","MI8"]);
+// legendy, ktoré nad Slovenskom takmer nelietajú – trofejná polička, nerátajú sa do 100 %
+const TROPHY=new Set(["A124","BLCF","A3ST","A337","F35"]);
 const WIDE=new Set(["A306","A310","A332","A333","A338","A339","A359","A35K","B762","B763","B764","B772","B77W","B77L","B788","B789","B78X","B753_","B752_"]);
 const HELI=new Set(["EC35","EC45","EC30","EC55","AS50","A109","A139","A169","B06","B407","R44","R22","H60","MI8","S92","B429"]);
-const RAR={c:{n:"Bežné",p:2,col:"#97a3c7"},u:{n:"Nezvyčajné",p:5,col:"#4fc3ff"},r:{n:"Vzácne",p:15,col:"#c77dff"},l:{n:"Legendárne",p:40,col:"#ffcf4f"}};
+const RAR={c:{n:"Bežná",p:3,col:"#b8c4dc",s:"●"},u:{n:"Nezvyčajná",p:8,col:"#5ee08a",s:"◆"},r:{n:"Vzácna",p:25,col:"#4fa3ff",s:"▲"},e:{n:"Epická",p:45,col:"#b56bff",s:"⬟"},l:{n:"Legendárna",p:80,col:"#ffcf4f",s:"♛"}};
+const RORD={c:0,u:1,r:2,e:3,l:4};
 const isHeli=a=>a.cat==="A7"||HELI.has(a.type);
-function rarity(a){
-  if(LEG.has(a.type))return "l";
-  if(a.mil||RARE.has(a.type))return "r";
-  if(WIDE.has(a.type)||/^B75/.test(a.type||"")||isHeli(a)||(a.type&&/^(GLF|GL|CL|FA|F9|C68|C700|PC24|LJ)/.test(a.type)))return "u";
+// vzácnosť TYPU (kartička má vždy rovnakú, nezávisle od prvého úlovku)
+function typeTier(t){
+  if(!t)return "c";
+  if(LEG.has(t))return "l";if(EPIC.has(t))return "e";if(RARE.has(t))return "r";
+  if(WIDE.has(t)||HELI.has(t)||/^(B75|AT4|AT7|DH8|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12)/.test(t))return "u";
   return "c";
+}
+// vzácnosť ÚLOVKU: typ + osobitosti kusu (vojenské, 🇸🇰 OM-, zaujímavé) o stupeň vyššie
+function rarity(a){
+  let r=typeTier(a.type);if(r==="c"&&isHeli(a))r="u";
+  const up=a.mil||/^OM-/.test(a.reg||"")||(a.dbf&2);
+  if(up&&RORD[r]<3)r=["c","u","r","e","l"][RORD[r]+1];
+  return r;
 }
 const airlineOf=a=>{const p=(a.call||"").slice(0,3).toUpperCase();return AIRLINES[p]||(a.call||"").slice(0,4).toUpperCase()==="NATO"&&"NATO"||""};
 const typeName=(a,m)=>a.desc||TYPES[a.type]||(m&&m.ac&&m.ac.manufacturer&&m.ac.type?m.ac.manufacturer+" "+m.ac.type:"")||a.type||"Neznámy typ";
@@ -267,23 +280,35 @@ const ACH=[
   {id:"cargo",i:"📦",n:"Tvoj balík",c:e=>e&&/DHL|UPS|FedEx|Cargo/.test(airlineOf(e))},
   {id:"night",i:"🦉",n:"Nočná sova",c:e=>e&&typeof SPACE!=="undefined"&&SPACE.sunAlt()<-6},
   {id:"zenith",i:"🎯",n:"Presne nad hlavou",c:e=>e&&e.el>=80},
-  {id:"legend",i:"🌟",n:"Legenda",c:e=>e&&rarity(e)==="l"},
+  {id:"legend",i:"🌟",n:"Legenda",c:e=>e&&rarity(e)==="l"},{id:"epic",i:"⬟",n:"Epický úlovok",c:e=>e&&rarity(e)==="e"},{id:"om5",i:"🇸🇰",n:"Slovenské krídla (5 × OM-)",c:()=>Object.keys(COL.om||{}).length>=5},{id:"om15",i:"🇸🇰",n:"Domáca letka (15 × OM-)",c:()=>Object.keys(COL.om||{}).length>=15},
   {id:"iss",i:"🛰️",n:"ISS na vlastné oči",c:()=>false},
   {id:"shazam",i:"👂",n:"Shazam na lietadlo",c:()=>false},
   {id:"video",i:"🎬",n:"Režisér oblohy",c:()=>false},
   {id:"home",i:"🏠",n:"Domov na Slovensko",c:e=>{const m=e&&S.meta.get(e.hex);return !!(m&&m.route&&m.route.destination&&m.route.destination.country_iso_name==="SK")}},
 ];
 const LEVELS=["Nováčik","Zvedavec","Mávač lietadlám","Pozorovateľ z okna","Spotter z balkóna","Lovec kondenzačiek","Expert od plota","Kapitán z gauča","Navigátor z lavičky","Pán oblohy","Strážca trate","Legenda z Ivanky","Šerif letových ciest","Majster radaru","Nebeský šaman","Veliteľ oblakov","Tatranský orol","Duch stratosféry","Admirál oblohy","Legenda Slovenska"];
-const lvlPts=l=>Math.round(10*Math.pow(l,1.8));
-const lvlOf=p=>{let l=0;while(lvlPts(l+1)<=p)l++;return l};
-const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
+LEVELS.push("Strážca Dunaja","Vietor z Tatier","Pilot Váhu","Navigátor Hrona","Pán Kriváňa","Duch Gerlachu","Hviezdny pútnik","Kapitán Slovenska","Veterán vzduchu","Šampión oblohy","Majster mávania","Orol Malej Fatry","Sokol Slovenského raja","Kráľ Pienin","Dráčik Vysokých Tatier","Patrón letísk","Strážca Ivanky","Admirál Barca","Kozmický spotter","Mýtus oblohy","Nebeský veľmajster","Oko Karpát","Pán stratosféry","Hrdina oblohy","Večná legenda","Legenda Ivanky","Kniha rekordov","Živá legenda","Obloha sama","Absolútny spotter");
+// nová krivka (pomalšia, férovejšia) – nikto pri prechode neklesne (COL.lvlFloor)
+const lvlPts=l=>Math.round(12*Math.pow(l,2.5));
+const lvlOf=p=>{let l=0;while(lvlPts(l+1)<=p&&l<200)l++;return Math.max(l,(typeof COL!=="undefined"&&COL.lvlFloor)|0)};
+const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIII","XIV","XV","XVI","XVII","XVIII","XIX","XX"];
+// migrácia na vlnu 6: level sa nezníži, vzácnosť kartičiek podľa typu
+if(!COL.v6){let o=0;while(Math.round(10*Math.pow(o+1,1.8))<=COL.pts)o++;COL.lvlFloor=o;for(const k in COL.types)COL.types[k].r=typeTier(k);COL.v6=1;LS.set("ctl_col",COL)}
 const lvlName=l=>l<LEVELS.length?LEVELS[l]:LEVELS[LEVELS.length-1]+" "+ROM[Math.min(ROM.length-1,l-LEVELS.length)];
 function tryCatch(a){
   if(a.el==null||a.el<10||COL.hex[a.hex])return false;
-  const r=rarity(a),pts=RAR[r].p;
+  const r=rarity(a),ty=a.type||"?",newType=!(COL.types[ty]&&COL.types[ty].n)&&ty!=="?",pts=RAR[r].p*(newType?2:1);
   COL.hex[a.hex]=Date.now();COL.n++;COL.pts+=pts;
-  const ty=a.type||"?",newType=!COL.types[ty];
-  COL.types[ty]=COL.types[ty]||{n:0,r,name:typeName(a,S.meta.get(a.hex)),first:Date.now()};COL.types[ty].n++;
+  COL.types[ty]=COL.types[ty]||{n:0,r:typeTier(ty),name:typeName(a,S.meta.get(a.hex)),first:Date.now()};COL.types[ty].n++;
+  const v=COL.types[ty];v.r=typeTier(ty);
+  // 🧾 pamäť úlovku: kde, kto, kam – pre albumy (aerolinky, krajiny, OM-) a „Prvá: nad Petržalkou“
+  try{const rt=routeOf(a),al=(a.call||"").slice(0,3).toUpperCase();COL.cx=COL.cx||{};
+    const c={t:Date.now(),ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&rt.destination.iso_country||"",oc:rt&&rt.origin&&rt.origin.iso_country||"",alt:a.alt,el:Math.round(a.el),spd:a.spd,mil:a.mil?1:0};
+    COL.cx[a.hex]=c;if(!v.fp)v.fp=c;
+    if(c.al){v.al=v.al||{};v.al[c.al]=(v.al[c.al]||0)+1}
+    if(/^OM-/.test(c.reg)){COL.om=COL.om||{};COL.om[c.reg]=COL.om[c.reg]||Date.now()}
+    const ks=Object.keys(COL.cx);if(ks.length>4000)ks.sort((x,y)=>COL.cx[x].t-COL.cx[y].t).slice(0,ks.length-4000).forEach(k=>delete COL.cx[k]);
+  }catch(e){}
   const prevLvl=lvlOf(COL.pts-pts);
   const newAch=ACH.filter(x=>!COL.ach[x.id]&&x.c(a));newAch.forEach(x=>COL.ach[x.id]=Date.now());
   LS.set("ctl_col",COL);
@@ -293,7 +318,7 @@ function tryCatch(a){
   if(lvlOf(COL.pts)>prevLvl){T="⬆️ Nový level: "+lvlName(lvlOf(COL.pts));Sub="Obloha ťa začína poznávať."}
   if(typeof WB!=="undefined"&&WB){WB.caught={type:ty,name:COL.types[ty].name||ty,title:titleOf(a),r,newType};if(newAch.length)WB.items.push(["🏅 "+newAch[0].n]);if(lvlOf(COL.pts)>prevLvl)WB.items.push(["⬆️ Level "+(lvlOf(COL.pts)+1)+": "+lvlName(lvlOf(COL.pts))])}
   else toast(T,Sub,RAR[r].col);
-  if(r!=="c"||newAch.length||newType)confetti(r==="l"?80:40);
+  if(r!=="c"||newAch.length||newType)confetti(r==="l"?120:r==="e"?80:40);
   ping(r);
   HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
   if(S.view==="col")renderCol();
