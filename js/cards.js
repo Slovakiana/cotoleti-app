@@ -207,7 +207,7 @@ function openCard(k,reveal){
 }
 function cardExtras(k,v){
   const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
-  const verL=v.ver?`<div class="verOk">✓ Overená serverom${v.seq?" · #"+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená – zamávaj tomuto typu s polohou z GPS na Slovensku a lietadlom aspoň 8° nad obzorom<button data-why="1">🔎 Prečo? Ukáž moje posledné mávnutia</button><div class="whyList" id="whyList"></div></div>`:"";
+  const verL=v.ver?`<div class="verOk">✓ Overená serverom${v.seq?" · #"+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená · <button data-why="1" style="display:inline;margin:0">🔎 Prečo?</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:"?"}</small></span>`).join("")}</div>`;
   if(v.fp)h+=`<div class="lookSub">🧾 Prvý úlovok: ${v.fp.town?esc(v.fp.town):""}${v.fp.al&&AIRLINES[v.fp.al]?" · "+esc(AIRLINES[v.fp.al]):""}${v.fp.dest?" → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
