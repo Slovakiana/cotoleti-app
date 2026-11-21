@@ -645,8 +645,8 @@ export class Sky extends DurableObject {
       const bb = req.method === "POST" ? await body() : {};
       const kk = /^[A-Z]{2}$/.test(bb.k || qp("k") || "") ? (bb.k || qp("k")) : "";
       const key = "atl:" + kk;
-      if (!this.atlC || now - (this.atlC[key] || {}).t > 600e3) {
-        this.atlC = this.atlC || {};
+      this.atlC = this.atlC || {};
+      if (!this.atlC[key] || now - this.atlC[key].t > 600e3) {
         const rows = this.sql.exec(`SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id ${kk ? "WHERE s.k = ?" : ""} GROUP BY s.id ORDER BY sc DESC LIMIT 20`, ...(kk ? [kk] : [])).toArray();
         this.atlC[key] = {t: now, v: rows.map(r => ({id: r.id, sc: r.sc, n: r.n, nick: r.kid || !r.nick ? "Spotter" : r.nick}))};
       }
@@ -669,6 +669,7 @@ export class Sky extends DurableObject {
       if (country === "SK" && DC_ASN.has(asn)) this.bump("vpn");
       // jedno mesto a kraj na účet a deň (nedá sa „cestovať“ po rebríčkoch)
       let dd = this.row("SELECT town, k, n, la, lo FROM idday WHERE day=? AND id=?", d, id);
+      if (b.gps !== true) fair = false;
       if (!dd && fair) { dd = {town: townOf(la, lo), k: krajOf(la, lo), n: 0, la, lo}; this.sql.exec("INSERT INTO idday(day, id, town, k, n, la, lo) VALUES(?, ?, ?, ?, 0, ?, ?)", d, id, dd.town, dd.k, la, lo); }
       // poloha je na deň zamknutá: ďalšie mávnutia sa rátajú len do 30 km od prvého (žiadne „teleportovanie“)
       const near = dd && dd.la != null ? distKm(la, lo, dd.la, dd.lo) <= 30 : true;
@@ -881,6 +882,13 @@ export class Sky extends DurableObject {
       const dir = String(b.dir || "").replace(/[^a-záäčďéíĺľňóôŕšťúýž -]/gi, "").slice(0, 20), mx = Math.max(10, Math.min(90, Math.round(num(b.max, 30))));
       this.sql.exec("INSERT OR REPLACE INTO reminders(id, at, title, body) VALUES(?, ?, ?, ?)", id, at, `🛰️ ${nm} o 5 minút nad tebou`, `Pozri na ${dir || "oblohu"}, vystúpi až ${mx}° nad obzor. Jasná „hviezda“, ktorá nebliká.`);
       return json({ok: true});
+    }
+    if (p === "/api/mywhy" && req.method === "POST") {
+      // 🔎 moje posledné mávnutia a prečo (ne)boli overené – len vlastné dáta
+      const b = await body(), id = cleanId(b.id);
+      const rows = this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 10", id).toArray();
+      const dd = this.row("SELECT town, k FROM idday WHERE day=? AND id=?", d, id);
+      return json({rows, today: dd ? {town: dd.town, k: dd.k} : null, country, fairNow: country === "SK"});
     }
     if (p === "/api/mycards" && req.method === "POST") {
       // ✓ ktoré moje kartičky sú overené serverom (+ poradie na Slovensku)

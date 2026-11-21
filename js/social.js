@@ -89,7 +89,7 @@ function renderLeague(){
     const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
     rows=(j.top||[]).slice(0,10).map(r=>[r.nick+" · "+r.n+" typov",r.sc,r.me,!r.me&&r.nick!=="Spotter"]);
     if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" typov",j.me.sc,true]);
-    if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏</div>';return}
+    if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
   }
   else if(LG==="f"){
     if(!SOC.frw||Date.now()-SOC.frw.t>120e3){if(!SOC.frwL){SOC.frwL=1;apiPost("/api/friends",{}).then(r=>r.json()).then(j=>{SOC.frw={t:Date.now(),j};SOC.frwL=0;if(LG==="f")renderLeague()}).catch(()=>{SOC.frwL=0})}}
@@ -126,7 +126,9 @@ $("repM").addEventListener("click",async e=>{
   if(REP.btn)REP.btn.remove();
   toast("🚩 Ďakujeme za nahlásenie",b.dataset.why==="osobne"||b.dataset.why==="sex"?"Meno sme hneď skryli, preveríme ho do 24 h":"Preveríme ho. Ak ho nahlásia viacerí, zmizne hneď");REP=null;
 });
-$("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;LG=b.dataset.t;[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x===b));renderLeague();haptic(6)};
+$("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.more){const m=$("lgTabs").classList.toggle("more");b.setAttribute("aria-expanded",m);b.textContent=m?"×":"⋯";return}
+  LG=b.dataset.t;[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x===b));renderLeague();haptic(6)};
 function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}
   if(!a){$("waveInfo").textContent="";$("waveN").style.display="none";return}

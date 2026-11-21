@@ -551,6 +551,10 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 .lgTabs button,.atTabs button{font-size:calc(13px*var(--fs,1))!important;padding:7px 11px!important;min-height:36px!important}
 .atTabs{display:flex;flex-wrap:wrap;gap:6px}.atTabs button{flex:1 1 auto}
 .verOk,.verNo{text-align:center;font-weight:800;font-size:calc(13.5px*var(--fs,1));padding:7px 10px;border-radius:12px;margin:8px 0}.verOk{background:rgba(109,255,199,.14);color:#9dffd9}.verNo{background:rgba(255,190,90,.12);color:#ffd59a;font-weight:600}
+.lgTabs .lgX{display:none}.lgTabs.more .lgX{display:inline-flex}
+.mayor .rep{min-width:0!important;min-height:0!important;padding:0 2px!important;display:inline;vertical-align:baseline;font-size:12px}
+.verNo button{display:block;margin:6px auto 0;background:none;border:0;color:#ffd59a;text-decoration:underline;font:inherit;font-size:13px}
+.whyList{text-align:left;font-size:12.5px;margin-top:6px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -679,7 +683,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
-    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="p">Na hráča</button><button data-t="m">Mestá</button><button data-t="s">Menšie mestá</button><button data-t="f">👯 Kamaráti</button><button data-t="a">🃏 Atlasy</button><button data-t="t">Tímy</button></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="a">🃏 Atlasy</button><button data-t="f">👯 Kamaráti</button><button data-more="1" aria-expanded="false">⋯</button><button data-t="p" class="lgX">Na hráča</button><button data-t="s" class="lgX">Menšie mestá</button><button data-t="t" class="lgX">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
     <div id="mayor" class="mayor" hidden></div>
   </section>
@@ -944,25 +948,25 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=29"></script>
-<script src="js/ui.js?v=29"></script>
-<script src="js/ar.js?v=29"></script>
-<script src="js/space.js?v=29"></script>
-<script src="js/weather.js?v=29"></script>
-<script src="js/extras.js?v=29"></script>
-<script src="js/social.js?v=29"></script>
-<script src="js/wrapped.js?v=29"></script>
-<script src="js/push.js?v=29"></script>
-<script src="js/track.js?v=29"></script>
-<script src="js/towns.js?v=29"></script>
-<script src="js/catalog.js?v=29"></script>
-<script src="js/cards.js?v=29"></script>
-<script src="js/mail.js?v=29"></script>
-<script src="js/golden.js?v=29"></script>
-<script src="js/teams.js?v=29"></script>
-<script src="js/duel.js?v=29"></script>
-<script src="js/sound.js?v=29"></script>
-<script src="js/santa.js?v=29"></script>
-<script src="js/main.js?v=29"></script>
+<script src="js/core.js?v=30"></script>
+<script src="js/ui.js?v=30"></script>
+<script src="js/ar.js?v=30"></script>
+<script src="js/space.js?v=30"></script>
+<script src="js/weather.js?v=30"></script>
+<script src="js/extras.js?v=30"></script>
+<script src="js/social.js?v=30"></script>
+<script src="js/wrapped.js?v=30"></script>
+<script src="js/push.js?v=30"></script>
+<script src="js/track.js?v=30"></script>
+<script src="js/towns.js?v=30"></script>
+<script src="js/catalog.js?v=30"></script>
+<script src="js/cards.js?v=30"></script>
+<script src="js/mail.js?v=30"></script>
+<script src="js/golden.js?v=30"></script>
+<script src="js/teams.js?v=30"></script>
+<script src="js/duel.js?v=30"></script>
+<script src="js/sound.js?v=30"></script>
+<script src="js/santa.js?v=30"></script>
+<script src="js/main.js?v=30"></script>
 </body>
 </html>

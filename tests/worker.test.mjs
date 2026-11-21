@@ -31,6 +31,7 @@ globalThis.fetch = async u => { u = String(u);
   return new Response("{}"); };
 
 const call = async (p, b, ip = "1.2.3.4", cc = "SK") => {
+  if (p === "/api/wave" && b && b.gps === undefined) b = {...b, gps: true};
   const r = new Request("https://x" + p, b ? {method: "POST", body: JSON.stringify(b), headers: {"cf-connecting-ip": ip, "x-cc-country": "US"}} : {headers: {"cf-connecting-ip": ip}});
   Object.defineProperty(r, "cf", {value: {country: cc, latitude: "48.15", longitude: "17.1"}});
   const res = await W.fetch(r, env); const text = await res.text();
@@ -210,7 +211,7 @@ await (async () => {
   console.log("✓ zbierka na serveri: poradie, objaviteľ, atlasy");
   // dar: nový účet nesmie, starý s duplikátom áno
   db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
-  assert.equal((await call("/api/gift", {id: C, tok: hc.tok, type: "A21N"}, "9.9.9.9")).j.error, "dup");
+  assert.equal((await call("/api/gift", {id: C, tok: hc.tok, type: "B744"}, "9.9.9.9")).j.error, "tier");
   db.exec(`INSERT INTO catches(id, hex, t, type, ok) VALUES('${C}', 'ffeedd', 1, 'A21N', 1)`);
   const g = (await call("/api/gift", {id: C, tok: hc.tok, type: "A21N"}, "9.9.9.9")).j; assert.ok(g.code, JSON.stringify(g));
   assert.equal((await call("/api/gift", {id: C, tok: hc.tok, type: "A388"}, "9.9.9.9")).j.error, "tier");
@@ -226,4 +227,14 @@ await (async () => {
   plane.hex = "abc124"; const r2 = (await call("/api/wave", {id: C, tok: hc.tok, hex: "abc124", lat: 48.15, lon: 17.11, gps: true}, "9.9.9.9")).j;
   assert.equal(r2.ver, 1, JSON.stringify(r2)); assert.equal(r2.why, "");
   console.log("✓ overenie: dôvod neoverenia aj úspešné overenie, zoznam overených kartičiek");
+})();
+await (async () => {
+  // atlasy: rôzne kraje v cache nesmú spadnúť
+  for (const k of ["BA", "KE", "BA"]) assert.equal((await call("/api/atlasy", {id: C, tok: hc.tok, k}, "9.9.9.9")).s, 200);
+  // ručne vybrané mesto nezamkne deň a nesúťaží
+  const E = "v2eeeeeeeeeeeeeeeeeeeeee5", he = (await call("/api/hello", {id: E}, "6.6.6.6")).j;
+  await call("/api/wave", {id: E, tok: he.tok, hex: "abc124", lat: 48.15, lon: 17.11, gps: false}, "6.6.6.6");
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM idday WHERE id=?").get(E).c, 0);
+  const w = (await call("/api/mywhy", {id: E, tok: he.tok}, "6.6.6.6")).j; assert.ok(w.rows.length && w.rows[0].why, JSON.stringify(w));
+  console.log("✓ atlasy cache, ručné mesto, moje dôvody");
 })();

@@ -207,7 +207,7 @@ function openCard(k,reveal){
 }
 function cardExtras(k,v){
   const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
-  const verL=v.ver?`<div class="verOk">✓ Overená serverom${v.seq?" · #"+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená – zamávaj tomuto typu s polohou z GPS na Slovensku a lietadlom aspoň 8° nad obzorom</div>`:"";
+  const verL=v.ver?`<div class="verOk">✓ Overená serverom${v.seq?" · #"+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená – zamávaj tomuto typu s polohou z GPS na Slovensku a lietadlom aspoň 8° nad obzorom<button data-why="1">🔎 Prečo? Ukáž moje posledné mávnutia</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:"?"}</small></span>`).join("")}</div>`;
   if(v.fp)h+=`<div class="lookSub">🧾 Prvý úlovok: ${v.fp.town?esc(v.fp.town):""}${v.fp.al&&AIRLINES[v.fp.al]?" · "+esc(AIRLINES[v.fp.al]):""}${v.fp.dest?" → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
@@ -229,6 +229,7 @@ $("cardBig").addEventListener("click",async e=>{
     if(i>=0)COL.show.splice(i,1);else{if(COL.show.length>=showSlots()){toast("🏛️ Vitrína je plná","Ďalšie miesto si odomkneš za míle ✈ v obchode");return}COL.show.push(k)}
     LS.set("ctl_col",COL);pn.textContent=COL.show.includes(k)?"📌 Vo vitríne":"📌 Do vitríny";renderShow();haptic(10);return}
   const gf=e.target.closest("[data-gift]");if(gf)giftMake(gf.dataset.gift);
+  if(e.target.closest("[data-why]"))whyShow();
 });
 $("cardClose").onclick=()=>$("cardM").classList.remove("on");
 function tiltTo(rx,ry){const c=$("cardBig").firstElementChild;if(!c)return;if(typeof RM==="function"&&RM()){rx=0;ry=0}c.style.setProperty("--rx",rx+"deg");c.style.setProperty("--ry",ry+"deg");c.style.setProperty("--mx",(50+ry*3)+"%");c.style.setProperty("--my",(50-rx*3)+"%");c.style.setProperty("--ang",(ry*10+rx*6)+"deg")}
@@ -519,3 +520,13 @@ setTimeout(giftClaim,1500);addEventListener("hashchange",giftClaim);
 HOOKS.view.push(v=>{if(v==="col"){mileSync();$("c-miles")&&($("c-miles").textContent=nf(COL.mi|0));renderShow()}});
 // 🛷 Santa = edícia roka
 HOOKS.caught.push(a=>{if(a.santa){COL.ed=COL.ed||{};const id="santa"+new Date().getFullYear();if(!COL.ed[id]){COL.ed[id]={n:"Santa "+new Date().getFullYear(),no:0,t:Date.now(),ty:"SLEIGH"};LS.set("ctl_col",COL)}}});
+
+/* 🔎 prečo moje mávnutia neboli overené (vlastné dáta zo servera) */
+async function whyShow(){
+  const el=$("whyList");if(!el)return;el.textContent="Načítavam…";
+  try{const r=await apiPost("/api/mywhy",{});const j=await r.json();
+    if(!j.rows||!j.rows.length){el.innerHTML="Server zatiaľ nemá záznam o tvojom mávnutí od poslednej aktualizácie. Zamávaj a pozri znova."+(S.manual?"<br>⚠️ Máš ručne vybrané mesto – ťukni hore na pilulku a vyber 📍 Moja poloha (GPS).":"");return}
+    el.innerHTML=(S.manual?"⚠️ Máš ručne vybrané mesto – ťukni hore na pilulku a vyber 📍 Moja poloha (GPS).<br>":"")+(j.country&&j.country!=="SK"?"⚠️ Server ťa vidí v krajine "+esc(j.country)+" (VPN alebo Súkromné prenášanie s inou krajinou?)<br>":"")+
+      j.rows.map(x=>`${new Date(x.t).toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})} · ${esc(x.type||"?")} · ${x.el==null?"?":Math.round(x.el)+"°"} · ${x.ok?"✓ overené":"✗ "+esc(x.why||"")}`).join("<br>");
+  }catch(e){el.textContent="Bez internetu – skús neskôr."}
+}
