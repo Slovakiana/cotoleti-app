@@ -3,8 +3,8 @@
    [kód, názov, výrobca, rodina, dĺžka m, rozpätie m, rýchlosť km/h, dolet km, miesta, prvý let, zaujímavosť] */
 const CATALOG=[
 ["A318","Airbus A318","Airbus","twin",31.4,34.1,830,5700,110,2002,"Najmenší Airbus z rodiny A320 – volajú ho Baby Bus."],
-["A319","Airbus A319","Airbus","twin",33.8,35.8,830,6900,144,1995,"Skrátená A320. Obľúbená u vládnych letiek aj easyJetu."],
-["A320","Airbus A320","Airbus","twin",37.6,35.8,830,6100,180,1987,"Prvé dopravné lietadlo s elektronickým riadením fly-by-wire."],
+["A319","Airbus A319","Airbus","twin",33.8,35.8,830,6900,144,1995,"Skrátený A320. Obľúbený u vládnych letiek aj easyJetu."],
+["A320","Airbus A320","Airbus","twin",37.6,35.8,830,6100,180,1987,"Prvé dopravné lietadlo s digitálnym riadením fly-by-wire."],
 ["A20N","Airbus A320neo","Airbus","twin",37.6,35.8,830,6300,186,2014,"„neo“ znamená New Engine Option – je o pätinu úspornejšie."],
 ["A321","Airbus A321","Airbus","twin",44.5,35.8,830,5900,220,1993,"Najdlhší člen rodiny A320."],
 ["A21N","Airbus A321neo","Airbus","twin",44.5,35.8,830,7400,230,2016,"Verzia XLR dolieta z Európy až do Ameriky."],
@@ -15,7 +15,7 @@ const CATALOG=[
 ["B739","Boeing 737-900","Boeing","twin",42.1,35.8,840,5000,200,2000,"Najdlhší klasický 737."],
 ["B38M","Boeing 737 MAX 8","Boeing","twin",39.5,35.9,840,6500,189,2016,"Spoznáš ho podľa rozdvojených koncov krídel."],
 ["B39M","Boeing 737 MAX 9","Boeing","twin",42.2,35.9,840,6500,200,2017,"Väčší brat MAX 8."],
-["B752","Boeing 757-200","Boeing","twin",47.3,38.0,850,7200,200,1982,"Prezývaný „raketa“ – stúpa takmer ako stíhačka."],
+["B752","Boeing 757-200","Boeing","twin",47.3,38.0,850,7200,200,1982,"Prezývaný „raketa“ – stúpa strmšie než väčšina dopravných lietadiel."],
 ["E75L","Embraer E175","Embraer","twin",31.7,28.7,830,4000,80,2003,"Brazílsky regionálny tryskáč."],
 ["E190","Embraer E190","Embraer","twin",36.2,28.7,830,4500,100,2004,"Embraer je tretí najväčší výrobca dopravných lietadiel."],
 ["E195","Embraer E195","Embraer","twin",38.7,28.7,830,4200,120,2004,"Najväčší z prvej generácie E-jetov."],
@@ -37,7 +37,7 @@ const CATALOG=[
 ["A35K","Airbus A350-1000","Airbus","twinW",73.8,64.8,900,16100,360,2016,"Najväčší dvojmotorový Airbus."],
 ["A388","Airbus A380","Airbus","quad",72.7,79.8,900,15200,510,2005,"Najväčšie dopravné lietadlo sveta – dve plné paluby."],
 ["B744","Boeing 747-400","Boeing","quad",70.7,64.4,910,13450,410,1988,"Kráľovná oblohy s ikonickým hrbom."],
-["B748","Boeing 747-8","Boeing","quad",76.3,68.4,910,14300,400,2010,"Jeden z najdlhších dopravných lietadiel sveta – a posledný Jumbo."],
+["B748","Boeing 747-8","Boeing","quad",76.3,68.4,910,14300,400,2010,"Jedno z najdlhších dopravných lietadiel sveta – a posledný Jumbo."],
 ["B763","Boeing 767-300","Boeing","twinW",54.9,47.6,850,11000,260,1986,"Prvý širokotrupý tryskáč s dvoma motormi cez Atlantik."],
 ["B764","Boeing 767-400","Boeing","twinW",61.4,51.9,850,10400,290,1999,"Najdlhší 767."],
 ["B772","Boeing 777-200","Boeing","twinW",63.7,60.9,905,9700,320,1994,"Prvé lietadlo navrhnuté celé v počítači."],

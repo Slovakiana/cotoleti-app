@@ -20,7 +20,7 @@
 <title>Čo to letí? ✈️</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1320x2868.png">
 <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1206x2622.png">
@@ -35,6 +35,7 @@
 <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="splash/750x1334.png">
 <link rel="icon" href="icons/icon-192.png">
 <style>
+[hidden]{display:none!important}
 :root{
   --bg:#05070f;--txt:#f4f7ff;--mut:rgba(235,240,255,.78);--mut2:rgba(235,240,255,.42);
   --mint:#6dffc7;--sky:#4fc3ff;--pink:#ff4fd8;--gold:#ffcf4f;--red:#ff4f6d;--violet:#a78bff;
@@ -380,7 +381,7 @@ body.moment #top{opacity:0;pointer-events:none}
 /* liga */
 .lgTabs{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.lgTabs::-webkit-scrollbar{display:none}
 .lgTabs button{flex:0 0 auto!important;padding:8px 12px!important;white-space:nowrap}
-body.kid #duelFr,body.kid [data-mail],body.kid #pushAsk,body.kid #postReply,body.kid #trNotify{display:none!important}
+body.kid #friendsBox,body.kid #teamCard,body.kid #b-duel,body.kid #duel,body.kid #b-cduel,body.kid #tmInvite,body.kid #duelFr,body.kid [data-mail],body.kid #pushAsk,body.kid #postReply,body.kid #trNotify{display:none!important}
 .wideB{width:100%;margin-top:10px;min-height:48px;justify-content:center}
 .inappBar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:120;padding:12px 44px 12px 14px;border-radius:18px;font-size:calc(13px*var(--fs,1));line-height:1.4;display:flex;flex-direction:column;gap:2px}
 .inappBar b{font-size:calc(14px*var(--fs,1))}.inappBar button{position:absolute;right:8px;top:8px;width:36px;height:36px;font-size:calc(16px*var(--fs,1));color:var(--mut)}
@@ -494,6 +495,39 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 .lockStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.lockStats div{background:rgba(255,255,255,.07);border-radius:12px;padding:8px;text-align:center}.lockStats b{display:block;font-size:calc(15px*var(--fs,1))}.lockStats small{color:#97a3c7;font-size:calc(11px*var(--fs,1))}
 .mayor{margin-top:12px;padding:10px 12px;border-radius:14px;background:linear-gradient(90deg,rgba(255,207,79,.16),rgba(255,207,79,.04));border:1px solid rgba(255,207,79,.25);font-size:calc(14px*var(--fs,1));line-height:1.45}.mayor small{color:#c9d3f0}
 #yearM .mcard{max-height:86vh;overflow-y:auto;background:#0e1430}#yearM .acts{position:sticky;bottom:-1px;background:#0e1430;padding:10px 0 4px}.yearBtn{margin-top:10px;background:linear-gradient(90deg,#0b4ea2,#ee1c25)}.yBig{font-size:calc(44px*var(--fs,1));font-weight:900;line-height:1.05;margin:6px 0}.yRow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}.yRow:last-child{border:0}.ySec{margin-top:14px;font-weight:800}
+.revealHd{text-align:center;font:900 calc(22px*var(--fs,1))/1.2 var(--disp);margin:0 0 12px}.revealHd small{display:block;font:500 calc(13px*var(--fs,1)) var(--body);color:var(--mut);margin-top:4px}
+.holoWrap.reveal{animation:cardIn .7s cubic-bezier(.2,1.4,.4,1) both}@keyframes cardIn{0%{transform:perspective(800px) rotateY(90deg) scale(.7);opacity:0}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.holoWrap.reveal{animation:none}}
+.hdR{display:flex;gap:6px;align-items:center}#statusPill,.streakChip{font:inherit;color:inherit;cursor:pointer}
+.streakChip{padding:6px 10px;font-weight:800;font-size:calc(13px*var(--fs,1))}.streakChip.pend{animation:stPulse 1.6s ease-in-out infinite;border-color:rgba(255,140,80,.7)}
+@keyframes stPulse{50%{box-shadow:0 0 0 4px rgba(255,120,60,.25)}}@media (prefers-reduced-motion:reduce){.streakChip.pend{animation:none}}
+#momentBar{white-space:nowrap!important;padding:7px 14px;font-size:calc(12.5px*var(--fs,1));font-variant-numeric:tabular-nums;animation:none}
+#momentBar::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#fff;margin-right:6px;vertical-align:middle;animation:pulse 1.2s infinite}
+body:has(#onb:not(.hide)) #toast{visibility:hidden}
+.etaBox b,.btn .n,.kr .v,.st3 b,.yBig,.grid2 b{font-variant-numeric:tabular-nums}
+.modal{-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.setSlots{display:none;grid-column:1/-1;width:100%;flex-wrap:wrap;gap:6px;margin-top:8px}.setRow{flex-wrap:wrap;cursor:pointer}.setRow.open .setSlots{display:flex}
+.setSlots button{font:inherit;font-size:calc(12px*var(--fs,1));padding:7px 10px;border-radius:12px;border:1px solid var(--gline);background:rgba(255,255,255,.06);color:inherit}.setSlots button.got{background:rgba(109,255,199,.12)}
+.atlasAll{margin-top:4px}
+.cardHint{margin:8px 2px 0;font-size:calc(13.5px*var(--fs,1));font-weight:700;color:#fff;display:flex;gap:6px;flex-wrap:wrap}.cardHint:empty{display:none}.cardHint span{padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--gline)}.cardHint .new{background:rgba(255,79,216,.22);border-color:rgba(255,79,216,.5)}.cardHint .low{background:rgba(255,180,80,.16)}
+#shareM{z-index:80}
+#fabWave:not(.on){visibility:hidden}
+#toast{top:calc(var(--top) + 8px)!important;bottom:auto!important;transform:translate(-50%,-24px);max-width:min(92vw,380px)}#toast.on{transform:translate(-50%,0)}
+body.moment #toast{top:calc(var(--top) + 50px)!important}
+.tog{box-sizing:content-box;border:6.5px solid transparent;background-clip:padding-box;margin:-6.5px 0}
+.btn,.ghost{min-height:44px}#lgTabs button{min-height:40px}#gSkip{padding:12px 16px}
+.kidLbl{display:flex;min-height:44px;align-items:center;gap:8px}#onbKid{width:22px;height:22px}#noGps{padding:12px 8px}
+.pageHead{position:relative}.gearBtn{position:absolute;right:0;bottom:40px;width:44px;height:44px;border-radius:50%;font-size:20px;display:grid;place-items:center;color:inherit;cursor:pointer}
+.gOpts{flex-direction:row!important;flex-wrap:wrap}.gOpts button{flex:1 1 30%;padding:10px 8px!important;font-size:calc(14px*var(--fs,1))!important;text-align:center!important;min-height:44px}
+body[data-sky=d] .glass,body[data-sky=g] .glass{background:linear-gradient(180deg,rgba(8,16,48,.42),rgba(8,16,48,.28))}
+body[data-sky=d] .pageHead p,body[data-sky=d] .kick,body[data-sky=d] .lbl,body[data-sky=d] .lookSub,body[data-sky=g] .lookSub,body[data-sky=d] .sub{color:rgba(255,255,255,.94);text-shadow:0 1px 2px rgba(0,0,0,.35)}
+body[data-sky=d] .etaBox,body[data-sky=g] .etaBox{background:rgba(4,20,14,.45);border-color:rgba(109,255,199,.45)}
+.shareNudge{margin-top:8px;width:100%;font-size:calc(14px*var(--fs,1))!important;min-height:40px;padding:8px 12px}
+.newTag{display:inline-block;font:800 10px/1 var(--body);letter-spacing:.06em;padding:3px 6px;border-radius:6px;background:#ff4fd8;color:#fff;vertical-align:2px}
+.lgTabs{flex-wrap:wrap!important;overflow:visible!important}body.kid .lgTabs [data-t=f]{display:none}
+#b-cduel{background:rgba(255,255,255,.1)!important;color:#fff!important;border:1px solid var(--gline)!important}
+.onbInvite{margin:0 0 10px;padding:10px 12px;border-radius:14px;background:rgba(255,79,216,.18);border:1px solid rgba(255,79,216,.45);font-weight:700;font-size:calc(14px*var(--fs,1))}
+body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 </style>
 </head>
 <body>
@@ -507,21 +541,28 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
   <p>Každé lietadlo nad tebou naživo – odkiaľ letí, kam a koľko ľudí v ňom sedí.</p>
   <div class="vals">
     <div><i>✈️</i>Lietadlá a trasy v reálnom čase</div>
-    <div><i>👋</i>Zamávaj im s celým Slovenskom</div>
-    <div><i>🛰️</i>ISS, Starlink a satelity nad tebou</div>
+    <div><i>👋</i>Zamávaj lietadlu nad sebou → jeho kartička je tvoja</div>
+    <div><i>🏆</i>Zbieraj s celým Slovenskom – kraje, mestá, kamaráti</div>
   </div>
   <div class="onbLive" id="onbLive"></div>
   <button class="cta" id="go">📍 Povoliť polohu a ukázať oblohu</button>
   <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
-  <label class="fine kidLbl"><input type="checkbox" id="onbKid"> Mám menej ako 16 rokov · bez prezývky, správ a upozornení</label>
+  <label class="fine kidLbl"><input type="checkbox" id="onbKid"> Detský režim (mám menej ako 16) · bez prezývky, pozdravov a kamarátov</label>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
 </div>
 
 <header id="top">
   <div class="logo" id="logo">Čo to letí?</div>
-  <div class="pill glass" id="statusPill"><span id="dot" class="dot"></span><span id="status">Štartujem…</span></div>
+  <div class="hdR"><button class="pill glass streakChip" id="streakChip" hidden aria-label="Séria dní"></button><button class="pill glass" id="statusPill" aria-label="Zmeniť miesto"><span id="dot" class="dot"></span><span id="status">Štartujem…</span></button></div>
 </header>
+<div class="modal" id="placeM" role="dialog" aria-modal="true" aria-labelledby="placeT"><div class="mcard">
+  <div class="lbl"><span id="placeT">📍 Odkiaľ sa pozeráš?</span></div>
+  <button class="btn pri" id="placeGps" style="width:100%;margin:6px 0 12px">📍 Moja poloha (GPS)</button>
+  <div class="lookSub" style="margin-bottom:8px">alebo vyber mesto:</div>
+  <div class="cities on" id="placeCities"></div>
+  <div class="acts" style="margin-top:14px"><button class="btn sec" id="placeClose">Zavrieť</button></div>
+</div></div>
 
 <!-- NEBO -->
 <main id="v-now" class="view on">
@@ -546,7 +587,9 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
       <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
     </div>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
-    <div class="waveHint" id="waveHint">Zamávaj a lietadlo ulovíš · podrž pre výber reakcie</div>
+    <div class="cardHint" id="cardHint"></div>
+    <button class="btn sec shareNudge" id="shareNudge" hidden>📤 Pošli kamarátovi, nech zamáva aj on</button>
+    <div class="waveHint" id="waveHint">Zamávaj a lietadlo máš v zbierke · podrž = iná reakcia</div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="dir" id="h-dir">
@@ -613,7 +656,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
-    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="p">Na hráča</button><button data-t="m">Mestá</button><button data-t="s">Menšie mestá</button><button data-t="t">Tímy</button></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="p">Na hráča</button><button data-t="m">Mestá</button><button data-t="s">Menšie mestá</button><button data-t="f">👯 Kamaráti</button><button data-t="t">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
     <div id="mayor" class="mayor" hidden></div>
   </section>
@@ -664,7 +707,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 
 <!-- JA -->
 <main id="v-col" class="view">
-  <div class="pageHead"><h1 id="meName">Spotter</h1><p id="meSub">Tvoja obloha, úlovky a výzvy</p></div>
+  <div class="pageHead"><button class="gearBtn glass" id="b-gear" aria-label="Nastavenia">⚙️</button><h1 id="meName">Spotter</h1><p id="meSub">Tvoja obloha, úlovky a výzvy</p></div>
   <section class="card glass prof">
     <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
     <div class="lvl" id="c-lvl">—</div>
@@ -678,7 +721,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
       <div><b id="c-t">0</b><span>typov</span></div>
       <div><b id="c-r">0</b><span>vzácnych</span></div>
     </div>
-    <button class="wrapBtn" id="b-wrapped">✨ Moja obloha – príbeh tvojho týždňa</button>
+    <button class="wrapBtn" id="b-wrapped">✨ Môj týždeň na oblohe</button>
     <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
   </section>
   <section class="card glass">
@@ -726,7 +769,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
       <div class="acts"><button class="solid" id="mset" style="flex:1">Použiť</button><button class="ghost" id="mgps">📍 GPS</button></div>
       <div class="msg" id="err"></div>
     </div>
-    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby si v tme videl hviezdy</small></div><select id="nightSel" aria-label="Nočný režim"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
+    <div class="sr"><div>🌙 Nočný režim<small>Tlmené farby, aby bolo v tme vidieť hviezdy</small></div><select id="nightSel" aria-label="Nočný režim"><option value="auto">Auto</option><option value="warm">Teplý</option><option value="red">Červený</option><option value="off">Vypnutý</option></select></div>
     <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
     <div class="setH">Údaje a súkromie</div>
     <div class="sr" style="display:block"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo do nového mobilu – jednorazový kód na 10 minút</small></div>
@@ -795,7 +838,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 </div></div>
 <div class="modal" id="postM" role="dialog" aria-modal="true" style="align-items:center"><div style="width:100%;max-width:420px">
   <div class="post" id="postCard"></div>
-  <div class="acts"><button class="btn pri" id="postReply">↩️ Pošli pozdrav späť</button><button class="btn ico" id="postShare" aria-label="Zdieľať" style="flex:0 0 56px">↗</button><button class="btn ico" id="postClose" aria-label="Zavrieť" style="flex:0 0 56px">✕</button></div>
+  <div class="acts"><button class="btn pri" id="postReply">✉️ Pošli pozdrav ďalej</button><button class="btn ico" id="postShare" aria-label="Zdieľať" style="flex:0 0 56px">↗</button><button class="btn ico" id="postClose" aria-label="Zavrieť" style="flex:0 0 56px">✕</button></div>
 </div></div>
 <div class="modal" id="cdM" role="dialog" aria-modal="true"><div class="mcard" id="cdBox"></div></div>
 
@@ -819,7 +862,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
   <div class="lbl"><span>📲 Pridaj si appku na plochu</span></div>
   <div class="lookSub" style="margin-top:10px">Na ploche funguje ako skutočná appka: upozornenia, rýchly štart a celá obrazovka.</div>
   <ol class="instSteps" id="instSteps"></ol>
-  <div class="fine">Na iPhone má appka na ploche vlastné úložisko. Aby si nestratil body, vytvor si kód na prenos a v appke na ploche ho zadaj v Nastaveniach → Prenos zbierky → Mám kód.</div>
+  <div class="fine">Na iPhone má appka na ploche vlastné úložisko. Aby body nezmizli, vytvor si kód na prenos a v appke na ploche ho zadaj v Nastaveniach → Prenos zbierky → Mám kód.</div>
   <div class="acts"><button class="btn pri" id="instCopy">🔁 Vytvoriť kód na prenos</button><button class="btn ico" id="instClose" aria-label="Zavrieť" style="flex:0 0 56px">✕</button></div>
 </div></div>
 <div class="modal" id="xM" role="dialog" aria-modal="true"><div class="mcard" style="text-align:center">
@@ -869,25 +912,25 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=26"></script>
-<script src="js/ui.js?v=26"></script>
-<script src="js/ar.js?v=26"></script>
-<script src="js/space.js?v=26"></script>
-<script src="js/weather.js?v=26"></script>
-<script src="js/extras.js?v=26"></script>
-<script src="js/social.js?v=26"></script>
-<script src="js/wrapped.js?v=26"></script>
-<script src="js/push.js?v=26"></script>
-<script src="js/track.js?v=26"></script>
-<script src="js/towns.js?v=26"></script>
-<script src="js/catalog.js?v=26"></script>
-<script src="js/cards.js?v=26"></script>
-<script src="js/mail.js?v=26"></script>
-<script src="js/golden.js?v=26"></script>
-<script src="js/teams.js?v=26"></script>
-<script src="js/duel.js?v=26"></script>
-<script src="js/sound.js?v=26"></script>
-<script src="js/santa.js?v=26"></script>
-<script src="js/main.js?v=26"></script>
+<script src="js/core.js?v=27"></script>
+<script src="js/ui.js?v=27"></script>
+<script src="js/ar.js?v=27"></script>
+<script src="js/space.js?v=27"></script>
+<script src="js/weather.js?v=27"></script>
+<script src="js/extras.js?v=27"></script>
+<script src="js/social.js?v=27"></script>
+<script src="js/wrapped.js?v=27"></script>
+<script src="js/push.js?v=27"></script>
+<script src="js/track.js?v=27"></script>
+<script src="js/towns.js?v=27"></script>
+<script src="js/catalog.js?v=27"></script>
+<script src="js/cards.js?v=27"></script>
+<script src="js/mail.js?v=27"></script>
+<script src="js/golden.js?v=27"></script>
+<script src="js/teams.js?v=27"></script>
+<script src="js/duel.js?v=27"></script>
+<script src="js/sound.js?v=27"></script>
+<script src="js/santa.js?v=27"></script>
+<script src="js/main.js?v=27"></script>
 </body>
 </html>

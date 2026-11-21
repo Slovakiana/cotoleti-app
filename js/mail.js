@@ -22,7 +22,7 @@ $("mailList").onclick=async e=>{
     else if(j.error==="limit")toast("Na dnes stačilo 😊","Pošli ďalšie zajtra");
     else if(j.error==="far")toast("Toto lietadlo je od teba priďaleko","Pozdrav pošli lietadlu nad tebou");
     else if(j.error)toast("Pozdrav sa nepodarilo poslať","Skús o chvíľu");
-    else{toast("✉️ Pozdrav je na palube!","Keď ho lietadlo doručí, dáme ti vedieť 📬");grantAch("mail");if(typeof dailyEvent==="function")dailyEvent("mail");COL.pts+=3;LS.set("ctl_col",COL);setTimeout(socPoll,800)}
+    else{toast("✉️ Pozdrav je na palube!","Keď ho lietadlo doručí, dám ti vedieť 📬");grantAch("mail");if(typeof dailyEvent==="function")dailyEvent("mail");COL.pts+=3;LS.set("ctl_col",COL);setTimeout(socPoll,800)}
   }catch(err){toast("Pozdrav sa nepodarilo poslať","Skús znova")}
 };
 function showPost(){

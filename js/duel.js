@@ -58,7 +58,7 @@ function cdResult(){
   if(!done.includes(key)){done.push(key);LS.set("ctl_kdDone",done.slice(-200))}
   CD.res=`${me}:${them}`;
   cdOpen(`<div style="text-align:center;font-size:64px;margin-top:6px">${w?"🏆":me===them?"🤝":"😅"}</div>
-    <div class="cdScore">${w?"Vyhral si":me===them?"Remíza":"Prehral si"} ${me}:${them}</div>
+    <div class="cdScore">${w?"Výhra! 🏆":me===them?"Remíza":"Tentoraz nie"} ${me}:${them}</div>
     <div class="lookSub" style="text-align:center">${w?"+20 bodov. "+esc(p.n)+" bude zúriť 😄":"Nabudúce! Zbieraj silnejšie kartičky – pozeraj hore."}</div>
     <div class="acts"><button class="btn pri" id="cdBrag">📤 Pošli výsledok</button></div>
     <div class="acts"><button class="btn sec" id="cdBack">⚔️ Vyzvi ho späť</button><button class="btn ico" id="cdX" style="flex:0 0 56px">✕</button></div>`);
@@ -79,7 +79,7 @@ $("cdBox").onclick=async e=>{
 };
 $("b-cduel").onclick=()=>{haptic(8);cdStart()};
 ACH.push({id:"cardduel",i:"🃏",n:"Víťaz súboja kartičiek",c:()=>false});
-function cdFromHash(){const m=location.hash.match(/kd=([\w-]+)/);if(!m)return;
+function cdFromHash(){const m=location.hash.match(/kd=([\w-]+)/);if(!m)return;if(!LS.get("ctl_onb",0)){afterOnb(cdFromHash);return}
   try{const p=JSON.parse(b64d(m[1]));if(!Array.isArray(p.c)||p.c.length!==3||!Array.isArray(p.k))return;p.n=String(p.n||"Kamoš").slice(0,20);p.c=p.c.map(x=>String(x).slice(0,6));p.k=p.k.map(x=>CD_CATS.find(c=>c[0]===x)?x:"spd");
     setTimeout(()=>{cdOpen(`<div style="text-align:center;font-size:56px">⚔️</div><div class="cdScore" style="font-size:26px">${esc(p.n)} ťa vyzýva na súboj kartičiek!</div>
       <div class="lookSub" style="text-align:center">3 kolá. V každom dostaneš kategóriu a vyberieš kartu, ktorou prebiješ jeho skrytú kartu.</div>

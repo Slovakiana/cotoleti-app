@@ -26,10 +26,10 @@ async function enablePush(silent){
 }
 function syncPushUI(){
   $("t-moment").classList.toggle("on",PUSH.on&&PUSH.moment);
-  $("momStat").textContent=PUSH.on&&PUSH.moment?"Zapnuté ✓ – dáme ti vedieť":"Upozornenie, keď sa celé Slovensko pozrie hore";
+  $("momStat").textContent=PUSH.on&&PUSH.moment?"Zapnuté ✓ – dám ti vedieť":"Upozornenie, keď sa celé Slovensko pozrie hore";
 }
 $("t-moment").onclick=async()=>{
-  if(!(PUSH.on&&PUSH.moment)){PUSH.moment=true;LS.set("ctl_moment",true);if(await enablePush())toast("🔔 Spoločný moment zapnutý","Raz denne ti dáme vedieť, kedy sa pozrieť hore")}
+  if(!(PUSH.on&&PUSH.moment)){PUSH.moment=true;LS.set("ctl_moment",true);if(await enablePush())toast("🔔 Spoločný moment zapnutý","Raz denne ti dám vedieť, kedy sa pozrieť hore")}
   else{PUSH.moment=false;LS.set("ctl_moment",false);try{await apiPost("/api/subset",{id:SOC.cid,moment:false})}catch(e){}}
   syncPushUI();
 };
@@ -51,10 +51,10 @@ function momentUI(mo){
     const left=Math.max(0,Math.round((mo.end-(Date.now()+(SOC.skew||0)))/1000));
     if(!document.body.classList.contains("moment"))wakeOn();
     bar.classList.add("on");document.body.classList.add("moment");
-    bar.textContent=`🔴 SPOLOČNÝ MOMENT · ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")} · ${nf(mo.n||0)} 👀`;
+    bar.textContent=`🔴 Pozri hore! · ešte ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`+((mo.n|0)>0?` · ${nf(mo.n)} 👀`:"");
     const d=dayKey();
-    if(PUSH.joined!==d){PUSH.joined=d;LS.set("ctl_momJoined",d);
-      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{SOC.data.moment.n=j.n;toast("👀 Si pri tom!","Spolu s tebou sa práve pozerá hore "+nf(j.n)+" "+ludia(j.n));confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
+    if(PUSH.joined!==d&&LS.get("ctl_onb",0)&&S.pos){PUSH.joined=d;LS.set("ctl_momJoined",d);
+      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{if(j.n)SOC.data.moment.n=j.n;const n=j.n||(SOC.data.moment&&SOC.data.moment.n)||0;toast("👀 Si pri tom!",n>1?"Spolu s tebou sa práve pozerá hore "+nf(n)+" "+ludia(n):"Celé Slovensko sa teraz pozerá hore");confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
     }
     if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data&&SOC.data.moment),1000);
     if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500);if(!$("ar").classList.contains("on"))wakeOff()}
@@ -73,7 +73,7 @@ if($("sp-remind"))$("sp-remind").onclick=async()=>{
   if(!PUSH.on||Notification.permission!=="granted"){if(!(await enablePush()))return}
   try{
     const r=await apiPost("/api/remind",{at:n.t-5*60e3,kind:n.kind,dir:n.dir,max:n.max});const j=await r.json().catch(()=>({}));
-    if(j.ok){toast("🔔 Pripomenieme ti to","5 minút pred preletom "+(n.kind==="iss"?"ISS":"stanice Tiangong"));$("sp-remind").textContent="✓ Pripomienka nastavená";$("sp-remind").disabled=true}
+    if(j.ok){toast("🔔 Pripomeniem ti to","5 minút pred preletom "+(n.kind==="iss"?"ISS":"stanice Tiangong"));$("sp-remind").textContent="✓ Pripomienka nastavená";$("sp-remind").disabled=true}
     else toast("Pripomienku sa nepodarilo nastaviť","Skús to o chvíľu");
   }catch(e){toast("Bez internetu","Pripomienku nastavíš, keď budeš online")}
 };

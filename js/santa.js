@@ -44,3 +44,5 @@ $("santaChip").onclick=async()=>{
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho rodine")}catch(e){}
 };
 santaChip();setInterval(santaChip,30000);
+// 24. 12.: keď sú sane nad obzorom, automaticky ich ukáž ako hlavné lietadlo (raz za prelet)
+HOOKS.live.push(()=>{const s=S.list&&S.list.find(a=>a.santa&&a.el>5);if(!s){SANTA._picked=false;return}if(SANTA._picked||S.pick)return;SANTA._picked=true;S.pick=s.hex;try{tick(true)}catch(e){}toast("🎅 Santa je nad tebou!","Zamávaj mu – kartička Santových saní je legendárna","#ff4f6d")});

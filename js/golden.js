@@ -7,13 +7,13 @@ function goldRender(){
   const g=GOLD.g,ch=$("goldChip");
   if(!g){ch.style.display="none";return}
   ch.style.display="";ch.classList.toggle("goldOn",g.state===0);
-  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · zamávaj a si v žrebovaní`:g.state===1?`🏆 Zlaté lietadlo získal spotter${g.winner&&g.winner.k&&KRAJ[g.winner.k]&&g.winner.k!=="XX"?" ("+KRAJ[g.winner.k][2]+" kraj)":""}`:"🏆 Zlaté lietadlo uletelo nechytené 😢";
+  ch.textContent=g.state===0?`🏆 Zlaté lietadlo: ${g.call} · zamávaj a si v žrebovaní`:g.state===1?`🏆 Zlaté lietadlo získal spotter${g.winner&&g.winner.k&&KRAJ[g.winner.k]&&g.winner.k!=="XX"?" ("+KRAJ[g.winner.k][2]+" kraj)":""}`:"🏆 Zlatému lietadlu dnes nikto nezamával 😢";
   // je nad nami?
   const here=goldActive()&&S.list.find(a=>a.hex===g.hex&&a.el>2);
   $("hero").classList.toggle("golden",!!(here&&S.top&&S.top.hex===g.hex));
   if(here&&S.top&&S.top.hex===g.hex)ch.style.display="none";
   const key=dayKey()+g.seq;
-  if(here&&GOLD.alerted!==key){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 Zlaté lietadlo je nad tebou!","Zamávaj – jeden z mávajúcich dostane +100 bodov 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
+  if(here&&GOLD.alerted!==key&&LS.get("ctl_onb",0)&&(LS.get("ctl_waveN",0)|0)>0){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 Zlaté lietadlo je nad tebou!","Zamávaj – jeden z mávajúcich dostane +100 bodov 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
 }
 async function goldTap(){
   const g=GOLD.g;if(!g)return;

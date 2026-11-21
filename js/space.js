@@ -140,7 +140,7 @@ const SPACE=(()=>{
     const sa=sunAlt();
     $("sp-sun").textContent=sa>0?"☀️ deň":sa>-6?"🌆 súmrak":"🌙 tma";
     if(st.err){$("sp-err").textContent="Vesmírne dáta sa nenačítali: "+st.err+". Skúsim znova neskôr.";}else $("sp-err").textContent="";
-    if(st.loading||!st.sats.length){$("sp-name").textContent=st.err?"Zatiaľ bez dát":"Počítam dráhy…";return}
+    if(st.loading||!st.sats.length){if($("sp-remind"))$("sp-remind").hidden=true;$("sp-name").textContent=st.err?"Zatiaľ bez dát":"Počítam dráhy…";return}
     const p=nextVisible(),now=Date.now();
     window.SPACE_NEXT=p?{t:p.visStart||p.start,kind:p.sat.kind,dir:dirL(p.azMax),max:Math.round(p.max)}:null;if($("sp-remind"))$("sp-remind").hidden=!p||p.start-now<6*60e3||!SOC.api||(typeof KID==="function"&&KID());
     if(p){
@@ -152,8 +152,8 @@ const SPACE=(()=>{
       $("sp-from").textContent=dirS(p.azStart);$("sp-to").textContent=dirS(p.azEnd);
       $("sp-tip").textContent=p.sat.kind==="iss"?"Hľadaj veľmi jasnú „hviezdu“, ktorá sa rovnomerne pohybuje a nebliká. Žije v nej 7 ľudí a letí rýchlosťou 28 000 km/h. 🚀":"Čínska stanica je slabšia ako ISS, ale za tmy ju uvidíš voľným okom. ✨";
     }else{
-      $("sp-name").textContent="Najbližších 36 h nič viditeľné";
-      $("sp-when").textContent="Stanice preletia, ale buď za dňa, alebo v tieni Zeme.";
+      $("sp-name").textContent="Najbližších 36 h nič voľným okom";
+      $("sp-when").textContent="ISS preletí, ale cez deň alebo v tieni Zeme. Keď bude vidieť, nájdeš to tu.";
       $("sp-count").style.display="none";$("sp-grid").style.display="none";$("sp-tip").textContent="";
     }
     // zoznam preletov

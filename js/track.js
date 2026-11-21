@@ -72,7 +72,7 @@ function trRender(){
 }
 function trLanded(){
   const w=TR.hex&&typeof planeWaves==="function"?planeWaves(TR.hex).total:0;
-  toast(`🛬 ${TR.me?"Pristál si":trName()+" pristál(a)"}!`,w?`Počas letu zamávalo ${nf(w)} ${ludia(w)} 👋`:"Šťastný návrat","#6dffc7");
+  toast(`🛬 ${TR.me?"Si na zemi!":trName()+" pristál(a)"}!`,w?`Počas letu zamávalo ${nf(w)} ${ludia(w)} 👋`:"Šťastný návrat","#6dffc7");
 }
 async function trServer(){
   if(!SOC.api||!TR||TR.me)return;
@@ -102,7 +102,7 @@ async function trShareLink(){
 $("b-track").onclick=()=>{haptic(8);if(TR&&!TR.landed){$("trackCard").scrollIntoView({behavior:"smooth",block:"center"});return}trOpen()};
 $("trFriend").onclick=()=>trSubmit(false);$("trMe").onclick=()=>trSubmit(true);$("trCancel").onclick=()=>$("trackM").classList.remove("on");
 $("trShare").onclick=trShareLink;
-$("trNotify").onclick=async()=>{if(await enablePush()){await trServer();toast("🔔 Dáme ti vedieť","Keď bude "+trName()+" blízko, príde upozornenie");trRender()}};
+$("trNotify").onclick=async()=>{if(await enablePush()){await trServer();toast("🔔 Dám ti vedieť","Keď bude "+trName()+" blízko, príde upozornenie");trRender()}};
 $("trClose").onclick=()=>{if(TR&&SOC.api&&TR.srv)apiPost("/api/track",{id:SOC.cid,cs:TR.cs,off:1}).catch(()=>{});TR=null;LS.set("ctl_track",null);trRender()};
 // odkaz #let=…
 function trFromHash(){
@@ -111,7 +111,7 @@ function trFromHash(){
   try{n=n?encodeURIComponent(decodeURIComponent(n).replace(/[<>\u0000-\u001f\u200b-\u200f\u202a-\u202e]/g,"").trim().slice(0,20)):""}catch(e){n=""}
   const cs=toCallsign(m[1])||m[1].toUpperCase();
   trStart(cs,cs,n?decodeURIComponent(n):"",false);
-  toast("👀 Sleduješ let "+(n?decodeURIComponent(n):cs),"Ťukni na „Upozorni ma“ a dáme ti vedieť, keď bude nad tebou");
+  toast("👀 Sleduješ let "+(n?decodeURIComponent(n):cs),"Ťukni na „Upozorni ma“ a dám ti vedieť, keď bude nad tebou");
   try{history.replaceState(null,"",location.pathname)}catch(e){}
 }
 setInterval(()=>{if(TR&&!document.hidden){if(Date.now()-TRK.t>45000)trPoll();else trRender()}},5000);

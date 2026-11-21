@@ -99,24 +99,24 @@ $("mapClose").onclick=()=>$("mapM").classList.remove("on");
 
 /* ============ 🎯 Denné výzvy ============ */
 const DAILY_POOL=[
-  {id:"wide",i:"🐋",n:"Ulov širokotrupé lietadlo",h:"Airbus A330/A350, Boeing 777/787…",t:a=>WIDE.has(a.type)},
-  {id:"low",i:"🛬",n:"Ulov lietadlo nižšie ako 3 000 m",h:"Pristávajúce alebo štartujúce",t:a=>a.alt!=null&&a.alt<3000},
-  {id:"high",i:"🏔️",n:"Ulov lietadlo vyššie ako 11 500 m",h:"To je viac ako 4× Gerlach",t:a=>a.alt!=null&&a.alt>11500},
-  {id:"fast",i:"⚡",n:"Ulov lietadlo rýchlejšie ako 950 km/h",h:"S poriadnym chvostovým vetrom",t:a=>a.spd!=null&&a.spd>950},
-  {id:"cargo",i:"📦",n:"Ulov nákladné lietadlo",h:"DHL, UPS, FedEx…",t:a=>/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL/.test(airlineOf(a))},
-  {id:"five",i:"🖐️",n:"Ulov dnes 5 lietadiel",h:"Zamávaj 5 rôznym lietadlám",need:5,t:()=>true},
-  {id:"air3",i:"🎨",n:"Ulov 3 rôzne aerolinky",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
+  {id:"wide",i:"🐋",n:"Zamávaj širokotrupému lietadlu",h:"Airbus A330/A350, Boeing 777/787…",t:a=>WIDE.has(a.type)},
+  {id:"low",i:"🛬",n:"Zamávaj lietadlu nižšie ako 3 000 m",h:"Pristávajúce alebo štartujúce",t:a=>a.alt!=null&&a.alt<3000},
+  {id:"high",i:"🏔️",n:"Zamávaj lietadlu vyššie ako 11 500 m",h:"To je viac ako 4× Gerlach",t:a=>a.alt!=null&&a.alt>11500},
+  {id:"fast",i:"⚡",n:"Zamávaj lietadlu rýchlejšiemu ako 950 km/h",h:"S poriadnym chvostovým vetrom",t:a=>a.spd!=null&&a.spd>950},
+  {id:"cargo",i:"📦",n:"Zamávaj nákladnému lietadlu",h:"DHL, UPS, FedEx…",t:a=>/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL/.test(airlineOf(a))},
+  {id:"five",i:"🖐️",n:"Zamávaj dnes 5 lietadlám",h:"Každé musí byť iné",need:5,t:()=>true},
+  {id:"air3",i:"🎨",n:"Zamávaj 3 rôznym aerolinkám",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
   {id:"sun",i:"🏖️",n:"Nájdi let k moru",h:"Turecko, Egypt, Grécko, Španielsko, Chorvátsko…",t:a=>{const m=S.meta.get(a.hex),c=m&&m.route&&m.route.destination&&m.route.destination.country_iso_name;return ["TR","EG","GR","ES","HR","CY","PT","TN","IT","MT"].includes(c)}},
   {id:"far",i:"🌏",n:"Nájdi let mimo Európy",h:"Ázia, Amerika, Afrika…",t:a=>{const m=S.meta.get(a.hex),d=m&&m.route&&m.route.destination;return !!(d&&d.latitude!=null&&(d.longitude>45||d.longitude<-25||d.latitude<34))}},
-  {id:"rare",i:"💎",n:"Ulov vzácne lietadlo",h:"Fialové alebo zlaté na radare",t:a=>["r","l"].includes(rarity(a))},
-  {id:"zen",i:"🎯",n:"Ulov lietadlo vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
+  {id:"rare",i:"💎",n:"Zamávaj vzácnemu lietadlu",h:"Fialové alebo zlaté na radare",t:a=>["r","l"].includes(rarity(a))},
+  {id:"zen",i:"🎯",n:"Zamávaj lietadlu vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
   {id:"shazam",i:"👂",n:"Vyskúšaj „Čo to hučí?“",h:"Keď počuješ lietadlo",ev:true},
   // 📅 sviatočné výzvy (len v daný deň, vždy ako prvá)
-  {id:"miki",sp:"12-06",i:"🎅",n:"Mikulášska výzva: ulov 6 lietadiel",h:"Zamávaj 6 rôznym lietadlám · odznak Mikuláš",need:6,t:()=>true,ach:"mikulas"},
+  {id:"miki",sp:"12-06",i:"🎅",n:"Mikulášska výzva: zamávaj 6 lietadlám",h:"Zamávaj 6 rôznym lietadlám · odznak Mikuláš",need:6,t:()=>true,ach:"mikulas"},
   {id:"civil",sp:"12-07",i:"✈️",n:"Deň civilného letectva: 3 aerolinky",h:"Zamávaj lietadlám 3 rôznych aeroliniek",need:3,key:a=>airlineOf(a),ach:"civil"},
-  {id:"stefanik",sp:"05-04",i:"🇸🇰",n:"Deň Štefánika: ulov lietadlo nad 11 500 m",h:"Na počesť prvého slovenského letca",t:a=>a.alt!=null&&a.alt>11500,ach:"stefanik"},
-  {id:"snp",sp:"08-29",i:"🇸🇰",n:"Výročie SNP: ulov 5 lietadiel",h:"Zamávaj 5 rôznym lietadlám",need:5,t:()=>true},
-  {id:"silvester",sp:"12-31",i:"🎆",n:"Silvester: ulov posledné lietadlo roka",h:"Zamávaj ešte dnes aspoň jednému",t:()=>true,ach:"silvester"},
+  {id:"stefanik",sp:"05-04",i:"🇸🇰",n:"Deň Štefánika: zamávaj lietadlu nad 11 500 m",h:"Na počesť prvého slovenského letca",t:a=>a.alt!=null&&a.alt>11500,ach:"stefanik"},
+  {id:"snp",sp:"08-29",i:"🇸🇰",n:"Výročie SNP: zamávaj 5 lietadlám",h:"Zamávaj 5 rôznym lietadlám",need:5,t:()=>true},
+  {id:"silvester",sp:"12-31",i:"🎆",n:"Silvester: zamávaj poslednému lietadlu roka",h:"Zamávaj ešte dnes aspoň jednému",t:()=>true,ach:"silvester"},
 ];
 ACH.push({id:"mikulas",i:"🎅",n:"Mikulášsky spotter",c:()=>false},{id:"civil",i:"✈️",n:"Deň civilného letectva",c:()=>false},{id:"stefanik",i:"⭐",n:"Na počesť Štefánika",c:()=>false},{id:"silvester",i:"🎆",n:"Posledné lietadlo roka",c:()=>false});
 const today=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"}).format(new Date());
@@ -126,6 +126,8 @@ function dailyEnsure(){
   if(!DAILY||DAILY.date!==d){
     const prev=DAILY||{streak:0,lastFull:null},h=hash(d),pool=DAILY_POOL.filter(q=>!q.sp),ids=[];
     const sp=DAILY_POOL.find(q=>q.sp===d.slice(5));if(sp)ids.push(sp.id);
+    // prvá výzva vždy splniteľná aj na vidieku (nezávisí od toho, čo náhodou preletí)
+    else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
     for(let k=ids.length;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}
     DAILY={date:d,ids,prog:{},done:{},streak:prev.streak||0,lastFull:prev.lastFull||null};
     LS.set("ctl_daily",DAILY);
@@ -138,17 +140,38 @@ function dailyComplete(id){
   const x=DAILY_POOL.find(q=>q.id===id);
   if(x&&x.ach)setTimeout(()=>grantAch(x.ach),1500);
   toast("🎯 Výzva splnená! +10 bodov",x.n,"#6dffc7");confetti(40);ping("u");
-  // séria rastie už pri prvej splnenej výzve dňa (včera = kalendárny deň, funguje aj pri zmene času)
-  if(D.lastDay!==D.date){
-    const yd=new Date();yd.setDate(yd.getDate()-1);const y=yd.toLocaleDateString("sv-SE");
-    D.streak=(D.lastDay===y||D.lastFull===y)?D.streak+1:1;D.lastDay=D.date;
-    if(D.streak>1)setTimeout(()=>toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"),"Príď aj zajtra a splň aspoň jednu výzvu","#ff4fd8"),3400);
-  }
   if(D.ids.every(i=>D.done[i])){
     D.lastFull=D.date;const bonus=15+Math.min(D.streak||0,7);COL.pts+=bonus;
-    setTimeout(()=>{toast("🎉 Všetky 3 výzvy! +"+bonus+" bodov","Bonus za celý deň + séria","#ff4fd8");confetti(90)},5600);
+    setTimeout(()=>{toast("🎉 Všetky 3 výzvy! +"+bonus+" bodov","Bonus za celý deň + séria","#ff4fd8");confetti(90)},typeof WB!=="undefined"&&WB?0:5600);
   }
   LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();if(S.view==="col")renderCol();
+}
+/* 🔥 séria = deň, keď si zamával (nie výzvy – tie závisia od premávky) + ❄️ zmrazenie + míľniky */
+const STREAK_MS={3:[20,""],7:[50,"streak7"],14:[80,""],30:[200,"streak30"],60:[300,""],100:[500,"streak100"]};
+ACH.push({id:"streak7",i:"🔥",n:"Týždeň pod oblohou",c:()=>false},{id:"streak30",i:"🌟",n:"Verný spotter (30 dní)",c:()=>false},{id:"streak100",i:"💯",n:"Sto dní pod oblohou",c:()=>false});
+function dAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"})}
+function streakTouch(){
+  const D=dailyEnsure();if(D.lastDay===D.date)return;
+  const prev=D.streak||0;let used=false;
+  if(D.lastDay===dAgo(1))D.streak=prev+1;
+  else if(D.lastDay===dAgo(2)&&(D.freeze|0)>0){D.freeze--;D.streak=prev+1;used=true}
+  else{if(prev>=3)D.lost=prev;D.streak=1}
+  D.lastDay=D.date;D.days=[D.date,...(D.days||[])].slice(0,14);
+  if(D.streak%7===0&&(D.freeze|0)<2){D.freeze=(D.freeze|0)+1;toast("❄️ Zmrazenie série +1","Keď raz vynecháš deň, séria nespadne")}
+  if(used)toast("❄️ Zmrazenie zachránilo sériu","Včera si nemával, séria "+D.streak+" ide ďalej");
+  const ms=STREAK_MS[D.streak];
+  if(ms){COL.pts+=ms[0];if(ms[1])grantAch(ms[1]);toast("🔥 Séria "+D.streak+" dní! +"+ms[0]+" bodov")}
+  else if(D.streak>1)toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"));
+  else if(D.lost)toast("💔 Séria "+D.lost+" dní skončila","Začni novú – dnes je deň 1");
+  if(D.streak>1)D.lost=0;
+  LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();streakChip();
+}
+function streakChip(){
+  const D=dailyEnsure(),el=$("streakChip");if(!el)return;
+  const live=D.lastDay===D.date||D.lastDay===dAgo(1)||(D.lastDay===dAgo(2)&&(D.freeze|0)>0);
+  const n=live?D.streak|0:0;el.hidden=n<2;
+  el.textContent="🔥 "+n+(D.lastDay===D.date?"":" · dnes ešte nie")+((D.freeze|0)?" · ❄️"+D.freeze:"");
+  el.classList.toggle("pend",D.lastDay!==D.date);
 }
 function dailyEvent(id){const D=dailyEnsure();if(D.ids.includes(id))dailyComplete(id)}
 HOOKS.caught.push(a=>{
@@ -164,7 +187,7 @@ HOOKS.caught.push(a=>{
 function renderDaily(){
   const D=dailyEnsure(),n=D.ids.filter(i=>D.done[i]).length;
   $("dailyTxt").textContent=`🎯 Dnešné výzvy ${n}/3`+(D.streak?` · 🔥 ${D.streak}`:"")+(n===3?" ✅":"");
-  $("d-streak").textContent=D.streak?"🔥 séria "+D.streak:"";
+  $("d-streak").textContent=D.streak?"🔥 séria "+D.streak+((D.freeze|0)?" · ❄️ "+D.freeze:""):"";streakChip();
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
     return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
 }
@@ -178,7 +201,7 @@ function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:
 async function sendDuel(){
   if(typeof ensureTok==="function")await ensureTok();
   const me=myScore(),url=shareUrl("v",b64e(JSON.stringify(me)));
-  const text=`⚔️ ${me.n} ťa vyzýva v appke Čo to letí? ✈️ Mám ${me.p} bodov, ${me.c} ulovených lietadiel a ${me.t} typov. Prekonáš ma?`;
+  const town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";const text=`👋 Mávam lietadlám${town?" ("+town+")":""} a zbieram ich kartičky ✈️ Pridaj sa – keď zamávame tomu istému lietadlu do 10 minút, máme obaja bonus. Mám ${me.t} kartičiek, prekonáš ma?`;
   try{if(navigator.share){await navigator.share({title:"Čo to letí? – výzva",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamarátovi")}catch(e){prompt("Skopíruj odkaz:",url)}
 }
@@ -190,6 +213,7 @@ function renderDuel(){
     <div class="lookSub" style="margin-top:8px">${lead>0?"🏆 Vedieš o "+lead+" b. Pošli mu výzvu späť!":lead===0?"Remíza! Kto uloví ďalšie?":"Chýba ti "+(-lead)+" b. Hor sa pod oblohu! ✈️"}</div>`;
 }
 function checkDuelLink(){
+  if(!LS.get("ctl_onb",0)){afterOnb(checkDuelLink);return}
   const m=location.hash.match(/vyzva=([\w-]+)/);if(!m)return;
   try{
     const r=JSON.parse(b64d(m[1]));if(typeof r.p!=="number")return;

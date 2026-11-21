@@ -66,3 +66,26 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - OG obrázky s mestom pre 10 najväčších miest (Santa aj „práve letí“)
 - 🎬 6 s video s odhalením kartičky (shiny so žiarou), bez hudby, zdieľanie do TikTok/Reels
 - Zostáva: knižnice a fonty priamo v appke (potrebuje sieť na stiahnutie súborov)
+
+## Vlna 5 – 10 agentov preklikalo appku (21. 11. 2026) · hotové vo v27
+- Po mávnutí 1 súhrnné oznámenie (body, odznak, výzva) namiesto 4–5 toastov; nová kartička sa odhalí s animáciou „Nová kartička! N. z 84“
+- Pred mávnutím štítok: „🃏 Nová kartička č. 010“, „★★☆☆ ešte 2×“, „◆ Vzácne +15 b“, „🎯 Splní výzvu“, „📉 Je nízko“
+- Séria sa ráta za mávnutie (nie za výzvy), ❄️ zmrazenie každých 7 dní (max 2), míľniky 3/7/14/30/60/100, čip 🔥 v hlavičke
+- Prvá denná výzva vždy splniteľná; „ulov“ → „zamávaj“ všade, rodovo neutrálne texty, appka hovorí „ja“
+- Zmena mesta ťukom na pilulku hore (GPS alebo mesto); ⚙️ v hlavičke Ja
+- Atlas: 6 kartičiek + „Celý atlas“, záložka Sady s rozkliknutím (čo chýba), chýbajúce od najľahších, najnovšie úlovky prvé
+- Liga: záložka 👯 Kamaráti, taby sa zalamujú, tvoj kraj aj mimo top 8
+- 🚩 pri mene starostu a kamarátov; detský režim skryje kamarátov, tímy a súboje
+- Toast hore, moment v 1 riadku, bez toastu cez úvod, tipovačka v riadku, denný kontrast skla, rozmazané pozadie modálov
+- Odkazy od kamarátov čakajú, kým človek prejde úvodom (+ banner na úvode); pozvánka hovorí o zážitku; kľúč kamaráta platí 7 dní
+- „📤 Pošli kamarátovi“ hneď po mávnutí; Santa sa 24. 12. sám ukáže ako hlavné lietadlo
+- Prístupnosť: onboarding ako modálne okno, mená kartičiek pre VoiceOver, väčšie ťukacie plochy, skryté plávajúce tlačidlo mimo čítačky
+- Bugy: [hidden] prekrývané CSS (🎬, pripomienka ISS), prázdna obloha zaseknutá na „Hľadám…“, offline mávnutia sa teraz naozaj odošlú, Moja obloha zdieľanie v in-app prehliadači, kompas sa nepýta pri štarte
+
+### Zostáva z vlny 5 (väčšie)
+- Cestovný pas (krajiny/mestá/aerolínie z trás), „Hľadá sa“ – lovené lietadlo dňa pre celé SR, spoločný týždenný cieľ Slovenska
+- Sezónny pas s pečiatkami a odmenami, level odomyká veci (reakcie, rámy, tituly), prestíž po L20
+- Feed úlovkov kamarátov s reakciou, pondelkový výsledok súboja, štafeta „pošli lietadlo ďalej“, „Letíš? Zamávajte mi“ pri letisku
+- Hlavná karta kratšia (slot „Teraz“ namiesto čipov, detail letu ako panel), menší radar
+- Jeden systém tlačidiel a zaoblení, jednotné zatváranie modálov, nadpisy h2 pre VoiceOver, „Jednoduchý režim“, vyhľadávanie v appke
+- Mini kartičky ako vlastný náhľad, varianty (bežná/nočná/shiny) ako sloty, „Daruj kópiu“, „Tvoj štamgast“, rozlúčka s lietadlom

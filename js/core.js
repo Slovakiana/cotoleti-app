@@ -158,7 +158,7 @@ async function tryCombo(i,r,signal){
   if(!j.ac&&!j.aircraft&&!("states" in j))throw new Error("zlý formát");
   return {i,list:c.s.parse(j)};
 }
-function gotPlanes(i,list){S.failN=0;S.nextTry=0;
+function gotPlanes(i,list){S.failN=0;S.nextTry=0;S.loaded=true;
   if(typeof SOC!=="undefined"&&SOC.data&&SOC.data.flags&&SOC.data.flags.hideMil)list=list.filter(a=>!a.mil);
   S.raw=list;S.rawT=Date.now();comboIdx=i;LS.set("ctl_combo",i);err("");
   const c=COMBOS[i];
@@ -291,7 +291,8 @@ function tryCatch(a){
   if(newType)Sub+=" · nový typ!";
   if(newAch.length){T="🏅 Odznak: "+newAch[0].n;Sub="+"+pts+" b · "+titleOf(a)}
   if(lvlOf(COL.pts)>prevLvl){T="⬆️ Nový level: "+lvlName(lvlOf(COL.pts));Sub="Obloha ťa začína poznávať."}
-  toast(T,Sub,RAR[r].col);
+  if(typeof WB!=="undefined"&&WB){WB.caught={type:ty,name:COL.types[ty].name||ty,title:titleOf(a),r,newType};if(newAch.length)WB.items.push(["🏅 "+newAch[0].n]);if(lvlOf(COL.pts)>prevLvl)WB.items.push(["⬆️ Level "+(lvlOf(COL.pts)+1)+": "+lvlName(lvlOf(COL.pts))])}
+  else toast(T,Sub,RAR[r].col);
   if(r!=="c"||newAch.length||newType)confetti(r==="l"?80:40);
   ping(r);
   HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
@@ -299,3 +300,7 @@ function tryCatch(a){
 }
 function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);toast("🏅 Nový odznak: "+x.n,"Máš ho v zbierke. Ktorý bude ďalší?","#ffcf4f");confetti(50);ping("r");if(S.view==="col")renderCol()}
 
+
+/* odkazy od kamarátov (výzva, súboj) počkajú, kým človek prejde úvodom */
+const ONB_Q=[];function afterOnb(f){if(!ONB_Q.includes(f))ONB_Q.push(f)}
+function onbDone(){setTimeout(()=>{while(ONB_Q.length){try{ONB_Q.shift()()}catch(e){}}},2500)}
