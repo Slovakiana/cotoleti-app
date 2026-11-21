@@ -79,7 +79,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "2026-11-21a";
+const VERSION = "2026-11-21b";
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
 const lc = v => String(v || "").normalize("NFKC").trim().toLocaleLowerCase("sk");
@@ -398,21 +398,40 @@ export class Sky extends DurableObject {
     this.sql.exec("UPDATE rl SET n = n + 1 WHERE k=?", key); return true;
   }
   // je lietadlo naozaj blízko tvrdenej polohy?
-  async verifyPlane(hex, la, lo) {
-    // viac zdrojov: appka berie dáta z rôznych sietí, lietadlo nemusí byť v každej
-    const SRC = ["https://api.adsb.lol/v2/hex/", "https://api.airplanes.live/v2/hex/", "https://opendata.adsb.fi/api/v2/hex/"];
-    let any = false;
-    for (const u of SRC) {
+  // prehľad celej oblohy nad SR (1 požiadavka na 15 s pre všetkých hráčov) – menej záťaže sietí, menej výpadkov
+  async snapshot() {
+    const now = Date.now(), sn = this._snap;
+    if (sn && now - sn.t < 15e3) return sn;
+    if (this._snapP) return this._snapP;
+    this._snapP = (async () => {
+      const urls = ["https://api.adsb.lol/v2/point/48.7/19.5/250", "https://api.airplanes.live/v2/point/48.7/19.5/250", "https://opendata.adsb.fi/api/v2/lat/48.7/lon/19.5/dist/250"];
+      const one = u => fetch(u, {headers: {"User-Agent": UA}, signal: AbortSignal.timeout(5000)}).then(r => r.ok ? r.json() : Promise.reject()).then(j => { const ac = j.ac || j.aircraft; if (!Array.isArray(ac)) throw 0; return ac; });
       try {
-        const r = await fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}, signal: AbortSignal.timeout(2500)});
-        if (!r.ok) continue;
-        const j = await r.json(); any = true;
-        const a = (j.ac || j.aircraft || [])[0];
-        if (!a || a.lat == null) continue;
-        if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-        return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
-      } catch (e) {}
+        const ac = await Promise.any(urls.map(one)), m = new Map();
+        for (const a of ac) if (a.hex) m.set(cleanHex(a.hex), a);
+        this._snap = {t: Date.now(), m}; this.setMeta("upstream", Date.now());
+      } catch (e) { this.bump("snap_fail"); }
+      this._snapP = null; return this._snap || null;
+    })();
+    return this._snapP;
+  }
+  planeRes(a, la, lo) {
+    if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
+    return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
+  }
+  async verifyPlane(hex, la, lo) {
+    // 1) čerstvý prehľad oblohy (≤ 30 s starý)
+    let any = false;
+    const sn = await this.snapshot();
+    if (sn && Date.now() - sn.t < 30e3) {
+      any = true; const a = sn.m.get(hex);
+      if (a && a.lat != null && (a.seen_pos == null || a.seen_pos < 60)) return this.planeRes(a, la, lo);
     }
+    // 2) priamy dopyt na lietadlo – všetky siete naraz, berie sa prvá, ktorá ho pozná
+    const SRC = ["https://api.adsb.lol/v2/hex/", "https://api.airplanes.live/v2/hex/", "https://opendata.adsb.fi/api/v2/hex/"];
+    const one = u => fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}, signal: AbortSignal.timeout(4000)})
+      .then(r => r.ok ? r.json() : Promise.reject()).then(j => { any = true; const a = (j.ac || j.aircraft || [])[0]; if (!a || a.lat == null) throw 0; return a; });
+    try { return this.planeRes(await Promise.any(SRC.map(one)), la, lo); } catch (e) {}
     // nenašli sme ho nikde: mávnutie prijmeme, ale do ligy sa neráta (vp.found = false)
     return {known: any, found: false};
   }
@@ -669,6 +688,8 @@ export class Sky extends DurableObject {
       if (!hex || id.length < 8 || la == null || lo == null || Math.abs(la) > 90 || Math.abs(lo) > 180) return json({error: "bad"}, 400);
       if (!this.rate("wave:" + iph, 30000, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) { this.bump("429:wave"); return json({error: "rate"}, 429); }
       const vp = await this.verifyPlane(hex, la, lo);
+      // žiadna sieť neodpovedala – nezapisovať, appka mávnutie o chvíľu zopakuje
+      if (!vp.known) { this.bump("wave_retry"); return json({error: "busy"}, 503, {"Retry-After": "15"}); }
       if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const pdx = await this.pid(id);
       // do súťaží sa ráta len poloha zo Slovenska, ktorá sedí s IP adresou, a nie z VPN/serverov
@@ -752,7 +773,7 @@ export class Sky extends DurableObject {
       let together = null;
       if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
       // 🔎 diagnostika overenia (pre /admin, 7 dní)
-      if (!seen) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty, sel, cok ? 1 : 0, cok ? "" : why);
+      if (!seen) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty || String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 5).toUpperCase(), sel, cok ? 1 : 0, cok ? "" : why);
       return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
     if (p === "/api/kid" && req.method === "POST") {

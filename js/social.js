@@ -225,7 +225,9 @@ async function doWave(e){LASTWAVE=null;
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     // prihlásenie/server zlyhali – mávnutie si odložíme a o chvíľu ho pošleme znova (overí sa, kým je lietadlo blízko)
     if(r.status===401||r.status>=500||(r.status===429&&j.error!=="rate")){try{const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(q.length<20&&body)q.push({d:dayKey(),b:body,t:Date.now()});LS.set("ctl_wq",q)}catch(x){}setTimeout(flushWq,15000)}
-    LASTWAVE=null;credit();fin("overím o chvíľu (kód "+code+")");return}
+    LASTWAVE=null;credit();fin(j.error==="busy"?"siete sú preťažené – overím o chvíľu":"overím o chvíľu (kód "+code+")");return}
+  // server pozná typ z overených dát – kartička dostane ten istý typ, aby sedelo overenie
+  if(j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
   LASTWAVE={hex:a.hex,...j};credit();
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);

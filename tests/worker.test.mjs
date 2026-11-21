@@ -31,6 +31,7 @@ globalThis.fetch = async u => { u = String(u);
   return new Response("{}"); };
 
 const call = async (p, b, ip = "1.2.3.4", cc = "SK") => {
+  sky._snap = null; // testy menia polohu lietadla – bez medzipamäte oblohy
   if (p === "/api/wave" && b && b.gps === undefined) b = {...b, gps: true};
   const r = new Request("https://x" + p, b ? {method: "POST", body: JSON.stringify(b), headers: {"cf-connecting-ip": ip, "x-cc-country": "US"}} : {headers: {"cf-connecting-ip": ip}});
   Object.defineProperty(r, "cf", {value: {country: cc, latitude: "48.15", longitude: "17.1"}});
@@ -52,7 +53,7 @@ await t("mávnutie vzdialenému lietadlu odmietnuté", async () => {
 });
 const fixed = Date.parse(new Date().toISOString().slice(0, 10) + "T10:00:00Z"), realNow = Date.now;
 Date.now = () => fixed; await sky.cron(); db.exec(`UPDATE ids SET t=${fixed - 60e3}`);
-await t("čerstvý účet nevyhrá zlaté lietadlo", async () => assert.equal((await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true})).j.golden, false));
+await t("čerstvý účet nevyhrá zlaté lietadlo", async () => { const r = await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}); assert.equal(r.j.golden, false, JSON.stringify(r.j)); });
 Date.now = () => fixed + 20 * 60e3;
 await t("zo zahraničia nevyhrá", async () => assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}, "5.6.7.8", "US")).j.golden, false));
 db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
@@ -66,6 +67,16 @@ await t("zlatá posádka sa uzavrie po 40 minútach (bez žrebu)", async () => {
 });
 Date.now = realNow;
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
+await t("obloha: jedna požiadavka na prehľad pre viac mávnutí; výpadok sietí = zopakovať", async () => {
+  const of = globalThis.fetch; let n = 0;
+  globalThis.fetch = async u => { n++; return of(u); };
+  sky._snap = null; await sky.verifyPlane("aabbcc", 48.15, 17.11); const n1 = n; const v2 = await sky.verifyPlane("aabbcc", 48.15, 17.11);
+  assert.ok(n1 <= 3); assert.equal(n, n1); assert.equal(v2.found, true);
+  globalThis.fetch = async () => { throw new Error("down"); };
+  const r = await call("/api/wave", {id: C, tok: hc.tok, hex: "dd0001", lat: 48.15, lon: 17.11});
+  globalThis.fetch = of;
+  assert.equal(r.s, 503); assert.equal(r.j.error, "busy");
+});
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
   assert.deepEqual(codes.slice(0, 20).filter(c => c !== 200), [], codes.join(","));
