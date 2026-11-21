@@ -267,9 +267,9 @@ async function flushWq(){
   const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(!q.length||!SOC.api||!navigator.onLine)return;
   LS.set("ctl_wq",[]);let ok=0;
   let ver=0,back=0;
-  for(const x of q){try{let r=await apiPost("/api/wave",x.b);if(r.status===401)r=await apiPost("/api/wave",x.b);
+  for(const x of q){try{x.b.try=(x.b.try|0)+1;let r=await apiPost("/api/wave",x.b);if(r.status===401)r=await apiPost("/api/wave",x.b);
       if(r.ok){ok++;const j=await r.json().catch(()=>({}));if(j.ver){const v=COL.types[j.type||x.b.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}}}
-      else if(r.status===401||r.status>=500){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
+      else if((r.status===401||r.status>=500)&&x.b.try<6){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
     }catch(e){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}}
   if(ver)LS.set("ctl_col",COL);
   if(back)setTimeout(flushWq,30000);

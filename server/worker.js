@@ -79,7 +79,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "2026-11-21b";
+const VERSION = "2026-11-21c";
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
 const lc = v => String(v || "").normalize("NFKC").trim().toLocaleLowerCase("sk");
@@ -689,7 +689,7 @@ export class Sky extends DurableObject {
       if (!this.rate("wave:" + iph, 30000, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) { this.bump("429:wave"); return json({error: "rate"}, 429); }
       const vp = await this.verifyPlane(hex, la, lo);
       // žiadna sieť neodpovedala – nezapisovať, appka mávnutie o chvíľu zopakuje
-      if (!vp.known) { this.bump("wave_retry"); return json({error: "busy"}, 503, {"Retry-After": "15"}); }
+      if (!vp.known && (num(b.try, 0) | 0) < 3) { this.bump("wave_retry"); return json({error: "busy"}, 503, {"Retry-After": "15"}); }
       if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const pdx = await this.pid(id);
       // do súťaží sa ráta len poloha zo Slovenska, ktorá sedí s IP adresou, a nie z VPN/serverov

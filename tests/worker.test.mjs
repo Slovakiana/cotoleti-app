@@ -76,6 +76,10 @@ await t("obloha: jedna požiadavka na prehľad pre viac mávnutí; výpadok siet
   const r = await call("/api/wave", {id: C, tok: hc.tok, hex: "dd0001", lat: 48.15, lon: 17.11});
   globalThis.fetch = of;
   assert.equal(r.s, 503); assert.equal(r.j.error, "busy");
+  globalThis.fetch = async () => { throw new Error("down"); };
+  const r2 = await call("/api/wave", {id: C, tok: hc.tok, hex: "dd0001", lat: 48.15, lon: 17.11, try: 3});
+  globalThis.fetch = of;
+  assert.equal(r2.s, 200); // po 3 pokusoch sa mávnutie zapíše aj bez overenia
 });
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
