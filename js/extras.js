@@ -129,7 +129,8 @@ function dailyEnsure(){
     // prvá výzva vždy splniteľná aj na vidieku (nezávisí od toho, čo náhodou preletí)
     else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
     for(let k=ids.length;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}
-    DAILY={date:d,ids,prog:{},done:{},streak:prev.streak||0,lastFull:prev.lastFull||null};
+    // séria dní, zmrazenie, rekord a oprava sa prenášajú do nového dňa (predtým sa mazali → séria stále 1)
+    DAILY={...prev,date:d,ids,prog:{},done:{},swapped:0,streak:prev.streak||0,lastFull:prev.lastFull||null};
     LS.set("ctl_daily",DAILY);
   }
   return DAILY;
@@ -263,6 +264,6 @@ if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceW
 // jedna výmena výzvy denne (keď je výzva v tvojom okolí nesplniteľná)
 $("d-list").addEventListener("click",e=>{
   const b=e.target.closest("[data-sw]");if(!b)return;const D=dailyEnsure();if(D.swapped)return;
-  const pool=DAILY_POOL.filter(q=>!D.ids.includes(q.id));if(!pool.length)return;
+  const pool=DAILY_POOL.filter(q=>!q.sp&&!D.ids.includes(q.id));if(!pool.length)return;
   const nw=pool[Math.floor(Math.random()*pool.length)];D.ids=D.ids.map(i=>i===b.dataset.sw?nw.id:i);D.swapped=1;LS.set("ctl_daily",D);renderDaily();haptic(8);toast("🔄 Nová výzva",nw.n);
 });
