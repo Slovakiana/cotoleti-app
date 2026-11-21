@@ -128,12 +128,12 @@ function cardSVG(code,v,opt={}){
   // zaujímavosť
   wrapLines(c.fact,46).slice(0,2).forEach((l,i)=>s+=`<text x="52" y="${680+i*24}" font-size="17" font-style="italic" fill="#dfe6ff">${SVGE(l)}</text>`);
   // formy (5 slotov)
-  const fm=v.forms||{};s+=`<text x="52" y="${742}" font-size="20">${FORMS.map(f=>fm[f[0]]?f[1]:"·").join("  ")}</text><text x="548" y="742" text-anchor="end" font-size="14" font-weight="700" fill="#9aa6cc">FORMY ${FORMS.filter(f=>fm[f[0]]).length}/5${v.al?" · "+Object.keys(v.al).length+" aeroliniek":""}</text>`;
+  const fm=v.forms||{};s+=`<text x="52" y="${742}" font-size="20">${FORMS.map(f=>fm[f[0]]?f[1]:"·").join("  ")}</text><text x="548" y="742" text-anchor="end" font-size="14" font-weight="700" fill="#9aa6cc">FORMY ${FORMS.filter(f=>fm[f[0]]).length}/5${v.al?" · "+Object.keys(v.al).length+(Object.keys(v.al).length===1?" aerolinka":Object.keys(v.al).length<5?" aerolinky":" aeroliniek"):""}</text>`;
   // päta
   s+=`<line x1="40" x2="560" y1="766" y2="766" stroke="#fff" stroke-opacity=".1"/>
     <text x="40" y="800" font-size="22" fill="${fr[0]}">${RAR_SYM[r]}</text>
     <text x="70" y="798" font-size="15" font-weight="700" fill="#cfd8ff">${RAR[r].n}</text>
-    <text x="300" y="798" text-anchor="middle" font-size="13" fill="#8a94b8">${SVGE(v.fp&&v.fp.town?"1.: nad "+v.fp.town.slice(0,14)+(v.fp.al&&AIRLINES[v.fp.al]?" · "+AIRLINES[v.fp.al].slice(0,12):""):v.n?"zamávané "+v.n+"× · "+new Date(v.first||Date.now()).toLocaleDateString("sk-SK"):"darovaná")}</text>
+    <text x="300" y="798" text-anchor="middle" font-size="13" fill="#8a94b8">${SVGE(v.fp&&v.fp.town?"1. úlovok: "+v.fp.town.slice(0,14)+(v.fp.al&&AIRLINES[v.fp.al]?" · "+AIRLINES[v.fp.al].slice(0,12):""):v.n?"zamávané "+v.n+"× · "+new Date(v.first||Date.now()).toLocaleDateString("sk-SK"):"darovaná")}</text>
     <text x="560" y="798" text-anchor="end" font-size="14" font-weight="700" fill="#8a94b8">S1 · ${no}</text></svg>`;
   return s;
 }
@@ -207,9 +207,10 @@ function openCard(k,reveal){
 }
 function cardExtras(k,v){
   const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
-  let h=`<div class="cardInfo">${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
+  const verL=v.ver?`<div class="verOk">✓ Overená serverom${v.seq?" · #"+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená – zamávaj tomuto typu s polohou z GPS na Slovensku a lietadlom aspoň 8° nad obzorom</div>`:"";
+  let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:"?"}</small></span>`).join("")}</div>`;
-  if(v.fp)h+=`<div class="lookSub">🧾 Prvá: ${v.fp.town?"nad "+esc(v.fp.town):""}${v.fp.al&&AIRLINES[v.fp.al]?" · "+esc(AIRLINES[v.fp.al]):""}${v.fp.dest?" → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
+  if(v.fp)h+=`<div class="lookSub">🧾 Prvý úlovok: ${v.fp.town?esc(v.fp.town):""}${v.fp.al&&AIRLINES[v.fp.al]?" · "+esc(AIRLINES[v.fp.al]):""}${v.fp.dest?" → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
   if(al.length)h+=`<div class="lookSub">🎨 Aerolinky na tejto kartičke: ${al.map(x=>esc(AIRLINES[x]||x)).join(", ")}</div>`;
   h+=`<div class="cardBtns">`;
   const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
@@ -220,6 +221,7 @@ function cardExtras(k,v){
 async function cardStat(k){
   if(!SOC.api)return;try{const {ok,j}=await getJSON(SOC.api+"/api/cardstat?type="+encodeURIComponent(k),5000);const el=$("cardStat");if(!ok||!j||!el)return;
     const pct=j.players?Math.max(.1,Math.round(j.own/j.players*1000)/10):0;
+    if(!j.own&&COL.types[k]&&COL.types[k].ver){el.innerHTML="";return}
     el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju má ${nf(j.own)} ${j.own===1?"spotter":j.own<5?"spotteri":"spotterov"}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
 }
 $("cardBig").addEventListener("click",async e=>{

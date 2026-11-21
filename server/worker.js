@@ -388,7 +388,7 @@ export class Sky extends DurableObject {
     let any = false;
     for (const u of SRC) {
       try {
-        const r = await fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}});
+        const r = await fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}, signal: AbortSignal.timeout(2500)});
         if (!r.ok) continue;
         const j = await r.json(); any = true;
         const a = (j.ac || j.aircraft || [])[0];
@@ -679,6 +679,8 @@ export class Sky extends DurableObject {
       const cok = !seen && vp.found && (sel == null ? vp.km <= 60 : sel >= 8) && fair && near && b.gps === true;
       const tier = tierOf(ty), shiny = vp.found && (sel == null || sel >= 8) ? (await this.shinyOf(hex, d, tier)) : false;
       let seq = 0, firstK = false, firstT = false, ed = null;
+      // prečo úlovok nie je overený (appka to ukáže hráčovi)
+      const why = seen ? "" : !vp.found ? (vp.known ? "lietadlo sa nenašlo v sieti" : "siete neodpovedali") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha nie je z GPS" : !fair ? "poloha mimo Slovenska alebo VPN" : !near ? "ďaleko od tvojho dnešného miesta" : "";
       if (!seen && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
       if (cok && ty) {
         const had = this.row("SELECT seq FROM typeseq WHERE type=? AND id=?", ty, id);
@@ -689,6 +691,7 @@ export class Sky extends DurableObject {
           firstT = !!tw && !this.row("SELECT 1 AS x FROM typeseq WHERE type=? AND town=? LIMIT 1", ty, tw);
           seq = ((this.row("SELECT MAX(seq) AS m FROM typeseq WHERE type=?", ty) || {}).m || 0) + 1;
           this.sql.exec("INSERT OR IGNORE INTO typeseq(type, id, seq, w, k, town, t) VALUES(?, ?, ?, ?, ?, ?, ?)", ty, id, seq, TIER_W[tier], kk, tw, now);
+          if (this.cstat) this.cstat.delete(ty); this._players = null;
           if (seq === 1) this.bump("first_sk");
         }
         // edícia „Bol som pri tom“
@@ -730,7 +733,7 @@ export class Sky extends DurableObject {
       // 👯 spoločné mávnutie: kamarát zamával tomu istému lietadlu za posledných 10 minút
       let together = null;
       if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
-      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, type: ty});
+      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;
@@ -864,6 +867,12 @@ export class Sky extends DurableObject {
       const dir = String(b.dir || "").replace(/[^a-záäčďéíĺľňóôŕšťúýž -]/gi, "").slice(0, 20), mx = Math.max(10, Math.min(90, Math.round(num(b.max, 30))));
       this.sql.exec("INSERT OR REPLACE INTO reminders(id, at, title, body) VALUES(?, ?, ?, ?)", id, at, `🛰️ ${nm} o 5 minút nad tebou`, `Pozri na ${dir || "oblohu"}, vystúpi až ${mx}° nad obzor. Jasná „hviezda“, ktorá nebliká.`);
       return json({ok: true});
+    }
+    if (p === "/api/mycards" && req.method === "POST") {
+      // ✓ ktoré moje kartičky sú overené serverom (+ poradie na Slovensku)
+      const b = await body(), id = cleanId(b.id);
+      const rows = this.sql.exec("SELECT type, seq FROM typeseq WHERE id=? LIMIT 500", id).toArray();
+      return json({cards: rows.map(r => [r.type, r.seq])});
     }
     if (p === "/api/subopt" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);

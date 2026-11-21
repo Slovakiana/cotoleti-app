@@ -222,6 +222,8 @@ async function doWave(e){LASTWAVE=null;
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     LASTWAVE=null;credit();fin("server nedvíha (kód "+code+"), zapísané u teba");return}
   LASTWAVE={hex:a.hex,...j};credit();
+  if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
+  else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
   if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["#"+j.seq+" na Slovensku"]);
   if(j.seq===1){grantAch("discover");confetti(160)}
   if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");WB&&WB.items.push(["👯 Spoločné mávnutie s "+j.together.n]);confetti(40)}
@@ -265,3 +267,12 @@ addEventListener("online",()=>setTimeout(flushWq,1500));setTimeout(flushWq,5000)
 $("mayor").addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)});
 $("waveInfo").addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)});
 $("frList")&&$("frList").addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)});
+
+/* ✓ synchronizácia overených kartičiek zo servera (poradie v SR aj pre staršie úlovky) */
+async function syncCards(){
+  if(!SOC.api||!navigator.onLine)return;
+  try{const r=await apiPost("/api/mycards",{});const j=await r.json();if(!j.cards)return;let ch=0;
+    for(const [ty,sq] of j.cards){const v=COL.types[ty];if(!v)continue;if(!v.ver||v.seq!==sq){v.ver=1;v.seq=sq;ch=1}}
+    if(ch){LS.set("ctl_col",COL);if(S.view==="col")renderCol()}}catch(e){}
+}
+setTimeout(syncCards,4000);HOOKS.view.push(v=>{if(v==="col")syncCards()});
