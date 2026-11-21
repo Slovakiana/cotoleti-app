@@ -97,7 +97,7 @@ function cdFromHash(){const m=location.hash.match(/kd=([\w-]+)/);if(!m)return;if
   // detský režim: žiadne výzvy od cudzích ľudí
   if(typeof KID==="function"&&KID()){try{history.replaceState(null,"",location.pathname)}catch(e){}return}
   try{const p=JSON.parse(b64d(m[1]));if(!Array.isArray(p.c)||p.c.length!==3||!Array.isArray(p.k)||p.k.length!==3)return;
-    if(!p.c.every(x=>CAT[x]))return; // len skutočné kartičky z atlasu
+    if(!p.c.every(x=>CAT[x])||new Set(p.c).size!==3)return; // len skutočné kartičky z atlasu, každá raz
     p.n=safeNick(p.n);p.c=p.c.map(x=>String(x).slice(0,6));p.k=p.k.map(x=>CD_CATS.find(c=>c[0]===x)?x:"spd");
     setTimeout(()=>{cdOpen(`<div style="text-align:center;font-size:56px">⚔️</div><div class="cdScore" style="font-size:26px">${esc(p.n)} ťa vyzýva na súboj kartičiek!</div>
       <div class="lookSub" style="text-align:center">3 kolá. V každom dostaneš kategóriu a vyberieš kartu, ktorou prebiješ jeho skrytú kartu.</div>

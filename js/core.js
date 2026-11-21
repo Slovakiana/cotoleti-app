@@ -5,6 +5,8 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const FT=0.3048,KT=1.852,R=6371000,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
 const wrap180=a=>((a%360)+540)%360-180;
+// tvar podľa čísla: pl(n,"deň","dni","dní")
+const pl=(n,a,b,c)=>{n=Math.abs(n|0);return n===1?a:n>=2&&n<=4?b:c};
 const nf=(n,d=0)=>n==null||isNaN(n)?"—":Number(n).toLocaleString("sk-SK",{maximumFractionDigits:d,minimumFractionDigits:d});
 const hash=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
 
@@ -150,7 +152,7 @@ const ROUTES=[
   {name:"priamo",wrap:u=>u}
 ];
 const COMBOS=[];ROUTES.forEach(rt=>SOURCES.forEach(s=>COMBOS.push({s,rt})));
-let comboIdx=0,busy=false;
+let comboIdx=Math.min(COMBOS.length-1,Math.max(0,LS.get("ctl_combo",0)|0)),busy=false;
 
 async function getJSON(url,ms=7000,outer){
   const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);

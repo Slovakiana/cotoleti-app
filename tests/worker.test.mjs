@@ -81,6 +81,16 @@ await t("obloha: jedna požiadavka na prehľad pre viac mávnutí; výpadok siet
   globalThis.fetch = of;
   assert.equal(r2.s, 200); // po 3 pokusoch sa mávnutie zapíše aj bez overenia
 });
+await t("nízko zamávané lietadlo sa overí, keď je neskôr vysoko", async () => {
+  const id = "v2lowhighlowhighlowhighlo01", tok = (await call("/api/hello", {id}, "4.4.4.4")).j.tok;
+  plane.hex = "ee0001"; plane.lat = 48.9;
+  const r1 = await call("/api/wave", {id, tok, hex: "ee0001", lat: 48.15, lon: 17.11}, "4.4.4.4");
+  assert.ok(!r1.j.ver, JSON.stringify(r1.j));
+  plane.lat = 48.2;
+  const r2 = await call("/api/wave", {id, tok, hex: "ee0001", lat: 48.15, lon: 17.11}, "4.4.4.4");
+  plane.hex = "aabbcc";
+  assert.equal(r2.j.ver, 1, JSON.stringify(r2.j));
+});
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
   assert.deepEqual(codes.slice(0, 20).filter(c => c !== 200), [], codes.join(","));

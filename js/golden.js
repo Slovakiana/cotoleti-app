@@ -13,7 +13,7 @@ function goldRender(){
   $("hero").classList.toggle("golden",!!(here&&S.top&&S.top.hex===g.hex));
   if(here&&S.top&&S.top.hex===g.hex)ch.style.display="none";
   const key=dayKey()+g.seq;
-  if(here&&GOLD.alerted!==key&&LS.get("ctl_onb",0)&&(LS.get("ctl_waveN",0)|0)>0){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 Zlaté lietadlo je nad tebou!","Zamávaj – každý z posádky dostane zlatú kartičku +25 b 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
+  if(here&&GOLD.alerted!==key&&LS.get("ctl_onb",0)&&(LS.get("ctl_waveN",0)|0)>0&&!SOC.waved[dayKey()+g.hex]){GOLD.alerted=key;LS.set("ctl_goldAlert",key);S.pick=g.hex;tick(true);toast("🏆 Zlaté lietadlo je nad tebou!","Zamávaj – každý z posádky dostane zlatú kartičku +25 b 👋","#ffcf4f");haptic([100,60,100,60,300]);confetti(60)}
 }
 async function goldTap(){
   const g=GOLD.g;if(!g)return;

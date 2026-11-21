@@ -1,5 +1,5 @@
 // Offline obal appky + upozornenia. Vždy najprv skúša sieť, aby si mal najnovšiu verziu.
-const V="cotoleti-v37";
+const V="cotoleti-v38";
 const SHELL=["./","index.html","js/core.js","js/ui.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/social.js","js/wrapped.js","js/push.js","js/track.js","js/towns.js","js/catalog.js","js/cards.js","js/mail.js","js/golden.js","js/teams.js","js/duel.js","js/sound.js","js/santa.js","js/main.js","og/default.jpg","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(f=>c.add(f).catch(()=>{})))));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k!=="ctl-id").map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
@@ -13,7 +13,7 @@ self.addEventListener("fetch",e=>{
   const net=new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error("timeout")),nav?3500:6000);
     fetch(e.request,{cache:"no-cache"}).then(r=>{clearTimeout(t);res(r)},err=>{clearTimeout(t);rej(err)})});
   // súbory s verziou (?v=) sa nemenia -> najprv z pamäte (rýchly štart aj pri slabom signáli)
-  if(versioned){e.respondWith(caches.match(e.request).then(c=>c||net.then(r=>{if(r.ok&&r.type==="basic"){const cp=r.clone();caches.open(V).then(x=>x.put(e.request,cp))}return r})));return}
+  if(versioned){e.respondWith(caches.match(e.request).then(c=>c||net.catch(err=>caches.match(e.request,{ignoreSearch:true}).then(x=>x||Promise.reject(err))).then(r=>{if(r.ok&&r.type==="basic"){const cp=r.clone();caches.open(V).then(x=>x.put(e.request,cp))}return r})));return}
   e.respondWith(net.then(r=>{if(r.ok&&r.type==="basic"){const cp=r.clone();caches.open(V).then(c=>c.put(e.request,cp))}return r})
     .catch(()=>caches.match(e.request,{ignoreSearch:true}).then(r=>r||(nav?caches.match("index.html"):Response.error()))));
 });

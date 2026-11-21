@@ -79,7 +79,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "2026-11-21c";
+const VERSION = "2026-11-21d";
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
 const lc = v => String(v || "").normalize("NFKC").trim().toLocaleLowerCase("sk");
@@ -711,16 +711,18 @@ export class Sky extends DurableObject {
       // zápis prvý (atomicky) – dve rýchle mávnutia sa nezapočítajú dvakrát
       this.sql.exec("INSERT OR IGNORE INTO wavelog(day, hex, id, t, k, pid, lg) VALUES(?, ?, ?, ?, ?, ?, ?)", d, hex, id, now, k, pdx, league ? 1 : 0);
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
+      // dnes už mávnuté, ale ešte nie ulovené (napr. predtým nízko nad obzorom) → úlovok sa smie overiť teraz
+      const fresh = !seen || !this.row("SELECT 1 AS x FROM catches WHERE id=? AND hex=?", id, hex);
       let golden = false;
       // ✈️ úlovok overený serverom (lietadlo sme našli v sieti a je blízko)
       // výška nad obzorom počíta server – úlovok do súťaží len ≥ 8° (2° rezerva na oneskorenie dát)
       const sel = vp.found ? elevDeg(vp.km, vp.alt) : null, ty = vp.type || "";
-      const cok = !seen && vp.found && (sel == null ? vp.km <= 60 : sel >= 8) && fair && near && b.gps === true;
+      const cok = fresh && vp.found && (sel == null ? vp.km <= 60 : sel >= 8) && fair && near && b.gps === true;
       const tier = tierOf(ty), shiny = vp.found && (sel == null || sel >= 8) ? (await this.shinyOf(hex, d, tier)) : false;
       let seq = 0, firstK = false, firstT = false, ed = null;
       // prečo úlovok nie je overený (appka to ukáže hráčovi)
-      const why = seen ? "" : !vp.found ? (vp.known ? "lietadlo sa nenašlo v sieti" : "siete neodpovedali") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha nie je z GPS" : !fair ? "poloha mimo Slovenska alebo VPN" : !near ? "ďaleko od tvojho dnešného miesta" : "";
-      if (!seen && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
+      const why = !fresh ? "" : !vp.found ? (vp.known ? "lietadlo sa nenašlo v sieti" : "siete neodpovedali") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha nie je z GPS" : !fair ? "poloha mimo Slovenska alebo VPN" : !near ? "ďaleko od tvojho dnešného miesta" : "";
+      if (fresh && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
       if (cok && ty) {
         const had = this.row("SELECT seq FROM typeseq WHERE type=? AND id=?", ty, id);
         if (had) seq = had.seq;
@@ -773,7 +775,7 @@ export class Sky extends DurableObject {
       let together = null;
       if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
       // 🔎 diagnostika overenia (pre /admin, 7 dní)
-      if (!seen) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty || String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 5).toUpperCase(), sel, cok ? 1 : 0, cok ? "" : why);
+      if (fresh) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty || String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 5).toUpperCase(), sel, cok ? 1 : 0, cok ? "" : why);
       return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
     if (p === "/api/kid" && req.method === "POST") {
@@ -786,8 +788,8 @@ export class Sky extends DurableObject {
       const b = await body(), pd = await this.pid(cleanId(b.id));
       if (b.remove) { const o = String(b.remove).replace(/[^A-Za-z0-9]/g, "").slice(0, 16); this.sql.exec("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", pd, o, o, pd); return json({ok: true}); }
       // týždenné mávnutia overené serverom – súboj kamarátov sa nedá sfalšovať v mobile
-      const cc = x => (this.row("SELECT COUNT(*) AS c FROM catches WHERE id=?", x) || {c: 0}).c;
-      const wk0 = this.day(now - ((new Date(now).getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=?", x, wk0) || {c: 0}).c;
+      const cc = x => (this.row("SELECT COUNT(*) AS c FROM catches WHERE id=? AND ok=1", x) || {c: 0}).c;
+      const wk0 = this.day(now - ((new Date(now).getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=? AND lg=1", x, wk0) || {c: 0}).c;
       const list = this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", pd).toArray();
       const out = [];
       for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b), c: ids.length ? cc(ids[0].id) : 0}); }

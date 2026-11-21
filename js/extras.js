@@ -108,7 +108,7 @@ const DAILY_POOL=[
   {id:"air3",i:"🎨",n:"Zamávaj 3 rôznym aerolinkám",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
   {id:"sun",i:"🏖️",n:"Nájdi let k moru",h:"Turecko, Egypt, Grécko, Španielsko, Chorvátsko…",t:a=>{const m=S.meta.get(a.hex),c=m&&m.route&&m.route.destination&&m.route.destination.country_iso_name;return ["TR","EG","GR","ES","HR","CY","PT","TN","IT","MT"].includes(c)}},
   {id:"far",i:"🌏",n:"Nájdi let mimo Európy",h:"Ázia, Amerika, Afrika…",t:a=>{const m=S.meta.get(a.hex),d=m&&m.route&&m.route.destination;return !!(d&&d.latitude!=null&&(d.longitude>45||d.longitude<-25||d.latitude<34))}},
-  {id:"rare",i:"💎",n:"Zamávaj vzácnemu lietadlu",h:"Fialové alebo zlaté na radare",t:a=>["r","l"].includes(rarity(a))},
+  {id:"rare",i:"💎",n:"Zamávaj vzácnemu lietadlu",h:"Modré, fialové alebo zlaté na radare",t:a=>["r","e","l"].includes(rarity(a))},
   {id:"zen",i:"🎯",n:"Zamávaj lietadlu vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
   {id:"shazam",i:"👂",n:"Vyskúšaj „Čo to hučí?“",h:"Keď počuješ lietadlo",ev:true},
   // 📅 sviatočné výzvy (len v daný deň, vždy ako prvá)
@@ -154,7 +154,7 @@ function dAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDa
 function streakTouch(){
   const D=dailyEnsure();
   if(D.lastDay===D.date){ // 🔧 oprava série: po výpadku stačia dnes 2 mávnutia (1× za 30 dní)
-    if(D.repair&&D.repair.day===D.date){D.repair.cnt=(D.repair.cnt|0)+1;if(D.repair.cnt>=2){D.streak=D.repair.from+1;D.repairT=Date.now();D.repair=null;toast("🔧 Séria opravená!","Pokračuješ: "+D.streak+" dní 🔥");LS.set("ctl_daily",D);streakChip()}else LS.set("ctl_daily",D)}
+    if(D.repair&&D.repair.day===D.date){D.repair.cnt=(D.repair.cnt|0)+1;if(D.repair.cnt>=2){D.streak=D.repair.from+1;D.repairT=Date.now();D.repair=null;toast("🔧 Séria opravená!","Pokračuješ: "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" 🔥");LS.set("ctl_daily",D);streakChip()}else LS.set("ctl_daily",D)}
     return}
   const prev=D.streak||0;let used=false;
   if(D.lastDay===dAgo(1))D.streak=prev+1;
@@ -165,9 +165,9 @@ function streakTouch(){
   if(D.streak%7===0&&(D.freeze|0)<2){D.freeze=(D.freeze|0)+1;toast("❄️ Zmrazenie série +1","Keď raz vynecháš deň, séria nespadne")}
   if(used)toast("❄️ Zmrazenie zachránilo sériu","Včera si nemával, séria "+D.streak+" ide ďalej");
   const ms=STREAK_MS[D.streak];
-  if(ms){COL.pts+=ms[0];if(ms[1])grantAch(ms[1]);toast("🔥 Séria "+D.streak+" dní! +"+ms[0]+" bodov")}
+  if(ms){COL.pts+=ms[0];if(ms[1])grantAch(ms[1]);toast("🔥 "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" v rade! +"+ms[0]+" bodov")}
   else if(D.streak>1)toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"));
-  else if(D.lost)toast("🏅 "+D.lost+" dní – tvoj rekord ostáva",D.repair?"Zamávaj dnes ešte raz a séria sa obnoví 🔧":"Dnes začína nová séria");
+  else if(D.lost)toast("🏅 Séria "+D.lost+" "+pl(D.lost,"deň","dni","dní")+" sa skončila",D.repair?"Zamávaj dnes ešte raz a séria sa obnoví 🔧":"Dnes začína nová séria");
   if(D.streak>1)D.lost=0;
   LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();streakChip();
 }
@@ -221,6 +221,8 @@ function renderDuel(){
 function checkDuelLink(){
   if(!LS.get("ctl_onb",0)){afterOnb(checkDuelLink);return}
   const m=location.hash.match(/vyzva=([\w-]+)/);if(!m)return;
+  // detský režim: žiadne výzvy (meno) od cudzích ľudí
+  if(typeof KID==="function"&&KID()){try{history.replaceState(null,"",location.pathname)}catch(e){}return}
   try{
     const r=JSON.parse(b64d(m[1]));if(typeof r.p!=="number")return;
     r.n=String(r.n||"Kamarát").replace(/[^\p{L}\p{N} ._-]/gu,"").slice(0,20)||"Kamarát";

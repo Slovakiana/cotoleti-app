@@ -108,7 +108,8 @@ $("trClose").onclick=()=>{if(TR&&SOC.api&&TR.srv)apiPost("/api/track",{id:SOC.ci
 function trFromHash(){
   const m=location.hash.match(/let=([A-Za-z0-9]+)/);if(!m)return;
   let n=(location.hash.match(/[&#]n=([^&]+)/)||[])[1];
-  try{n=n?encodeURIComponent(decodeURIComponent(n).replace(/[<>\u0000-\u001f\u200b-\u200f\u202a-\u202e]/g,"").trim().slice(0,20)):""}catch(e){n=""}
+  if(typeof KID==="function"&&KID())n="";
+  try{n=n?encodeURIComponent((typeof safeNick==="function"?safeNick:(x=>x))(decodeURIComponent(n)).replace(/[<>\u0000-\u001f\u200b-\u200f\u202a-\u202e]/g,"").trim().slice(0,20)):""}catch(e){n=""}
   const cs=toCallsign(m[1])||m[1].toUpperCase();
   trStart(cs,cs,n?decodeURIComponent(n):"",false);
   toast("👀 Sleduješ let "+(n?decodeURIComponent(n):cs),"Ťukni na „Upozorni ma“ a dám ti vedieť, keď bude nad tebou");

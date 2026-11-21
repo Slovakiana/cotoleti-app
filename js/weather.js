@@ -2,7 +2,7 @@
 /* ============ Počasie: kondenzačná čiara a „uvidíš ho?“ ============ */
 const WX={data:null,t:0,loading:false,pos:null};
 async function loadWx(){
-  if(!S.pos||WX.loading)return;
+  if(!S.pos||WX.loading||(WX.next&&Date.now()<WX.next))return;
   const moved=!WX.pos||Math.abs(WX.pos.lat-S.pos.lat)>.1||Math.abs(WX.pos.lon-S.pos.lon)>.1;
   if(WX.data&&!moved&&Date.now()-WX.t<15*60e3)return;
   WX.loading=true;
@@ -11,6 +11,7 @@ async function loadWx(){
   for(const rt of ROUTES){
     try{const {ok,j}=await getJSON(rt.wrap(u),8000);if(ok&&j&&j.current){WX.data=j;WX.t=Date.now();WX.pos={...S.pos};break}}catch(e){}
   }
+  if(Date.now()-WX.t>60e3){WX.fail=(WX.fail||0)+1;WX.next=Date.now()+Math.min(15*60e3,30e3*2**Math.min(5,WX.fail-1))}else{WX.fail=0;WX.next=0}
   WX.loading=false;
 }
 function wxIdx(){

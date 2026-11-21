@@ -154,7 +154,7 @@ function cardHint(a){
   const ty=a.type,v=ty&&COL.types[ty]&&COL.types[ty].n?COL.types[ty]:null,c=ty&&CAT[ty],out=[];
   if(a.el!=null&&a.el<10)out.push(`<span class="low">📉 Je nízko (${Math.max(0,Math.round(a.el))}°) – do zbierky až nad 10°</span>`);
   else if(COL.hex[a.hex])out.push(`<span>✓ Toto lietadlo už máš v zbierke</span>`);
-  else if(!v&&c)out.push(`<span class="new">🃏 Nová kartička! č. ${String(c.no).padStart(3,"0")} z ${CATALOG.length}</span>`);
+  else if(!v&&c)out.push(`<span class="new">🃏 Nová ${(RAR[typeTier(a.type)]||RAR.c).n} kartička!${TROPHY.has(a.type)?" 🏆 trofej":" č. "+String(c.no).padStart(3,"0")}</span>`);
   else if(!v)out.push(`<span class="new">🃏 Nové lietadlo do zbierky</span>`);
   else{const nx=nextLv(v.n,ty);out.push(`<span>${stars(cardLvl(v.n,ty))}${nx?" · ešte "+(nx-v.n)+"× do ďalšej ★":" · max. úroveň"}</span>`)}
   try{const r=rarity(a);if(RORD[r]>=2&&!COL.hex[a.hex])out.push(`<span class="new">${RAR[r].s} ${RAR[r].n} +${RAR[r].p} b</span>`);
@@ -193,7 +193,16 @@ async function doWave1(e,a){LASTWAVE=null;
   if(a.santa){tryCatch(a);toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
   const key=dayKey()+a.hex,already=!!SOC.waved[key];
   const rt=routeOf(a),to=rt?" → "+citySk(rt.destination.municipality):"";
-  if(already){tryCatch(a);toast("👋 Dnes už zamávané","Každému lietadlu sa ráta 1 mávnutie denne");return}
+  if(already){
+    // predtým bolo nízko a kartička nepribudla – teraz je vysoko: pošli znova, nech sa úlovok overí (body sa nerátajú druhýkrát)
+    if(!COL.hex[a.hex]&&(a.el??0)>=10&&SOC.api){
+      try{const r=await apiPost("/api/wave",{hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||""});const j=await r.json().catch(()=>({}));
+        if(r.ok&&j.ok&&j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
+        LASTWAVE=r.ok&&j.ok?{hex:a.hex,...j}:null;tryCatch(a);
+        if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
+      }catch(x){tryCatch(a)}
+      return}
+    tryCatch(a);toast("👋 Dnes už zamávané","Každému lietadlu sa ráta 1 mávnutie denne");return}
   ping("u");
   // body a výzvy sa pripíšu až keď server mávnutie prijme (alebo keď sme offline)
   const credit=()=>{
