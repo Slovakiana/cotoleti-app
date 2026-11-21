@@ -2,7 +2,8 @@
 /* ============ 👋 Mávanie lietadlám + živé Slovensko ============ */
 const SOC={api:MYPROXY||"",data:null,busy:false,waved:LS.get("ctl_waved",{}),local:{}};
 // tajné id (nikdy neodchádza v odkazoch) – staré id z odkazov sa nahrádza novým
-SOC.cid=(()=>{let v=LS.get("ctl_cid","");if(!/^v2[A-Za-z0-9]{30}$/.test(v)){const b=new Uint8Array(24);crypto.getRandomValues(b);v="v2"+Array.from(b,x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[x%56]).join("").slice(0,30);LS.set("ctl_cid",v);LS.set("ctl_tok","");LS.set("ctl_pid","")}return v})();
+SOC.cid=(()=>{let v=LS.get("ctl_cid","");// pozor: staré id majú 26 znakov (24 B) – musia ostať platné, inak by appka pri každom spustení vyrobila nového hráča
+if(!/^v2[A-Za-z0-9]{24,30}$/.test(v)){const b=new Uint8Array(30);crypto.getRandomValues(b);v="v2"+Array.from(b,x=>"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"[x%56]).join("").slice(0,30);LS.set("ctl_cid",v);LS.set("ctl_tok","");LS.set("ctl_pid","")}return v})();
 /* identita: server vydá podpísaný token, bez neho sa nič nezapočíta */
 let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid",""),FK=LS.get("ctl_fk","");
 // pozvánkový kľúč platí 24 h – obnov ho, ak je starší
@@ -181,8 +182,12 @@ function flyEmoji(e,fromEl){
     document.body.appendChild(el);setTimeout(()=>el.remove(),1600+i*70);
   }
 }
-async function doWave(e){LASTWAVE=null;
+async function doWave(e){
   const a=S.top;if(!a)return;
+  if(SOC.inflight===a.hex)return; // dvojťuk: druhé mávnutie počas odosielania ignoruj
+  SOC.inflight=a.hex;try{return await doWave1(e,a)}finally{SOC.inflight=null}
+}
+async function doWave1(e,a){LASTWAVE=null;
   $("wavePick").classList.remove("on");
   haptic([18,40,18]);flyEmoji(e,$("b-wave"));
   if(a.santa){tryCatch(a);toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
