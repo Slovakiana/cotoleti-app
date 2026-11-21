@@ -524,9 +524,11 @@ HOOKS.caught.push(a=>{if(a.santa){COL.ed=COL.ed||{};const id="santa"+new Date().
 /* 🔎 prečo moje mávnutia neboli overené (vlastné dáta zo servera) */
 async function whyShow(){
   const el=$("whyList");if(!el)return;el.textContent="Načítavam…";
-  try{const r=await apiPost("/api/mywhy",{});const j=await r.json();
-    if(!j.rows||!j.rows.length){el.innerHTML="Server zatiaľ nemá záznam o tvojom mávnutí od poslednej aktualizácie. Zamávaj a pozri znova."+(S.manual?"<br>⚠️ Máš ručne vybrané mesto – ťukni hore na pilulku a vyber 📍 Moja poloha (GPS).":"");return}
-    el.innerHTML=(S.manual?"⚠️ Máš ručne vybrané mesto – ťukni hore na pilulku a vyber 📍 Moja poloha (GPS).<br>":"")+(j.country&&j.country!=="SK"?"⚠️ Server ťa vidí v krajine "+esc(j.country)+" (VPN alebo Súkromné prenášanie s inou krajinou?)<br>":"")+
+  try{const r=await apiPost("/api/mywhy",{});const j=await r.json().catch(()=>({}));
+    if(!r.ok){el.innerHTML="⚠️ Server odmietol požiadavku (kód "+r.status+(j.error?" / "+esc(j.error):"")+(SOC.helloErr?" · prihlásenie "+esc(SOC.helloErr):"")+"). Pošli túto snímku.";return}
+    const info=`<small>Server ťa pozná ako „${esc(j.nick||"bez prezývky")}“ · dnes mávnutí: ${j.wavesToday|0} · overených typov: ${j.verified|0} · krajina ${esc(j.country||"?")}${S.manual?" · ⚠️ ručné mesto":""}${j.today?" · dnešné miesto: "+esc(j.today.town||"?"):""}</small><br>`;
+    if(!j.rows||!j.rows.length){el.innerHTML=info+"Server zatiaľ nemá záznam o tvojom mávnutí od poslednej aktualizácie. Zamávaj a pozri znova."+(S.manual?"<br>⚠️ Máš ručne vybrané mesto – ťukni hore na pilulku a vyber 📍 Moja poloha (GPS).":"");return}
+    el.innerHTML=info+(S.manual?"⚠️ Máš ručne vybrané mesto – ťukni hore na pilulku a vyber 📍 Moja poloha (GPS).<br>":"")+(j.country&&j.country!=="SK"?"⚠️ Server ťa vidí v krajine "+esc(j.country)+" (VPN alebo Súkromné prenášanie s inou krajinou?)<br>":"")+
       j.rows.map(x=>`${new Date(x.t).toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})} · ${esc(x.type||"?")} · ${x.el==null?"?":Math.round(x.el)+"°"} · ${x.ok?"✓ overené":"✗ "+esc(x.why||"")}`).join("<br>");
   }catch(e){el.textContent="Bez internetu – skús neskôr."}
 }

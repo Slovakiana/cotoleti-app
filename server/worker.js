@@ -888,7 +888,9 @@ export class Sky extends DurableObject {
       const b = await body(), id = cleanId(b.id);
       const rows = this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 10", id).toArray();
       const dd = this.row("SELECT town, k FROM idday WHERE day=? AND id=?", d, id);
-      return json({rows, today: dd ? {town: dd.town, k: dd.k} : null, country, fairNow: country === "SK"});
+      const nk = this.row("SELECT nick FROM nicks WHERE id=?", id), tc = (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE id=?", id) || {c: 0}).c;
+      const wl = (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE id=? AND day=?", id, d) || {c: 0}).c;
+      return json({rows, today: dd ? {town: dd.town, k: dd.k} : null, country, fairNow: country === "SK", nick: nk ? nk.nick : "", verified: tc, wavesToday: wl, asn: Number(req.headers.get("x-cc-asn") || 0)});
     }
     if (p === "/api/mycards" && req.method === "POST") {
       // ✓ ktoré moje kartičky sú overené serverom (+ poradie na Slovensku)
