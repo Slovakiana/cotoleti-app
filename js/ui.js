@@ -721,7 +721,7 @@ function ev(step){
   if(r&&/^[A-Za-z0-9]{16}$/.test(r)&&!LS.get("ctl_ref","")&&!LS.get("ctl_onb",0)){LS.set("ctl_ref",r);ev("ref_join")}
   if(r)try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}}
 ev("open");
-{const last=LS.get("ctl_lastDay",""),td=new Date().toLocaleDateString("sv-SE");if(last&&last!==td)ev("day2");LS.set("ctl_lastDay",td)}
+{const last=LS.get("ctl_lastDay",""),td=new Date().toLocaleDateString("sv-SE");if(last&&last!==td){ev("day2");const gs=Object.values(COL.types).filter(v=>v.gift&&!v.n),g=gs.find(v=>!/uvítanie/.test(v.gift.from))||gs[0];if(g)setTimeout(()=>toast("🤝 Čaká na teba "+g.name,"Od: "+g.gift.from+" – zamávaj takému lietadlu a kartička bude celá tvoja"),7000)}LS.set("ctl_lastDay",td)}
 if(matchMedia("(display-mode: standalone)").matches||navigator.standalone)ev("install");
 HOOKS.caught.push(()=>{ev("catch1");if(COL.n>=5)ev("catch5")});
 // pamätaj si údaje natrvalo (Safari inak po 7 dňoch nečinnosti maže)

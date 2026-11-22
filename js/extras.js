@@ -141,7 +141,7 @@ function dailyEnsure(){
     const prev=DAILY||{streak:0,lastFull:null},h=hash(d),pool=DAILY_POOL.filter(q=>!q.sp),ids=[];
     const sp=DAILY_POOL.find(q=>q.sp===d.slice(5));if(sp)ids.push(sp.id);
     // prvá výzva vždy splniteľná aj na vidieku (nezávisí od toho, čo náhodou preletí)
-    else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
+    else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=(Date.now()-LS.get("ctl_onbT",0)<7*864e5&&easy.find(q=>q.id==="wave"))||easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
     for(let k=ids.length;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}
     // séria dní, zmrazenie, rekord a oprava sa prenášajú do nového dňa (predtým sa mazali → séria stále 1)
     DAILY={...prev,date:d,ids,prog:{},done:{},swapped:0,streak:prev.streak||0,lastFull:prev.lastFull||null};
@@ -199,7 +199,7 @@ function streakLive(){const D=dailyEnsure(),n=D.streak|0,gap=D.lastDay?Math.roun
 function nextMs(n){const k=Object.keys(STREAK_MS).map(Number).sort((a,b)=>a-b).find(x=>x>n);return k?"ešte "+(k-n)+" "+pl(k-n,"deň","dni","dní")+" do 🔥"+k+" (+"+STREAK_MS[k][0]+" b)":""}
 function streakChip(){
   const el=$("streakChip");if(!el)return;const L=streakLive(),D=dailyEnsure();
-  el.hidden=L.st==="dead"||(L.n<2&&L.st!=="repair");
+  el.hidden=L.st==="dead"||(L.n<2&&L.st!=="repair"&&L.st!=="pending");
   el.textContent=L.st==="repair"?"🔧 "+L.n+" · zachráň":"🔥 "+L.n+" "+pl(L.n,"deň","dni","dní")+((D.freeze|0)?" · ❄️ "+D.freeze:"");
   el.classList.toggle("pend",L.st!=="done"&&!(typeof KID==="function"&&KID()));
 }
@@ -242,7 +242,7 @@ function stampReward(D,W,got){const k=W[0];D.wkRew=D.wkRew||{};const r=D.wkRew[k
 // výzvy na zajtra (rovnaký výber ako dailyEnsure)
 function tomorrowIds(){const d=SKD.format(new Date(Date.now()+864e5)),h=hash(d),pool=DAILY_POOL.filter(q=>!q.sp),ids=[];
   const sp=DAILY_POOL.find(q=>q.sp===d.slice(5));if(sp)ids.push(sp.id);
-  else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
+  else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=(Date.now()-LS.get("ctl_onbT",0)<7*864e5&&easy.find(q=>q.id==="wave"))||easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
   for(let k=ids.length;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}return ids}
 // 💡 Vieš, že…? – raz denne zaujímavosť, prednostne o kartičke, ktorá ti chýba
 function didYouKnow(){
@@ -296,7 +296,7 @@ function checkDuelLink(){
     $("duelT").textContent=r.n+" ťa vyzýva!";
     $("duelS").textContent=`Má ${r.p} b, ${r.c} ${pl(r.c,"úlovok","úlovky","úlovkov")} a ${r.t} ${pl(r.t,"typ","typy","typov")} (level ${r.l}). Prekonáš to?`;
     // výzvu ukáž až po prvom mávnutí – nech neprekryje prvý zážitok s lietadlom
-    const show=()=>$("duelM").classList.add("on");
+    const show=()=>{if(document.querySelector(".modal.on")){setTimeout(show,1500);return}$("duelM").classList.add("on")};
     if((LS.get("ctl_waveN",0)|0)>0)show();else{const t=setInterval(()=>{if((LS.get("ctl_waveN",0)|0)>0){clearInterval(t);setTimeout(show,3500)}},2000);toast("⚔️ "+r.n+" ťa vyzýva","Najprv zamávaj prvému lietadlu 👋")}
   }catch(e){}
   try{history.replaceState(null,"",location.pathname)}catch(e){}

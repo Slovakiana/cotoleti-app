@@ -37,9 +37,11 @@ $("teamBox").onclick=async e=>{
 ACH.push({id:"team",i:"👥",n:"Tímový hráč",h:"Založ tím alebo sa pridaj kódom",soc:1,c:()=>false});
 HOOKS.view.push(v=>{if(v==="col")teamRender()});
 HOOKS.social=HOOKS.social||[];HOOKS.social.push(()=>{if(S.view==="col")teamRender()});
-function tmFromHash(){const m=location.hash.match(/tim=([A-Za-z0-9]{6})/);if(!m)return;
+function tmFromHash(){const m=location.hash.match(/tim=([A-Za-z0-9]{6})/);if(!m)return;if(!LS.get("ctl_onb",0)){afterOnb(tmFromHash);return}
   if(typeof KID==="function"&&KID()){try{history.replaceState(null,"",location.pathname)}catch(e){}setTimeout(()=>toast("👥 Pozvánka do tímu","V detskom režime sa do tímov cez odkaz nepridáva"),1500);return}
   LS.set("ctl_teamInvite",m[1].toUpperCase());
-  setTimeout(()=>{toast("👥 Pozvánka do tímu","Kód "+m[1].toUpperCase()+" – ťukni na Pridať sa");setView("col");teamRender();setTimeout(()=>$("teamCard").scrollIntoView({behavior:"smooth"}),300)},1500);
+  const show=()=>{toast("👥 Pozvánka do tímu","Kód "+m[1].toUpperCase()+" – ťukni na Pridať sa");setView("col");teamRender();setTimeout(()=>$("teamCard").scrollIntoView({behavior:"smooth"}),300)};
+  // nový hráč: najprv obloha a prvé mávnutie, až potom tím (inak po úvode skončí v záložke Ja)
+  if((LS.get("ctl_waveN",0)|0)>0)setTimeout(show,1500);else{toast("👥 Pozvánka do tímu uložená","Najprv zamávaj prvému lietadlu 👋");const t=setInterval(()=>{if((LS.get("ctl_waveN",0)|0)>0){clearInterval(t);setTimeout(show,6000)}},2000)}
   try{history.replaceState(null,"",location.pathname)}catch(e){}}
 tmFromHash();addEventListener("hashchange",tmFromHash);

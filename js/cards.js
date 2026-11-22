@@ -561,13 +561,15 @@ async function giftQR(url,text,name){
   $("qrShare").onclick=()=>{$("qrM").classList.remove("on");send()};$("qrClose").onclick=()=>$("qrM").classList.remove("on")}
 async function giftClaim(){const m=location.hash.match(/dar=([A-Za-z0-9]{6,8})/);if(!m)return;
   if(!LS.get("ctl_onb",0)){afterOnb(giftClaim);return}if(typeof KID==="function"&&KID())return;
+  // prehliadač v Messengeri/Instagrame má vlastné úložisko – darček by ostal tam; najprv ponúkni Safari, po ✕ ho otvoríme tu
+  if(typeof inApp!=="undefined"&&inApp&&!LS.get("ctl_inappX",false)){inAppBar();const x=document.querySelector(".inappBar button");x&&x.addEventListener("click",()=>setTimeout(giftClaim,300));toast("🎁 Darček otvor v Safari","Ťukni ⋯ → Otvoriť v prehliadači, nech sa kartička nestratí");return}
   history.replaceState(null,"",location.pathname);
-  try{const r=await apiPost("/api/giftclaim",{code:m[1]});const j=await r.json();if(!j.type){toast("🎁 Darček už nie je platný",j.error==="self"?"Toto je tvoj vlastný darček 🙂":"Možno ho už niekto použil");return}
+  try{const r=await apiPost("/api/giftclaim",{code:m[1]});if(r.status===401||r.status>=500)throw 0;const j=await r.json();if(!j.type){toast("🎁 Darček už nie je platný",j.error==="self"?"Toto je tvoj vlastný darček 🙂":"Možno ho už niekto použil");return}
     const v=COL.types[j.type];if(v&&v.n){toast("🎁 Túto kartičku už máš","Aj tak vďaka – darček poslal(a) "+j.from+" 💛");return}
     COL.types[j.type]={n:0,r:typeTier(j.type),name:catGuess(j.type).name,first:Date.now(),gift:{from:j.from,t:Date.now()}};LS.set("ctl_col",COL);
     toast("🎁 Máš darček! Posiela: "+j.from,catGuess(j.type).name+" – zamávaj mu a kartička bude celá tvoja");confetti(60);renderCol();
-  }catch(e){}}
-setTimeout(giftClaim,1500);addEventListener("hashchange",giftClaim);
+  }catch(e){try{history.replaceState(null,"",location.pathname+"#dar="+m[1])}catch(x){}toast("🎁 Darček sa zatiaľ neotvoril","Skúsim znova, keď budeš online")}}
+setTimeout(giftClaim,1500);addEventListener("hashchange",giftClaim);addEventListener("online",giftClaim);
 HOOKS.view.push(v=>{if(v==="col"){mileSync();$("c-miles")&&($("c-miles").textContent=nf(COL.mi|0),$("c-milesL")&&($("c-milesL").textContent=pl(COL.mi|0,"míľa","míle","míľ")));renderShow()}});
 // 🛷 Santa = edícia roka
 HOOKS.caught.push(a=>{if(a.santa){COL.ed=COL.ed||{};const id="santa"+new Date().getFullYear();if(!COL.ed[id]){COL.ed[id]={n:"Santa "+new Date().getFullYear(),no:0,t:Date.now(),ty:"SLEIGH"};LS.set("ctl_col",COL)}}});
