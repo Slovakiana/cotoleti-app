@@ -697,6 +697,7 @@ export class Sky extends DurableObject {
       const cells = this.sql.exec("SELECT cell, COUNT(DISTINCT id) AS p FROM heatp WHERE m IN (?, ?) GROUP BY cell HAVING p >= 5 ORDER BY p DESC LIMIT 400", m1, m0).toArray().map(r => { const [a, o] = r.cell.split(","); return [Number(a), Number(o), r.p]; });
       this._heat = {t: now, v: {cells, k: 5}}; return json(this._heat.v);
     }
+    if (p === "/api/specials") return json(JSON.parse(this.getMeta("specials") || '{"lv":{},"fi":[]}'));
     if (p === "/api/weekly") return json(JSON.parse(this.getMeta("weeklyData") || "null") || this.weekly(this.week()));
     if (p === "/api/tname") { const t = this.row("SELECT name FROM teams WHERE code=?", String(u.searchParams.get("c") || "").toUpperCase().slice(0, 6)); return json({name: t ? t.name : ""}); }
     if (p === "/api/stats") {
@@ -734,13 +735,17 @@ export class Sky extends DurableObject {
       // 🇸🇰 koľko ľudí má kartičku a kto ju objavil prvý (len overené úlovky)
       const ty = String(qp("type") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 6).toUpperCase();
       if (!ty) return json({error: "bad"}, 400);
-      const c = this.cstat || (this.cstat = new Map()), hit = c.get(ty);
+      const kk = /^[A-Z]{2}$/.test(qp("k") || "") && qp("k") !== "XX" ? qp("k") : "";
+      const c = this.cstat || (this.cstat = new Map()), hit = c.get(ty + kk);
       if (hit && now - hit.t < 600e3) return json(hit.v);
       const own = (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE type=?", ty) || {c: 0}).c;
       const pl = this._players && now - this._players.t < 3600e3 ? this._players.n : (this._players = {t: now, n: (this.row("SELECT COUNT(DISTINCT id) AS c FROM typeseq") || {c: 0}).c}).n;
       const f = this.row("SELECT s.id, s.k, s.town, s.t, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id WHERE s.type=? AND s.seq=1", ty);
       const v = {own, players: pl, first: f ? {nick: f.kid || !f.nick ? "Spotter" : f.nick, town: f.town || "", t: f.t} : null};
-      if (c.size > 500) c.clear(); c.set(ty, {t: now, v});
+      // 📍 lokálna vzácnosť: koľko hráčov z kraja ju má (až keď je v kraji aspoň 50 zberateľov – inak je to šum)
+      if (kk) { const kp = this._kpl || (this._kpl = {}); if (!kp[kk] || now - kp[kk].t > 3600e3) kp[kk] = {t: now, n: (this.row("SELECT COUNT(DISTINCT id) AS c FROM typeseq WHERE k=?", kk) || {c: 0}).c};
+        if (kp[kk].n >= 50) v.kraj = {k: kk, own: (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE type=? AND k=?", ty, kk) || {c: 0}).c, players: kp[kk].n}; }
+      if (c.size > 500) c.clear(); c.set(ty + kk, {t: now, v});
       return json(v);
     }
     if (p === "/api/atlasy") {
@@ -894,6 +899,21 @@ export class Sky extends DurableObject {
       if (on) { const pd = await this.pid(id); this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd); this.sql.exec("DELETE FROM nicks WHERE id=?", id); this.sql.exec("DELETE FROM subs WHERE id=?", id); }
       return json({ok: true, kid: on});
     }
+    if (p === "/api/division" && req.method === "POST") {
+      // 🏅 divízie po 30: hráči s podobným počtom overených mávnutí tento týždeň (aj začiatočník má šancu byť prvý)
+      const b = await body(), id = cleanId(b.id);
+      if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
+      const wk = this.week(now);
+      if (!this._div || this._div.wk !== wk || now - this._div.t > 300e3) {
+        const all = this.sql.exec("SELECT id, SUM(n) AS s FROM idday WHERE day >= ? GROUP BY id HAVING s > 0 ORDER BY s DESC, id LIMIT 30000", wk).toArray();
+        const pos = new Map(); all.forEach((r, i) => pos.set(r.id, i)); this._div = {wk, t: now, all, pos};
+      }
+      const D = this._div, i = D.pos.get(id), dn = Math.ceil(D.all.length / 30);
+      if (i == null) return json({div: null, divs: dn, players: D.all.length});
+      const no = Math.floor(i / 30), part = D.all.slice(no * 30, no * 30 + 30);
+      const rows = part.map(r => { const x = this.row("SELECT n.nick, i.kid FROM ids i LEFT JOIN nicks n ON n.id = i.id WHERE i.id=?", r.id) || {}; return {n: r.id === id ? "Ty" : (x.kid || !x.nick ? "Spotter" : x.nick), w: r.s, me: r.id === id}; });
+      return json({div: no + 1, divs: dn, rank: i - no * 30 + 1, of: part.length, rows});
+    }
     if (p === "/api/friends" && req.method === "POST") {
       const b = await body(), pd = await this.pid(cleanId(b.id));
       if (b.remove) { const o = String(b.remove).replace(/[^A-Za-z0-9]/g, "").slice(0, 16); this.sql.exec("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", pd, o, o, pd); return json({ok: true}); }
@@ -923,6 +943,13 @@ export class Sky extends DurableObject {
     if (p === "/api/admin" && req.method === "POST") {
       const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
+      if (typeof b.specials === "string") {
+        // 🎨 špeciálne nátery a 🥇 prvé lety – riadky „OM-ABC = Retro náter“ alebo „2026-12-15 WZZ1234 = Prvý let do Dubaja“
+        const lv = {}, fi = [];
+        for (const ln of b.specials.split(/\r?\n/).slice(0, 300)) { const m = ln.split("="); if (m.length < 2) continue; const l = m[0].trim().toUpperCase(), txt = cleanName(m.slice(1).join("=").trim(), 60); if (!txt) continue;
+          const f = l.match(/^(\d{4}-\d{2}-\d{2})\s+([A-Z0-9]{3,8})$/); if (f) fi.push({d: f[1], call: f[2], txt}); else if (/^[A-Z0-9-]{3,8}$/.test(l)) lv[l] = txt; }
+        this.setMeta("specials", JSON.stringify({lv, fi})); this._spec = null;
+      }
       if (b.unban) { this.sql.exec("DELETE FROM banned WHERE name=?", lc(b.unban)); this.sql.exec("UPDATE hidden SET appeal=3 WHERE name=?", lc(b.unban)); } // 3 = meno vrátené (appka ho ukáže)
       if (b.confirm) { this.sql.exec("UPDATE banned SET ok=1, appeal=0 WHERE name=?", lc(b.confirm)); this.sql.exec("UPDATE hidden SET appeal=2 WHERE name=?", lc(b.confirm)); } // 2 = zamietnuté
       const sig = this.sql.exec("SELECT day, k, n FROM sig WHERE day >= ? ORDER BY day DESC, n DESC", this.day(now - 3 * 86400e3)).toArray();
@@ -930,7 +957,7 @@ export class Sky extends DurableObject {
       let overenie = null;
       if (b.nick) { const ids = this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 3", lc(String(b.nick))).toArray().map(r => r.id);
         overenie = ids.map(i => ({karticky: (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE id=?", i) || {c: 0}).c, mavnutia: this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 15", i).toArray()})); }
-      return json({flags: this.flags(), naKontrolu: fronta, signaly: sig, overenie});
+      return json({flags: this.flags(), naKontrolu: fronta, signaly: sig, overenie, specials: JSON.parse(this.getMeta("specials") || '{"lv":{},"fi":[]}')});
     }
     if (p === "/api/appeal" && req.method === "POST") {
       // ✋ odvolanie: hráč, ktorému sme skryli meno, požiada o ľudskú kontrolu (raz)
@@ -1233,7 +1260,7 @@ function adminPage() {
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
 <button id="s">📊 Štatistiky</button><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
-<button id="f">💾 Uložiť vypínače</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
+<button id="f">💾 Uložiť vypínače</button><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 const bars=(t,rows,key,col)=>{const w=340,h=120,n=rows.length,mx=Math.max(1,...rows.map(r=>+r[key]||0)),bw=w/n;let sv="<svg viewBox='0 0 "+w+" "+(h+34)+"' style='width:100%;background:#ffffff0d;border-radius:12px'>";rows.forEach((r,i)=>{const v=+r[key]||0,bh=Math.round(v/mx*(h-18));sv+="<rect x='"+(i*bw+2)+"' y='"+(h-bh)+"' width='"+(bw-4)+"' height='"+bh+"' rx='3' fill='"+col+"'/><text x='"+(i*bw+bw/2)+"' y='"+(h-bh-4)+"' font-size='9' fill='#fff' text-anchor='middle'>"+v+"</text><text x='"+(i*bw+bw/2)+"' y='"+(h+14)+"' font-size='8' fill='#ffffffaa' text-anchor='middle'>"+r.day.slice(8)+"."+r.day.slice(5,7)+"</text>"});return "<h3 style='margin:14px 0 6px'>"+t+"</h3>"+sv+"</svg>"};
 $("s").onclick=async()=>{o.textContent="…";const r=await fetch("/api/stats",{headers:H()});const j=await r.json();const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";o.textContent=JSON.stringify(j,null,1)};
@@ -1241,6 +1268,7 @@ $("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{m
 const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify(x)});return r.json()};
 const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
 $("q").onclick=()=>Q();
+$("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx").value});const s=j.specials||{lv:{},fi:[]};o.textContent="Uložené: "+Object.keys(s.lv).length+" náterov, "+s.fi.length+" prvých letov"};
 $("ov").onclick=async()=>{o.textContent="…";const j=await A({nick:$("nk").value});o.textContent=(j.overenie||[]).map(x=>"Overených typov: "+x.karticky+"\\n"+x.mavnutia.map(m=>new Date(m.t).toLocaleString("sk-SK")+" · "+(m.type||"?")+" · "+(m.el==null?"?":Math.round(m.el)+"°")+" · "+(m.ok?"✓ overené":"✗ "+m.why)).join("\\n")).join("\\n\\n")||"Hráč sa nenašiel."};</script></body></html>`;
   return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"}});
@@ -1313,7 +1341,7 @@ export default {
       if (req.cf && req.cf.latitude) { h.set("x-cc-lat", String(req.cf.latitude)); h.set("x-cc-lon", String(req.cf.longitude)); }
       const fwd = new Request(req.url, {method: req.method, headers: h, body: req.method === "POST" ? await req.text() : undefined});
       // ⚡ verejné odpovede bez osobných údajov z okrajovej cache Cloudflare (menej práce pre Durable Object)
-      const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/heat": 600, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
+      const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/heat": 600, "/api/specials": 600, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
       const ttl = typeof caches !== "undefined" && req.method === "GET" && !url.searchParams.has("id") ? EDGE[url.pathname] : 0;
       let ck = null;
       if (ttl) {

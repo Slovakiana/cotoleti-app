@@ -230,10 +230,10 @@ function cardExtras(k,v){
 }
 // 🇸🇰 „Má ju X % hráčov“ + objaviteľ (server)
 async function cardStat(k){
-  if(!SOC.api)return;try{const {ok,j}=await getJSON(SOC.api+"/api/cardstat?type="+encodeURIComponent(k),5000);const el=$("cardStat");if(!ok||!j||!el)return;
+  if(!SOC.api)return;try{const {ok,j}=await getJSON(SOC.api+"/api/cardstat?type="+encodeURIComponent(k)+(S.pos&&typeof krajOf==="function"?"&k="+krajOf(S.pos):""),5000);const el=$("cardStat");if(!ok||!j||!el)return;
     const pct=j.players?Math.max(.1,Math.round(j.own/j.players*1000)/10):0;
     if(!j.own&&COL.types[k]&&COL.types[k].ver){el.innerHTML="";return}
-    el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju ${j.own>=2&&j.own<=4?"majú":"má"} ${nf(j.own)} ${pl(j.own,"spotter","spotteri","spotterov")}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
+    el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju ${j.own>=2&&j.own<=4?"majú":"má"} ${nf(j.own)} ${pl(j.own,"spotter","spotteri","spotterov")}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.kraj?(()=>{const kp=Math.round(j.kraj.own/j.kraj.players*1000)/10,KN=(typeof KRAJ!=="undefined"&&KRAJ[j.kraj.k]?KRAJ[j.kraj.k][2]:j.kraj.k);return `<br>📍 ${esc(KN)} kraj: ${String(kp).replace(".",",")} % zberateľov${kp<5&&kp<pct?" – <b>u vás vzácna 🔥</b>":kp>pct*2?" – u vás bežná":""}`})():"")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
 }
 $("cardBig").addEventListener("click",async e=>{
   const pn=e.target.closest("[data-pin]");if(pn){const k=pn.dataset.pin;COL.show=COL.show||[];const i=COL.show.indexOf(k);

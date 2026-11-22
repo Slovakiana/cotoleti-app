@@ -94,7 +94,7 @@ function socRender(){
 let LG="k";
 // počet obyvateľov krajov (približne, ŠÚ SR 2024) – pre derby na obyvateľa
 const KRAJ_POP={BA:736e3,TT:565e3,TN:570e3,NR:666e3,ZA:688e3,BB:615e3,PO:809e3,KE:778e3};
-const LG_HEAD={k:"🇸🇰 Dnes mávalo Slovensko",w:"🇸🇰 Kraje tento týždeň",m:"🏙️ Mestá dnes",s:"🏘️ Menšie mestá dnes",a:"🃏 Zberatelia v kraji",f:"👯 Kamaráti tento týždeň",p:"⚖️ Kraje na hráča",o:"🏁 Derby krajov (na obyvateľa)",t:"👥 Tímy tento týždeň"};
+const LG_HEAD={k:"🇸🇰 Dnes mávalo Slovensko",w:"🇸🇰 Kraje tento týždeň",m:"🏙️ Mestá dnes",s:"🏘️ Menšie mestá dnes",a:"🃏 Zberatelia v kraji",d:"🏅 Tvoja divízia (30 hráčov)",f:"👯 Kamaráti tento týždeň",p:"⚖️ Kraje na hráča",o:"🏁 Derby krajov (na obyvateľa)",t:"👥 Tímy tento týždeň"};
 const LG_RULES={
   k:"Rátajú sa mávnutia s polohou z GPS na Slovensku, najviac 25 za deň na hráča. Tvoje mesto sa na deň určí podľa prvého mávnutia.",
   w:"Súčet mávnutí za týždeň (pondelok–nedeľa) s polohou z GPS, najviac 25 denne na hráča.",
@@ -102,6 +102,7 @@ const LG_RULES={
   s:"Mestá do 20 000 obyvateľov. Mávnutia z GPS podľa mesta prvého mávnutia dňa.",
   a:"Body = vzácnosť tvojich rôznych overených typov (bežná 3, nezvyčajná 8, vzácna 25, epická 45, legendárna 80) + 100 b za každý typ, ktorý si na Slovensku overil(a) ako prvý.",
   f:"Overené mávnutia do ligy od pondelka. Kamaráti ste cez pozvánku – obaja ste ju potvrdili.",
+  d:"Hráči sú zoradení podľa overených mávnutí od pondelka a rozdelení po 30 – súperíš s ľuďmi, ktorí mávajú podobne ako ty. Ako mávaš, posúvaš sa medzi divíziami.",
   p:"Mávnutia kraja delené počtom aktívnych hráčov – aj malý kraj môže vyhrať.",
   o:"Mávnutia kraja tento týždeň na 100 000 obyvateľov (počty obyvateľov približne podľa ŠÚ SR) – férové derby veľkých aj malých krajov.",
   t:"Overené mávnutia do ligy všetkých členov tímu tento týždeň. Nový člen sa ráta od nasledujúceho dňa."};
@@ -122,6 +123,13 @@ function renderLeague(){
     if(j.me&&!(j.top||[]).some(r=>r.me))rows.push([(j.me.rank?j.me.rank+". ":"")+"Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true]);
     note=j.me?`Si <b>${j.me.rank||"?"}.</b> v kraji${j.me.gap?" · na ďalšieho ti chýba "+nf(j.me.gap)+" b":" · vedieš 👑"}`:"Zamávaj s GPS a tvoje overené kartičky ťa dostanú do rebríčka.";
     if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
+  }
+  else if(LG==="d"){
+    if(!SOC.dv||Date.now()-SOC.dv.t>120e3){if(!SOC.dvL){SOC.dvL=1;apiPost("/api/division",{}).then(r=>r.json()).then(j=>{SOC.dv={t:Date.now(),j};SOC.dvL=0;if(LG==="d")renderLeague()}).catch(()=>{SOC.dvL=0})}}
+    const j=SOC.dv&&SOC.dv.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
+    if(!j.div){$("kraje").innerHTML=`<div class="lookSub" style="padding:8px 0">Tento týždeň ešte nemáš overené mávnutie. Zamávaj a zaradíme ťa do divízie s hráčmi, ktorí mávajú podobne ako ty 👋</div>`;return}
+    note=`🏅 Divízia ${j.div} z ${j.divs} · si <b>${j.rank}.</b> z ${j.of}`;
+    rows=(j.rows||[]).map(r=>[r.n,r.w,r.me,!r.me&&r.n!=="Spotter"]);
   }
   else if(LG==="f"){
     if(!SOC.frw||Date.now()-SOC.frw.t>120e3){if(!SOC.frwL){SOC.frwL=1;apiPost("/api/friends",{}).then(r=>r.json()).then(j=>{SOC.frw={t:Date.now(),j};SOC.frwL=0;if(LG==="f")renderLeague()}).catch(()=>{SOC.frwL=0})}}

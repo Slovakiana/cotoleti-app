@@ -356,3 +356,16 @@ await (async () => {
   assert.ok(a.naKontrolu[0].name === "zlemeno" && /ODVOLANIE/.test(a.naKontrolu[0].why), JSON.stringify(a.naKontrolu));
   console.log("✓ skryté meno: oznam hráčovi a odvolanie v /admin");
 })();
+await (async () => {
+  // divízie po 30
+  const r = (await call("/api/division", {id: C, tok: hc.tok}, "9.9.9.9")).j;
+  assert.ok(r.div === null || (r.div >= 1 && r.rank >= 1 && r.rows.some(x => x.me)), JSON.stringify(r));
+  console.log("✓ divízia");
+})();
+await (async () => {
+  // špeciálne nátery a prvé lety z /admin
+  await call("/api/admin", {key: "tajne", specials: "OM-ABC = Retro náter\n2026-12-15 wzz1234 = Prvý let do Dubaja\nzlý riadok"}, "1.1.1.1");
+  const r = (await call("/api/specials")).j;
+  assert.deepEqual(r, {lv: {"OM-ABC": "Retro náter"}, fi: [{d: "2026-12-15", call: "WZZ1234", txt: "Prvý let do Dubaja"}]}, JSON.stringify(r));
+  console.log("✓ špeciálne nátery a prvé lety");
+})();

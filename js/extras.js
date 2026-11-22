@@ -337,3 +337,15 @@ $("d-list").addEventListener("click",e=>{
   const pool=DAILY_POOL.filter(q=>!q.sp&&!D.ids.includes(q.id));if(!pool.length)return;
   const nw=pool[Math.floor(Math.random()*pool.length)];D.ids=D.ids.map(i=>i===b.dataset.sw?nw.id:i);D.swapped=1;LS.set("ctl_daily",D);renderDaily();haptic(8);toast("🔄 Nová výzva",nw.n);
 });
+
+/* ============ 🎨 špeciálne nátery a 🥇 prvé lety (zoznam zadáva majiteľ v /admin) ============ */
+let SPECIAL=LS.get("ctl_spec",null);
+(async()=>{if(SPECIAL&&Date.now()-SPECIAL.t<6*3600e3)return;try{const j=await fetch(DEFAULT_PROXY+"/api/specials").then(r=>r.json());SPECIAL={t:Date.now(),lv:j.lv||{},fi:j.fi||[]};LS.set("ctl_spec",SPECIAL)}catch(e){}})();
+function specialOf(a){if(!a||!SPECIAL)return null;const reg=String(a.reg||"").toUpperCase();
+  if(reg&&SPECIAL.lv&&SPECIAL.lv[reg])return {k:"lv",t:"🎨 Špeciálny náter: "+SPECIAL.lv[reg]};
+  const d=dayKey(),c=String(a.call||"").toUpperCase(),f=(SPECIAL.fi||[]).find(x=>x.d===d&&x.call===c);
+  return f?{k:"fi",t:"🥇 "+f.txt}:null}
+HOOKS.heroStatic.push(a=>{const s=specialOf(a);if(s)setTimeout(()=>{if(S.top&&a&&S.top.hex===a.hex)$("h-quip").textContent=s.t+" – zamávaj mu!"},0)});
+HOOKS.caught.push(a=>{const s=specialOf(a);if(!s)return;if(s.k==="lv")grantAch("livery");else grantAch("firstflight");toast(s.t,"Ulovil(a) si niečo výnimočné ✨")});
+ACH.push({id:"livery",i:"🎨",n:"Lovec náterov",h:"Zamávaj lietadlu so špeciálnym náterom (zoznam v appke sa priebežne dopĺňa)",c:()=>false},
+  {id:"firstflight",i:"🥇",n:"Bol(a) som pri prvom lete",h:"Zamávaj lietadlu v deň prvého letu novej linky",c:()=>false});
