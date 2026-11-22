@@ -48,3 +48,6 @@
 - Testy (`.github/workflows/test.yml`) bežia pri každom pushi: syntax, verzia, server, identita, odznaky a dymový test appky v prehliadači (`tests/smoke.py`, Playwright).
 - **Appka (GitHub Pages):** workflow `pages.yml` nasadí stránku až po zelených testoch. Zapnutie (raz): Settings → Pages → Source = **GitHub Actions**, potom Settings → Secrets and variables → Actions → **Variables** → `PAGES_Z_TESTOV` = `1`. Vrátenie: Source späť na „Deploy from a branch“ (main).
 - **Server (Cloudflare Builds):** nasadzuje sa pri pushi nezávisle od testov. Pred pushom zmeny servera spusti `node tests/worker.test.mjs`.
+
+## A/B test
+Každé zariadenie má natrvalo skupinu A alebo B (`ctl_ab`). Kroky lievika sa v /admin → 📊 Štatistiky → `lievik7dni` rátajú zvlášť, napr. `onboard:A` a `onboard:B`, `wave1:A` a `wave1:B`. Aktuálny pokus: text tlačidla v úvode (A „Povoliť polohu a ukázať oblohu“, B „Ukáž mi, čo letí nado mnou“). Víťaz = vyšší podiel `wave1` / `onboard`. Nový pokus: zmeň riadok pod `ABV` v js/ui.js.

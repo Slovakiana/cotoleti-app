@@ -335,3 +335,9 @@ await (async () => {
   assert.deepEqual(r.cells.map(c => c.slice(0, 2).join(",")), ["48.7,21.25"], JSON.stringify(r));
   console.log("✓ mapa mávania: štvorec až od 5 hráčov");
 })();
+await (async () => {
+  // /admin: skript stránky musí byť platný JavaScript (\n v šablóne ho raz celý rozbil)
+  const r = await W.fetch(new Request("https://x/admin"), env); const html = await r.text();
+  const js = html.split("<script>")[1].split("</script>")[0]; new Function(js);
+  console.log("✓ /admin skript je platný");
+})();

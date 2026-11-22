@@ -557,9 +557,13 @@ const openFriends=()=>{if(/tim=|vyzva=/.test(location.hash))$("friendsBox").open
 openFriends();addEventListener("hashchange",openFriends);
 
 /* ============ 📊 anonymné meranie (bez id, bez IP) + hlásenie chýb ============ */
+// 🧪 A/B test: každé zariadenie dostane natrvalo skupinu A alebo B; lievik v /admin ukáže kroky zvlášť (napr. wave1:A vs wave1:B)
+const ABV=(()=>{let v=LS.get("ctl_ab","");if(!/^[AB]$/.test(v)){v=Math.random()<.5?"A":"B";LS.set("ctl_ab",v)}return v})();
+// aktuálny pokus: text hlavného tlačidla v úvode
+if(ABV==="B"&&$("go"))$("go").textContent="📍 Ukáž mi, čo letí nado mnou";
 function ev(step){
   try{const done=LS.get("ctl_ev",{});if(done[step])return;done[step]=1;LS.set("ctl_ev",done);
-    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({step,r:LS.get("ctl_ref","")}),keepalive:true}).catch(()=>{})}catch(e){}
+    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({step,r:LS.get("ctl_ref",""),v:ABV}),keepalive:true}).catch(()=>{})}catch(e){}
 }
 {let errN=0;const rep=m=>{if(errN++>5)return;try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:String(m).slice(0,200)}))}catch(e){}};
   addEventListener("error",e=>rep((e.message||"err")+" @"+String(e.filename||"").split("/").pop()+":"+e.lineno));
