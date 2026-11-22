@@ -29,6 +29,10 @@ function waveBatchEnd(e){
   toast(T,Sub.join(" · "),c?RAR[c.r].col:B.col);
   // chvíľa po mávnutí = najlepší moment poslať lietadlo ďalej
   if(S.top&&!S.top.santa&&!(typeof KID==="function"&&KID())){const sn=$("shareNudge");sn.hidden=false;sn.dataset.hex=S.top.hex;clearTimeout(sn._t);sn._t=setTimeout(()=>sn.hidden=true,12000)}
+  // 👯 pozvanie v správnej chvíli: po 3. overenej kartičke alebo prvej lesklej (raz)
+  {const vn=Object.values(COL.types).filter(v=>v.ver).length,sh=Object.values(COL.types).some(v=>v.shiny);
+    if(!LS.get("ctl_invNudge",0)&&!(typeof KID==="function"&&KID())&&(vn>=3||sh)){LS.set("ctl_invNudge",1);setTimeout(()=>{let el=$("invNudge");if(!el){el=document.createElement("button");el.id="invNudge";el.className="pill glass";document.body.appendChild(el)}
+      el.textContent="👯 Zbieraj s kamarátom – spoločné mávnutie = bonus";el.hidden=false;el.onclick=()=>{el.hidden=true;typeof sendDuel==="function"&&sendDuel()};setTimeout(()=>el.hidden=true,12000)},6000)}}
   if(c&&c.newType&&typeof openCard==="function")setTimeout(()=>{if(!document.querySelector(".modal.on")){cardK=c.type;openCard(c.type,true)}},2400);
 }
 function toast(a,b,col){
@@ -247,8 +251,8 @@ function renderCol(){
   {const z=seasonUpd();$("c-season").innerHTML=`<b>${z.e} ${z.name}</b> · ${z.pts} b v sezóne · končí ${z.end}${z.best?` · rekord ${z.best} b`:""}`}
   {const sd=seenSum();$("c-seen").innerHTML=sd?sd:"";$("c-seen").hidden=!sd}
   const types=Object.entries(COL.types);
-  $("c-n").textContent=COL.n;$("c-t").textContent=types.length;const rr=types.filter(([k,v])=>v.n&&RORD[typeTier(k)]>=2).length;$("c-r").textContent=rr;
-  {const sp=id=>$(id)&&$(id).nextElementSibling;if(sp("c-n"))sp("c-n").textContent=pl(COL.n,"úlovok","úlovky","úlovkov");if(sp("c-t"))sp("c-t").textContent=pl(types.length,"typ","typy","typov");if(sp("c-r"))sp("c-r").textContent=pl(rr,"vzácny","vzácne","vzácnych")}
+  const typesOwn=types.filter(([,v])=>v.n);$("c-n").textContent=COL.n;$("c-t").textContent=typesOwn.length;const rr=types.filter(([k,v])=>v.n&&RORD[typeTier(k)]>=2).length;$("c-r").textContent=rr;
+  {const sp=id=>$(id)&&$(id).nextElementSibling;if(sp("c-n"))sp("c-n").textContent=pl(COL.n,"úlovok","úlovky","úlovkov");if(sp("c-t"))sp("c-t").textContent=pl(typesOwn.length,"typ","typy","typov");if(sp("c-r"))sp("c-r").textContent=pl(rr,"vzácny","vzácne","vzácnych")}
   $("c-ach").innerHTML=ACH.map(x=>`<div class="${COL.ach[x.id]?"got":""}"><i>${x.i}</i>${x.n}</div>`).join("");
   $("c-achN").textContent=Object.keys(COL.ach).length+"/"+ACH.length;
   const order={l:0,r:1,u:2,c:3};
@@ -468,7 +472,12 @@ function showCities(onb){
 }
 $("cities").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=CITIES.find(x=>x[0]===b.dataset.c);if(!c)return;closeOnb();setManual(c[1],c[2],c[0])};
 $("noGps").onclick=()=>showCities(true);
-function closeOnb(){LS.set("ctl_onb",1);onbDone();$("onb").classList.add("hide");setTimeout(()=>$("onb").style.display="none",460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
+// 🎁 uvítací darček pre toho, kto prišiel cez pozvánku kamaráta: bežná kartička 🤝 (celá bude jeho, keď jej typu zamává)
+function welcomeGift(){if(!LS.get("ctl_ref","")||LS.get("ctl_welcome",0)||(typeof KID==="function"&&KID()))return;LS.set("ctl_welcome",1);
+  const pool=["A320","B738","A21N","A319","B38M","E190"].filter(k=>!(COL.types[k]&&COL.types[k].n)),k=pool[Math.floor(Math.random()*pool.length)];if(!k)return;
+  COL.types[k]=COL.types[k]||{n:0,r:typeTier(k),name:catGuess(k).name,first:Date.now()};COL.types[k].gift={from:"kamarát (uvítanie)",t:Date.now()};LS.set("ctl_col",COL);
+  setTimeout(()=>toast("🎁 Uvítací darček od kamaráta","Kartička "+catGuess(k).name+" 🤝 – keď takému lietadlu zamávaš, bude celá tvoja"),5000)}
+function closeOnb(){LS.set("ctl_onb",1);onbDone();setTimeout(welcomeGift,1000);$("onb").classList.add("hide");setTimeout(()=>$("onb").style.display="none",460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
 $("go").onclick=()=>{closeOnb();ev("onboard");LS.set("ctl_manual",false);startGps();if(S.pos)fetchPlanes(true)};
 // kompas sa pýta až keď ho treba (ťuk na kompas / Nájdi) – nie dva systémové dialógy po sebe
 /* 📍 zmena miesta jedným ťukom na pilulku hore */
@@ -759,7 +768,19 @@ $("shareNudge").onclick=async()=>{
 };
 HOOKS.heroStatic.push(a=>{const sn=$("shareNudge");if(sn&&!sn.hidden&&(!a||a.hex!==sn.dataset.hex))sn.hidden=true});
 // prišiel si z odkazu od kamaráta? povedz to už na úvode
-if(!LS.get("ctl_onb",0)&&/(vyzva|kd|tim|let)=/.test(location.hash)){const d=document.createElement("div");d.className="onbInvite";d.textContent=/kd=/.test(location.hash)?"⚔️ Kamarát ťa vyzval na súboj kartičiek – najprv zisti, čo letí nad tebou":/tim=/.test(location.hash)?"👥 Dostal si pozvánku do tímu – najprv zisti, čo letí nad tebou":/let=/.test(location.hash)?"✈️ Kamarát ti posiela let – najprv povoľ polohu, nech vieš, kedy bude nad tebou":"⚔️ Kamarát ťa vyzýva – najprv zisti, čo letí nad tebou";const go=$("go");go&&go.parentNode.insertBefore(d,go)}
+// pozvánka pred úvodom: meno pozývajúceho z odkazu (ak sa dá prečítať)
+if(!LS.get("ctl_onb",0)&&/(vyzva|kd|tim|let|dar|p)=/.test(location.hash)){const d=document.createElement("div");d.className="onbInvite";
+  const who=(()=>{const m=location.hash.match(/(?:vyzva|kd)=([\w-]+)/);if(!m)return "";try{const j=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,"+").replace(/_/g,"/")))));return String(j.n||"").replace(/[^\p{L}\p{N} ._-]/gu,"").slice(0,16)}catch(e){return ""}})()||"Kamarát";
+  const h=location.hash;
+  d.textContent=/kd=/.test(h)?"⚔️ "+who+" ťa vyzval(a) na súboj kartičiek – najprv zisti, čo letí nad tebou":/tim=/.test(h)?"👥 Dostal(a) si pozvánku do tímu – najprv zisti, čo letí nad tebou":/let=/.test(h)?"✈️ Kamarát ti posiela let – najprv povoľ polohu, nech vieš, kedy bude nad tebou":/dar=/.test(h)?"🎁 Máš darček – kartičku lietadla. Najprv zisti, čo letí nad tebou":/(^|#|&)p=/.test(h)?"✈️ Kamarát ti posiela lietadlo – povoľ polohu a uvidíš, či letí aj nad tebou":"⚔️ "+who+" ťa vyzýva – najprv zisti, čo letí nad tebou";
+  const go=$("go");go&&go.parentNode.insertBefore(d,go)}
+// ✈️ odkaz na konkrétne lietadlo (#p=hex): ukáž ho, ak je nad tebou, inak povedz, kde je
+function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/);if(!m)return;
+  if(!LS.get("ctl_onb",0)){afterOnb(planeFromHash);return}
+  try{history.replaceState(null,"",location.pathname)}catch(e){}
+  const hx=m[1],look=n=>{const a=S.list&&S.list.find(x=>x.hex===hx);if(a){S.pick=hx;try{tick(true)}catch(e){}window.scrollTo({top:0,behavior:"smooth"});toast("✈️ "+titleOf(a)+" je nad tebou!",Math.round(a.el)>0?Math.round(a.el)+"° nad obzorom – zamávaj 👋":"Je za obzorom, chvíľu počkaj");return}
+    if(n>0)setTimeout(()=>look(n-1),3000);else toast("✈️ To lietadlo už nad tebou neletí","Pozri, čo letí práve teraz – zamávaj mu 👋")};look(5)}
+planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
 const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_ach","ctl_team","ctl_track","ctl_goldAlert"];

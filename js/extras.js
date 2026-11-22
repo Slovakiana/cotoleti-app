@@ -211,7 +211,12 @@ const b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/
 const b64d=s=>decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/"))));
 const nick=()=>($("nick").value||"").trim()||LS.get("ctl_nick","")||"Spotter";
 function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,pid:(typeof PID!=="undefined"?PID:""),fk:(typeof FK!=="undefined"?FK:"")}}
+// pred prvou pozvánkou: nech kamarát vie, od koho to je (nie „Spotter“)
+function ensureNick(){if(typeof KID==="function"&&KID())return true;if(LS.get("ctl_nick",""))return true;
+  const n=prompt("Ako ťa kamaráti poznajú? (prezývka, nie celé meno)","");if(n===null)return false;const v=String(n).trim().slice(0,20);
+  if(v.length>=2){LS.set("ctl_nick",v);if($("nick"))$("nick").value=v;return true}toast("Prezývka musí mať aspoň 2 znaky","");return false}
 async function sendDuel(){
+  if(!ensureNick())return;
   if(typeof ensureTok==="function")await ensureTok();
   const me=myScore(),url=shareUrl("v",b64e(JSON.stringify(me)));
   const town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";const text=`👋 Mávam lietadlám${town?" ("+town+")":""} a zbieram ich kartičky ✈️ Pridaj sa – keď zamávame tomu istému lietadlu do 10 minút, máme obaja bonus. Mám ${me.t} ${pl(me.t,"kartičku","kartičky","kartičiek")}, prekonáš ma?`;

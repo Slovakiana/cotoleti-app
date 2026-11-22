@@ -61,6 +61,10 @@ async function socPoll(){
     // id a token v tele požiadavky, nie v adrese (nekončia v záznamoch)
     const r=await fetch(`${SOC.api}/api/sky`,{method:"POST",cache:"no-store",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:TOK,...pr,hexes:hs.join(",")})});
     if(r.ok){SOC.data=await r.json();SOC.back=SOC.data.flags&&SOC.data.flags.social==="min"?4:1;socRender();if(SOC.data.myInvites>0)grantAch("recruit");
+      // 👋 koľko ľudí prišlo cez tvoje odkazy (a ozvi sa, keď pribudne)
+      {const n=SOC.data.myInvites|0,was=LS.get("ctl_inv",0)|0,el=$("invCount");if(el){el.hidden=!n;el.textContent=n?`👋 Cez tvoje odkazy ${n===1?"prišiel":n<5?"prišli":"prišlo"} ${n} ${ludia(n)}`:""}
+        // 🎁 za každého nového spottera cez tvoj odkaz +100 míľ
+        if(n>was){LS.set("ctl_inv",n);if(LS.get("ctl_invSeen",0)){COL.mi=(COL.mi|0)+100*(n-was);LS.set("ctl_col",COL);toast("👋 Cez tvoj odkaz prišiel nový spotter!","+"+100*(n-was)+" míľ ✈ · spolu už "+n)}LS.set("ctl_invSeen",1)}}
       const gk=dayKey()+SOC.data.goldMine;if(SOC.data.goldMine&&LS.get("ctl_goldWon","")!==gk&&typeof goldenWon==="function")goldenWon(null)}
     else if(r.status===429||r.status>=500)SOC.back=Math.min(8,(SOC.back||1)*2);
   }catch(e){SOC.back=Math.min(8,(SOC.back||1)*2)}
@@ -184,6 +188,16 @@ HOOKS.live.push(()=>{const w=SOC.lowWatch;if(!w)return;if(Date.now()-w.t>20*60e3
   const p=S.list&&S.list.find(x=>x.hex===w.hex);if(!p)return;
   if(p.el>=10&&!COL.hex[p.hex]){SOC.lowWatch=null;S.pick=p.hex;try{tick(true)}catch(e){}toast("📈 "+(p.call||titleOf(p))+" je teraz "+Math.round(p.el)+"° nad tebou","Zamávaj – teraz už pôjde do zbierky 👋");haptic([40,40,40])}});
 $("cardHint")&&$("cardHint").addEventListener("click",e=>{if(e.target.closest("[data-gps]")&&$("placeGps"))$("placeGps").click()});
+// kam lietadlo doletí v najbližších 20 minútach (podľa kurzu a rýchlosti) → prvé veľké mesto pod ním
+function relayOf(a){if(!a||a.lat==null||a.trk==null||!a.spd||a.spd<250||typeof CITIES==="undefined"||!S.pos)return null;
+  const me=typeof townOf==="function"?townOf(S.pos):"",br=rad(a.trk),kmPerMin=a.spd/60;
+  for(let m=3;m<=20;m++){const d=kmPerMin*m,la=a.lat+d/111.2*Math.cos(br),lo=a.lon+d/(111.2*Math.cos(rad(a.lat)))*Math.sin(br);
+    for(const c of CITIES.slice(0,12)){if(c[0]===me)continue;if(distBear(la,lo,c[1],c[2]).d<9000&&distBear(S.pos.lat,S.pos.lon,c[1],c[2]).d>30000)return {town:c[0],min:m}}}
+  return null}
+$("cardHint")&&$("cardHint").addEventListener("click",async e=>{const r=e.target.closest("[data-relay]");if(!r||!S.top)return;const a=S.top,town=r.dataset.relay,eta=r.dataset.eta;
+  const url=shareUrl("p",a.hex,["c="+encodeURIComponent(a.call||""),"m="+encodeURIComponent(town)].join("&")),text=`✈️ ${a.call||titleOf(a)} bude o ~${eta} min nad mestom ${town}! Vyjdi von a zamávaj mu 👋`;
+  try{if(navigator.share){await navigator.share({text,url});return}}catch(er){if(er.name==="AbortError")return}
+  try{await navigator.clipboard.writeText(text+" "+url);toast("📋 Skopírované","Pošli to niekomu v meste "+town)}catch(er){prompt("Skopíruj:",url)}});
 function cardHint(a){
   const el=$("cardHint");if(!el)return;if(!a||a.santa){el.innerHTML="";return}
   const ty=a.type,v=ty&&COL.types[ty]&&COL.types[ty].n?COL.types[ty]:null,c=ty&&CAT[ty],out=[];
@@ -194,6 +208,8 @@ function cardHint(a){
   else{const nx=nextLv(v.n,ty);out.push(`<span>${stars(cardLvl(v.n,ty))}${nx?" · ešte "+(nx-v.n)+"× do ďalšej ★":" · max. úroveň"}</span>`)}
   // ⏳ neoverený typ nad tebou – šanca overiť ho
   if(v&&!v.ver&&!COL.hex[a.hex]&&!(a.el!=null&&a.el<10))out.unshift(`<span class="new">⏳ Tvoj ${esc(catGuess(ty).name||ty)} ešte nie je overený – zamávaj a overí sa</span>`);
+  // ✈️ štafeta: lietadlo onedlho preletí nad iným mestom – pošli ho tam niekomu
+  {const rl=relayOf(a);if(rl&&!(typeof KID==="function"&&KID()))out.push(`<span class="new" data-relay="${esc(rl.town)}" data-eta="${rl.min}" role="button">📲 O ~${rl.min} min bude nad mestom ${esc(rl.town)} – pošli to tam niekomu</span>`)}
   // 📍 ručne vybrané mesto = bez overenia
   if(S.manual)out.push(`<span class="low" data-gps="1" role="button">📍 Bez GPS sa kartička neoverí · Zapnúť</span>`);
   try{const r=rarity(a);if(RORD[r]>=2&&!COL.hex[a.hex])out.push(`<span class="new">${RAR[r].s} ${RAR[r].n} +${RAR[r].p} b</span>`);

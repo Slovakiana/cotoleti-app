@@ -43,6 +43,15 @@ $("postShare").onclick=()=>{
   x.fillStyle="#2b1d0e";x.font="900 76px Unbounded, sans-serif";wrapText(x,MAILS[m.msg]||"Ahoj!",160,760,760,92,3);
   x.fillStyle="#6b4a2a";x.font="500 40px Inter, sans-serif";x.fillText("Posiela: "+(m.nick||"neznámy spotter")+(m.town?" · "+m.town:""),160,1180);
   x.font="160px sans-serif";x.textAlign="right";x.fillText(m.emoji||"✉️",940,1290);
+  // ✈️ trasa pozdravu: kraj odosielateľa → moje mesto, a ktoré lietadlo ho doručilo
+  {const kr=KRAJ[m.k],me=S.pos&&typeof townOf==="function"?townOf(S.pos):"",pl=S.list&&S.list.find(q=>q.hex===m.hex);
+    if(kr&&kr[0]&&S.pos){const km=Math.round(distBear(kr[0],kr[1],S.pos.lat,S.pos.lon).d/1000);
+      x.textAlign="center";x.fillStyle="#fff";x.font="800 40px Inter, sans-serif";x.fillText("Cesta pozdravu",W/2,280);
+      x.strokeStyle="rgba(255,255,255,.85)";x.lineWidth=6;x.setLineDash([4,18]);x.lineCap="round";x.beginPath();x.moveTo(200,360);x.quadraticCurveTo(W/2,300,W-200,360);x.stroke();x.setLineDash([]);
+      x.fillStyle="#fff";for(const px of [200,W-200]){x.beginPath();x.arc(px,360,14,0,7);x.fill()}
+      x.font="60px sans-serif";x.fillText("✈️",W/2,350);
+      x.font="600 32px Inter, sans-serif";x.textAlign="left";x.fillText(kr[2]+" kraj",120,420);x.textAlign="right";x.fillText(me||"ku mne",W-120,420);
+      x.textAlign="center";x.font="500 30px Inter, sans-serif";x.fillText((km>5?"~"+nf(km)+" km":"")+(pl?(km>5?" · ":"")+"doručil "+titleOf(pl):""),W/2,452)}}
   x.textAlign="center";x.fillStyle="#fff";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-450);
   x.font="500 36px Inter, sans-serif";x.fillText("Lietadlá roznášajú pozdravy po Slovensku",W/2,H-385);x.fillText(APP_HOST,W/2,H-335);
   c.toBlob(b=>b&&shareBlob(b,"pozdrav.png",(m.town?"Z neba mi prišiel pozdrav z "+m.town:"Z neba mi prišiel pozdrav")+" ✉️ Doručilo ho lietadlo. "+appLink()+TAGS),"image/png");

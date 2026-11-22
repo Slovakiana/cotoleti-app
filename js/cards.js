@@ -119,7 +119,7 @@ function cardSVG(code,v,opt={}){
   else if(night)s+=`<rect x="50" y="118" width="168" height="34" rx="17" fill="#1a1f4a" stroke="#8fa2ff"/><text x="134" y="141" text-anchor="middle" font-size="15" font-weight="800" fill="#cfd8ff">🌙 NOČNÁ FORMA</text>`;
   // 🇸🇰 poradové číslo na Slovensku (server)
   if(v.seq)s+=`<rect x="${v.seq===1?334:404}" y="118" width="${v.seq===1?216:146}" height="34" rx="17" fill="${v.seq===1?"#ffcf4f":v.seq<=10?"#e3c46a":"#000"}" fill-opacity="${v.seq<=10?1:.82}"/><text x="${v.seq===1?442:477}" y="141" text-anchor="middle" font-size="15" font-weight="900" fill="${v.seq<=10?"#3b2a00":"#fff"}">${v.seq===1?"PRVÝ NA SLOVENSKU":"č. "+v.seq+" v SR"}</text>`;
-  if(v.gift&&!v.n)s+=`<rect x="36" y="396" width="528" height="38" fill="#c0c8dc" fill-opacity=".85"/><text x="300" y="421" text-anchor="middle" font-size="17" font-weight="800" fill="#1b2340">🤝 OD: ${SVGE(v.gift.from)} · zamávaj mu sám a bude plná</text>`;
+  if(v.gift&&!v.n)s+=`<rect x="36" y="388" width="528" height="56" fill="#c0c8dc" fill-opacity=".9"/><text x="300" y="410" text-anchor="middle" font-size="17" font-weight="800" fill="#1b2340">🤝 DAR · posiela: ${SVGE(cutW(v.gift.from||"kamarát",14))}</text><text x="300" y="434" text-anchor="middle" font-size="15" font-weight="600" fill="#1b2340">zamávaj mu a bude celá tvoja</text>`;
   // typový pás
   s+=`<rect x="36" y="446" width="528" height="40" rx="12" fill="#ffffff" fill-opacity=".06"/>
     <text x="52" y="472" font-size="16" font-weight="700" fill="${acc==="#ff4fd8"?"#ff9fe8":"#cfd8ff"}">${SVGE(c.maker)} · ${SVGE(FAM_SK[c.fam]||"")}${c.year?" · od "+c.year:""}</text>`;
@@ -143,7 +143,7 @@ function cardSVG(code,v,opt={}){
 }
 
 /* ---- Atlas v záložke Ja ---- */
-let atlasOpen=false;let atlasMode="mine";
+let atlasOpen=false;let atlasMode="mine";let atlasRare=false;
 const cardRar=k=>typeTier(k);
 const inSeries=k=>CAT[k]&&!TROPHY.has(k);
 // 🃏 malá kartička do mriežky: čitateľná silueta, názov, stupeň, úroveň ako bodky
@@ -168,14 +168,15 @@ function renderCards(){
   $("c-cardsN").textContent=`${inCat}/${tot}`;
   const inSet=k=>SETS.some(s=>!(COL.sets||{})[s.id]&&s.t&&s.t.includes(k)&&s.t.some(x=>owned[x]))?-1:0;
   const mine=ownedKeys.sort((x,y)=>(owned[y].first||0)-(owned[x].first||0));
-  const missing=CATALOG.map(c=>c[0]).filter(k=>!owned[k]&&!TROPHY.has(k)).sort((x,y)=>inSet(x)-inSet(y)||RORD[typeTier(x)]-RORD[typeTier(y)]||CAT[x].no-CAT[y].no);
+  // chýba = ešte si mu nezamával (darovaná kópia 🤝 sa neráta ako vlastná)
+  const missing=CATALOG.map(c=>c[0]).filter(k=>!(owned[k]&&owned[k].n)&&!TROPHY.has(k)).sort((x,y)=>inSet(x)-inSet(y)||RORD[typeTier(x)]-RORD[typeTier(y)]||CAT[x].no-CAT[y].no);
   const trophies=CATALOG.map(c=>c[0]).filter(k=>TROPHY.has(k));
-  let list=atlasMode==="mine"?mine:atlasMode==="miss"?missing:atlasMode==="trophy"?trophies:[];
+  let list=atlasMode==="mine"?(atlasRare?mine.filter(k=>RORD[typeTier(k)]>=2&&owned[k].n):mine):atlasMode==="miss"?missing:atlasMode==="trophy"?trophies:[];
   const more=!atlasOpen&&list.length>6&&atlasMode!=="trophy"?list.length-6:0;if(more)list=list.slice(0,6);
   const tab=(m,l)=>`<button class="${atlasMode===m?"on":""}" data-m="${m}">${l}</button>`;
   $("c-types").innerHTML=`<div class="atlasTop" style="grid-column:1/-1"><div class="xp"><i style="width:${inCat/tot*100}%"></i></div>
-    <div class="lookSub">Séria 1: ${inCat} z ${tot}${trN?" · 🏆 "+trN+(trN===1?" trofej":trN<5?" trofeje":" trofejí"):""}${shinyN?" · ✨ "+shinyN+" shiny":""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
-    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.length+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆 Trofeje")}</div></div>`+
+    <div class="lookSub">Séria 1: ${inCat} z ${tot}${trN?" · 🏆 "+trN+" "+pl(trN,"trofej","trofeje","trofejí"):""}${shinyN?" · ✨ "+shinyN+" "+pl(shinyN,"lesklá","lesklé","lesklých"):""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
+    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.filter(k=>owned[k].n).length+(ownedKeys.some(k=>!owned[k].n)?" + 🤝":"")+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆 Trofeje")}</div></div>`+
     (atlasMode==="sets"?setsHTML():atlasMode==="ed"?edHTML():"")+
     (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
     (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n||1,k)+" zo 4":" · ešte nemáš"))}">${cardMini(k,owned[k])}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Zamávaj lietadlu nad tebou (aspoň 10° nad obzorom) a získaš prvú kartičku.":"Máš celú sériu! 🏆"}</div>`);
@@ -184,7 +185,7 @@ function renderCards(){
 HOOKS.view.push(v=>{if(v==="col")renderCards()});
 let cardK=null;
 $("c-types").onclick=e=>{
-  const tb=e.target.closest(".atTabs button");if(tb){atlasMode=tb.dataset.m;renderCards();return}
+  const tb=e.target.closest(".atTabs button");if(tb){atlasMode=tb.dataset.m;atlasRare=false;renderCards();return}
   const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();return}
   if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();return}
   const sr=e.target.closest(".setRow");if(sr){sr.classList.toggle("open");return}
@@ -277,11 +278,17 @@ $("cardShare").onclick=async()=>{
     const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
     const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0d1430");g.addColorStop(1,v.shiny?"#5a1f6b":{c:"#1b2a6b",u:"#0b4a33",r:"#0a2a66",e:"#3a1670",l:"#5a3d00"}[typeTier(cardK)]);x.fillStyle=g;x.fillRect(0,0,W,H);
     for(let i=0;i<120;i++){x.fillStyle=`rgba(255,255,255,${Math.random()*.6})`;x.beginPath();x.arc(Math.random()*W,Math.random()*H,Math.random()*2.2,0,7);x.fill()}
-    x.textAlign="center";x.fillStyle="#fff";x.font="800 46px Unbounded, sans-serif";x.fillText(v.shiny?"✨ Mám lesklú kartičku!":RAR[typeTier(cardK)].n.toUpperCase()+" kartička!",W/2,200);if(v.seq){x.font="700 38px Inter, sans-serif";x.fillText(v.seq===1?"🧭 PRVÝ NA SLOVENSKU":"č. "+v.seq+" na Slovensku",W/2,252)}
-    x.drawImage(img,(W-860)/2,280,860,1204);
-    x.fillStyle="#6dffc7";x.font="900 56px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-360);
-    x.fillStyle="rgba(255,255,255,.85)";x.font="500 34px Inter, sans-serif";x.fillText("Letelo mi nad hlavou → "+APP_HOST,W/2,H-300);
-    c.toBlob(b=>b&&shareBlob(b,"kartička.png",(v.shiny?"✨ Lesklá ":"")+"kartička: "+(catGuess(cardK).name)+" ✈️ "+appLink()+TAGS),"image/png");
+    // osobná trofej, obsah v bezpečnej zóne príbehu (Instagram: 250–1600 px), spodok voľný na nálepky
+    const kid=typeof KID==="function"&&KID(),nk=kid?"":(LS.get("ctl_nick","")||""),fp=v.fp||{},town=kid?"":(fp.town||"");
+    const when=new Date(fp.t||v.first||Date.now()).toLocaleString("sk-SK",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"});
+    x.textAlign="center";x.fillStyle="#fff";x.font="800 50px Unbounded, sans-serif";x.fillText(v.shiny?"✨ Mám lesklú kartičku!":"👋 Zamával(a) som mu"+(town?"":"!"),W/2,290);
+    x.font="600 38px Inter, sans-serif";x.fillStyle="rgba(255,255,255,.88)";x.fillText([town?"nad "+town:"",when,nk].filter(Boolean).join(" · "),W/2,345);
+    x.drawImage(img,(W-750)/2,390,750,1050);
+    x.font="800 40px Inter, sans-serif";x.fillStyle=v.ver?"#6dffc7":"rgba(255,255,255,.6)";x.fillText(v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"⏳ zatiaľ neoverená",W/2,1495);
+    x.fillStyle="#6dffc7";x.font="900 52px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,1565);
+    x.fillStyle="rgba(255,255,255,.85)";x.font="500 32px Inter, sans-serif";x.fillText("Zamávaj aj ty → "+APP_HOST,W/2,1612);
+    const q=["s="+(v.shiny?1:0),v.ver&&v.seq?"n="+v.seq:"",nk?"nk="+encodeURIComponent(nk):""].filter(Boolean).join("&");
+    c.toBlob(b=>b&&shareBlob(b,"kartička.png",(v.shiny?"✨ Lesklá ":"")+"kartička: "+(catGuess(cardK).name)+(v.ver&&v.seq?" · č. "+v.seq+" na Slovensku":"")+" ✈️ "+shareUrl("c",cardK,q)+TAGS),"image/png");
   };
   img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
 };
@@ -437,10 +444,12 @@ if($("cardVideo"))$("cardVideo").onclick=()=>{
     const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
     const stars=Array.from({length:90},()=>[Math.random()*W,Math.random()*H,Math.random()*2+.4,Math.random()*6]);
     const sp=Array.from({length:40},()=>[Math.random()*Math.PI*2,120+Math.random()*320,Math.random()*.6+.4]);
-    const name=catGuess(cardK).name,shiny=!!v.shiny,col=shiny?"#ff4fd8":{l:"#ffcf4f",r:"#b98bff",u:"#5ec8ff",c:"#c9d3f0"}[v.r]||"#c9d3f0";
+    const name=catGuess(cardK).name,shiny=!!v.shiny,col=shiny?"#ff4fd8":(RAR[typeTier(cardK)]||RAR.c).col;
+    // dôkaz na konci videa: poradie, mesto, overenie, prezývka
+    const kidV=typeof KID==="function"&&KID(),proof=[v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"",!kidV&&v.fp&&v.fp.town?"nad "+v.fp.town:"",!kidV?LS.get("ctl_nick",""):""].filter(Boolean).join(" · ");
     const mime=vidMime(),st=c.captureStream(30),rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:4e6}:{}),chunks=[];
     rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
-    rec.onstop=()=>{done();const b=new Blob(chunks,{type:(mime||"video/webm").split(";")[0]});shareBlob(b,"kartička."+(b.type.includes("mp4")?"mp4":"webm"),(shiny?"✨ Lesklá ":"")+"kartička: "+name+" ✈️ "+appLink()+TAGS)};
+    rec.onstop=()=>{done();const b=new Blob(chunks,{type:(mime||"video/webm").split(";")[0]});shareBlob(b,"kartička."+(b.type.includes("mp4")?"mp4":"webm"),(shiny?"✨ Lesklá ":"")+"kartička: "+name+" ✈️ "+shareUrl("c",cardK,["s="+(shiny?1:0),v.ver&&v.seq?"n="+v.seq:""].filter(Boolean).join("&"))+TAGS)};
     const T=6000,t0=performance.now();
     const frame=now=>{
       const t=Math.min(1,(now-t0)/T),ms=now-t0;
@@ -463,7 +472,7 @@ if($("cardVideo"))$("cardVideo").onclick=()=>{
       x.restore();
       // iskry po odhalení
       if(ms>2200){const k=Math.min(1,(ms-2200)/1500);for(const p of sp){const r=p[1]*k,a=(1-k)*p[2];if(a<=0)continue;x.fillStyle=shiny?`rgba(255,120,230,${a})`:`rgba(255,230,120,${a})`;x.beginPath();x.arc(W/2+Math.cos(p[0])*r,H/2-40+Math.sin(p[0])*r,5,0,7);x.fill()}}
-      if(ms>2600){x.globalAlpha=Math.min(1,(ms-2600)/500);x.fillStyle="#fff";x.font="800 38px Unbounded, sans-serif";x.fillText(name,W/2,H-210);
+      if(ms>2600){x.globalAlpha=Math.min(1,(ms-2600)/500);x.fillStyle="#fff";x.font="800 38px Unbounded, sans-serif";x.fillText(name,W/2,H-250);if(proof){x.fillStyle=v.ver?"#6dffc7":"rgba(255,255,255,.8)";x.font="700 26px Inter, sans-serif";x.fillText(proof,W/2,H-205)}
         x.fillStyle="#6dffc7";x.font="900 40px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-130);
         x.fillStyle="rgba(255,255,255,.8)";x.font="500 23px Inter, sans-serif";x.fillText("Pozri hore a zamávaj · "+APP_HOST,W/2,H-82);x.globalAlpha=1}
       if(t<1)requestAnimationFrame(frame);else setTimeout(()=>rec.stop(),120);
@@ -512,10 +521,12 @@ $("shopList")&&($("shopList").onclick=e=>{const f=e.target.closest("[data-frame]
 /* 🎁 daruj kópiu – odkaz pre kamaráta (server overí duplikát) */
 async function giftMake(k){
   if(!SOC.api)return;try{const r=await apiPost("/api/gift",{type:k});const j=await r.json();
-    if(!j.code){toast("🎁 Darovať sa nedá",{dup:"Potrebuješ aspoň 2 overené úlovky tohto typu",tier:"Darovať sa dajú len bežné a nezvyčajné – legendu musí každý vidieť sám",new:"Darovať môžeš po 7 dňoch v appke",rate:"Dnes si už darúval 3×",kid:"V detskom režime to nejde"}[j.error]||"Skús to neskôr");return}
-    const url=location.origin+location.pathname+"#dar="+j.code,text=`🎁 Darujem ti kartičku ${catGuess(k).name} z appky Čo to letí? ✈️ Keď mu potom sám zamávaš, bude celá tvoja.`;
+    if(!j.code){toast("🎁 Darovať sa nedá",{dup:"Potrebuješ aspoň 2 overené úlovky tohto typu",tier:"Darovať sa dajú len bežné a nezvyčajné – legendu musí každý vidieť sám",new:"Darovať môžeš po 7 dňoch v appke",rate:"Dnes si už daroval(a) 3×",kid:"V detskom režime to nejde"}[j.error]||"Skús to neskôr");return}
+    const url=shareUrl("g",j.code,"n="+encodeURIComponent(LS.get("ctl_nick","")||"Kamarát")+"&ty="+k),text=`🎁 Darujem ti kartičku ${catGuess(k).name} z appky Čo to letí? ✈️ Keď mu potom sám zamávaš, bude celá tvoja.`;
+    toast("🎁 Darček je pripravený","Kamarát dostane kartičku 🤝 – celá bude jeho, keď lietadlu sám zamává"+(j.left!=null?" · dnes ešte "+j.left+"×":""));
     try{if(navigator.share){await navigator.share({title:"Darček",text,url});return}}catch(e){if(e.name==="AbortError")return}
-    await navigator.clipboard.writeText(text+" "+url);toast("🎁 Odkaz skopírovaný","Pošli ho kamarátovi – platí 14 dní")}catch(e){toast("Bez internetu","Darovať môžeš, keď budeš online")}
+    try{await navigator.clipboard.writeText(text+" "+url);toast("🎁 Odkaz skopírovaný","Pošli ho kamarátovi – platí 14 dní")}catch(e){prompt("Skopíruj odkaz a pošli ho kamarátovi:",url)}
+  }catch(e){toast("Bez internetu","Darovať môžeš, keď budeš online")}
 }
 async function giftClaim(){const m=location.hash.match(/dar=([A-Za-z0-9]{6,8})/);if(!m)return;
   if(!LS.get("ctl_onb",0)){afterOnb(giftClaim);return}if(typeof KID==="function"&&KID())return;
@@ -551,3 +562,7 @@ async function whyShow(){
     el.innerHTML=head+det;
   }catch(e){el.textContent="Bez internetu – skús neskôr."}
 }
+
+// dlaždice na profile: ťuk → atlas (typy / vzácne)
+for(const [id,rare] of [["c-t",false],["c-r",true]]){const el=$(id)&&$(id).parentElement;if(!el)continue;el.style.cursor="pointer";el.setAttribute("role","button");
+  el.onclick=()=>{atlasMode="mine";atlasRare=rare;atlasOpen=true;renderCards();haptic(6);setTimeout(()=>$("c-types").scrollIntoView({behavior:"smooth",block:"start"}),50);if(rare)toast("💎 Tvoje vzácne typy","Vzácne, epické a legendárne")}}

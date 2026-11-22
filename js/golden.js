@@ -54,9 +54,11 @@ $("weekShare").onclick=()=>{
   if(w.dest){x.font="800 64px Unbounded, sans-serif";x.fillText("→ "+w.dest,W/2,1030)}
   x.font="900 150px Unbounded, sans-serif";x.fillText(nf(w.n)+" 👋",W/2,1300);
   x.font="600 44px Inter, sans-serif";x.fillText(ludia(w.n)+" zo Slovenska mu "+zam(w.n),W/2,1380);
+  // ✓ aj ja – ak som mu tento týždeň zamával
+  const me=w.hex&&COL.hex[w.hex];if(me){x.fillStyle="#2a1d00";rr(x,W/2-260,1420,520,84,42);x.fill();x.fillStyle="#ffcf4f";x.font="800 42px Inter, sans-serif";x.fillText("✓ Aj ja som mu zamával(a)",W/2,1476)}
   x.fillStyle="#2a1d00";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-440);
   x.font="600 36px Inter, sans-serif";x.fillText(APP_HOST,W/2,H-380);
-  c.toBlob(b=>b&&shareBlob(b,"lietadlo-tyzdna.png",`🥇 Najzamávanejšie lietadlo týždňa: ${w.call}${al?" ("+al+")":""} – ${zam(w.n)} mu ${w.n} ${ludia(w.n)} zo Slovenska! ✈️👋 ${appLink()}${TAGS}`),"image/png");
+  c.toBlob(b=>b&&shareBlob(b,"lietadlo-tyzdna.png",`🥇 Najzamávanejšie lietadlo týždňa: ${w.call}${al?" ("+al+")":""} – ${zam(w.n)} mu ${w.n} ${ludia(w.n)} zo Slovenska!${w.hex&&COL.hex[w.hex]?" Aj ja som mu zamával(a) 👋":""} ✈️ ${appLink()}${TAGS}`),"image/png");
 };
 HOOKS.social=HOOKS.social||[];
 HOOKS.social.push(D=>{GOLD.g=D.golden||null;goldRender();weekRender(D.weekTop)});

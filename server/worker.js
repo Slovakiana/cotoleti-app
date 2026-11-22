@@ -1029,7 +1029,8 @@ export class Sky extends DurableObject {
       if (!this.rate("gift:" + id, 3, 86400e3)) return json({error: "rate"}, 429);
       const code = b64u(crypto.getRandomValues(new Uint8Array(6))).replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
       this.sql.exec("INSERT INTO gifts(code, id, type, t) VALUES(?, ?, ?, ?)", code, id, ty, now);
-      return json({code});
+      const gl = this.row("SELECT n FROM rl WHERE k=?", "gift:" + id);
+      return json({code, left: gl ? Math.max(0, 3 - (gl.n | 0)) : null});
     }
     if (p === "/api/giftclaim" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), code = String(b.code || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
@@ -1197,10 +1198,10 @@ const he = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp
 function b64json(s) { try { const b = atob(String(s).replace(/-/g, "+").replace(/_/g, "/")); return JSON.parse(decodeURIComponent(Array.from(b, c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""))); } catch (e) { return null; } }
 async function sharePage(url, env, ctx) {
   const [, , kind, raw = ""] = url.pathname.split("/"), data = raw.slice(0, 1500);
-  const nm = v => cleanName(v, 20) || "Kamoš";
+  const nm = v => cleanName(v, 20) || "Kamarát";
   let title = "Čo to letí? ✈️ Zisti za 2 sekundy", desc = "Pozri hore a uvidíš, kam letí každé lietadlo nad tebou. Máva celé Slovensko.", img = "default", hash = "";
   if (kind === "v" && /^[\w-]+$/.test(data)) { const j = b64json(data) || {}; hash = "vyzva=" + data; img = "vyzva";
-    title = `⚔️ ${nm(j.n)} ťa vyzýva!`; desc = `Má ${Number(j.p) | 0} bodov a ${Number(j.c) | 0} ulovených lietadiel. Prekonáš ho?`; }
+    title = `⚔️ ${nm(j.n)} ťa vyzýva!`; desc = `Má ${Number(j.t) | 0} kartičiek lietadiel a ${Number(j.p) | 0} bodov. Prekonáš to?`; }
   else if (kind === "k" && /^[\w-]+$/.test(data)) { const j = b64json(data) || {}; hash = "kd=" + data; img = "duel";
     title = `🃏 ${nm(j.n)} ťa vyzýva na súboj kartičiek`; desc = "3 kolá, 3 lietadlá. Ktoré je rýchlejšie, väčšie, ďalej doletí? Trúfneš si?"; }
   else if (kind === "t" && /^[A-Z0-9]{6}$/.test(data)) { hash = "tim=" + data; img = "team"; let n = "";
@@ -1210,9 +1211,17 @@ async function sharePage(url, env, ctx) {
     title = `✈️ ${n ? nm(n) + " je na ceste" : "Let " + data.toUpperCase()} – zamávaj, keď poletí nad tebou`; desc = "Upozorníme ťa, keď bude nad tebou. Vyjdi von a zamávaj 👋"; }
   else if (kind === "santa") { hash = "santa"; img = "santa"; const m0 = cleanName(url.searchParams.get("m"), 24) || "", m = TOWNS.some(x => x[0] === m0) ? m0 : ""; let t = String(url.searchParams.get("cas") || url.searchParams.get("t") || "").replace(/[^0-9:]/g, "").slice(0, 5); if (!/^(1[5-9]|2[0-2]):[0-5][0-9]$/.test(t)) t = "";
     title = m && t ? `🎅 ${m}: Santa preletí 24. 12. o ${t}` : "🎅 Santa nad Slovenskom"; desc = m && t ? "A potom každých 12 minút. Nastavte si budík a mávajte spolu." : "24. 12. od 15:00 preletí nad každým z nás. Zamávaj mu!"; }
-  else if (kind === "p" && /^[0-9a-f]{6}$/.test(data)) { const q = k => { const v = cleanName(url.searchParams.get(k), 24) || ""; return k === "m" ? (TOWNS.some(t => t[0] === v) ? v : "") : /^[\p{L} .'-]{2,24}$/u.test(v) ? v : ""; }; const c = (url.searchParams.get("c") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 8), dd = q("d"), m = q("m");
+  else if (kind === "p" && /^[0-9a-f]{6}$/.test(data)) { hash = "p=" + data; const q = k => { const v = cleanName(url.searchParams.get(k), 24) || ""; return k === "m" ? (TOWNS.some(t => t[0] === v) ? v : "") : /^[\p{L} .'-]{2,24}$/u.test(v) ? v : ""; }; const c = (url.searchParams.get("c") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 8), dd = q("d"), m = q("m");
     title = `✈️ ${m ? m + ": práve letí" : "Práve letí"} ${c || "lietadlo"}${dd ? " → " + dd : ""}`; desc = "A čo letí nad tebou? Pozri hore."; }
-  else if (kind === "rok") { hash = "rok"; img = "m/rok"; title = "🇸🇰 Slovensko 2026 na oblohe"; desc = "Koľkokrát sme zamávali, ktoré lietadlo bolo najobľúbenejšie a ktorý kraj vyhral? Pozri súhrn roka."; }
+  else if (kind === "c" && /^[A-Z0-9]{2,5}$/.test(data)) {
+    // 🃏 kartička: vzácnosť, lesklá, poradie na Slovensku, prezývka
+    const tr = tierOf(data), sh = url.searchParams.get("s") === "1", no = Number(url.searchParams.get("n")) | 0, who = cleanName(url.searchParams.get("nk"), 16) || "";
+    img = "c/c-" + (sh ? "shiny" : tr); const RN = {c: "Bežná", u: "Nezvyčajná", r: "Vzácna", e: "Epická", l: "Legendárna"};
+    title = `${sh ? "✨ Lesklá" : "🃏 " + RN[tr]} kartička: ${TYPES_SRV[data] || data}${no ? " · č. " + no + " na Slovensku" : ""}`;
+    desc = `${who ? who + " jej zamával(a)" : "Zamával som mu"} – a čo letí nad tebou? Zbieraj kartičky lietadiel.`; }
+  else if (kind === "g" && /^[A-Za-z0-9]{6,8}$/.test(data)) { hash = "dar=" + data; img = "gift"; const ty = String(url.searchParams.get("ty") || "").replace(/[^A-Z0-9]/g, "").slice(0, 5);
+    title = `🎁 ${nm(url.searchParams.get("n"))} ti posiela kartičku${ty ? " " + (TYPES_SRV[ty] || ty) : ""}`; desc = "Otvor ju v appke Čo to letí? – a keď lietadlu sám zamávaš, bude celá tvoja."; }
+  else if (kind === "rok") { hash = "rok"; img = "m/rok"; title = `🇸🇰 Slovensko ${new Date().getUTCMonth() < 1 ? new Date().getUTCFullYear() - 1 : new Date().getUTCFullYear()} na oblohe`; desc = "Koľkokrát sme zamávali, ktoré lietadlo bolo najobľúbenejšie a ktorý kraj vyhral? Pozri súhrn roka."; }
   // obrázok s mestom pre veľké mestá (pripravené v og/m/)
   { const m = cleanName(url.searchParams.get("m"), 24) || ""; if ((kind === "santa" || kind === "p") && BIG_TOWNS.includes(m)) img = "m/" + (kind === "santa" ? "santa-" : "let-") + m.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]+/g, "-"); }
   const r = /^[A-Za-z0-9]{16}$/.test(url.searchParams.get("r") || "") ? url.searchParams.get("r") : "";
@@ -1245,7 +1254,10 @@ export default {
       catch (e) { return json({error: "busy"}, 503, {"Retry-After": "20"}); }
     }
     if (url.pathname === "/admin") return adminPage();
-    if (url.pathname.startsWith("/s/")) { if (!isoRate("s:" + (req.headers.get("cf-connecting-ip") || ""), 60)) return new Response("pomalšie", {status: 429}); return sharePage(url, env, ctx); }
+    if (url.pathname.startsWith("/s/")) {
+      // náhľady pre WhatsApp/Facebook/Telegram chodia z mála IP – tie nebrzdíme (pri virálnej vlne by odkazy ostali bez obrázka)
+      const bot = /facebookexternalhit|facebot|WhatsApp|Twitterbot|TelegramBot|Slackbot|Discordbot|LinkedInBot|Applebot|SkypeUriPreview|viber/i.test(req.headers.get("user-agent") || "");
+      if (!bot && !isoRate("s:" + (req.headers.get("cf-connecting-ip") || ""), 60)) return new Response("pomalšie", {status: 429}); return sharePage(url, env, ctx); }
     const raw = url.searchParams.get("url");
     if (!raw) {
       if (env.ASSETS) {

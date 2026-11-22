@@ -72,7 +72,7 @@ function wrShow(i){
   WR.i=Math.max(0,Math.min(WR.slides.length-1,i));
   [...$("wslides").children].forEach((el,k)=>el.style.display=k===WR.i?"flex":"none");
   [...$("wbars").children].forEach((el,k)=>el.firstChild.style.width=k<WR.i?"100%":"0");
-  const last=WR.i===WR.slides.length-1;$("wacts").style.display=last?"flex":"none";
+  const last=WR.i===WR.slides.length-1;$("wacts").style.display=last?"flex":"none";$("wshare").hidden=((WR.stats||weekStats()).n|0)<5; // s 1–4 lietadlami nikto nepostne
   clearInterval(WR.timer);WR.t0=Date.now();
   if(!last)WR.timer=setInterval(()=>{const p=(Date.now()-WR.t0)/5000;const b=$("wbars").children[WR.i];if(b)b.firstChild.style.width=Math.min(100,p*100)+"%";if(p>=1)wrShow(WR.i+1)},50);
   else{const b=$("wbars").children[WR.i];if(b)b.firstChild.style.width="100%";confetti(60);ping("r")}
@@ -94,8 +94,8 @@ $("wshare").onclick=async()=>{
   cells.forEach((q,i)=>{const cx=90+(i%2)*460,cy=960+Math.floor(i/2)*300;x.fillStyle="rgba(255,255,255,.12)";rr(x,cx,cy,440,260,40);x.fill();
     x.fillStyle="#fff";let f2=72;x.font=`800 ${f2}px Unbounded, sans-serif`;while(x.measureText(String(q[0])).width>380&&f2>34){f2-=6;x.font=`800 ${f2}px Unbounded, sans-serif`}x.fillText(String(q[0]),cx+34,cy+130);
     x.fillStyle="rgba(255,255,255,.8)";x.font="500 32px Inter, sans-serif";x.fillText(clip(x,q[1],380),cx+34,cy+200)});
-  x.textAlign="center";x.fillStyle="#6dffc7";x.font="900 64px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-300);
-  x.fillStyle="rgba(255,255,255,.85)";x.font="500 36px Inter, sans-serif";x.fillText("Aký spotter typ si ty? → "+APP_HOST,W/2,H-245);
+  x.textAlign="center";x.fillStyle="#6dffc7";x.font="900 64px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,1570);
+  x.fillStyle="rgba(255,255,255,.85)";x.font="500 36px Inter, sans-serif";x.fillText("Aký spotter typ si ty? → "+APP_HOST,W/2,1622);
   c.toBlob(b=>b&&shareBlob(b,"moja-obloha.png","Môj spotter typ: "+s.type.e+" "+s.type.n+" ✈️ Aký si ty? "+appLink()+TAGS),"image/png");
 };
 
@@ -124,6 +124,20 @@ if($("b-year")){
   $("b-year").onclick=yearOpen;
   $("yearClose").onclick=()=>$("yearM").classList.remove("on");
   $("yearShare").onclick=async()=>{
+    // 📸 obrázok do príbehu (1080×1920, obsah v bezpečnej zóne)
+    if(YEAR){const j=YEAR,W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+      const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0b4ea2");g.addColorStop(.55,"#0e1430");g.addColorStop(1,"#ee1c25");x.fillStyle=g;x.fillRect(0,0,W,H);
+      x.textAlign="center";x.fillStyle="#fff";x.font="800 52px Unbounded, sans-serif";x.fillText("🇸🇰 Slovensko "+j.y+" na oblohe",W/2,300);
+      x.font="500 40px Inter, sans-serif";x.fillStyle="rgba(255,255,255,.85)";x.fillText("Spolu sme zamávali",W/2,420);
+      x.font="900 150px Unbounded, sans-serif";x.fillStyle="#ffcf4f";x.fillText(nf(j.waves)+"×",W/2,580);
+      let y=720;const row=(a,b)=>{x.textAlign="left";x.fillStyle="#fff";x.font="600 42px Inter, sans-serif";x.fillText(a,150,y);x.textAlign="right";x.font="800 42px Inter, sans-serif";x.fillText(b,W-150,y);y+=70};
+      if(j.kraje&&j.kraje[0]){x.textAlign="center";x.font="700 36px Inter, sans-serif";x.fillStyle="rgba(255,255,255,.7)";x.fillText("VÍŤAZNÝ KRAJ",W/2,y);y+=70;row("🥇 "+(KRAJ[j.kraje[0].k]||KRAJ.XX)[2],nf(j.kraje[0].n));y+=30}
+      if(j.planes&&j.planes[0]){x.textAlign="center";x.font="700 36px Inter, sans-serif";x.fillStyle="rgba(255,255,255,.7)";x.fillText("LIETADLO ROKA",W/2,y);y+=70;row("✈️ "+(j.planes[0].call||j.planes[0].hex)+(j.planes[0].dest?" → "+j.planes[0].dest:""),nf(j.planes[0].n));y+=30}
+      x.textAlign="center";x.font="700 36px Inter, sans-serif";x.fillStyle="rgba(255,255,255,.7)";x.fillText("MÔJ ROK",W/2,y);y+=70;
+      row("🃏 "+Object.values(COL.types).filter(v=>v.n).length+" "+pl(Object.values(COL.types).filter(v=>v.n).length,"kartička","kartičky","kartičiek"),nf(COL.n)+" 👋");
+      x.textAlign="center";x.fillStyle="#6dffc7";x.font="900 52px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,1560);x.fillStyle="#fff";x.font="500 32px Inter, sans-serif";x.fillText(APP_HOST,W/2,1608);
+      const text=`🇸🇰 Slovensko ${j.y}: spolu sme lietadlám zamávali ${nf(j.waves)}×! ✈️ `+shareUrl("rok","")+TAGS;
+      c.toBlob(b=>b&&shareBlob(b,"slovensko-"+j.y+".png",text),"image/png");return}
     const url=shareUrl("rok",""),text=YEAR?`🇸🇰 Slovensko ${YEAR.y}: spolu sme lietadlám zamávali ${nf(YEAR.waves)}×! Ja mám ${nf(COL.n)} ${pl(COL.n,"úlovok","úlovky","úlovkov")} ✈️`:"🇸🇰 Slovensko na oblohe – súhrn roka";
     try{if(navigator.share){await navigator.share({title:"Slovensko na oblohe",text,url});return}}catch(e){if(e.name==="AbortError")return}
     try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho ďalej")}catch(e){}

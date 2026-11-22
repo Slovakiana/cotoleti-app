@@ -34,6 +34,7 @@ function cdLocalHandoff(){
   CD={mode:"handoff",p};
 }
 async function cdSendLink(){
+  if(typeof ensureNick==="function"&&!ensureNick())return;
   const seed=Math.floor(Math.random()*1e6),cats=[0,1,2].map(i=>CD_CATS[hash(String(seed)+i)%CD_CATS.length][0]);
   await ensureTok();const p={n:nick(),c:CD.sel,k:cats,s:seed,pid:(typeof PID!=="undefined"?PID:"")};
   const url=shareUrl("k",b64e(JSON.stringify(p)));

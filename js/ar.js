@@ -186,9 +186,14 @@ function startRec(opt={}){
 function stopRec(){try{if(AR.rec&&AR.rec.state==="recording")AR.rec.stop()}catch(e){}$("arRec").classList.remove("on")}
 function snapAR(){AR.cv.toBlob(b=>b&&shareBlob(b,"co-to-leti.png","Pozri, čo mi letí nad hlavou ✈️ "+(S.top?planeLink(S.top):appLink())+TAGS),"image/png")}
 
+// 🔗 Instagram pri zdieľaní obrázka zahodí text – ponúkni odkaz do schránky (ťuk = povolené kopírovanie)
+function linkCopyOffer(text){const m=String(text||"").match(/https?:\/\/\S+/);if(!m)return;let el=$("linkCopy");
+  if(!el){el=document.createElement("button");el.id="linkCopy";el.className="pill glass";document.body.appendChild(el)}
+  el.textContent="🔗 Skopírovať odkaz (na Instagram ako nálepku Odkaz)";el.hidden=false;clearTimeout(el._t);el._t=setTimeout(()=>el.hidden=true,9000);
+  el.onclick=async()=>{try{await navigator.clipboard.writeText(m[0]);toast("🔗 Odkaz je v schránke","V Instagrame ho vlož ako nálepku „Odkaz“")}catch(e){prompt("Skopíruj odkaz:",m[0])}el.hidden=true}}
 async function shareBlob(blob,name,text){
   const file=new File([blob],name,{type:blob.type});
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text});return}}catch(e){if(e.name==="AbortError")return}
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text});linkCopyOffer(text);return}}catch(e){if(e.name==="AbortError")return}
   const url=URL.createObjectURL(blob),isV=blob.type.startsWith("video");
   $("shareImg").style.display=isV?"none":"";$("shareVid").style.display=isV?"":"none";
   if(isV){$("shareVid").src=url;$("shareVid").play().catch(()=>{})}else $("shareImg").src=url;

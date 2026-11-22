@@ -119,6 +119,15 @@ await t("pripomienka série s číslom hodinu pred obvyklým časom", async () =
   const m = db.prepare("SELECT title FROM msgs WHERE id=?").get(id);
   assert.ok(m && /7 dní v rade/.test(m.title), JSON.stringify(m));
 });
+await t("náhľady: kartička, darček, lietadlo s hashom; crawler bez limitu", async () => {
+  const get = async (u, ua = "x") => { const r = new Request("https://x" + u, {headers: {"cf-connecting-ip": "8.8.8.8", "user-agent": ua}}); return (await W.fetch(r, env)).text(); };
+  const c = await get("/s/c/A388?s=1&n=4&nk=Janka");
+  assert.match(c, /Lesklá kartička/); assert.match(c, /č\. 4 na Slovensku/); assert.match(c, /og\/c\/c-shiny\.jpg/);
+  assert.match(await get("/s/g/ABC123?n=Janka&ty=A320"), /#dar=ABC123/);
+  assert.match(await get("/s/p/abc123?c=RYR1"), /#p=abc123/);
+  let last = ""; for (let i = 0; i < 70; i++) last = await get("/s/x/", "WhatsApp/2.23");
+  assert.match(last, /og:image/);
+});
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
   assert.deepEqual(codes.slice(0, 20).filter(c => c !== 200), [], codes.join(","));
