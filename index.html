@@ -381,7 +381,7 @@ body.moment #top{opacity:0;pointer-events:none}
 /* liga */
 .lgTabs{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.lgTabs::-webkit-scrollbar{display:none}
 .lgTabs button{flex:0 0 auto!important;padding:8px 12px!important;white-space:nowrap}
-body.kid #friendsBox,body.kid #teamCard,body.kid #b-duel,body.kid #duel,body.kid #b-cduel,body.kid #tmInvite,body.kid #duelFr,body.kid [data-mail],body.kid #pushAsk,body.kid #postReply,body.kid #trNotify{display:none!important}
+body.kid #friendsBox,body.kid #teamCard,body.kid #b-duel,body.kid #duel,body.kid #tmInvite,body.kid #duelFr,body.kid [data-mail],body.kid #pushAsk,body.kid #postReply,body.kid #trNotify{display:none!important}
 .wideB{width:100%;margin-top:10px;min-height:48px;justify-content:center}
 .inappBar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:120;padding:12px 44px 12px 14px;border-radius:18px;font-size:calc(13px*var(--fs,1));line-height:1.4;display:flex;flex-direction:column;gap:2px}
 .inappBar b{font-size:calc(14px*var(--fs,1))}.inappBar button{position:absolute;right:8px;top:8px;width:36px;height:36px;font-size:calc(16px*var(--fs,1));color:var(--mut)}
@@ -510,13 +510,13 @@ body:has(#onb:not(.hide)) #toast{visibility:hidden}
 .setSlots button{font:inherit;font-size:calc(12px*var(--fs,1));padding:7px 10px;border-radius:12px;border:1px solid var(--gline);background:rgba(255,255,255,.06);color:inherit}.setSlots button.got{background:rgba(109,255,199,.12)}
 .atlasAll{margin-top:4px}
 .cardHint{margin:8px 2px 0;font-size:calc(13.5px*var(--fs,1));font-weight:700;color:#fff;display:flex;gap:6px;flex-wrap:wrap}.cardHint:empty{display:none}.cardHint span{padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--gline)}.cardHint .new{background:rgba(255,79,216,.22);border-color:rgba(255,79,216,.5)}.cardHint .low{background:rgba(255,180,80,.16)}
-#shareM{z-index:96}.dyk{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06);font-size:13px;line-height:1.4;text-align:left}.dyk small{display:block;opacity:.7;margin-top:2px}.whyChk{margin:6px 0;text-align:left;display:grid;gap:2px}.whyChk .no{color:#ff9a8a;font-weight:800}.whyChk .na{opacity:.45}.whyDet{margin-top:8px;text-align:left;opacity:.8}.whyDet summary{cursor:pointer;font-weight:700}body.kid .rep{display:none!important}
+#shareM{z-index:96}body.kid .sr:has(#t-moment),body.kid .sr:has(#t-streakp){display:none!important}.cdPick button{position:relative}.cdPick button[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:11px;background:#6dffc7;color:#08122e;font-weight:900;font-size:13px;display:grid;place-items:center}.cdPick button.dim{opacity:.4}.cdV{display:block;text-align:center;font-size:15px;font-weight:900;margin-top:2px}.dyk{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06);font-size:13px;line-height:1.4;text-align:left}.dyk small{display:block;opacity:.7;margin-top:2px}.whyChk{margin:6px 0;text-align:left;display:grid;gap:2px}.whyChk .no{color:#ff9a8a;font-weight:800}.whyChk .na{opacity:.45}.whyDet{margin-top:8px;text-align:left;opacity:.8}.whyDet summary{cursor:pointer;font-weight:700}body.kid .rep{display:none!important}
 #fabWave:not(.on){visibility:hidden}
 #toast{top:calc(var(--top) + 8px)!important;bottom:auto!important;transform:translate(-50%,-24px);max-width:min(92vw,380px)}#toast.on{transform:translate(-50%,0)}
 body.moment #toast{top:calc(var(--top) + 50px)!important}
 .tog{box-sizing:content-box;border:6.5px solid transparent;background-clip:padding-box;margin:-6.5px 0}
 .btn,.ghost{min-height:44px}#lgTabs button{min-height:40px}#gSkip{padding:12px 16px}
-.kidLbl{display:flex;min-height:44px;align-items:center;gap:8px}#onbKid{width:22px;height:22px}#noGps{padding:12px 8px}
+.kidLbl{display:flex;min-height:44px;align-items:flex-start;gap:10px;text-align:left;border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:10px 12px;margin-top:10px}.kidLbl input{margin:2px 0 0!important;flex:none}#onbKid{width:22px;height:22px}#noGps{padding:12px 8px}
 .pageHead{position:relative}.gearBtn{position:absolute;right:0;bottom:40px;width:44px;height:44px;border-radius:50%;font-size:20px;display:grid;place-items:center;color:inherit;cursor:pointer}
 .gOpts{flex-direction:row!important;flex-wrap:wrap}.gOpts button{flex:1 1 30%;padding:10px 8px!important;font-size:calc(14px*var(--fs,1))!important;text-align:center!important;min-height:44px}
 body[data-sky=d] .glass,body[data-sky=g] .glass{background:linear-gradient(180deg,rgba(8,16,48,.42),rgba(8,16,48,.28))}
@@ -578,10 +578,10 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   </div>
   <div class="onbLive" id="onbLive"></div>
   <button class="cta" id="go">📍 Povoliť polohu a ukázať oblohu</button>
-  <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
-  <label class="fine kidLbl"><input type="checkbox" id="onbKid"> Detský režim (do 16 rokov) · bez prezývky, pozdravov, kamarátov a upozornení</label>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
+  <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
+  <label class="fine kidLbl"><input type="checkbox" id="onbKid"> <span><b>🧒 Hrá dieťa (do 16 rokov)</b><br>bez prezývky, pozdravov, kamarátov a upozornení · rodič nastaví PIN</span></label>
 </div>
 
 <header id="top">
@@ -766,6 +766,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <section class="card glass">
     <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
     <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
+    <div class="lookSub" id="famScore" style="text-align:center"></div>
     <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
   <details class="more glass" id="achBox">
@@ -892,7 +893,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <b>Na čo a na akom základe.</b> Aby fungovalo mávanie, rebríčky, pošta a ochrana súťaží (oprávnený záujem a poskytovanie služby), upozornenia len s tvojím súhlasom (dá sa kedykoľvek vypnúť).<br><br>
   <b>Ako dlho.</b> Mávnutia, pozdravy a denné rebríčky 8 dní · denné mesto a kraj do polnoci · záznam o návštevách 35 dní · upozornenia 90 dní od poslednej obnovy · správy upozornení 30 dní · sledovaný let 36 hodín · nahlásenia 30 dní · id zariadenia a prezývka do 12 mesiacov nečinnosti · tím, kým ho neopustíš. Body a zbierka sú len v tvojom mobile.<br><br>
   <b>Deti.</b> Ak máš menej ako 16 rokov, zapni v nastaveniach „Detský režim (do 16 rokov)“ – appka potom nepoužíva prezývku, pozdravy, kamarátov ani upozornenia.<br><br>
-  <b>Kamaráti a pozdravy.</b> Kamarátom sa stanete len cez pozvánku platnú 24 hodín a obaja to potvrdíte; v záložke Ja ho kedykoľvek odoberieš. Pozdravy od cudzích ukazujú len kraj odosielateľa, deti ich nedostávajú.<br><br>
+  <b>Kamaráti a pozdravy.</b> Kamarátom sa stanete len cez pozvánku platnú 7 dní a obaja to potvrdíte; v záložke Ja ho kedykoľvek odoberieš. Pozdravy od cudzích ukazujú len kraj odosielateľa, deti ich nedostávajú.<br><br>
   <b>Tvoje práva.</b> V nastaveniach si údaje stiahneš („Moje údaje“) alebo zmažeš („Zmazať moje údaje“ – zo servera aj z mobilu, token prestane platiť). Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
   <b>Komu sa dáta dostanú.</b> Cloudflare (server a databáza), GitHub (hosting appky), Apple/Google/Mozilla (doručenie upozornení, len ak ich zapneš), Google Fonts a CDN unpkg/jsDelivr/cdnjs (písmo a knižnice mapy a satelitov – vidia tvoju IP pri stiahnutí). Niektorí sídlia v USA (EU-US Data Privacy Framework). Dáta o lietadlách sťahuje náš server bez tvojich údajov.<br><br>
   <b>Pravidlá.</b> Nepoužívaj skutočné meno, školu ani triedu. Nikomu nesľubuj stretnutie. Všetko podozrivé nahlás 🚩. Prezývka ani názov tímu nesmú byť urážlivé ani obsahovať cudzie osobné údaje – nevhodné mená server odmieta a po nahlásení skryje. Zlaté lietadlo sa žrebuje zo všetkých, ktorí mu zamávali – odmenou sú len body v hre, žiadne ceny; pri podozrení z podvodu body neuznáme. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolinkí sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
@@ -954,25 +955,25 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=40"></script>
-<script src="js/ui.js?v=40"></script>
-<script src="js/ar.js?v=40"></script>
-<script src="js/space.js?v=40"></script>
-<script src="js/weather.js?v=40"></script>
-<script src="js/extras.js?v=40"></script>
-<script src="js/social.js?v=40"></script>
-<script src="js/wrapped.js?v=40"></script>
-<script src="js/push.js?v=40"></script>
-<script src="js/track.js?v=40"></script>
-<script src="js/towns.js?v=40"></script>
-<script src="js/catalog.js?v=40"></script>
-<script src="js/cards.js?v=40"></script>
-<script src="js/mail.js?v=40"></script>
-<script src="js/golden.js?v=40"></script>
-<script src="js/teams.js?v=40"></script>
-<script src="js/duel.js?v=40"></script>
-<script src="js/sound.js?v=40"></script>
-<script src="js/santa.js?v=40"></script>
-<script src="js/main.js?v=40"></script>
+<script src="js/core.js?v=41"></script>
+<script src="js/ui.js?v=41"></script>
+<script src="js/ar.js?v=41"></script>
+<script src="js/space.js?v=41"></script>
+<script src="js/weather.js?v=41"></script>
+<script src="js/extras.js?v=41"></script>
+<script src="js/social.js?v=41"></script>
+<script src="js/wrapped.js?v=41"></script>
+<script src="js/push.js?v=41"></script>
+<script src="js/track.js?v=41"></script>
+<script src="js/towns.js?v=41"></script>
+<script src="js/catalog.js?v=41"></script>
+<script src="js/cards.js?v=41"></script>
+<script src="js/mail.js?v=41"></script>
+<script src="js/golden.js?v=41"></script>
+<script src="js/teams.js?v=41"></script>
+<script src="js/duel.js?v=41"></script>
+<script src="js/sound.js?v=41"></script>
+<script src="js/santa.js?v=41"></script>
+<script src="js/main.js?v=41"></script>
 </body>
 </html>

@@ -449,7 +449,7 @@ $("mset").onclick=()=>{
 };
 $("mgps").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 let resetArm=0;
-$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);renderCol();$("b-reset").textContent="Vymazané";toast("Zbierka vymazaná","Začínaš od nuly")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
+$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať zbierku"))return;COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);renderCol();$("b-reset").textContent="Vymazané";toast("Zbierka vymazaná","Začínaš od nuly")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
 $("b-pos").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 $("b-man").onclick=()=>{showCities(true)};
 $("sky").addEventListener("click",skyTap);
@@ -519,6 +519,7 @@ $("b-privacy").onclick=openPriv;$("f-privacy").onclick=openPriv;$("onb-privacy")
 let forgetArm=0;
 $("b-forget").onclick=async()=>{
   if(Date.now()-forgetArm>4000){forgetArm=Date.now();$("b-forget").textContent="Naozaj? Ťukni znova";return}
+  if(!kidPinOk("zmazať údaje"))return;
   try{if(typeof apiPost==="function")await apiPost("/api/forget",{})}catch(e){}
   try{const r=await navigator.serviceWorker?.getRegistration();const sub=await r?.pushManager?.getSubscription();await sub?.unsubscribe()}catch(e){}
   try{await caches.delete("ctl-id")}catch(e){}
@@ -595,7 +596,7 @@ async function xferClaim(){
     toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);
   }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
 }
-$("b-transfer").onclick=xferMake;$("b-claim").onclick=xferClaim;$("xClose").onclick=()=>$("xM").classList.remove("on");
+$("b-transfer").onclick=()=>{if(kidPinOk("prenos zbierky"))xferMake()};$("b-claim").onclick=()=>{if(kidPinOk("prenos zbierky"))xferClaim()};$("xClose").onclick=()=>$("xM").classList.remove("on");
 /* návod na pridanie na plochu */
 function installGuide(){
   const ios=/iPhone|iPod/.test(UA)||isIPad,crios=/CriOS/.test(UA);
@@ -614,8 +615,15 @@ try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
 const KID=()=>LS.get("ctl_kid",false);
 function kidApply(){const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);$("nick").disabled=k;if(k){LS.set("ctl_nick","");$("nick").value="";LS.set("ctl_pushAsked",true)}}
 function kidSet(on){LS.set("ctl_kid",on);kidApply();if(typeof apiPost==="function")apiPost("/api/kid",{on:on?1:0}).catch(()=>{})}
-$("t-kid").onclick=()=>{if(KID()&&!confirm("Naozaj máš 16 alebo viac rokov? Ak nie, nechaj tento režim zapnutý – chráni ťa."))return;kidSet(!KID());haptic(6)};
-if($("onbKid"))$("onbKid").onchange=e=>kidSet(e.target.checked);
+// 🔒 rodičovský PIN: chráni vypnutie detského režimu, prenos zbierky a mazanie
+const pinH=p=>String(hash("cotoleti-pin:"+p));
+function kidPinSet(){if(LS.get("ctl_kpin",""))return;const p=prompt("Rodič: nastav 4-miestny PIN.\nBude treba na vypnutie detského režimu, prenos a mazanie zbierky.","");if(p&&/^\d{4}$/.test(p.trim()))LS.set("ctl_kpin",pinH(p.trim()));else if(p!==null)toast("PIN musí mať 4 číslice","Nastavíš ho pri ďalšom zapnutí")}
+function kidPinOk(what){const h=LS.get("ctl_kpin","");if(!KID()||!h)return true;const p=prompt("🔒 Rodičovský PIN ("+what+"):","");if(p===null)return false;if(pinH(String(p).trim())===h)return true;toast("🔒 Nesprávny PIN","Požiadaj rodiča");haptic([60,40,60]);return false}
+$("t-kid").onclick=()=>{
+  if(KID()){if(LS.get("ctl_kpin","")){if(!kidPinOk("vypnúť detský režim"))return}else if(!confirm("Naozaj máš 16 alebo viac rokov? Ak nie, nechaj tento režim zapnutý – chráni ťa."))return;kidSet(false);LS.set("ctl_kpin","")}
+  else{kidSet(true);setTimeout(kidPinSet,300)}
+  haptic(6)};
+if($("onbKid"))$("onbKid").onchange=e=>{kidSet(e.target.checked);if(e.target.checked)setTimeout(kidPinSet,300)};
 kidApply();
 $("b-mydata").onclick=async()=>{
   try{const r=await apiPost("/api/mydata",{});const j=await r.json();

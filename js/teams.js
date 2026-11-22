@@ -37,7 +37,9 @@ $("teamBox").onclick=async e=>{
 ACH.push({id:"team",i:"👥",n:"Tímový hráč",c:()=>false});
 HOOKS.view.push(v=>{if(v==="col")teamRender()});
 HOOKS.social=HOOKS.social||[];HOOKS.social.push(()=>{if(S.view==="col")teamRender()});
-function tmFromHash(){const m=location.hash.match(/tim=([A-Za-z0-9]{6})/);if(!m)return;LS.set("ctl_teamInvite",m[1].toUpperCase());
+function tmFromHash(){const m=location.hash.match(/tim=([A-Za-z0-9]{6})/);if(!m)return;
+  if(typeof KID==="function"&&KID()){try{history.replaceState(null,"",location.pathname)}catch(e){}setTimeout(()=>toast("👥 Pozvánka do tímu","V detskom režime sa do tímov cez odkaz nepridáva"),1500);return}
+  LS.set("ctl_teamInvite",m[1].toUpperCase());
   setTimeout(()=>{toast("👥 Pozvánka do tímu","Kód "+m[1].toUpperCase()+" – ťukni na Pridať sa");setView("col");teamRender();setTimeout(()=>$("teamCard").scrollIntoView({behavior:"smooth"}),300)},1500);
   try{history.replaceState(null,"",location.pathname)}catch(e){}}
 tmFromHash();addEventListener("hashchange",tmFromHash);

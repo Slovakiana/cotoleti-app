@@ -75,6 +75,8 @@ const MAXS={spd:2400,range:16100,span:79.8,len:76.3};
 /* celá kartička ako SVG (rovnaká v appke aj pri zdieľaní) */
 // kúpené rámy z obchodu (vonkajší okraj kartičky)
 const FRAMES_SHOP={fr_tatry:["#eef4ff","#5b7da8"],fr_dunaj:["#5fd3f0","#0a4a7a"],fr_noc:["#ffcf4f","#1b1f4a"]};
+// skráti text po slove (nie uprostred slova)
+const cutW=(t,n)=>{t=String(t||"");if(t.length<=n)return t;const c=t.slice(0,n);const i=Math.max(c.lastIndexOf(" "),c.lastIndexOf("-"));return (i>n/2?c.slice(0,i):c).replace(/[-\s]+$/,"")+"…"};
 function cardSVG(code,v,opt={}){
   const c=catGuess(code),r=typeTier(code);
   const owned=!!v,shiny=owned&&v.shiny,night=owned&&v.night&&!shiny,gold=owned&&v.gold,id=(opt.id||"c")+code.replace(/\W/g,"");
@@ -135,7 +137,7 @@ function cardSVG(code,v,opt={}){
   s+=`<line x1="40" x2="560" y1="766" y2="766" stroke="#fff" stroke-opacity=".1"/>
     <text x="40" y="800" font-size="22" fill="${fr[0]}">${RAR_SYM[r]}</text>
     <text x="70" y="798" font-size="15" font-weight="700" fill="#cfd8ff">${RAR[r].n}</text>
-    <text x="300" y="798" text-anchor="middle" font-size="13" fill="#8a94b8">${SVGE(v.fp&&v.fp.town?"1. úlovok: "+v.fp.town.slice(0,14)+(v.fp.al&&AIRLINES[v.fp.al]?" · "+AIRLINES[v.fp.al].slice(0,12):""):v.n?"zamávané "+v.n+"× · "+new Date(v.first||Date.now()).toLocaleDateString("sk-SK"):"darovaná")}</text>
+    <text x="300" y="798" text-anchor="middle" font-size="13" fill="#8a94b8">${SVGE(v.fp&&v.fp.town&&!(typeof KID==="function"&&KID())?"1. úlovok: "+cutW(v.fp.town,16)+(v.fp.al&&AIRLINES[v.fp.al]?" · "+AIRLINES[v.fp.al].slice(0,12):""):v.n?"zamávané "+v.n+"× · "+new Date(v.first||Date.now()).toLocaleDateString("sk-SK"):"darovaná")}</text>
     <text x="560" y="798" text-anchor="end" font-size="14" font-weight="700" fill="#8a94b8">S1 · ${no}</text></svg>`;
   return s;
 }
@@ -212,7 +214,8 @@ function cardExtras(k,v){
   const verL=v.ver?`<div class="verOk">✓ Overená${v.seq?" · č. "+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená · <button data-why="1" style="display:inline;margin:0">🔎 Prečo?</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:"?"}</small></span>`).join("")}</div>`;
-  if(v.fp)h+=`<div class="lookSub">🧾 Prvý úlovok: ${v.fp.town?esc(v.fp.town):""}${v.fp.al&&AIRLINES[v.fp.al]?" · "+esc(AIRLINES[v.fp.al]):""}${v.fp.dest?" → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
+  // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
+  if(v.fp&&(v.fp.dest||v.fp.alt||v.fp.t))h+=`<div class="lookSub">🧾 Pri prvom úlovku${v.fp.t?" ("+new Date(v.fp.t).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric",year:"numeric"})+")":""}${v.fp.dest?" letel → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
   if(al.length)h+=`<div class="lookSub">🎨 Aerolinky na tejto kartičke: ${al.map(x=>esc(AIRLINES[x]||x)).join(", ")}</div>`;
   h+=`<div class="cardBtns">`;
   const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;

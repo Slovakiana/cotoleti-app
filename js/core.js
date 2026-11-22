@@ -234,12 +234,12 @@ function quip(a,m){
   if(dc==="SK")return pick(V?["Ľeci domu. Mamka už vari. 🍲","Ľeci na Slovensko. Vitajce doma!"]:["Letí domov na Slovensko. Mama už varí. 🍲","Návrat domov. Bryndzové halušky už čakajú. 🧀"]);
   if(dc){
     if(dc==="GB")return pick(["Do Londýna. Dážď a čaj s mliekom v cene letenky.","Do Británie. Jazdia vľavo, pozor na to."]);
-    if(dc==="TR"||dc==="EG"||dc==="TN")return pick(["All inclusive, náramok na ruke, prvý drink o 9:00. 🍹","Dovolenka na pláži, kým ty tu škrabeš námrazu zo skla.","Smer: ležadlo pri bazéne. Uterák už je tam od šiestej."]);
+    if(dc==="TR"||dc==="EG"||dc==="TN")return pick([(typeof KID==="function"&&KID())?"All inclusive, náramok na ruke a bazén od rána. 🏖️":"All inclusive, náramok na ruke, prvý drink o 9:00. 🍹","Dovolenka na pláži, kým ty tu škrabeš námrazu zo skla.","Smer: ležadlo pri bazéne. Uterák už je tam od šiestej."]);
     if(dc==="ES"||dc==="PT")return pick(["Niekto letí za slnkom, kým ty tu mrzneš. ☀️","Do Španielska. Siesta až do večera.","Tapas, more, 25 stupňov. Nezávidíme. (Závidíme.)"]);
     if(dc==="AE"||dc==="QA")return pick(["Do Dubaja. Fotky z hotela budú na IG do hodiny. 🏙️","Púšť, mrakodrapy a klimatizácia na 18 °C."]);
     if(dc==="FR")return /paris/i.test(city)?"Do Paríža. Croissant za 4 €, výhľad na Eiffelovku zadarmo. 🥐":"Do Francúzska. Bonjour a syry, čo cítiť cez tri izby. 🧀";
     if(dc==="US"||dc==="CA")return pick(["Do Ameriky. Osem hodín filmov za sebou. 🍿","Za veľkú mláku. Hamburger tam bude dvakrát väčší."]);
-    if(dc==="CZ")return pick(["Do Česka. Bratia Česi pozdravujú! 🍺","Do Prahy. Trdelník pre turistov, pivo pre všetkých."]);
+    if(dc==="CZ")return pick([(typeof KID==="function"&&KID())?"Do Česka. Bratia Česi pozdravujú! 👋":"Do Česka. Bratia Česi pozdravujú! 🍺",(typeof KID==="function"&&KID())?"Do Prahy. Trdelník pre všetkých! 🥨":"Do Prahy. Trdelník pre turistov, pivo pre všetkých."]);
     if(dc==="AT")return pick(["Do Rakúska. Rakúske letisko pre polovicu Bratislavy.","Do Viedne. Bližšie by bolo autobusom. 🚌"]);
     if(dc==="IT")return pick(["Do Talianska. Pizza, ale bez ananásu, prosím. 🍕","Do Talianska. Espresso na stojáka za 1,20 €."]);
     if(dc==="GR"||dc==="CY")return pick(["Do Grécka. Gyros, more a sirtaki. 🇬🇷","Grécke ostrovy. Biele domčeky, modré okenice."]);
@@ -255,7 +255,7 @@ function quip(a,m){
   if(/Wizz/.test(al))return pick(["Wizz Air. Letenka 9,99 €, kufor 79 €. 💜","Wizz Air. Fialová, lacná, plná."]);
   if(/DHL|UPS|FedEx|Cargolux|Cargo|Kalitta|Atlas|ASL/.test(al))return pick(["Nákladné. Možno v ňom je tvoj balík z Číny. 📦","Nákladný let. Žiadni pasažieri, len krabice."]);
   if(/Emirates|Qatar|Etihad|Singapore|Cathay/.test(al))return "Vzadu si niekto práve berie teplý uterák. Luxus. ✨";
-  if(/NetJets|VistaJet/.test(al)||rarity(a)==="u"&&/^(GLF|GL|CL|FA|C68|C700|PC24|LJ)/.test(a.type||""))return pick(["Súkromný jet. Niekto má lepší deň ako ty. 💸","Biznis jet. Šampanské je v cene."]);
+  if(/NetJets|VistaJet/.test(al)||rarity(a)==="u"&&/^(GLF|GL|CL|FA|C68|C700|PC24|LJ)/.test(a.type||""))return pick(["Súkromný jet. Niekto má lepší deň ako ty. 💸",(typeof KID==="function"&&KID())?"Biznis jet. Váži ako 10 slonov 🐘":"Biznis jet. Šampanské je v cene."]);
   if(a.alt!=null&&a.alt<1500)return pick(["Nízko! Buď pristáva, alebo práve vzlietol. 🛬","Tak nízko, že by si mu skoro zamával."]);
   if(V)return pick(["Tam hore teraz dachto bojuje o opierku na ruku.","Machňi. Možno če uvidzi.","Tam hore je −50 °C. A ty še šťažuješ na zimu?"]);
   return pick(["Tam hore teraz niekto bojuje o opierku na ruku. 💺","Mávni. Možno ťa uvidí cez okno. 👋","Pilot práve hlási: „Vpravo pod nami Slovensko.“","Tam hore je −50 °C. A ty sa sťažuješ na zimu?","Niekto tam práve otvára vrecúško arašidov. 🥜","Tam hore už rozdávajú kávu. Ty si si ju tiež zaslúžiš. ☕"]);

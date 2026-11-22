@@ -239,7 +239,7 @@ function checkDuelLink(){
     const canFr=r.pid&&/^[A-Za-z0-9]{16}$/.test(r.pid)&&/^[A-Za-z0-9]{10}$/.test(r.fk||"");
     $("duelFr").style.display=canFr?"":"none";
     $("duelFr").style.display=canFr&&!LS.get("ctl_kid",false)?"":"none";
-    $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(async x=>{const j=await x.json().catch(()=>({}));if(x.ok)toast("👯 Ste kamaráti","Uvidíte, ktorým lietadlám ste dnes mávali. Odobrať sa dá v sekcii Ja.");else toast("Pozvánka už neplatí","Platí 24 hodín – popros o novú")}).catch(()=>{});$("duelM").classList.remove("on")};
+    $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(async x=>{const j=await x.json().catch(()=>({}));if(x.ok)toast("👯 Ste kamaráti","Uvidíte, ktorým lietadlám ste dnes mávali. Odobrať sa dá v sekcii Ja.");else toast("Pozvánka už neplatí","Platí 7 dní – popros o novú")}).catch(()=>{});$("duelM").classList.remove("on")};
     $("duelT").textContent=r.n+" ťa vyzýva!";
     $("duelS").textContent=`Má ${r.p} b, ${r.c} ${pl(r.c,"úlovok","úlovky","úlovkov")} a ${r.t} ${pl(r.t,"typ","typy","typov")} (level ${r.l}). Prekonáš to?`;
     $("duelM").classList.add("on");
