@@ -112,3 +112,17 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - Divízie po 30 hráčoch v pásmach oblohy, domovské mesto na sezónu
 - Lov špeciálnych náterov (treba overený zoznam registrácií), prvé lety z BTS/KSC a SIAF cez /admin (dátumy zadá majiteľ)
 - Lokálna vzácnosť podľa kraja (z dát po pár týždňoch prevádzky)
+
+## v36–v47 (3. preklikávací run, 10 agentov) – hotové
+- KRITICKÉ: identita sa pri každom spustení menila (regex 30 vs. 26 znakov) → neoverené kartičky, viac účtov; séria dní sa každý deň vracala na 1.
+- Overenie: zoznam podmienok v „Prečo?“, odložené mávnutia podľa polohy v čase mávnutia, upozornenie keď nízke lietadlo vystúpi, chip na overenie typu, prah 8/10°, jedno prihlásenie naraz.
+- Texty: skloňovanie (pl, zam), jednotné názvy (lesklá, č. N na Slovensku, záložka Ja), ľudské dôvody, Vieš, že…?
+- Deti a rodina: rodičovský PIN, rodinné profily, súboj na jednom mobile, rozstrel, odveta, týždenné skóre, výsledok súboja vyzývateľovi.
+- Okná: zatváranie potiahnutím/ťuknutím vedľa, moment s vysvetlením a zmenšiteľným pásom, kompaktný iPhone SE.
+- Liga: pravidlá, poradie a odstup, starosta po uzávierke + sieň slávy, ochrana pred skriptami, dôvod mimo zlatej posádky.
+- Upozornenia: max. 4 denne, séria s číslom v obvyklom čase, predbehol ťa kamarát, 3 dni do konca starostu, vzácne lietadlo 1× denne (prepínač).
+- Zbierka: hľadaná kartička dňa, 👀 dnes preletelo, strážca typu 🔔, popros kamaráta, výber do vitríny, rámy fungujú.
+- Návyky: pečiatky Po–Ne, zmrazenie na viac dní, záchrana série, stupne sezóny, týždenný príbeh so Slovenskom.
+- Zdieľanie: osobná kartička, IG bezpečné zóny, odkaz do schránky, /s/c a /s/g náhľady, štafeta „bude nad mestom“, uvítací darček, +100 míľ za pozvaného, súhrn roka obrázok.
+- Výkon: plná pamäť, odložený zápis zbierky, posledná známa obloha, stav zdrojov, aktualizácia verzie, tests/bump.mjs.
+- Nedá sa bez siete v build prostredí: lokálne satellite.js a písma (Google Fonts) – zostáva.
