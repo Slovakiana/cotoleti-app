@@ -35,7 +35,7 @@ function cdLocalHandoff(){
 }
 async function cdSendLink(){
   const seed=Math.floor(Math.random()*1e6),cats=[0,1,2].map(i=>CD_CATS[hash(String(seed)+i)%CD_CATS.length][0]);
-  await ensureTok();const p={n:nick(),c:CD.sel,k:cats,s:seed};
+  await ensureTok();const p={n:nick(),c:CD.sel,k:cats,s:seed,pid:(typeof PID!=="undefined"?PID:"")};
   const url=shareUrl("k",b64e(JSON.stringify(p)));
   const text=`⚔️ ${p.n} ťa vyzýva na súboj kartičiek lietadiel v appke Čo to letí? ✈️ Trúfneš si?`;
   cdClose();
@@ -83,6 +83,8 @@ function cdResult(){
   if(paid){grantAch("cardduel");COL.pts+=15;dd.n++;dd.who.push(p.n);LS.set("ctl_kdDay",dd);LS.set("ctl_col",COL);confetti(100)}else if(w&&!p.local)grantAch("cardduel");
   if(!done.includes(key)){done.push(key);LS.set("ctl_kdDone",done.slice(-200))}
   CD.res=`${me}:${them}`;
+  // výsledok sa dozvie aj vyzývateľ (raz za súboj)
+  if(!p.local&&p.pid&&/^[A-Za-z0-9]{16}$/.test(p.pid)&&!done.includes(key+"r")&&typeof apiPost==="function"){done.push(key+"r");LS.set("ctl_kdDone",done.slice(-200));apiPost("/api/duelres",{to:p.pid,res:`${me}:${them}`}).catch(()=>{})}
   // 👨‍👩‍👧 bilancia s týmto súperom tento týždeň (len v mobile)
   const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),FS=LS.get("ctl_famScore",{}),nm=p.local?"Hráč 1":p.n;
   if(!done.includes(key+"s")){const r=FS[nm]&&FS[nm].wk===wk?FS[nm]:{wk,w:0,l:0,d:0};if(w)r.w++;else if(draw)r.d++;else r.l++;FS[nm]=r;LS.set("ctl_famScore",FS);done.push(key+"s");LS.set("ctl_kdDone",done.slice(-200))}
@@ -114,7 +116,7 @@ $("cdBox").onclick=async e=>{
     // výsledok + odveta: nový odkaz s mojimi kartami
     const [them,me]=CD.score,res=me>them?"výhra":me===them?"remíza":"prehra";
     const seed=Math.floor(Math.random()*1e6),cats=[0,1,2].map(i=>CD_CATS[hash(String(seed)+i)%CD_CATS.length][0]);
-    await ensureTok();const url=shareUrl("k",b64e(JSON.stringify({n:nick(),c:CD.mine,k:cats,s:seed})));
+    await ensureTok();const url=shareUrl("k",b64e(JSON.stringify({n:nick(),c:CD.mine,k:cats,s:seed,pid:(typeof PID!=="undefined"?PID:"")})));
     const text=`⚔️ Súboj kartičiek s hráčom ${CD.p.n}: ${res} ${me}:${them}. Odveta? ✈️`;
     try{if(navigator.share){await navigator.share({text,url});return}}catch(er){if(er.name==="AbortError")return}
     try{await navigator.clipboard.writeText(text+" "+url);toast("Skopírované 📋","Pošli to súperovi")}catch(er){}return}
@@ -127,7 +129,7 @@ function cdFromHash(){const m=location.hash.match(/kd=([\w-]+)/);if(!m)return;if
   if(typeof KID==="function"&&KID()){try{history.replaceState(null,"",location.pathname)}catch(e){}return}
   try{const p=JSON.parse(b64d(m[1]));if(!Array.isArray(p.c)||p.c.length!==3||!Array.isArray(p.k)||p.k.length!==3)return;
     if(!p.c.every(x=>CAT[x])||new Set(p.c).size!==3)return; // len skutočné kartičky z atlasu, každá raz
-    p.n=safeNick(p.n);p.c=p.c.map(x=>String(x).slice(0,6));p.k=p.k.map(x=>CD_CATS.find(c=>c[0]===x)?x:"spd");
+    p.n=safeNick(p.n);p.pid=/^[A-Za-z0-9]{16}$/.test(p.pid||"")?p.pid:"";p.c=p.c.map(x=>String(x).slice(0,6));p.k=p.k.map(x=>CD_CATS.find(c=>c[0]===x)?x:"spd");
     setTimeout(()=>{cdOpen(`<div style="text-align:center;font-size:56px">⚔️</div><div class="cdScore" style="font-size:26px">${esc(p.n)} ťa vyzýva na súboj kartičiek!</div>
       <div class="lookSub" style="text-align:center">3 kolá. V každom dostaneš kategóriu a vyberieš kartu, ktorou prebiješ jeho skrytú kartu.</div>
       <div class="acts"><button class="btn pri" id="cdGo">Hrať ⚔️</button></div>`);
@@ -140,3 +142,8 @@ cdFromHash();addEventListener("hashchange",cdFromHash);
 function famScoreRender(){const el=$("famScore");if(!el)return;const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),FS=LS.get("ctl_famScore",{});
   const rows=Object.entries(FS).filter(([,r])=>r.wk===wk).slice(0,4);el.innerHTML=rows.length?"Tento týždeň: "+rows.map(([n,r])=>`${esc(n)} <b>${r.w}:${r.l}</b>`).join(" · "):""}
 HOOKS.view.push(v=>{if(v==="col")famScoreRender()});
+
+// ⚔️ výsledky súbojov, ktoré dohrali tvoji súperi (zo servera)
+HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{for(const x of (D&&D.duelIn)||[]){const [a,b]=String(x.res).split(":").map(Number);
+  const FS=LS.get("ctl_famScore",{}),wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),r=FS[x.n]&&FS[x.n].wk===wk?FS[x.n]:{wk,w:0,l:0,d:0};if(a>b)r.l++;else if(a<b)r.w++;else r.d++;FS[x.n]=r;LS.set("ctl_famScore",FS);
+  toast("⚔️ "+x.n+(a>b?" ťa porazil(a) ":a<b?" prehral(a) s tebou ":" remizoval(a) ")+x.res,"Súboj kartičiek – daj si odvetu v záložke Ja");famScoreRender()}});

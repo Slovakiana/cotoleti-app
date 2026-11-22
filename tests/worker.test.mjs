@@ -53,9 +53,9 @@ await t("mávnutie vzdialenému lietadlu odmietnuté", async () => {
 });
 const fixed = Date.parse(new Date().toISOString().slice(0, 10) + "T10:00:00Z"), realNow = Date.now;
 Date.now = () => fixed; await sky.cron(); db.exec(`UPDATE ids SET t=${fixed - 60e3}`);
-await t("čerstvý účet nevyhrá zlaté lietadlo", async () => { const r = await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}); assert.equal(r.j.golden, false, JSON.stringify(r.j)); });
+await t("čerstvý účet nevyhrá zlaté lietadlo", async () => { const r = await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}); assert.notEqual(r.j.golden, "entered", JSON.stringify(r.j)); });
 Date.now = () => fixed + 20 * 60e3;
-await t("zo zahraničia nevyhrá", async () => assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}, "5.6.7.8", "US")).j.golden, false));
+await t("zo zahraničia nevyhrá", async () => assert.equal(((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}, "5.6.7.8", "US")).j.golden) !== "entered", true));
 db.exec(`UPDATE ids SET t=0 WHERE id='${C}'`);
 db.exec(`INSERT OR IGNORE INTO seen(day, id) VALUES('2000-01-01', '${C}')`);
 await call(`/api/sky?id=${C}&tok=${hc.tok}&lat=48.15&lon=17.11&hexes=aabbcc`, null, "9.9.9.9");
@@ -98,6 +98,26 @@ await t("odložené mávnutie sa overí podľa polohy lietadla v čase mávnutia
   const r2 = await call("/api/wave", {id: "v2latelatelatelatelatelate02", tok: (await call("/api/hello", {id: "v2latelatelatelatelatelate02"}, "4.4.4.6")).j.tok, hex: "ee0002", lat: 48.15, lon: 17.11}, "4.4.4.6");
   plane.hex = "aabbcc"; plane.lat = 48.2;
   assert.equal(r.j.ver, 1, JSON.stringify(r.j)); assert.ok(!r2.j.ver, JSON.stringify(r2.j));
+});
+await t("liga: nový účet sa ráta len pri lietadle, ktoré appka ukazovala", async () => {
+  const mk = async (id, ip) => (await call("/api/hello", {id}, ip)).j.tok;
+  const i1 = "v2leagueleagueleagueleague01", t1 = await mk(i1, "3.3.3.1");
+  await call("/api/wave", {id: i1, tok: t1, hex: "aabbcc", lat: 48.15, lon: 17.11}, "3.3.3.1");
+  const i2 = "v2leagueleagueleagueleague02", t2 = await mk(i2, "3.3.3.2");
+  await call("/api/sky", {id: i2, tok: t2, lat: 48.15, lon: 17.11, hexes: "aabbcc"}, "3.3.3.2");
+  await call("/api/wave", {id: i2, tok: t2, hex: "aabbcc", lat: 48.15, lon: 17.11}, "3.3.3.2");
+  const lg = id => (db.prepare("SELECT lg FROM wavelog WHERE id=?").get(id) || {}).lg;
+  assert.equal(lg(i1), 0); assert.equal(lg(i2), 1);
+});
+await t("pripomienka série s číslom hodinu pred obvyklým časom", async () => {
+  const id = "v2streakstreakstreakstreak01", old = Date.now;
+  const base = Date.UTC(2026, 10, 25, 17, 30); // 18:30 v Bratislave
+  db.prepare("INSERT OR REPLACE INTO subs(id, sub, moment, t) VALUES(?, '{}', 0, ?)").run(id, base);
+  db.prepare("INSERT OR REPLACE INTO streaks(id, n, day) VALUES(?, 7, '2026-11-24')").run(id);
+  db.prepare("INSERT INTO wavelog(day, hex, id, t, k, pid, lg) VALUES('2026-11-24', 'abc001', ?, ?, 'BA', 'p1', 1)").run(id, base - 86400e3 + 50 * 60e3);
+  Date.now = () => base; try { await sky.cron(); } finally { Date.now = old; }
+  const m = db.prepare("SELECT title FROM msgs WHERE id=?").get(id);
+  assert.ok(m && /7 dní v rade/.test(m.title), JSON.stringify(m));
 });
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);

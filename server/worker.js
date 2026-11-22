@@ -142,6 +142,7 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS edcatch(ev TEXT, id TEXT, no INTEGER, type TEXT, t INTEGER, PRIMARY KEY(ev, id));
       CREATE TABLE IF NOT EXISTS wavewhy(id TEXT, t INTEGER, hex TEXT, type TEXT, el REAL, ok INTEGER, why TEXT);
       CREATE TABLE IF NOT EXISTS gifts(code TEXT PRIMARY KEY, id TEXT, type TEXT, t INTEGER, used TEXT);
+      CREATE TABLE IF NOT EXISTS mayorhof(m TEXT, town TEXT, id TEXT, nick TEXT, n INTEGER, PRIMARY KEY(m, town));
       CREATE TABLE IF NOT EXISTS mayorm(m TEXT, town TEXT, id TEXT, n INTEGER, PRIMARY KEY(m, town, id));
       CREATE TABLE IF NOT EXISTS yagg(y TEXT, k TEXT, n INTEGER, PRIMARY KEY(y, k));
       CREATE TABLE IF NOT EXISTS yplane(y TEXT, hex TEXT, call TEXT, type TEXT, dest TEXT, n INTEGER, PRIMARY KEY(y, hex));
@@ -191,6 +192,9 @@ export class Sky extends DurableObject {
     for (const c of ["type TEXT", "reg TEXT", "el REAL", "ok INTEGER", "shiny INTEGER"]) try { this.sql.exec("ALTER TABLE catches ADD COLUMN " + c); } catch (e) {}
     try { this.sql.exec("ALTER TABLE golden ADD COLUMN crew INTEGER"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE subs ADD COLUMN streak INTEGER DEFAULT 1"); } catch (e) {}
+    try { this.sql.exec("ALTER TABLE subs ADD COLUMN leg INTEGER DEFAULT 1"); } catch (e) {}
+    this.sql.exec("CREATE TABLE IF NOT EXISTS streaks(id TEXT PRIMARY KEY, n INTEGER, day TEXT)");
+    this.sql.exec("CREATE TABLE IF NOT EXISTS duelres(pid TEXT, t INTEGER, n TEXT, res TEXT)");
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS typeseq_id ON typeseq(id)"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS typeseq_k ON typeseq(k, id)"); } catch (e) {}
   }
@@ -270,7 +274,13 @@ export class Sky extends DurableObject {
         const yr = new Date(now - 365 * 86400e3).toISOString().slice(0, 10);
         this.sql.exec("DELETE FROM nicks WHERE id IN (SELECT id FROM ids WHERE COALESCE(ls, '') < ? AND t < ?)", yr, now - 365 * 86400e3);
         this.sql.exec("DELETE FROM ids WHERE COALESCE(ls, '') < ? AND t < ? AND id NOT IN (SELECT id FROM subs) AND id NOT IN (SELECT id FROM tmembers)", yr, now - 365 * 86400e3);
-        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); this.sql.exec("DELETE FROM meta WHERE k LIKE 'la:%' AND k < ?", "la:" + d); this.sql.exec("DELETE FROM wavewhy WHERE t < ?", now - 7 * 86400e3); }
+        if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); // 🏛️ uzávierka mesiaca: víťaz každého mesta ide do siene slávy a dostane odznak + upozornenie
+          for (const w of this.sql.exec("SELECT m, town, id, MAX(n) AS n FROM mayorm WHERE m < ? GROUP BY m, town", d.slice(0, 7)).toArray()) {
+            if (!w.n) continue; const nk = this.row("SELECT nick FROM nicks WHERE id=?", w.id), kid = this.isKid(w.id);
+            this.sql.exec("INSERT OR IGNORE INTO mayorhof(m, town, id, nick, n) VALUES(?, ?, ?, ?, ?)", w.m, w.town, w.id, kid || !nk ? "Spotter" : nk.nick, w.n);
+            if (!kid && this.row("SELECT 1 AS x FROM subs WHERE id=?", w.id)) this.notify(w.id, "🏛️ Si Starosta oblohy!", w.town + " – najaktívnejší spotter mesiaca (" + w.n + " 👋)", "./", true);
+          }
+          this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); this.sql.exec("DELETE FROM meta WHERE k LIKE 'la:%' AND k < ?", "la:" + d); this.sql.exec("DELETE FROM wavewhy WHERE t < ?", now - 7 * 86400e3); }
         if (this.getMeta("rlDay") !== d) { this.setMeta("rlDay", d); this.sql.exec("DELETE FROM rl"); this.sql.exec("DELETE FROM idday WHERE day < ?", d); }
         this.sql.exec("DELETE FROM funnel WHERE day < ?", new Date(now - 60 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM errs WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
@@ -348,9 +358,10 @@ export class Sky extends DurableObject {
       const hx = cleanHex(a.hex), key = "la:" + d + ":" + hx;
       if (this.getMeta(key)) continue; this.setMeta(key, String(now));
       const nm = TYPES_SRV[ty] || ty;
-      for (const s of this.sql.exec("SELECT id, lat, lon FROM subs WHERE lat IS NOT NULL LIMIT 20000").toArray()) {
+      for (const s of this.sql.exec("SELECT id, lat, lon FROM subs WHERE lat IS NOT NULL AND COALESCE(leg, 1) = 1 LIMIT 20000").toArray()) {
         const km = distKm(s.lat, s.lon, a.lat, a.lon);
-        if (km < 80) this.notify(s.id, (tr === "l" ? "♛ Legendárne" : "⬟ Epické") + " lietadlo pri tebe!", `${nm} je asi ${Math.round(km)} km od teba. Pozri hore a zamávaj!`, "./");
+        // max. 1 poplach o vzácnom lietadle denne na človeka
+        if (km < 80 && this.rate("leg:" + s.id, 1, 86400e3)) this.notify(s.id, (tr === "l" ? "♛ Legendárne" : "⬟ Epické") + " lietadlo pri tebe!", `${nm} je asi ${Math.round(km)} km od teba. Pozri hore a zamávaj!`, "./");
       }
     }
   }
@@ -466,7 +477,9 @@ export class Sky extends DurableObject {
       return r.status < 300 || r.status === 404 || r.status === 410;
     } catch (e) { return false; }
   }
-  notify(id, title, body, url = "./") {
+  notify(id, title, body, url = "./", force = false) {
+    // najviac 4 upozornenia denne na človeka (spoločný moment a uzávierky sa vynucujú)
+    if (!force && !this.rate("ntf:" + id, 4, 86400e3)) { this.bump("ntf_cap"); return; }
     this.sql.exec("INSERT INTO msgs(id, title, body, url, t) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title=excluded.title, body=excluded.body, url=excluded.url, t=excluded.t", id, title, body, url, Date.now());
     this.sql.exec("INSERT INTO queue(id) VALUES(?)", id);
   }
@@ -503,13 +516,46 @@ export class Sky extends DurableObject {
       this.setMeta("sunwave", d);
       for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray()) this.notify(s.id, "🌊 O 5 minút mávame všetci", "Nedeľná vlna o 18:00. Pomôž svojmu kraju vyhrať.", "./");
     }
-    // 🔥 séria v ohrození: včera mával, dnes ešte nie (o 19:00 SK, raz denne)
-    if (skH === 19 && this.getMeta("streakPush") !== d) {
-      this.setMeta("streakPush", d);
+    // 🔥 séria v ohrození: séria z appky (≥ 3 dni), včera mával, dnes ešte nie – hodinu pred jeho obvyklým časom mávania (8–20 h), inak o 19:00
+    if (skH >= 8 && skH <= 20 && this.getMeta("streakH") !== d + ":" + skH) {
+      this.setMeta("streakH", d + ":" + skH);
       const y = this.day(now - 86400e3);
-      const y2 = this.day(now - 2 * 86400e3), y3 = this.day(now - 3 * 86400e3);
-      for (const s of this.sql.exec("SELECT s.id FROM subs s WHERE COALESCE(s.streak, 1) = 1 AND (SELECT COUNT(DISTINCT w.day) FROM wavelog w WHERE w.id = s.id AND w.day IN (?, ?, ?)) = 3 AND NOT EXISTS(SELECT 1 FROM wavelog w WHERE w.id = s.id AND w.day = ?) LIMIT 5000", y, y2, y3, d).toArray())
-        this.notify(s.id, "🔥 Lietadlá dnes ešte letia", "Ak máš chuť, pozri hore – jedno zamávanie a séria pokračuje.", "./");
+      const cand = this.sql.exec("SELECT s.id, k.n FROM subs s JOIN streaks k ON k.id = s.id WHERE COALESCE(s.streak, 1) = 1 AND k.day = ? AND k.n >= 3 LIMIT 3000", y).toArray();
+      for (const c of cand) {
+        if (this.getMeta("sp:" + c.id) === d) continue;
+        const hrs = this.sql.exec("SELECT t FROM wavelog WHERE id=? AND t > ? ORDER BY t DESC LIMIT 14", c.id, now - 7 * 86400e3).toArray().map(r => Number(new Intl.DateTimeFormat("en-GB", {timeZone: "Europe/Bratislava", hour: "2-digit", hour12: false}).format(new Date(r.t)))).sort((a, b) => a - b);
+        const usual = hrs.length ? hrs[Math.floor(hrs.length / 2)] : 20, at = Math.max(8, Math.min(20, usual - 1));
+        if (skH !== at && !(skH === 20 && at < 20)) continue;
+        if (this.row("SELECT 1 AS x FROM wavelog WHERE id=? AND day=?", c.id, d)) { this.setMeta("sp:" + c.id, d); continue; }
+        this.setMeta("sp:" + c.id, d);
+        this.notify(c.id, "🔥 " + c.n + " dní v rade", "Dnes ešte chýba jedno 👋 – pozri hore, lietadlá letia.", "./");
+      }
+    }
+    // 🏛️ 3 dni pred koncom mesiaca: druhému v meste pošli, o koľko ho vedie prvý
+    const dim = new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7), 0)).getUTCDate();
+    if (dim - +d.slice(8, 10) === 3 && skH === 18 && this.getMeta("mayor3") !== d) {
+      this.setMeta("mayor3", d);
+      for (const t of this.sql.exec("SELECT DISTINCT town FROM mayorm WHERE m=? LIMIT 2000", d.slice(0, 7)).toArray()) {
+        const top = this.sql.exec("SELECT m.id, m.n, x.nick FROM mayorm m LEFT JOIN nicks x ON x.id = m.id WHERE m.m=? AND m.town=? ORDER BY m.n DESC LIMIT 2", d.slice(0, 7), t.town).toArray();
+        if (top.length === 2 && this.row("SELECT 1 AS x FROM subs WHERE id=?", top[1].id)) this.notify(top[1].id, "🏛️ Do konca mesiaca 3 dni", (top[0].nick || "Spotter") + " ťa v meste " + t.town + " vedie o " + (top[0].n - top[1].n + 1) + " 👋");
+      }
+    }
+    // 👯 predbehol ťa kamarát (raz za hodinu, len s upozorneniami)
+    if (this.getMeta("frOver") !== String(Math.floor(now / 3600e3)) && skH >= 9 && skH <= 21) {
+      this.setMeta("frOver", String(Math.floor(now / 3600e3)));
+      const wk0 = this.day(now - ((new Date(d + "T12:00:00Z").getUTCDay() + 6) % 7) * 86400e3);
+      const cnt = pd => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=? AND lg=1", pd, wk0) || {c: 0}).c;
+      for (const s2 of this.sql.exec("SELECT id FROM subs LIMIT 500").toArray()) {
+        const pd = await this.pid(s2.id), fr = this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 30", pd).toArray();
+        if (!fr.length) continue;
+        const mine = cnt(pd), ahead = fr.filter(f => cnt(f.b) > mine).map(f => f.b), key = "fo:" + pd, was = JSON.parse(this.getMeta(key) || "[]");
+        const nw = ahead.filter(x => !was.includes(x)); this.setMeta(key, JSON.stringify(ahead));
+        if (nw.length && was.length + nw.length > 0 && this.getMeta(key + ":wk") === wk0) {
+          const wid = (this.row("SELECT id FROM wavelog WHERE pid=? LIMIT 1", nw[0]) || {}).id, nk = wid ? this.row("SELECT nick FROM nicks WHERE id=?", wid) : null;
+          this.notify(s2.id, "👯 " + ((nk && nk.nick) || "Kamarát") + " ťa predbehol(a)", "V lige kamarátov ti chýba " + (cnt(nw[0]) - mine + 1) + " 👋", "./");
+        }
+        this.setMeta(key + ":wk", wk0);
+      }
     }
     // 🛰️ pripomienky preletov (vypočítané v appke)
     for (const r of this.sql.exec("SELECT id, at, title, body FROM reminders WHERE at <= ? LIMIT 2000", now).toArray()) {
@@ -526,7 +572,7 @@ export class Sky extends DurableObject {
     if (!m.sent && now >= m.start && now < m.start + MOMENT_MS) {
       this.sql.exec("UPDATE moments SET sent=1 WHERE day=?", d);
       for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray())
-        this.notify(s.id, "👆 Pozri hore. Teraz.", "Celé Slovensko sa práve pozerá na oblohu. Máš 3 minúty.", "./#moment");
+        this.notify(s.id, "👆 Pozri hore. Teraz.", "Celé Slovensko sa práve pozerá na oblohu. Máš 3 minúty.", "./#moment", true);
     } else if (!m.sent && now >= m.start + MOMENT_MS) this.sql.exec("UPDATE moments SET sent=1 WHERE day=?", d);
     // 2) zlaté lietadlo dňa
     if (Math.floor(now / 60e3) % 5 === 0) await this.pickGolden(d, now);
@@ -679,8 +725,15 @@ export class Sky extends DurableObject {
         const rows = this.sql.exec(`SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id ${kk ? "WHERE s.k = ?" : ""} GROUP BY s.id ORDER BY sc DESC LIMIT 20`, ...(kk ? [kk] : [])).toArray();
         this.atlC[key] = {t: now, v: rows.map(r => ({id: r.id, sc: r.sc, n: r.n, nick: r.kid || !r.nick ? "Spotter" : r.nick}))};
       }
-      const me = cleanId(bb.id || ""), mine = me.length >= 8 ? this.row("SELECT SUM(w) + 100 * SUM(seq = 1) AS sc, COUNT(*) AS n FROM typeseq WHERE id=?", me) : null;
-      return json({top: this.atlC[key].v.map(r => ({sc: r.sc, n: r.n, nick: r.nick, me: r.id === me})), me: mine && mine.n ? {sc: mine.sc, n: mine.n} : null});
+      // môj riadok v tom istom kraji ako rebríček + poradie a odstup od hráča nado mnou
+      const me = cleanId(bb.id || ""), mine = me.length >= 8 ? this.row(`SELECT SUM(w) + 100 * SUM(seq = 1) AS sc, COUNT(*) AS n FROM typeseq WHERE id=? ${kk ? "AND k=?" : ""}`, ...(kk ? [me, kk] : [me])) : null;
+      let rank = 0, gap = 0;
+      if (mine && mine.n) {
+        const sub = `SELECT SUM(w) + 100 * SUM(seq = 1) AS sc FROM typeseq ${kk ? "WHERE k=?" : ""} GROUP BY id`, args = kk ? [kk] : [];
+        rank = 1 + ((this.row(`SELECT COUNT(*) AS c FROM (${sub}) WHERE sc > ?`, ...args, mine.sc) || {c: 0}).c);
+        const up = this.row(`SELECT MIN(sc) AS m FROM (${sub}) WHERE sc > ?`, ...args, mine.sc); gap = up && up.m != null ? up.m - mine.sc : 0;
+      }
+      return json({top: this.atlC[key].v.map(r => ({sc: r.sc, n: r.n, nick: r.nick, me: r.id === me})), me: mine && mine.n ? {sc: mine.sc, n: mine.n, rank, gap} : null});
     }
     if (p === "/api/vapid") return json({key: (await this.keys()).pub});
     if (p === "/api/wave" && req.method === "POST") {
@@ -689,6 +742,8 @@ export class Sky extends DurableObject {
       const emoji = EMO.includes(b.emoji) ? b.emoji : "👋";
       if (!hex || id.length < 8 || la == null || lo == null || Math.abs(la) > 90 || Math.abs(lo) > 180) return json({error: "bad"}, 400);
       if (!this.rate("wave:" + iph, 30000, 86400e3) || !this.rate("wid:" + id, 150, 86400e3)) { this.bump("429:wave"); return json({error: "rate"}, 429); }
+      // 🔥 séria z appky (pre pripomienku s číslom)
+      const st = num(b.st, 0) | 0; if (st > 0 && st < 3650) this.sql.exec("INSERT INTO streaks(id, n, day) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET n=excluded.n, day=excluded.day", id, st, d);
       const vp = await this.verifyPlane(hex, la, lo);
       // žiadna sieť neodpovedala – nezapisovať, appka mávnutie o chvíľu zopakuje
       if (!vp.known && (num(b.try, 0) | 0) < 3) { this.bump("wave_retry"); return json({error: "busy"}, 503, {"Retry-After": "15"}); }
@@ -712,7 +767,10 @@ export class Sky extends DurableObject {
       const near = dd && dd.la != null ? distKm(la, lo, dd.la, dd.lo) <= 30 : true;
       if (dd && !near) this.bump("teleport");
       // do líg sa ráta max 25 mávnutí na účet a 60 na sieť za deň a len overené lietadlo
-      const league = fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 5000, 86400e3);
+      // ochrana ligy pred skriptami: účet mladší ako 10 min sa ráta len pri lietadle, ktoré appka naozaj ukazovala
+      const acc = this.row("SELECT t FROM ids WHERE id=?", id), sb = this.seenBy && this.seenBy.get(id);
+      const trusted = !acc || now - (acc.t || 0) > 600e3 || (sb && now - sb.t < 300e3 && sb.h.has(hex));
+      const league = trusted && fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 5000, 86400e3);
       const k = fair && dd ? dd.k : "XX";
       const nk = this.nm(b.nick);
       if (nk) this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
@@ -767,6 +825,9 @@ export class Sky extends DurableObject {
         const days = (this.row("SELECT COUNT(*) AS c FROM seen WHERE id=?", id) || {c: 0}).c;
         if (g && g.state === 0 && g.hex === hex && league && b.gps === true && vp.km <= 60 && acct && now - acct.t > 6 * 3600e3 && acct.t < g.t && pr && now - pr.t < 5 * 60e3 && days >= 2) {
           this.sql.exec("INSERT OR IGNORE INTO gcand(day, seq, id, nick, k, town, t) VALUES(?, ?, ?, ?, ?, ?, ?)", d, g.seq, id, nk || "Spotter", k, town, now); golden = "entered";
+        } else if (g && g.state === 0 && g.hex === hex) {
+          // vysvetli, prečo sa mávnutie do zlatej posádky nerátalo
+          golden = "no:" + (b.gps !== true ? "gps" : !league ? "league" : vp.km > 60 ? "far" : !acct || now - acct.t <= 6 * 3600e3 || acct.t >= g.t ? "new" : days < 2 ? "days" : "active");
         }
         this.sql.exec("INSERT INTO waves(day, hex, emoji, n) VALUES(?, ?, ?, 1) ON CONFLICT(day, hex, emoji) DO UPDATE SET n = n + 1", d, hex, emoji);
         if (league) {
@@ -797,7 +858,7 @@ export class Sky extends DurableObject {
       if (b.remove) { const o = String(b.remove).replace(/[^A-Za-z0-9]/g, "").slice(0, 16); this.sql.exec("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", pd, o, o, pd); return json({ok: true}); }
       // týždenné mávnutia overené serverom – súboj kamarátov sa nedá sfalšovať v mobile
       const cc = x => (this.row("SELECT COUNT(*) AS c FROM catches WHERE id=? AND ok=1", x) || {c: 0}).c;
-      const wk0 = this.day(now - ((new Date(now).getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=? AND lg=1", x, wk0) || {c: 0}).c;
+      const wk0 = this.day(now - ((new Date(this.day(now) + "T12:00:00Z").getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=? AND lg=1", x, wk0) || {c: 0}).c;
       const list = this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", pd).toArray();
       const out = [];
       for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b), c: ids.length ? cc(ids[0].id) : 0}); }
@@ -939,9 +1000,20 @@ export class Sky extends DurableObject {
       const rows = this.sql.exec("SELECT type, seq FROM typeseq WHERE id=? LIMIT 500", id).toArray();
       return json({cards: rows.map(r => [r.type, r.seq])});
     }
+    if (p === "/api/duelres" && req.method === "POST") {
+      // ⚔️ výsledok súboja kartičiek pre vyzývateľa (v appke + upozornenie)
+      const b = await body(), id = cleanId(b.id), to = String(b.to || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16), res = String(b.res || "").replace(/[^0-9:]/g, "").slice(0, 5);
+      if (!to || !res || this.isKid(id) || !this.rate("dres:" + id, 20, 86400e3)) return json({ok: false});
+      const nk = (this.row("SELECT nick FROM nicks WHERE id=?", id) || {}).nick || "Kamarát";
+      this.sql.exec("INSERT INTO duelres(pid, t, n, res) VALUES(?, ?, ?, ?)", to, now, nk, res);
+      const wid = (this.row("SELECT id FROM wavelog WHERE pid=? LIMIT 1", to) || {}).id;
+      if (wid && this.row("SELECT 1 AS x FROM subs WHERE id=?", wid)) { const [a1, b1] = res.split(":").map(Number); this.notify(wid, "⚔️ " + nk + (a1 > b1 ? " ťa porazil(a) " : a1 < b1 ? " prehral(a) s tebou " : " remizoval(a) ") + res, "Súboj kartičiek – daj si odvetu!", "./"); }
+      return json({ok: true});
+    }
     if (p === "/api/subopt" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
-      this.sql.exec("UPDATE subs SET streak=? WHERE id=?", b.streak ? 1 : 0, id);
+      if (b.streak != null) this.sql.exec("UPDATE subs SET streak=? WHERE id=?", b.streak ? 1 : 0, id);
+      if (b.leg != null) this.sql.exec("UPDATE subs SET leg=? WHERE id=?", b.leg ? 1 : 0, id);
       return json({ok: true});
     }
     if (p === "/api/gift" && req.method === "POST") {
@@ -1020,6 +1092,8 @@ export class Sky extends DurableObject {
       // šetriaci režim (vypínač v /admin): len spoločné údaje, žiadne osobné dotazy
       if (this.flags().social === "min") return json({...G, teamsTop: G.teamsTop.map(r => ({name: r.name, n: r.n})), planes: {}, friends: {}, now, mailsIn: [], mailsOut: [], mailOn: {}, myTeam: null, myInvites: 0, goldMine: 0, flags: this.flags()});
       const hexes = (qp("hexes") || "").split(",").map(cleanHex).filter(Boolean).slice(0, 25);
+      // čo hráč práve vidí na oblohe (pamäť pár minút) – liga verí mávnutiu nového účtu, len ak to lietadlo naozaj videl
+      if (id && hexes.length) { this.seenBy = this.seenBy || new Map(); this.seenBy.set(id, {t: now, h: new Set(hexes)}); if (this.seenBy.size > 20000) this.seenBy.clear(); }
       const myPid = id ? await this.pid(id) : "";
       const friendIds = myPid ? this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", myPid).toArray().map(r => r.b) : [];
       const planes = {}, friends = {};
@@ -1078,9 +1152,14 @@ export class Sky extends DurableObject {
           if (mc.size > 3000) mc.clear(); mc.set(mTown, {t: now, v: top});
         }
         const mine = id.length >= 8 ? (this.row("SELECT n FROM mayorm WHERE m=? AND town=? AND id=?", d.slice(0, 7), mTown, id) || {n: 0}).n || 0 : 0;
-        mayor = {town: mTown, nick: top && top.n > 0 ? (top.kid || !top.nick ? "Spotter" : top.nick) : "", n: top ? top.n || 0 : 0, me: !!(top && top.id === id && top.n > 0), mine};
+        const prevM = new Date(new Date(d + "T12:00:00Z").setUTCDate(0)).toISOString().slice(0, 7), hof = this.row("SELECT nick, n, id FROM mayorhof WHERE m=? AND town=?", prevM, mTown);
+        mayor = {town: mTown, nick: top && top.n > 0 ? (top.kid || !top.nick ? "Spotter" : top.nick) : "", n: top ? top.n || 0 : 0, me: !!(top && top.id === id && top.n > 0), mine,
+          prev: hof ? {nick: hof.nick, n: hof.n, me: hof.id === id} : null, won: id.length >= 8 ? (this.row("SELECT town FROM mayorhof WHERE id=? AND m=?", id, prevM) || {}).town || "" : "",
+          left: Math.max(0, new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7), 0)).getUTCDate() - +d.slice(8, 10))};
       }
-      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, flags: this.flags()});
+      let duelIn = [];
+      if (myPid) { duelIn = this.sql.exec("SELECT n, res, t FROM duelres WHERE pid=? AND t > ? ORDER BY t DESC LIMIT 5", myPid, now - 3 * 86400e3).toArray(); if (duelIn.length) this.sql.exec("DELETE FROM duelres WHERE pid=?", myPid); }
+      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, flags: this.flags()});
     }
     return json({error: "not found"}, 404);
   }

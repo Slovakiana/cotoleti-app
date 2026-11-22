@@ -566,7 +566,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #momentBar{top:calc(var(--top) + 58px)!important}#momentBar.mini{left:auto;right:12px;transform:none;padding:6px 10px}
 .pageHead .gearBtn{right:16px}
 #ptr{transform:translate(-50%,calc(-100% - var(--top) - 24px))}
-.formRow small{font-size:9px!important;line-height:1.2;display:block;opacity:.8}.mailList{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
+.formRow small{font-size:9px!important;line-height:1.2;display:block;opacity:.8}.lgRules{margin-top:8px;font-size:13px;opacity:.85}.lgRules summary{cursor:pointer;font-weight:700;padding:8px 0}.kr .nm small{display:block;font-weight:500;opacity:.7;font-size:11px}.mailList{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
 #cardM.locked .acts{max-width:none;justify-content:center;background:none!important}
 .kick{white-space:nowrap}
 #yearM .acts{bottom:-18px;padding-bottom:22px}
@@ -702,10 +702,12 @@ body.moment .pageHead{padding-top:8px}
     <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
   </section>
   <section class="card glass" id="krajeCard" style="display:none">
-    <div class="lbl"><span>🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
+    <div class="lbl"><span id="lgHead">🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
     <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="a">🃏 Atlasy</button><button data-t="f">👯 Kamaráti</button><button data-more="1" aria-expanded="false">⋯</button><button data-t="p" class="lgX">Na hráča</button><button data-t="s" class="lgX">Menšie mestá</button><button data-t="t" class="lgX">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
+    <div id="lgNote" class="lookSub" style="margin-top:6px"></div>
+    <details class="lgRules"><summary>ⓘ Ako sa to počíta?</summary><div id="lgRules"></div></details>
     <div id="mayor" class="mayor" hidden></div>
   </section>
 
@@ -978,25 +980,25 @@ body.moment .pageHead{padding-top:8px}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=42"></script>
-<script src="js/ui.js?v=42"></script>
-<script src="js/ar.js?v=42"></script>
-<script src="js/space.js?v=42"></script>
-<script src="js/weather.js?v=42"></script>
-<script src="js/extras.js?v=42"></script>
-<script src="js/social.js?v=42"></script>
-<script src="js/wrapped.js?v=42"></script>
-<script src="js/push.js?v=42"></script>
-<script src="js/track.js?v=42"></script>
-<script src="js/towns.js?v=42"></script>
-<script src="js/catalog.js?v=42"></script>
-<script src="js/cards.js?v=42"></script>
-<script src="js/mail.js?v=42"></script>
-<script src="js/golden.js?v=42"></script>
-<script src="js/teams.js?v=42"></script>
-<script src="js/duel.js?v=42"></script>
-<script src="js/sound.js?v=42"></script>
-<script src="js/santa.js?v=42"></script>
-<script src="js/main.js?v=42"></script>
+<script src="js/core.js?v=43"></script>
+<script src="js/ui.js?v=43"></script>
+<script src="js/ar.js?v=43"></script>
+<script src="js/space.js?v=43"></script>
+<script src="js/weather.js?v=43"></script>
+<script src="js/extras.js?v=43"></script>
+<script src="js/social.js?v=43"></script>
+<script src="js/wrapped.js?v=43"></script>
+<script src="js/push.js?v=43"></script>
+<script src="js/track.js?v=43"></script>
+<script src="js/towns.js?v=43"></script>
+<script src="js/catalog.js?v=43"></script>
+<script src="js/cards.js?v=43"></script>
+<script src="js/mail.js?v=43"></script>
+<script src="js/golden.js?v=43"></script>
+<script src="js/teams.js?v=43"></script>
+<script src="js/duel.js?v=43"></script>
+<script src="js/sound.js?v=43"></script>
+<script src="js/santa.js?v=43"></script>
+<script src="js/main.js?v=43"></script>
 </body>
 </html>
