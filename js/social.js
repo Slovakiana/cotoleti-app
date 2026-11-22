@@ -184,7 +184,7 @@ function waveInfo(a){
   const p=planeWaves(a.hex),mine=SOC.waved[dayKey()+a.hex];
   $("waveN").style.display=p.total?"":"none";if($("waveN").textContent!==nf(p.total)){$("waveN").textContent=nf(p.total);$("waveN").classList.remove("bump");void $("waveN").offsetWidth;$("waveN").classList.add("bump")}
   // stav tlačidla: po mávnutí je jasné, že je hotovo
-  const again=mine&&!COL.hex[a.hex]&&(a.el??0)>=10;$("b-wave").classList.toggle("waved",!!mine&&!again);$("waveLbl").textContent=again?"👋 Mávni – teraz do zbierky":mine?"✓ Zamávané":a&&a.el!=null&&a.el<10&&!COL.hex[a.hex]?"👋 Mávni · nízko "+Math.max(0,Math.round(a.el))+"°":"👋 Mávni";
+  const again=mine&&!COL.hex[a.hex]&&(a.el??0)>=10;$("b-wave").classList.toggle("waved",!!mine&&!again);$("waveLbl").textContent=again?"👋 Mávni – teraz do zbierky":mine?"✓ Zamávané":a&&a.el!=null&&a.el<10&&!COL.hex[a.hex]?"👋 Mávni · nízko "+Math.max(0,Math.round(a.el))+"°":waveMood(a);
   $("waveHint").style.display=mine||(LS.get("ctl_waveN",0)|0)>=3?"none":"";
   const em=Object.entries(p.emoji||{}).sort((x,y)=>y[1]-x[1]).slice(0,4).map(([e,n])=>e+" "+n).join("  ");
   const fr=SOC.data&&SOC.data.friends&&SOC.data.friends[a.hex];
@@ -202,6 +202,11 @@ HOOKS.live.push(()=>{const w=SOC.lowWatch;if(!w)return;if(Date.now()-w.t>20*60e3
   if(p.el>=10&&!COL.hex[p.hex]){SOC.lowWatch=null;S.pick=p.hex;try{tick(true)}catch(e){}toast("📈 "+(p.call||titleOf(p))+" je teraz "+Math.round(p.el)+"° nad tebou","Zamávaj – teraz už pôjde do zbierky 👋");haptic([40,40,40])}});
 $("cardHint")&&$("cardHint").addEventListener("click",e=>{if(e.target.closest("[data-gps]")&&$("placeGps"))$("placeGps").click()});
 // kam lietadlo doletí v najbližších 20 minútach (podľa kurzu a rýchlosti) → prvé veľké mesto pod ním
+// 🌙☁️ hlavné tlačidlo podľa podmienok: v noci svetlám, pri zamračenej oblohe tomu, čo počuješ (mávnutie platí rovnako)
+function waveMood(a){const c=typeof WX!=="undefined"&&WX.data&&WX.data.current,dark=typeof SPACE!=="undefined"?SPACE.sunAlt()<-6:c&&!c.is_day;
+  if(dark)return "👋 Mávni svetlám";
+  if(c&&a&&((c.cloud_cover_low>80&&(a.alt||0)>1500)||(c.cloud_cover_mid>80&&(a.alt||0)>5000)))return "👋 Mávni – počuješ ho?";
+  return "👋 Mávni"}
 function relayOf(a){if(!a||a.lat==null||a.trk==null||!a.spd||a.spd<250||typeof CITIES==="undefined"||!S.pos)return null;
   const me=typeof townOf==="function"?townOf(S.pos):"",br=rad(a.trk),kmPerMin=a.spd/60;
   for(let m=3;m<=20;m++){const d=kmPerMin*m,la=a.lat+d/111.2*Math.cos(br),lo=a.lon+d/(111.2*Math.cos(rad(a.lat)))*Math.sin(br);
