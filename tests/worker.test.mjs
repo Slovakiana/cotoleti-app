@@ -128,6 +128,13 @@ await t("náhľady: kartička, darček, lietadlo s hashom; crawler bez limitu", 
   let last = ""; for (let i = 0; i < 70; i++) last = await get("/s/x/", "WhatsApp/2.23");
   assert.match(last, /og:image/);
 });
+await t("Atlasy: rovnaké meno sa v rebríčku zobrazí len raz", async () => {
+  for (const [i, sc] of [[1, 300], [2, 200]]) { const id = "v2dupedupedupedupedupedupe0" + i; db.prepare("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, 0, '', 0)").run(id);
+    db.prepare("INSERT OR REPLACE INTO nicks(id, nick, lc) VALUES(?, 'Dvojník', 'dvojník')").run(id);
+    db.prepare("INSERT INTO typeseq(type, id, seq, w, k, town, t) VALUES(?, ?, 9, ?, 'NR', '', 0)").run("ZZ" + i, id, sc); }
+  sky.atlC = {}; const r = await call("/api/atlasy?k=NR", null);
+  assert.equal(r.j.top.filter(x => x.nick === "Dvojník").length, 1, JSON.stringify(r.j.top));
+});
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
   assert.deepEqual(codes.slice(0, 20).filter(c => c !== 200), [], codes.join(","));

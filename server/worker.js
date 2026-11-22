@@ -722,8 +722,16 @@ export class Sky extends DurableObject {
       const key = "atl:" + kk;
       this.atlC = this.atlC || {};
       if (!this.atlC[key] || now - this.atlC[key].t > 600e3) {
-        const rows = this.sql.exec(`SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id ${kk ? "WHERE s.k = ?" : ""} GROUP BY s.id ORDER BY sc DESC LIMIT 20`, ...(kk ? [kk] : [])).toArray();
-        this.atlC[key] = {t: now, v: rows.map(r => ({id: r.id, sc: r.sc, n: r.n, nick: r.kid || !r.nick ? "Spotter" : r.nick}))};
+        const rows = this.sql.exec(`SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id ${kk ? "WHERE s.k = ?" : ""} GROUP BY s.id ORDER BY sc DESC LIMIT 80`, ...(kk ? [kk] : [])).toArray();
+        // to isté meno viackrát (staré účty z chyby identity, viac zariadení) → v rebríčku raz, s najlepším výsledkom
+        const seen = new Map(), out = [];
+        for (const r of rows) {
+          const nick = r.kid || !r.nick ? "Spotter" : r.nick, k = nick === "Spotter" ? "#" + r.id : lc(nick);
+          const g = seen.get(k);
+          if (g) { g.ids.push(r.id); continue; }
+          const row = {id: r.id, ids: [r.id], sc: r.sc, n: r.n, nick}; seen.set(k, row); out.push(row);
+        }
+        this.atlC[key] = {t: now, v: out};
       }
       // môj riadok v tom istom kraji ako rebríček + poradie a odstup od hráča nado mnou
       const me = cleanId(bb.id || ""), mine = me.length >= 8 ? this.row(`SELECT SUM(w) + 100 * SUM(seq = 1) AS sc, COUNT(*) AS n FROM typeseq WHERE id=? ${kk ? "AND k=?" : ""}`, ...(kk ? [me, kk] : [me])) : null;
@@ -731,9 +739,11 @@ export class Sky extends DurableObject {
       if (mine && mine.n) {
         const sub = `SELECT SUM(w) + 100 * SUM(seq = 1) AS sc FROM typeseq ${kk ? "WHERE k=?" : ""} GROUP BY id`, args = kk ? [kk] : [];
         rank = 1 + ((this.row(`SELECT COUNT(*) AS c FROM (${sub}) WHERE sc > ?`, ...args, mine.sc) || {c: 0}).c);
+        // poradie bez zdvojených mien (ak som v dosahu zoznamu)
+        const L = this.atlC[key].v; if (L.length && L[L.length - 1].sc <= mine.sc) rank = 1 + L.filter(r => r.sc > mine.sc && !(r.ids || []).includes(me)).length;
         const up = this.row(`SELECT MIN(sc) AS m FROM (${sub}) WHERE sc > ?`, ...args, mine.sc); gap = up && up.m != null ? up.m - mine.sc : 0;
       }
-      return json({top: this.atlC[key].v.map(r => ({sc: r.sc, n: r.n, nick: r.nick, me: r.id === me})), me: mine && mine.n ? {sc: mine.sc, n: mine.n, rank, gap} : null});
+      return json({top: this.atlC[key].v.slice(0, 20).map(r => ({sc: r.sc, n: r.n, nick: r.nick, me: (r.ids || [r.id]).includes(me)})), me: mine && mine.n ? {sc: mine.sc, n: mine.n, rank, gap} : null});
     }
     if (p === "/api/vapid") return json({key: (await this.keys()).pub});
     if (p === "/api/wave" && req.method === "POST") {

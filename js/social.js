@@ -105,7 +105,7 @@ const LG_RULES={
 function renderLeague(){
   const D=SOC.data;if(!D)return;let note="";
   if($("lgNote"))$("lgNote").innerHTML="";if($("recBox"))$("recBox").style.display=LG==="k"?"":"none";if($("lgHead"))$("lgHead").textContent=LG_HEAD[LG]||LG_HEAD.k;if($("lgRules"))$("lgRules").textContent=LG_RULES[LG]||LG_RULES.k;
-  const bar=(name,n,max,me,i,rep)=>`<div class="kr${me?" me":""}"><div class="nm">${i===0?"👑 ":""}${esc(String(name).split(" · ")[0])}${String(name).includes(" · ")?"<small>"+esc(String(name).split(" · ").slice(1).join(" · "))+"</small>":""}${rep?` <button class="rep" data-rep="${esc(name)}" aria-label="Nahlásiť nevhodný názov">🚩</button>`:""}</div><div class="bar"><i style="width:${max?n/max*100:0}%"></i></div><div class="v">${nf(n,n%1?1:0)}</div></div>`;
+  const bar=(name,n,max,me,i,rep)=>`<div class="kr${me?" me":""}"><div class="nm">${i===0?"👑 ":""}${esc(String(name).split(" · ")[0])}${rep?`<button class="rep" data-rep="${esc(String(name).split(" · ")[0])}" aria-label="Nahlásiť nevhodný názov">🚩</button>`:""}${String(name).includes(" · ")?"<small>"+esc(String(name).split(" · ").slice(1).join(" · "))+"</small>":""}</div><div class="bar"><i style="width:${max?n/max*100:0}%"></i></div><div class="v">${nf(n,n%1?1:0)}</div></div>`;
   let rows=[];
   if(LG==="k"||LG==="w"){const me=krajOf(S.pos),all=((LG==="w"?D.krajeWeek:D.kraje)||[]).filter(x=>x.n>0&&x.k!=="XX");rows=all.slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2],x.n,x.k===me]);
     const mi=all.findIndex(x=>x.k===me);if(mi>=8)rows.push([(mi+1)+". "+(KRAJ[me]||KRAJ.XX)[2]+" (tvoj kraj)",all[mi].n,true])}
