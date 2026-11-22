@@ -146,7 +146,7 @@ function renderMayor(){
   const end=M.left!=null?(M.left===0?" · mesiac končí dnes":" · do konca mesiaca "+M.left+" "+pl(M.left,"deň","dni","dní")):"";
   const hof=M.prev?`<br><small>🏆 Starosta minulého mesiaca: ${M.prev.me?"<b>ty</b>":esc(M.prev.nick)} (${M.prev.n} 👋)</small>`:"";
   el.innerHTML=(M.me?`🏛️ <b>Vedieš v meste ${esc(M.town)}</b> – na Starostu oblohy (${M.n} 👋)<br><small>Udrž si náskok do konca mesiaca${end}.</small>`
-    :M.nick?`🏛️ Vedie v meste ${esc(M.town)}: <b>${esc(M.nick)}</b>${M.nick!=="Spotter"?` <button class="rep" data-rep="${esc(M.nick)}" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""} (${M.n} 👋)<br><small>Ty máš tento mesiac ${M.mine|0} ${pl(M.mine|0,"mávnutie","mávnutia","mávnutí")}.${M.n-(M.mine|0)+1>0?" Na vedenie ti chýba ešte "+(M.n-(M.mine|0)+1)+".":""}${end}</small>`
+    :M.nick?`🏛️ Vedie v meste ${esc(M.town)}: <b>${esc(M.nick)}</b>${M.nick!=="Spotter"?` <button class="rep" data-rep="${esc(M.nick)}" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""} (${M.n}\u00a0👋)<br><small>Ty máš tento mesiac ${M.mine|0} ${pl(M.mine|0,"mávnutie","mávnutia","mávnutí")}.${M.n-(M.mine|0)+1>0?" Na vedenie ti chýba ešte "+(M.n-(M.mine|0)+1)+".":""}${end}</small>`
     :`🏛️ <b>${esc(M.town)}</b> tento mesiac ešte nikto nevedie<br><small>Kto bude mať na konci mesiaca najviac mávnutí, bude Starosta oblohy${end}.</small>`)+hof;
 }
 $("kraje").onclick=e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)};
@@ -335,7 +335,7 @@ async function friendsRender(){
   try{const r=await apiPost("/api/friends",{});const j=await r.json();const fr=j.friends||[];
     if(!fr.length){box.innerHTML='<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';return}
     const all=[...fr,{n:"Ty",w:j.me|0,c:j.meC|0,me:1}].sort((a,b)=>(b.w|0)-(a.w|0));
-    box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)}${f.me?"":` <button class="rep" data-rep="${esc(f.n)}" aria-label="Nahlásiť nevhodné meno">🚩</button>`} · ${f.w|0} 👋<small>${f.c|0} overených úlovkov ✈️</small></div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
+    box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)} · ${f.w|0}\u00a0👋<small>${f.c|0} ${pl(f.c|0,"overený úlovok","overené úlovky","overených úlovkov")} ✈️</small></div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
   }catch(e){}
 }
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-unf]");if(!b)return;await apiPost("/api/friends",{remove:b.dataset.unf}).catch(()=>{});toast("Kamarát odobratý","Už neuvidíte svoje mávnutia");friendsRender()});

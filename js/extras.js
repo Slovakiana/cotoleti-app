@@ -204,8 +204,9 @@ function renderDaily(){
   const D=dailyEnsure(),n=D.ids.filter(i=>D.done[i]).length;
   const L=streakLive();
   $("dailyTxt").textContent=`🎯 Dnešné výzvy ${n}/3`+(L.n?` · 🔥 ${L.n}`:"")+(n===3?" ✅":"");
-  $("d-streak").innerHTML=L.st==="repair"?`🔧 Séria ${L.n} ${pl(L.n,"deň","dni","dní")} sa dá zachrániť: dnes zamávaj 2 lietadlám`:L.n?`🔥 ${L.n} ${pl(L.n,"deň","dni","dní")} v rade${(D.freeze|0)?" · ❄️ "+D.freeze:""}<small style="display:block;opacity:.75">${nextMs(L.n)}</small>`:"";streakChip();
-  $("d-streak").insertAdjacentHTML("afterend",'<div id="stamps"></div>');const ost=document.querySelectorAll("#stamps");if(ost.length>1)for(let i=0;i<ost.length-1;i++)ost[i].remove();$("stamps").innerHTML=stampsHTML(D);
+  // v hlavičke len krátky údaj, podrobnosti a pečiatky pod ňou (nie v riadku nadpisu)
+  $("d-streak").textContent=L.st==="repair"?"🔧 "+L.n:L.n?"🔥 "+L.n+((D.freeze|0)?" · ❄️ "+D.freeze:""):"";streakChip();
+  $("stampBox").innerHTML=(L.st==="repair"?`<div class="stNext">🔧 Séria ${L.n} ${pl(L.n,"deň","dni","dní")} sa dá zachrániť – dnes zamávaj 2 lietadlám</div>`:L.n?`<div class="stNext">🔥 ${L.n} ${pl(L.n,"deň","dni","dní")} v rade${nextMs(L.n)?" · "+nextMs(L.n):""}</div>`:"")+stampsHTML(D);
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
     return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
   $("d-list").insertAdjacentHTML("beforeend",didYouKnow());
@@ -214,7 +215,7 @@ function renderDaily(){
 // 🗓️ pečiatková karta Po–Ne: 5/7 = +1 ❄️, 7/7 = darovaná nezvyčajná kartička + 100 míľ
 function weekDays(){const d=new Date(),wd=(d.getDay()+6)%7;return Array.from({length:7},(_,i)=>SKD.format(new Date(d.getTime()+(i-wd)*864e5)))}
 function stampsHTML(D){const W=weekDays(),got=W.filter(x=>(D.days||[]).includes(x)).length;stampReward(D,W,got);
-  return `<div class="stamps">${W.map((x,i)=>`<span class="${(D.days||[]).includes(x)?"on":x===D.date?"now":""}">${"PUSŠPSN"[i]}<b>${(D.days||[]).includes(x)?"✓":""}</b></span>`).join("")}</div><div class="lookSub" style="text-align:center;font-size:12px">Týždeň ${got}/7 · 5 dní = ❄️ zmrazenie · 7 dní = 🎁 kartička + 100 míľ</div>`}
+  return `<div class="stamps">${W.map((x,i)=>`<span class="${(D.days||[]).includes(x)?"on":x===D.date?"now":""}">${"PUSŠPSN"[i]}<b>${(D.days||[]).includes(x)?"✓":""}</b></span>`).join("")}</div><div class="lookSub" style="text-align:center;font-size:12px">Týždeň ${got}/7 · 5 dní = ❄️ · 7 dní = 🎁 kartička + 100 míľ</div>`}
 function stampReward(D,W,got){const k=W[0];D.wkRew=D.wkRew||{};const r=D.wkRew[k]||(D.wkRew[k]={});let ch=false;
   if(got>=5&&!r[5]){r[5]=1;ch=true;if((D.freeze|0)<3)D.freeze=(D.freeze|0)+1;setTimeout(()=>toast("🗓️ 5 dní tento týždeň!","❄️ Zmrazenie série +1"),1200)}
   if(got>=7&&!r[7]){r[7]=1;ch=true;COL.mi=(COL.mi|0)+100;const miss=CATALOG.map(c=>c[0]).filter(k=>typeTier(k)==="u"&&!(COL.types[k]&&COL.types[k].n));const g=miss[hash(k)%Math.max(1,miss.length)];

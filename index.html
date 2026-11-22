@@ -552,7 +552,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 .atTabs{display:flex;flex-wrap:wrap;gap:6px}.atTabs button{flex:1 1 auto}
 .verOk,.verNo{text-align:center;font-weight:800;font-size:calc(13.5px*var(--fs,1));padding:7px 10px;border-radius:12px;margin:8px 0}.verOk{background:rgba(109,255,199,.14);color:#9dffd9}.verNo{background:rgba(255,190,90,.12);color:#ffd59a;font-weight:600}
 .lgTabs .lgX{display:none}.lgTabs.more .lgX{display:inline-flex}
-.mayor .rep{min-width:0!important;min-height:0!important;padding:0 2px!important;display:inline;vertical-align:baseline;font-size:12px}
+.mayor .rep{min-width:0!important;min-height:0!important;padding:10px 6px!important;margin:-10px -2px!important;display:inline-block;vertical-align:baseline;font-size:13px}
 .verNo button{display:block;margin:6px auto 0;background:none;border:0;color:#ffd59a;text-decoration:underline;font:inherit;font-size:13px}
 .whyList{text-align:left;font-size:12.5px;margin-top:6px;line-height:1.6}
 #cardM{align-items:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:calc(var(--top) + 14px);padding-bottom:0}
@@ -562,18 +562,18 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 #cardM .acts{position:sticky;bottom:0;padding:10px 0 calc(var(--bot) + 6px);background:linear-gradient(transparent,rgba(5,8,20,.92) 30%);margin-top:10px!important}
 
 /* 3. run – rozloženie */
+#cdBox .acts{flex-wrap:wrap}#cdLocal{flex:1 1 100%!important;order:3}#h-links a{display:inline-block;padding:10px 8px;margin:-6px 0}footer a{display:inline-block;padding:10px 4px;margin:-10px 0}#momentBar{min-height:36px}
 body.moment #top{opacity:1!important;pointer-events:auto!important}
 #momentBar{top:calc(var(--top) + 58px)!important;left:auto!important;right:12px;transform:none!important}#momentBar.mini{padding:6px 10px}
 .pageHead .gearBtn{right:16px}
 #ptr{transform:translate(-50%,calc(-100% - var(--top) - 24px))}
-.formRow small{font-size:9px!important;line-height:1.2;display:block;opacity:.8}.newDot{background:#ff3b5c;color:#fff;font-size:11px;font-weight:800;border-radius:8px;padding:2px 6px;margin-left:6px;vertical-align:middle}.stamps{display:flex;gap:6px;justify-content:center;margin:8px 0 2px}.stamps span{width:34px;height:42px;border-radius:10px;border:1px dashed rgba(255,255,255,.3);display:grid;place-items:center;font-size:11px;font-weight:700;opacity:.7}.stamps span b{font-size:15px;color:#6dffc7}.stamps span.on{border:1px solid #6dffc7;opacity:1;background:rgba(109,255,199,.12)}.stamps span.now{border-color:#ffcf4f;opacity:1}.seenB{position:absolute;top:4px;right:4px;font-size:10px;background:#ffcf4f;color:#2a1d00;border-radius:8px;padding:2px 5px}.mini{position:relative}.wanted{border:2px dashed #ffcf4f;border-radius:18px;padding:12px;text-align:center;background:rgba(255,207,79,.08);cursor:pointer}.wanted .wT{font:900 12px/1 var(--body);letter-spacing:.2em;color:#ffcf4f}.wanted .wN{font-size:20px;font-weight:900;margin:6px 0 2px}.lockSil{width:120px;margin:0 auto 6px;opacity:.85}.lockSil svg{width:100%;height:auto}#invNudge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 92px);z-index:94;padding:12px 16px;font-weight:700;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}#invNudge[hidden]{display:none}#linkCopy{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 92px);z-index:95;padding:12px 16px;font-weight:700;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}#linkCopy[hidden]{display:none}.lgRules{margin-top:8px;font-size:13px;opacity:.85}.lgRules summary{cursor:pointer;font-weight:700;padding:8px 0}.kr .nm small{display:block;font-weight:500;opacity:.7;font-size:11px}.mailList{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
+.formRow small{font-size:9px!important;line-height:1.2;display:block;opacity:.8}.newDot{background:#ff3b5c;color:#fff;font-size:11px;font-weight:800;border-radius:8px;padding:2px 6px;margin-left:6px;vertical-align:middle}#stampBox{margin:8px 0 4px;text-transform:none;letter-spacing:0}.stNext{text-align:center;font-size:13px;opacity:.85;margin-bottom:2px}.stamps{display:flex;gap:6px;justify-content:center;margin:8px 0 2px;flex-wrap:nowrap}.stamps span{flex:0 1 40px;min-width:0;height:44px;border-radius:10px;border:1px dashed rgba(255,255,255,.3);display:grid;place-items:center;font-size:11px;font-weight:700;opacity:.7}.stamps span b{font-size:15px;color:#6dffc7}.stamps span.on{border:1px solid #6dffc7;opacity:1;background:rgba(109,255,199,.12)}.stamps span.now{border-color:#ffcf4f;opacity:1}.seenB{position:absolute;top:4px;right:4px;font-size:10px;background:#ffcf4f;color:#2a1d00;border-radius:8px;padding:2px 5px}.mini{position:relative}.wanted{border:2px dashed #ffcf4f;border-radius:18px;padding:12px;text-align:center;background:rgba(255,207,79,.08);cursor:pointer}.wanted .wT{font:900 12px/1 var(--body);letter-spacing:.2em;color:#ffcf4f}.wanted .wN{font-size:20px;font-weight:900;margin:6px 0 2px}.lockSil{width:120px;margin:0 auto 6px;opacity:.85}.lockSil svg{width:100%;height:auto}#invNudge{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 92px);z-index:94;padding:12px 16px;font-weight:700;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}#invNudge[hidden]{display:none}#linkCopy{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--bot) + 92px);z-index:95;padding:12px 16px;font-weight:700;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}#linkCopy[hidden]{display:none}.lgRules{margin-top:8px;font-size:13px;opacity:.85}.lgRules summary{cursor:pointer;font-weight:700;padding:8px 0}.kr .nm small{display:block;font-weight:500;opacity:.7;font-size:11px}.mailList{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
 #cardM.locked .acts{max-width:none;justify-content:center;background:none!important}
 .kick{white-space:nowrap}
 #yearM .acts{bottom:-18px;padding-bottom:22px}
 #repName{text-transform:none}
 .rep{min-width:44px;min-height:44px;display:inline-grid;place-items:center}
 #f-privacy,#onb-privacy,.src a{display:inline-block;padding:12px 6px;margin:-12px -6px}
-body.moment .pageHead{padding-top:8px}
 @media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}#onb .sky{inset:0 0 70% 0}}
 </style>
 </head>
@@ -778,6 +778,7 @@ body.moment .pageHead{padding-top:8px}
   </section>
   <section class="card glass">
     <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
+    <div id="stampBox"></div>
     <div id="d-list" style="margin-top:6px"></div>
   </section>
   <section class="card glass">
@@ -983,25 +984,25 @@ body.moment .pageHead{padding-top:8px}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=48"></script>
-<script src="js/ui.js?v=48"></script>
-<script src="js/ar.js?v=48"></script>
-<script src="js/space.js?v=48"></script>
-<script src="js/weather.js?v=48"></script>
-<script src="js/extras.js?v=48"></script>
-<script src="js/social.js?v=48"></script>
-<script src="js/wrapped.js?v=48"></script>
-<script src="js/push.js?v=48"></script>
-<script src="js/track.js?v=48"></script>
-<script src="js/towns.js?v=48"></script>
-<script src="js/catalog.js?v=48"></script>
-<script src="js/cards.js?v=48"></script>
-<script src="js/mail.js?v=48"></script>
-<script src="js/golden.js?v=48"></script>
-<script src="js/teams.js?v=48"></script>
-<script src="js/duel.js?v=48"></script>
-<script src="js/sound.js?v=48"></script>
-<script src="js/santa.js?v=48"></script>
-<script src="js/main.js?v=48"></script>
+<script src="js/core.js?v=49"></script>
+<script src="js/ui.js?v=49"></script>
+<script src="js/ar.js?v=49"></script>
+<script src="js/space.js?v=49"></script>
+<script src="js/weather.js?v=49"></script>
+<script src="js/extras.js?v=49"></script>
+<script src="js/social.js?v=49"></script>
+<script src="js/wrapped.js?v=49"></script>
+<script src="js/push.js?v=49"></script>
+<script src="js/track.js?v=49"></script>
+<script src="js/towns.js?v=49"></script>
+<script src="js/catalog.js?v=49"></script>
+<script src="js/cards.js?v=49"></script>
+<script src="js/mail.js?v=49"></script>
+<script src="js/golden.js?v=49"></script>
+<script src="js/teams.js?v=49"></script>
+<script src="js/duel.js?v=49"></script>
+<script src="js/sound.js?v=49"></script>
+<script src="js/santa.js?v=49"></script>
+<script src="js/main.js?v=49"></script>
 </body>
 </html>
