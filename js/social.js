@@ -59,7 +59,7 @@ async function socPoll(){
     if(typeof TR!=="undefined"&&TR&&TR.hex&&!hs.includes(TR.hex))hs.push(TR.hex);
     await ensureTok();const pr=posR();
     // id a token v tele požiadavky, nie v adrese (nekončia v záznamoch)
-    const r=await fetch(`${SOC.api}/api/sky`,{method:"POST",cache:"no-store",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:TOK,...pr,hexes:hs.join(",")})});
+    const r=await fetch(`${SOC.api}/api/sky`,{method:"POST",cache:"no-store",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:TOK,...pr,hexes:hs.join(","),ad:LS.get("ctl_adopt","")||undefined})});
     if(r.ok){SOC.data=await r.json();SOC.back=SOC.data.flags&&SOC.data.flags.social==="min"?4:1;socRender();if(SOC.data.myInvites>0)grantAch("recruit");
       // 👋 koľko ľudí prišlo cez tvoje odkazy (a ozvi sa, keď pribudne)
       {const n=SOC.data.myInvites|0,was=LS.get("ctl_inv",0)|0,el=$("invCount");if(el){el.hidden=!n;el.textContent=n?`👋 Cez tvoje odkazy ${n===1?"prišiel":n<5?"prišli":"prišlo"} ${n} ${ludia(n)}`:""}
@@ -86,13 +86,15 @@ function socRender(){
     const rec=D.record;
     $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Denný rekord: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · do rekordu chýba "+nf(Math.max(0,rec.n-w+1))+" 👋"}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
     if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
-    renderLeague();renderMayor();
+    renderLeague();renderMayor();renderAdopt();
   }
   waveInfo(S.top);
   if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
 }
 let LG="k";
-const LG_HEAD={k:"🇸🇰 Dnes mávalo Slovensko",w:"🇸🇰 Kraje tento týždeň",m:"🏙️ Mestá dnes",s:"🏘️ Menšie mestá dnes",a:"🃏 Zberatelia v kraji",f:"👯 Kamaráti tento týždeň",p:"⚖️ Kraje na hráča",t:"👥 Tímy tento týždeň"};
+// počet obyvateľov krajov (približne, ŠÚ SR 2024) – pre derby na obyvateľa
+const KRAJ_POP={BA:736e3,TT:565e3,TN:570e3,NR:666e3,ZA:688e3,BB:615e3,PO:809e3,KE:778e3};
+const LG_HEAD={k:"🇸🇰 Dnes mávalo Slovensko",w:"🇸🇰 Kraje tento týždeň",m:"🏙️ Mestá dnes",s:"🏘️ Menšie mestá dnes",a:"🃏 Zberatelia v kraji",f:"👯 Kamaráti tento týždeň",p:"⚖️ Kraje na hráča",o:"🏁 Derby krajov (na obyvateľa)",t:"👥 Tímy tento týždeň"};
 const LG_RULES={
   k:"Rátajú sa mávnutia s polohou z GPS na Slovensku, najviac 25 za deň na hráča. Tvoje mesto sa na deň určí podľa prvého mávnutia.",
   w:"Súčet mávnutí za týždeň (pondelok–nedeľa) s polohou z GPS, najviac 25 denne na hráča.",
@@ -101,6 +103,7 @@ const LG_RULES={
   a:"Body = vzácnosť tvojich rôznych overených typov (bežná 3, nezvyčajná 8, vzácna 25, epická 45, legendárna 80) + 100 b za každý typ, ktorý si na Slovensku overil(a) ako prvý.",
   f:"Overené mávnutia do ligy od pondelka. Kamaráti ste cez pozvánku – obaja ste ju potvrdili.",
   p:"Mávnutia kraja delené počtom aktívnych hráčov – aj malý kraj môže vyhrať.",
+  o:"Mávnutia kraja tento týždeň na 100 000 obyvateľov (počty obyvateľov približne podľa ŠÚ SR) – férové derby veľkých aj malých krajov.",
   t:"Overené mávnutia do ligy všetkých členov tímu tento týždeň. Nový člen sa ráta od nasledujúceho dňa."};
 function renderLeague(){
   const D=SOC.data;if(!D)return;let note="";
@@ -130,12 +133,22 @@ function renderLeague(){
       note=i>0?`${esc(String(rows[i-1][0]).split(" · ")[0])} ti uniká o ${rows[i-1][1]-rows[i][1]+1} 👋 · ${end}`:rows.length>1?`Vedieš o ${rows[0][1]-rows[1][1]} 👋 · ${end}`:end}
   }
   else if(LG==="m"||LG==="s"){const me=typeof townOf==="function"?townOf(S.pos):"";rows=((LG==="s"?D.townsSmall:D.towns)||[]).map(x=>[x.town,x.n,x.town===me])}
+  else if(LG==="o"){const me=krajOf(S.pos);rows=((D.krajeWeek||[]).filter(x=>KRAJ_POP[x.k])).map(x=>({k:x.k,v:Math.round(x.n/KRAJ_POP[x.k]*1e5*10)/10})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2],x.v,x.k===me])}
   else if(LG==="p"){const me=krajOf(S.pos);rows=(D.krajePP||[]).slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2]+` · ${x.p} ${pl(x.p,"hráč","hráči","hráčov")}`,x.n,x.k===me])}
   else rows=(D.teamsTop||[]).map(x=>[x.name,x.n,x.me,!x.me]);
   const max=Math.max(1,...rows.map(r=>r[1]));
   if($("lgNote"))$("lgNote").innerHTML=note;
-  $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
+  $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
 }
+// 🏡 Adoptuj obec: fandi jednej obci (napr. rodnej) a sleduj, koľko sa v nej máva
+function renderAdopt(){
+  const el=$("adopt");if(!el)return;const t=LS.get("ctl_adopt",""),A=SOC.data&&SOC.data.adopt;
+  const hb=`<button class="linkBtn" id="heatBtn">🗺️ Mapa mávania na Slovensku</button>`;
+  if(!t){el.innerHTML=`<label class="lookSub">🏡 <select id="adSel" aria-label="Adoptuj obec"><option value="">Adoptuj obec a fanď jej…</option>${TOWNS.map(x=>x[0]).sort((a,b)=>a.localeCompare(b,"sk")).map(n=>`<option>${esc(n)}</option>`).join("")}</select></label>`+hb;return}
+  const d=A&&A.town===t?A:{d:"…",w:"…"};
+  el.innerHTML=`🏡 Tvoja obec <b>${esc(t)}</b>: dnes ${d.d} 👋 · tento týždeň ${d.w} 👋 <button class="linkBtn" id="adOff">zmeniť</button><br><small>Ráta sa mesto prvého mávnutia dňa každého hráča. Pozvi susedov 😉</small>`+hb}
+document.addEventListener("change",e=>{if(e.target.id!=="adSel"||!e.target.value)return;LS.set("ctl_adopt",e.target.value);toast("🏡 Adoptoval(a) si obec "+e.target.value,"Uvidíš, koľko sa v nej dnes máva");renderAdopt();socPoll()});
+document.addEventListener("click",e=>{if(e.target.id==="heatBtn"&&typeof openHeat==="function"){openHeat();return}if(e.target.id!=="adOff")return;LS.set("ctl_adopt","");renderAdopt()});
 function renderMayor(){
   const M=SOC.data&&SOC.data.mayor,el=$("mayor");if(!el)return;
   const was=LS.get("ctl_mayor","");

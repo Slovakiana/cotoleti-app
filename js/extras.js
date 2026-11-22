@@ -66,6 +66,20 @@ function gcPath(a,b,n=64){
     const x=s1*A[0]+s2*B[0],y=s1*A[1]+s2*B[1],z=s1*A[2]+s2*B[2];out.push([deg(Math.atan2(z,Math.hypot(x,y))),deg(Math.atan2(y,x))])}
   return out;
 }
+// 🗺️ Mapa mávania: kde na Slovensku sa máva (len štvorce ~5 km s aspoň 5 hráčmi – nikoho nevidno samostatne)
+async function openHeat(){
+  $("mapM").classList.add("on");$("mapInfo").textContent="Načítavam mapu mávania…";
+  try{await loadLeaflet()}catch(e){$("mapInfo").textContent="Mapa sa nenačítala. Skontroluj internet.";return}
+  if(!LMAP){LMAP=L.map("map",{zoomControl:false,attributionControl:true});
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",subdomains:"abcd",maxZoom:18}).addTo(LMAP);LLAYER=L.layerGroup().addTo(LMAP)}
+  LLAYER.clearLayers();
+  let j=null;try{j=await fetch(DEFAULT_PROXY+"/api/heat").then(r=>r.json())}catch(e){}
+  const cells=(j&&j.cells)||[],max=Math.max(5,...cells.map(c=>c[2]));
+  cells.forEach(([la,lo,p])=>L.circle([la,lo],{radius:2500+3500*Math.sqrt(p/max),stroke:false,fillColor:p>=max*.5?"#ffcf4f":"#ff4fd8",fillOpacity:.25+.45*p/max}).bindTooltip(p+" "+pl(p,"hráč","hráči","hráčov")).addTo(LLAYER));
+  if(S.pos)L.circleMarker([S.pos.lat,S.pos.lon],{radius:6,color:"#6dffc7",fillColor:"#6dffc7",fillOpacity:.9}).bindTooltip("Ty").addTo(LLAYER);
+  $("mapInfo").textContent=cells.length?"Kde sa tento a minulý mesiac mávalo. Ukážeme len miesta, kde mávalo aspoň 5 hráčov.":"Zatiaľ málo dát – miesto sa ukáže, keď v ňom zamáva aspoň 5 hráčov.";
+  setTimeout(()=>{LMAP.invalidateSize();LMAP.fitBounds([[47.73,16.83],[49.61,22.57]],{padding:[10,10]})},60);
+}
 async function openMap(){
   const a=S.top;if(!a){toast("Nič na mape","Počkaj, kým niečo preletí");return}
   $("mapM").classList.add("on");$("mapInfo").textContent="Načítavam mapu…";

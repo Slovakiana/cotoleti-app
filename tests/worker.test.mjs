@@ -326,3 +326,12 @@ await (async () => {
   assert.equal((await call("/api/planes?lat=40.4&lon=-3.7")).s, 404);
   console.log("✓ /api/planes zo snímky oblohy");
 })();
+await (async () => {
+  // mapa mávania: štvorec sa ukáže až od 5 rôznych hráčov
+  const m = new Date().toISOString().slice(0, 7);
+  for (let i = 0; i < 4; i++) db.prepare("INSERT INTO heatp(m, cell, id) VALUES(?, ?, ?)").run(m, "48.40,17.60", "h" + i);
+  for (let i = 0; i < 5; i++) db.prepare("INSERT INTO heatp(m, cell, id) VALUES(?, ?, ?)").run(m, "48.70,21.25", "k" + i);
+  sky._heat = null; const r = (await call("/api/heat")).j;
+  assert.deepEqual(r.cells.map(c => c.slice(0, 2).join(",")), ["48.7,21.25"], JSON.stringify(r));
+  console.log("✓ mapa mávania: štvorec až od 5 hráčov");
+})();

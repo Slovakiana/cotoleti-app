@@ -494,6 +494,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 .seenBox{margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(5,10,30,.28);font-size:calc(13px*var(--fs,1));line-height:1.5;color:#fff}.seenBox small{color:rgba(255,255,255,.8)}
 .lockStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.lockStats div{background:rgba(255,255,255,.07);border-radius:12px;padding:8px;text-align:center}.lockStats b{display:block;font-size:calc(15px*var(--fs,1))}.lockStats small{color:#97a3c7;font-size:calc(11px*var(--fs,1))}
 .mayor{margin-top:12px;padding:10px 12px;border-radius:14px;background:linear-gradient(90deg,rgba(255,207,79,.16),rgba(255,207,79,.04));border:1px solid rgba(255,207,79,.25);font-size:calc(14px*var(--fs,1));line-height:1.45}.mayor small{color:#c9d3f0}
+#adopt{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}#adopt select{font:inherit;color:inherit;background:transparent;border:0;max-width:88%;min-height:36px}#adopt select option{color:#000}#adopt .linkBtn{display:inline;margin:0 0 0 6px}
 #yearM .mcard{max-height:86vh;overflow-y:auto;background:#0e1430}#yearM .acts{position:sticky;bottom:-1px;background:#0e1430;padding:10px 0 4px}.yearBtn{margin-top:10px;background:linear-gradient(90deg,#0b4ea2,#ee1c25)}.yBig{font-size:calc(44px*var(--fs,1));font-weight:900;line-height:1.05;margin:6px 0}.yRow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}.yRow:last-child{border:0}.ySec{margin-top:14px;font-weight:800}
 .revealHd{text-align:center;font:900 calc(22px*var(--fs,1))/1.2 var(--disp);margin:0 0 12px}.revealHd small{display:block;font:500 calc(13px*var(--fs,1)) var(--body);color:var(--mut);margin-top:4px}
 .holoWrap.reveal{animation:cardIn .7s cubic-bezier(.2,1.4,.4,1) both}@keyframes cardIn{0%{transform:perspective(800px) rotateY(90deg) scale(.7);opacity:0}100%{transform:none;opacity:1}}
@@ -704,11 +705,12 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span id="lgHead">🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
-    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="a">🃏 Atlasy</button><button data-t="f">👯 Kamaráti</button><button data-more="1" aria-expanded="false">⋯</button><button data-t="p" class="lgX">Na hráča</button><button data-t="s" class="lgX">Menšie mestá</button><button data-t="t" class="lgX">Tímy</button></div>
+    <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="a">🃏 Atlasy</button><button data-t="f">👯 Kamaráti</button><button data-more="1" aria-expanded="false">⋯</button><button data-t="p" class="lgX">Na hráča</button><button data-t="o" class="lgX">Derby</button><button data-t="s" class="lgX">Menšie mestá</button><button data-t="t" class="lgX">Tímy</button></div>
     <div id="kraje" style="margin-top:8px"></div>
     <div id="lgNote" class="lookSub" style="margin-top:6px"></div>
     <details class="lgRules"><summary>ⓘ Ako sa to počíta?</summary><div id="lgRules"></div></details>
     <div id="mayor" class="mayor" hidden></div>
+    <div id="adopt" class="mayor"></div>
   </section>
 
   <section class="card glass" id="weekCard" style="display:none">
@@ -984,25 +986,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=55"></script>
-<script src="js/ui.js?v=55"></script>
-<script src="js/ar.js?v=55"></script>
-<script src="js/space.js?v=55"></script>
-<script src="js/weather.js?v=55"></script>
-<script src="js/extras.js?v=55"></script>
-<script src="js/social.js?v=55"></script>
-<script src="js/wrapped.js?v=55"></script>
-<script src="js/push.js?v=55"></script>
-<script src="js/track.js?v=55"></script>
-<script src="js/towns.js?v=55"></script>
-<script src="js/catalog.js?v=55"></script>
-<script src="js/cards.js?v=55"></script>
-<script src="js/mail.js?v=55"></script>
-<script src="js/golden.js?v=55"></script>
-<script src="js/teams.js?v=55"></script>
-<script src="js/duel.js?v=55"></script>
-<script src="js/sound.js?v=55"></script>
-<script src="js/santa.js?v=55"></script>
-<script src="js/main.js?v=55"></script>
+<script src="js/core.js?v=56"></script>
+<script src="js/ui.js?v=56"></script>
+<script src="js/ar.js?v=56"></script>
+<script src="js/space.js?v=56"></script>
+<script src="js/weather.js?v=56"></script>
+<script src="js/extras.js?v=56"></script>
+<script src="js/social.js?v=56"></script>
+<script src="js/wrapped.js?v=56"></script>
+<script src="js/push.js?v=56"></script>
+<script src="js/track.js?v=56"></script>
+<script src="js/towns.js?v=56"></script>
+<script src="js/catalog.js?v=56"></script>
+<script src="js/cards.js?v=56"></script>
+<script src="js/mail.js?v=56"></script>
+<script src="js/golden.js?v=56"></script>
+<script src="js/teams.js?v=56"></script>
+<script src="js/duel.js?v=56"></script>
+<script src="js/sound.js?v=56"></script>
+<script src="js/santa.js?v=56"></script>
+<script src="js/main.js?v=56"></script>
 </body>
 </html>

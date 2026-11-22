@@ -810,7 +810,7 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen"];
+const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen"];
 function profState(){return LS.get("ctl_profs",{cur:"A",n:{A:"Ja",B:"Dieťa"}})}
 function profRender(){const P=profState(),o=P.cur==="A"?"B":"A";const el=$("profTxt");if(!el)return;el.innerHTML=`Hrá: <b>${esc(P.n[P.cur])}</b>`;$("b-prof").textContent="Prepnúť na: "+P.n[o]}
 function profSwitch(){

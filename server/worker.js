@@ -140,6 +140,7 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
       CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
       CREATE TABLE IF NOT EXISTS catches(id TEXT, hex TEXT, t INTEGER, PRIMARY KEY(id, hex));
+      CREATE TABLE IF NOT EXISTS heatp(m TEXT, cell TEXT, id TEXT, PRIMARY KEY(m, cell, id));
       CREATE TABLE IF NOT EXISTS typeseq(type TEXT, id TEXT, seq INTEGER, w INTEGER, k TEXT, town TEXT, t INTEGER, PRIMARY KEY(type, id));
       CREATE TABLE IF NOT EXISTS edcatch(ev TEXT, id TEXT, no INTEGER, type TEXT, t INTEGER, PRIMARY KEY(ev, id));
       CREATE TABLE IF NOT EXISTS wavewhy(id TEXT, t INTEGER, hex TEXT, type TEXT, el REAL, ok INTEGER, why TEXT);
@@ -266,6 +267,7 @@ export class Sky extends DurableObject {
         this.sql.exec("DELETE FROM wavelog WHERE day < ?", old);
         this.sql.exec("DELETE FROM momentby WHERE day < ?", old);
         for (const t of ["planes", "towns", "mails", "kraje"]) this.sql.exec(`DELETE FROM ${t} WHERE day < ?`, old);
+        this.sql.exec("DELETE FROM heatp WHERE m < ?", new Date(Date.now() - 70 * 86400e3).toISOString().slice(0, 7));
         const mm = (this.row("SELECT MIN(mid) AS m FROM mails") || {}).m; const mmin = mm == null ? 1e15 : mm;
         this.sql.exec("DELETE FROM maildel WHERE mid < ?", mmin); this.sql.exec("DELETE FROM maildeliv WHERE mid < ?", mmin);
         this.sql.exec("DELETE FROM xfer WHERE t < ?", now - 10 * 60e3);
@@ -682,6 +684,13 @@ export class Sky extends DurableObject {
       for (const a of sn.m.values()) if (a.lat != null && a.lon != null && distKm(la, lo, a.lat, a.lon) <= km) ac.push(a);
       return json({ac, now: sn.t, src: "sky"}, 200, {"Cache-Control": "public, max-age=5"});
     }
+    if (p === "/api/heat") {
+      // mapa mávania za tento a minulý mesiac – len štvorce s ≥ 5 hráčmi (k-anonymita)
+      const m1 = d.slice(0, 7), m0 = new Date(new Date(d + "T12:00:00Z").setUTCDate(0)).toISOString().slice(0, 7);
+      const c = this._heat; if (c && now - c.t < 600e3) return json(c.v);
+      const cells = this.sql.exec("SELECT cell, COUNT(DISTINCT id) AS p FROM heatp WHERE m IN (?, ?) GROUP BY cell HAVING p >= 5 ORDER BY p DESC LIMIT 400", m1, m0).toArray().map(r => { const [a, o] = r.cell.split(","); return [Number(a), Number(o), r.p]; });
+      this._heat = {t: now, v: {cells, k: 5}}; return json(this._heat.v);
+    }
     if (p === "/api/weekly") return json(JSON.parse(this.getMeta("weeklyData") || "null") || this.weekly(this.week()));
     if (p === "/api/tname") { const t = this.row("SELECT name FROM teams WHERE code=?", String(u.searchParams.get("c") || "").toUpperCase().slice(0, 6)); return json({name: t ? t.name : ""}); }
     if (p === "/api/stats") {
@@ -838,6 +847,8 @@ export class Sky extends DurableObject {
         if (!vp.priv) this.sql.exec("INSERT INTO planes(day, hex, call, type, dest) VALUES(?, ?, ?, ?, ?) ON CONFLICT(day, hex) DO UPDATE SET call=COALESCE(NULLIF(excluded.call,''), call), type=COALESCE(NULLIF(excluded.type,''), type), dest=COALESCE(NULLIF(excluded.dest,''), dest)",
           d, hex, (vp.call || String(b.call || "")).replace(/[^A-Z0-9]/gi, "").slice(0, 8), (vp.type || String(b.type || "")).replace(/[^A-Z0-9]/gi, "").slice(0, 6), cleanName(b.dest, 40) || "");
         if (town) this.sql.exec("INSERT INTO towns(day, town, n) VALUES(?, ?, 1) ON CONFLICT(day, town) DO UPDATE SET n = n + 1", d, town);
+        // 🗺️ mapa mávania: štvorec ~5 km, verejne len keď v ňom mávalo aspoň 5 rôznych hráčov (deti sa nerátajú)
+        if (league && num(b.lat) != null && num(b.lon) != null && !this.isKid(id)) this.sql.exec("INSERT OR IGNORE INTO heatp(m, cell, id) VALUES(?, ?, ?)", d.slice(0, 7), (Math.round(num(b.lat) * 20) / 20).toFixed(2) + "," + (Math.round(num(b.lon) * 20) / 20).toFixed(2), id);
         const tm = this.row("SELECT code, jt FROM tmembers WHERE id=?", id);
         if (tm && league && now - (tm.jt || 0) > 86400e3) this.sql.exec("INSERT INTO tweek(code, wk, n) VALUES(?, ?, 1) ON CONFLICT(code, wk) DO UPDATE SET n = n + 1", tm.code, this.week());
         const g = this.goldenNow(d);
@@ -1189,7 +1200,10 @@ export class Sky extends DurableObject {
       }
       let duelIn = [];
       if (myPid) { duelIn = this.sql.exec("SELECT n, res, t FROM duelres WHERE pid=? AND t > ? ORDER BY t DESC LIMIT 5", myPid, now - 3 * 86400e3).toArray(); if (duelIn.length) this.sql.exec("DELETE FROM duelres WHERE pid=?", myPid); }
-      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, flags: this.flags()});
+      // 🏡 adoptovaná obec: dnešné a týždenné mávnutia (podľa mesta prvého mávnutia dňa)
+      let adopt = null; const ad = cleanName(qp("ad") || "", 40);
+      if (ad) { const wk = this.week(now); adopt = {town: ad, d: (this.row("SELECT n FROM towns WHERE day=? AND town=?", d, ad) || {n: 0}).n || 0, w: (this.row("SELECT SUM(n) AS s FROM towns WHERE day >= ? AND town=?", wk, ad) || {s: 0}).s || 0}; }
+      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, flags: this.flags()});
     }
     return json({error: "not found"}, 404);
   }
@@ -1280,7 +1294,7 @@ export default {
       if (req.cf && req.cf.latitude) { h.set("x-cc-lat", String(req.cf.latitude)); h.set("x-cc-lon", String(req.cf.longitude)); }
       const fwd = new Request(req.url, {method: req.method, headers: h, body: req.method === "POST" ? await req.text() : undefined});
       // ⚡ verejné odpovede bez osobných údajov z okrajovej cache Cloudflare (menej práce pre Durable Object)
-      const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
+      const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/heat": 600, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
       const ttl = typeof caches !== "undefined" && req.method === "GET" && !url.searchParams.has("id") ? EDGE[url.pathname] : 0;
       let ck = null;
       if (ttl) {
