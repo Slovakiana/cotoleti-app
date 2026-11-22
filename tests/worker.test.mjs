@@ -319,3 +319,10 @@ await (async () => {
   const w = (await call("/api/mywhy", {id: E, tok: he.tok}, "6.6.6.6")).j; assert.ok(w.rows.length && w.rows[0].why, JSON.stringify(w));
   console.log("✓ atlasy cache, ručné mesto, moje dôvody");
 })();
+await (async () => {
+  // /api/planes: lietadlá zo spoločnej snímky okolo hráča, mimo SR → 404 (appka prejde na iný zdroj)
+  const r = await call("/api/planes?lat=" + plane.lat + "&lon=" + plane.lon + "&r=40");
+  assert.equal(r.s, 200, r.text); assert.ok(Array.isArray(r.j.ac) && r.j.ac.some(a => a.hex === plane.hex), r.text);
+  assert.equal((await call("/api/planes?lat=40.4&lon=-3.7")).s, 404);
+  console.log("✓ /api/planes zo snímky oblohy");
+})();

@@ -146,6 +146,8 @@ function osMeta(hex){const m=S.meta.get(hex),ac=m&&m.ac;const t=ac&&ac.icao_type
   if(!ac&&S.meta.size<600&&typeof loadMeta==="function")setTimeout(()=>loadMeta({hex,call:""}),0);
   return {reg:ac&&ac.registration||"",type:T_ALIAS[t]||t}}
 const SOURCES=[
+  // vlastný server: spoločná snímka oblohy nad SR (najmenej záťaže, mimo SR vráti 404 → ďalší zdroj)
+  {name:"Čo to letí",own:true,url:(la,lo,r)=>`${MYPROXY}/api/planes?lat=${la}&lon=${lo}&r=${Math.min(60,r)}`,parse:normReadsb},
   {name:"adsb.lol",url:(la,lo,r)=>`https://api.adsb.lol/v2/point/${la}/${lo}/${r}`,parse:normReadsb},
   {name:"airplanes.live",url:(la,lo,r)=>`https://api.airplanes.live/v2/point/${la}/${lo}/${r}`,parse:normReadsb},
   {name:"adsb.fi",url:(la,lo,r)=>`https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/${r}`,parse:normReadsb},
@@ -173,8 +175,9 @@ const ROUTES=[
   {name:"server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)},
   {name:"priamo",wrap:u=>u}
 ];
-const COMBOS=[];ROUTES.forEach(rt=>SOURCES.forEach(s=>COMBOS.push({s,rt})));
-let comboIdx=Math.min(COMBOS.length-1,Math.max(0,LS.get("ctl_combo",0)|0)),busy=false;
+const COMBOS=SOURCES.filter(s=>s.own).map(s=>({s,rt:ROUTES[1]}));ROUTES.forEach(rt=>SOURCES.forEach(s=>{if(!s.own)COMBOS.push({s,rt})}));
+// pamätaný zdroj (od v55 je na 1. mieste vlastný server – staré číslo sa zahodí)
+let comboIdx=LS.get("ctl_comboV",0)===2?Math.min(COMBOS.length-1,Math.max(0,LS.get("ctl_combo",0)|0)):0,busy=false;LS.set("ctl_comboV",2);
 
 async function getJSON(url,ms=7000,outer){
   const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);
@@ -195,11 +198,13 @@ async function tryCombo(i,r,signal){
   const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url((Math.round(S.pos.lat*4)/4).toFixed(2),(Math.round(S.pos.lon*4)/4).toFixed(2),r+10)),9000,signal);
   if(!ok){SRCST[i]={err:"HTTP "+status,t:Date.now()};throw new Error("HTTP "+status)}
   if(!j.ac&&!j.aircraft&&!("states" in j)){SRCST[i]={err:"zlý formát",t:Date.now()};throw new Error("zlý formát")}
-  return {i,list:c.s.parse(j)};
+  // spoločná snímka servera môže byť pár sekúnd stará → posun polôh sa ráta od jej času
+  const age=j.src==="sky"&&typeof j.now==="number"?Math.max(0,Math.min(30e3,Date.now()-j.now)):0;
+  return {i,list:c.s.parse(j),age};
 }
-function gotPlanes(i,list){S.failN=0;S.nextTry=0;S.loaded=true;
+function gotPlanes(i,list,age=0){S.failN=0;S.nextTry=0;S.loaded=true;
   if(typeof SOC!=="undefined"&&SOC.data&&SOC.data.flags&&SOC.data.flags.hideMil)list=list.filter(a=>!a.mil);
-  S.raw=list;S.rawT=Date.now();comboIdx=i;LS.set("ctl_combo",i);err("");S.lastKnown=false;
+  S.raw=list;S.rawT=Date.now()-age;comboIdx=i;LS.set("ctl_combo",i);err("");S.lastKnown=false;
   // 📊 čas do prvého lietadla (anonymne, po pásmach) + posledná známa obloha na rýchly štart
   if(!S.ttfp&&typeof ev==="function"){S.ttfp=performance.now();const t=S.ttfp/1000;ev("ttfp_"+(t<1?"1s":t<3?"3s":t<6?"6s":t<12?"12s":"slow"))}
   if(!S.lkT||Date.now()-S.lkT>60e3){S.lkT=Date.now();try{LS.set("ctl_lastSky",{t:Date.now(),p:S.pos?[S.pos.lat,S.pos.lon]:null,raw:list.filter(a=>!a.ground).slice(0,40)})}catch(e){}}
@@ -216,13 +221,13 @@ async function fetchPlanes(force){
   const r=+$("radius").value;
   try{
     // 1) naposledy fungujúca cesta
-    if(comboIdx>=0){try{const x=await tryCombo(comboIdx,r);gotPlanes(x.i,x.list);return}catch(e){}}
+    if(comboIdx>=0){try{const x=await tryCombo(comboIdx,r);gotPlanes(x.i,x.list,x.age);return}catch(e){}}
     // 2) všetky cesty naraz – vyhráva prvá, ktorá odpovie
     if(!S.raw.length)setStatus("Pripájam sa…",false);
     const ctl=new AbortController(),fails=[];
     try{
       const x=await Promise.any(COMBOS.map((_,i)=>new Promise(res=>setTimeout(res,i*1500)).then(()=>{if(ctl.signal.aborted)throw new Error("stop");return tryCombo(i,r,ctl.signal)}).catch(e=>{fails.push(COMBOS[i].s.name+"/"+COMBOS[i].rt.name+": "+e.message);throw e})));
-      ctl.abort();gotPlanes(x.i,x.list);
+      ctl.abort();gotPlanes(x.i,x.list,x.age);
     }catch(e){
       setStatus("Bez spojenia",false);
       S.failN=(S.failN||0)+1;S.nextTry=Date.now()+Math.min(60000,10000*S.failN);

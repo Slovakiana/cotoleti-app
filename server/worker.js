@@ -671,6 +671,17 @@ export class Sky extends DurableObject {
       const up = Number(this.getMeta("upstream") || 0);
       return json({ok: now - c < 5 * 60e3, version: VERSION, lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
     }
+    if (p === "/api/planes") {
+      // 🛩️ lietadlá okolo hráča zo spoločnej snímky oblohy nad SR (formát ako adsb.lol) – jedna požiadavka na sieť pre všetkých
+      const la = num(qp("lat")), lo = num(qp("lon")), r = Math.min(60, Math.max(5, num(qp("r")) || 40));
+      if (la == null || lo == null || distKm(la, lo, 48.7, 19.5) > 330) return json({error: "far"}, 404);
+      if (!this.rate("pl:" + iph, 400, 60e3)) return json({error: "rate"}, 429);
+      const sn = await this.snapshot();
+      if (!sn || now - sn.t > 60e3) return json({error: "stale"}, 503);
+      const km = r * 1.852, ac = [];
+      for (const a of sn.m.values()) if (a.lat != null && a.lon != null && distKm(la, lo, a.lat, a.lon) <= km) ac.push(a);
+      return json({ac, now: sn.t, src: "sky"}, 200, {"Cache-Control": "public, max-age=5"});
+    }
     if (p === "/api/weekly") return json(JSON.parse(this.getMeta("weeklyData") || "null") || this.weekly(this.week()));
     if (p === "/api/tname") { const t = this.row("SELECT name FROM teams WHERE code=?", String(u.searchParams.get("c") || "").toUpperCase().slice(0, 6)); return json({name: t ? t.name : ""}); }
     if (p === "/api/stats") {
@@ -1268,7 +1279,20 @@ export default {
       h.set("x-cc-asn", String((req.cf && req.cf.asn) || ""));
       if (req.cf && req.cf.latitude) { h.set("x-cc-lat", String(req.cf.latitude)); h.set("x-cc-lon", String(req.cf.longitude)); }
       const fwd = new Request(req.url, {method: req.method, headers: h, body: req.method === "POST" ? await req.text() : undefined});
-      try { return await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd); }
+      // ⚡ verejné odpovede bez osobných údajov z okrajovej cache Cloudflare (menej práce pre Durable Object)
+      const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
+      const ttl = typeof caches !== "undefined" && req.method === "GET" && !url.searchParams.has("id") ? EDGE[url.pathname] : 0;
+      let ck = null;
+      if (ttl) {
+        const cu = new URL(url.origin + url.pathname); const ks = [...url.searchParams.keys()].sort();
+        for (const k of ks) { let v = url.searchParams.get(k); if (k === "lat" || k === "lon") v = (Math.round(Number(v) * 50) / 50).toFixed(2); cu.searchParams.set(k, v); }
+        ck = new Request(cu.toString()); const hit = await caches.default.match(ck).catch(() => null); if (hit) return hit;
+      }
+      try {
+        const r = await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd);
+        if (ck && r.status === 200) { const out = new Response(r.body, r); out.headers.set("Cache-Control", "public, max-age=" + ttl); ctx.waitUntil(caches.default.put(ck, out.clone()).catch(() => {})); return out; }
+        return r;
+      }
       catch (e) { return json({error: "busy"}, 503, {"Retry-After": "20"}); }
     }
     if (url.pathname === "/admin") return adminPage();
@@ -1284,7 +1308,7 @@ export default {
         h.set("Referrer-Policy", "strict-origin-when-cross-origin");
         h.set("X-Frame-Options", "DENY");
         h.set("Permissions-Policy", "geolocation=(self), camera=(self), microphone=(self)");
-        h.set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+        h.set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
         return new Response(r.body, {status: r.status, headers: h});
       }
       return new Response("Čo to letí? server beží ✈️", {headers: CORS});

@@ -20,6 +20,8 @@ def stub(route):
     if "/v2/" in u or "adsb" in u and "adsbdb" not in u:
         return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps(PLANES))
     if "workers.dev" in u:
+        if "/api/planes" in u:
+            return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps({**PLANES, "src": "sky"}))
         if "/api/sky" in u:
             return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps(SKY))
         return route.fulfill(status=200, content_type="application/json", headers=h, body='{"ok":true}')
@@ -48,6 +50,9 @@ def main():
             for v in ["space", "col", "now"]:
                 pg.click(f'nav [data-v="{v}"]', timeout=5000)
                 pg.wait_for_timeout(1200)
+            src = pg.evaluate("S.src||''")
+            if "Čo to letí" not in src:
+                errs.append("lietadlá neprišli z vlastného servera: " + src)
             ok = pg.evaluate("document.fonts.check('16px Inter')")
             if not ok:
                 errs.append("písmo Inter sa nenačítalo z appky")
