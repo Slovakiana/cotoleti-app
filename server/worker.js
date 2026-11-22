@@ -191,6 +191,9 @@ export class Sky extends DurableObject {
     try { this.sql.exec("ALTER TABLE tracks ADD COLUMN chk INTEGER DEFAULT 0"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE wavelog ADD COLUMN pid TEXT"); } catch (e) {}
+    // skryté mená: komu sme meno skryli (aby sa to dozvedel a mohol sa odvolať)
+    this.sql.exec("CREATE TABLE IF NOT EXISTS hidden(id TEXT PRIMARY KEY, name TEXT, t INTEGER, appeal INTEGER DEFAULT 0)");
+    try { this.sql.exec("ALTER TABLE banned ADD COLUMN appeal INTEGER DEFAULT 0"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS wavelog_pid ON wavelog(pid, day)"); } catch (e) {}
     for (const c of ["type TEXT", "reg TEXT", "el REAL", "ok INTEGER", "shiny INTEGER"]) try { this.sql.exec("ALTER TABLE catches ADD COLUMN " + c); } catch (e) {}
     try { this.sql.exec("ALTER TABLE golden ADD COLUMN crew INTEGER"); } catch (e) {}
@@ -358,7 +361,7 @@ export class Sky extends DurableObject {
   legendAlert(list, d, now) {
     for (const a of list) {
       const ty = String(a.t || ""), tr = tierOf(ty);
-      if ((tr !== "l" && tr !== "e") || a.lat == null || (a.dbFlags & 12)) continue;
+      if ((tr !== "l" && tr !== "e") || a.lat == null || (a.dbFlags & 12) || /^7[567]00$/.test(a.squawk || "") || (a.emergency && a.emergency !== "none")) continue; // LADD/PIA a núdza: žiadny poplach
       const hx = cleanHex(a.hex), key = "la:" + d + ":" + hx;
       if (this.getMeta(key)) continue; this.setMeta(key, String(now));
       const nm = TYPES_SRV[ty] || ty;
@@ -681,7 +684,10 @@ export class Sky extends DurableObject {
       const sn = await this.snapshot();
       if (!sn || now - sn.t > 60e3) return json({error: "stale"}, 503);
       const km = r * 1.852, ac = [];
-      for (const a of sn.m.values()) if (a.lat != null && a.lon != null && distKm(la, lo, a.lat, a.lon) <= km) ac.push(a);
+      for (const a of sn.m.values()) if (a.lat != null && a.lon != null && distKm(la, lo, a.lat, a.lon) <= km) {
+        // LADD/PIA (súkromie majiteľa): bez registrácie, prevádzkovateľa a volacieho znaku – len typ a poloha
+        ac.push(a.dbFlags & 12 ? {...a, r: "", ownOp: "", flight: "", desc: ""} : a);
+      }
       return json({ac, now: sn.t, src: "sky"}, 200, {"Cache-Control": "public, max-age=5"});
     }
     if (p === "/api/heat") {
@@ -806,6 +812,7 @@ export class Sky extends DurableObject {
       const k = fair && dd ? dd.k : "XX";
       const nk = this.nm(b.nick);
       if (nk) this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
+      if (nk) this.sql.exec("DELETE FROM hidden WHERE id=?", id); // nové (alebo vrátené) meno platí – oznam o skrytí zmizne
       // zápis prvý (atomicky) – dve rýchle mávnutia sa nezapočítajú dvakrát
       this.sql.exec("INSERT OR IGNORE INTO wavelog(day, hex, id, t, k, pid, lg) VALUES(?, ?, ?, ?, ?, ?, ?)", d, hex, id, now, k, pdx, league ? 1 : 0);
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
@@ -916,14 +923,23 @@ export class Sky extends DurableObject {
     if (p === "/api/admin" && req.method === "POST") {
       const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
-      if (b.unban) this.sql.exec("DELETE FROM banned WHERE name=?", lc(b.unban));
-      if (b.confirm) this.sql.exec("UPDATE banned SET ok=1 WHERE name=?", lc(b.confirm));
+      if (b.unban) { this.sql.exec("DELETE FROM banned WHERE name=?", lc(b.unban)); this.sql.exec("UPDATE hidden SET appeal=3 WHERE name=?", lc(b.unban)); } // 3 = meno vrátené (appka ho ukáže)
+      if (b.confirm) { this.sql.exec("UPDATE banned SET ok=1, appeal=0 WHERE name=?", lc(b.confirm)); this.sql.exec("UPDATE hidden SET appeal=2 WHERE name=?", lc(b.confirm)); } // 2 = zamietnuté
       const sig = this.sql.exec("SELECT day, k, n FROM sig WHERE day >= ? ORDER BY day DESC, n DESC", this.day(now - 3 * 86400e3)).toArray();
-      const fronta = this.sql.exec("SELECT name, why, t FROM banned WHERE COALESCE(ok, 0)=0 ORDER BY t DESC LIMIT 30").toArray();
+      const fronta = this.sql.exec("SELECT name, why || CASE WHEN COALESCE(appeal, 0)=1 THEN ' · ✋ ODVOLANIE' ELSE '' END AS why, t FROM banned WHERE COALESCE(ok, 0)=0 OR COALESCE(appeal, 0)=1 ORDER BY COALESCE(appeal, 0) DESC, t DESC LIMIT 30").toArray();
       let overenie = null;
       if (b.nick) { const ids = this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 3", lc(String(b.nick))).toArray().map(r => r.id);
         overenie = ids.map(i => ({karticky: (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE id=?", i) || {c: 0}).c, mavnutia: this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 15", i).toArray()})); }
       return json({flags: this.flags(), naKontrolu: fronta, signaly: sig, overenie});
+    }
+    if (p === "/api/appeal" && req.method === "POST") {
+      // ✋ odvolanie: hráč, ktorému sme skryli meno, požiada o ľudskú kontrolu (raz)
+      const b = await body(), id = cleanId(b.id);
+      if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
+      const h = this.row("SELECT name, appeal FROM hidden WHERE id=?", id);
+      if (!h) return json({ok: false});
+      if (!h.appeal) { this.sql.exec("UPDATE hidden SET appeal=1 WHERE id=?", id); this.sql.exec("UPDATE banned SET appeal=1, ok=0 WHERE name=?", h.name); }
+      return json({ok: true, appeal: h.appeal || 1});
     }
     if (p === "/api/report" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), name = lc(b.name).slice(0, 24);
@@ -939,6 +955,7 @@ export class Sky extends DurableObject {
       const serious = why === "osobne" || why === "sex";
       if (n >= 3 || serious) { // vážne (osobné údaje, sexuálny obsah) skryjeme hneď, inak po 3 nahláseniach – a rozhodne človek v /admin
         this.sql.exec("INSERT OR IGNORE INTO banned(name, t, why, ok) VALUES(?, ?, ?, 0)", name, now, why);
+        for (const r of this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 50", name).toArray()) this.sql.exec("INSERT OR REPLACE INTO hidden(id, name, t, appeal) VALUES(?, ?, ?, 0)", r.id, name, now);
         this.sql.exec("UPDATE nicks SET nick='Spotter', lc='spotter' WHERE lc=?", name); this.sql.exec("UPDATE tmembers SET nick='Spotter', lc='spotter' WHERE lc=?", name);
         this.sql.exec("UPDATE mails SET nick='', lc='' WHERE lc=?", name); this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code) WHERE lc=?", name);
         for (const r of this.sql.exec("SELECT rowid AS k, wnick AS v FROM golden").toArray()) if (lc(r.v) === name) this.sql.exec("UPDATE golden SET wnick='Spotter' WHERE rowid=?", r.k);
@@ -1203,7 +1220,8 @@ export class Sky extends DurableObject {
       // 🏡 adoptovaná obec: dnešné a týždenné mávnutia (podľa mesta prvého mávnutia dňa)
       let adopt = null; const ad = cleanName(qp("ad") || "", 40);
       if (ad) { const wk = this.week(now); adopt = {town: ad, d: (this.row("SELECT n FROM towns WHERE day=? AND town=?", d, ad) || {n: 0}).n || 0, w: (this.row("SELECT SUM(n) AS s FROM towns WHERE day >= ? AND town=?", wk, ad) || {s: 0}).s || 0}; }
-      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, flags: this.flags()});
+      const hid = id.length >= 8 ? this.row("SELECT name, appeal FROM hidden WHERE id=?", id) : null;
+      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, myHidden: hid ? {name: hid.name, appeal: hid.appeal | 0} : null, flags: this.flags()});
     }
     return json({error: "not found"}, 404);
   }

@@ -341,3 +341,18 @@ await (async () => {
   const js = html.split("<script>")[1].split("</script>")[0]; new Function(js);
   console.log("✓ /admin skript je platný");
 })();
+await (async () => {
+  // nahlásené meno: hráč sa to dozvie a môže sa odvolať → admin to vidí na vrchu fronty
+  const X = "v2xxxxxxxxxxxxxxxxxxxxxxx7", hx = (await call("/api/hello", {id: X}, "7.7.7.7")).j;
+  db.prepare("INSERT OR REPLACE INTO nicks(id, nick, lc) VALUES(?, ?, ?)").run(X, "Zlemeno", "zlemeno");
+  // nahlasovateľ: starý účet, 2 dni
+  db.prepare("UPDATE ids SET t=? WHERE id=?").run(Date.now() - 5 * 86400e3, C);
+  db.prepare("INSERT OR IGNORE INTO seen(day, id) VALUES('2026-01-01', ?), ('2026-01-02', ?)").run(C, C);
+  await call("/api/report", {id: C, tok: hc.tok, name: "Zlemeno", why: "osobne"}, "9.9.9.9");
+  const s1 = (await call("/api/sky", {id: X, tok: hx.tok}, "7.7.7.7")).j;
+  assert.deepEqual(s1.myHidden, {name: "zlemeno", appeal: 0}, JSON.stringify(s1.myHidden));
+  assert.equal((await call("/api/appeal", {id: X, tok: hx.tok}, "7.7.7.7")).j.ok, true);
+  const a = (await call("/api/admin", {key: "tajne"}, "1.1.1.1")).j;
+  assert.ok(a.naKontrolu[0].name === "zlemeno" && /ODVOLANIE/.test(a.naKontrolu[0].why), JSON.stringify(a.naKontrolu));
+  console.log("✓ skryté meno: oznam hráčovi a odvolanie v /admin");
+})();

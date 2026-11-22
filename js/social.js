@@ -86,7 +86,7 @@ function socRender(){
     const rec=D.record;
     $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Denný rekord: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · do rekordu chýba "+nf(Math.max(0,rec.n-w+1))+" 👋"}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
     if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
-    renderLeague();renderMayor();renderAdopt();
+    renderLeague();renderMayor();renderAdopt();renderHidden();
   }
   waveInfo(S.top);
   if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
@@ -141,6 +141,18 @@ function renderLeague(){
   $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
 }
 // 🏡 Adoptuj obec: fandi jednej obci (napr. rodnej) a sleduj, koľko sa v nej máva
+// ✋ skryté meno: hráč sa dozvie, prečo a môže požiadať o ľudskú kontrolu
+function renderHidden(){
+  const el=$("hidBox");if(!el)return;const H=SOC.data&&SOC.data.myHidden,nk=LS.get("ctl_nick","");
+  if(!H||!nk||nk.toLowerCase()!==H.name){el.hidden=true;return}
+  el.hidden=false;
+  el.innerHTML=H.appeal===3?`✅ Tvoje meno „${esc(nk)}“ sme po kontrole vrátili. Ukáže sa pri ďalšom mávnutí.`
+    :H.appeal===2?`🚩 Meno „${esc(nk)}“ ostáva skryté – podľa kontroly porušuje pravidlá. Ostatní ťa vidia ako „Spotter“. Vyber si prosím iné meno.`
+    :H.appeal===1?`⏳ Tvoju žiadosť o kontrolu mena „${esc(nk)}“ preverí človek, zvyčajne do 48 hodín.`
+    :`🚩 Tvoje meno „${esc(nk)}“ sme po nahlásení skryli – ostatní ťa vidia ako „Spotter“. Vyber si iné meno, alebo <button class="linkBtn" id="hidAppeal" style="display:inline;margin:0">požiadaj o kontrolu človekom</button>, ak je podľa teba v poriadku.`;
+  if(!LS.get("ctl_hidSeen","")||LS.get("ctl_hidSeen","")!==H.name+H.appeal){LS.set("ctl_hidSeen",H.name+H.appeal);if(!H.appeal)toast("🚩 Tvoje meno je skryté","Pozri záložku Ja – nastavenia")}}
+document.addEventListener("click",async e=>{if(e.target.id!=="hidAppeal")return;e.target.disabled=true;
+  try{const j=await (await apiPost("/api/appeal",{})).json();if(j&&j.ok){if(SOC.data&&SOC.data.myHidden)SOC.data.myHidden.appeal=1;renderHidden();toast("✋ Žiadosť odoslaná","Meno preverí človek, zvyčajne do 48 h")}else toast("Nepodarilo sa","Skús to neskôr")}catch(err){toast("Nepodarilo sa","Skús to, keď budeš online")}});
 function renderAdopt(){
   const el=$("adopt");if(!el)return;const t=LS.get("ctl_adopt",""),A=SOC.data&&SOC.data.adopt;
   const hb=`<button class="linkBtn" id="heatBtn">🗺️ Mapa mávania na Slovensku</button>`;
