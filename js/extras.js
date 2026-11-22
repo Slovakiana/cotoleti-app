@@ -97,10 +97,10 @@ async function openMap(){
     const o=[rt.origin.latitude,rt.origin.longitude],d=[rt.destination.latitude,rt.destination.longitude];
     L.polyline(gcPath(o,[cur.lat,cur.lon]),{color:"#4fc3ff",weight:3}).addTo(LLAYER);
     L.polyline(gcPath([cur.lat,cur.lon],d),{color:"#ff4fd8",weight:3,dashArray:"6 8"}).addTo(LLAYER);
-    [[o,rt.origin],[d,rt.destination]].forEach(([p,ap])=>L.circleMarker(p,{radius:5,color:"#fff",fillOpacity:1}).bindTooltip((ap.iata_code||"")+" "+(ap.municipality||""),{permanent:true,direction:"top"}).addTo(LLAYER));
+    [[o,rt.origin],[d,rt.destination]].forEach(([p,ap])=>L.circleMarker(p,{radius:5,color:"#fff",fillOpacity:1}).bindTooltip((ap.iata_code||"")+" "+citySk(ap.municipality||ap.name||""),{permanent:true,direction:"top"}).addTo(LLAYER));
     pts.push(o,d);
     const d1=distBear(o[0],o[1],cur.lat,cur.lon).d,d2=distBear(cur.lat,cur.lon,d[0],d[1]).d;
-    info+=` · ${rt.origin.municipality||rt.origin.iata_code} → ${rt.destination.municipality||rt.destination.iata_code} · prejdených ${nf(d1/(d1+d2)*100)} % · zostáva ${nf(d2/1000)} km`;
+    info+=` · ${citySk(rt.origin.municipality||rt.origin.name)||rt.origin.iata_code} → ${citySk(rt.destination.municipality||rt.destination.name)||rt.destination.iata_code} · prejdených ${nf(d1/(d1+d2)*100)} % · zostáva ${nf(d2/1000)} km`;
     if(cur.spd)info+=` (asi ${Math.floor(d2/(cur.spd/3.6)/3600)} h ${Math.round(d2/(cur.spd/3.6)%3600/60)} min)`;
   }else info+=" · trasu pre tento let nepoznáme";
   const ic=L.divIcon({className:"",html:`<div style="font-size:26px;transform:rotate(${(cur.trk??0)-45}deg);filter:drop-shadow(0 0 6px #6dffc7)">✈️</div>`,iconSize:[30,30],iconAnchor:[15,15]});

@@ -210,7 +210,7 @@ function openCard(k,reveal){$("cardM").classList.remove("locked");
     $("cardShare").style.visibility="hidden";if($("cardVideo"))$("cardVideo").style.visibility="hidden";
     $("cardBig").innerHTML=`<div class="revealHd">Čo ti priletelo?<small>ťukni na kartičku</small></div><div class="cardBack ${r}" role="button" aria-label="Otočiť kartičku"><b>✈️</b><span>Atlas oblohy</span></div>`;
     haptic(15);const bk=$("cardBig").querySelector(".cardBack");let done=false;const go=()=>{if(done)return;done=true;face()};
-    bk.onclick=go;setTimeout(go,d+600);
+    bk.onclick=go;setTimeout(go,d+(typeof KID==="function"&&KID()?6000:600));
   }else{face();haptic(15)}
 }
 function cardExtras(k,v){
@@ -234,7 +234,7 @@ async function cardStat(k){
   if(!SOC.api)return;try{const {ok,j}=await getJSON(SOC.api+"/api/cardstat?type="+encodeURIComponent(k)+(S.pos&&typeof krajOf==="function"?"&k="+krajOf(S.pos):""),5000);const el=$("cardStat");if(!ok||!j||!el)return;
     const pct=j.players?Math.max(.1,Math.round(j.own/j.players*1000)/10):0;
     if(!j.own&&COL.types[k]&&COL.types[k].ver){el.innerHTML="";return}
-    el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju ${j.own>=2&&j.own<=4?"majú":"má"} ${nf(j.own)} ${pl(j.own,"spotter","spotteri","spotterov")}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.kraj?(()=>{const kp=Math.round(j.kraj.own/j.kraj.players*1000)/10,KN=(typeof KRAJ!=="undefined"&&KRAJ[j.kraj.k]?KRAJ[j.kraj.k][2]:j.kraj.k);return `<br>📍 ${esc(KN)} kraj: ${String(kp).replace(".",",")} % zberateľov${kp<5&&kp<pct?" – <b>u vás vzácna 🔥</b>":kp>pct*2?" – u vás bežná":""}`})():"")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
+    el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju ${j.own>=2&&j.own<=4?"majú":"má"} ${nf(j.own)} ${pl(j.own,"spotter","spotteri","spotterov")}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.kraj?(()=>{const kp=Math.round(j.kraj.own/j.kraj.players*1000)/10,KN=(typeof KRAJ!=="undefined"&&KRAJ[j.kraj.k]?KRAJ[j.kraj.k][2]:j.kraj.k);return `<br>📍 ${esc(KN)} kraj: ${String(kp).replace(".",",")} % zberateľov${kp<5&&kp<pct?" – <b>u vás vzácna 🔥</b>":kp>pct*2?" – u vás bežná":""}`})():"")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(typeof KID==="function"&&KID()?"Spotter":j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
 }
 $("cardBig").addEventListener("click",async e=>{
   const pn=e.target.closest("[data-pin]");if(pn){const k=pn.dataset.pin;COL.show=COL.show||[];const i=COL.show.indexOf(k);
@@ -514,7 +514,7 @@ $("showcase")&&($("showcase").onclick=e=>{const b=e.target.closest("[data-sk]");
     if(!cand.length){toast("📌 Zatiaľ nemáš čo vystaviť","Zamávaj lietadlu a získaj kartičku");return}
     $("cdBox").innerHTML=`<div class="lbl"><span>📌 Vyber kartičku do vitríny</span></div><div class="cdPick" id="showPick">${cand.map(k=>`<button data-pk="${esc(k)}">${cardMini(k,COL.types[k])}</button>`).join("")}</div><div class="acts"><button class="btn ico" id="cdX" style="flex:1">Zrušiť</button></div>`;
     $("cdM").classList.add("on");
-    $("showPick").onclick=ev=>{const p=ev.target.closest("[data-pk]");if(!p)return;COL.show=COL.show||[];if(COL.show.length<showSlots())COL.show.push(p.dataset.pk);LS.set("ctl_col",COL);$("cdM").classList.remove("on");renderShow();haptic(10);toast("📌 Vo vitríne","Kamaráti ju uvidia na tvojom profile")}}});
+    $("showPick").onclick=ev=>{const p=ev.target.closest("[data-pk]");if(!p)return;COL.show=COL.show||[];if(COL.show.length<showSlots())COL.show.push(p.dataset.pk);LS.set("ctl_col",COL);$("cdM").classList.remove("on");renderShow();haptic(10);toast("📌 Vo vitríne","Ukáž ju kamarátom v záložke Ja")}}});
 /* ✈ míle: druhá mena bez platenia – z denných bodov (prvých 60 b naplno, potom 25 %) */
 function mileSync(){
   COL.mi=COL.mi|0;if(COL.ptsSeen==null){COL.ptsSeen=COL.pts;COL.mi=Math.min(300,Math.round(COL.pts/10))}
@@ -526,7 +526,7 @@ function mileSync(){
 const SHOP=[
   {id:"freeze",i:"❄️",n:"Zmrazenie série",d:"Keď vynecháš deň, séria nespadne (max. 3)",c:80,ok:()=>((typeof DAILY!=="undefined"&&DAILY&&DAILY.freeze)|0)<3,buy:()=>{const D=dailyEnsure();D.freeze=(D.freeze|0)+1;LS.set("ctl_daily",D);renderDaily()}},
   {id:"swap",i:"🔄",n:"Ďalšia výmena výzvy",d:"Vymeň dnes ešte jednu výzvu",c:25,ok:()=>true,buy:()=>{const D=dailyEnsure();D.swapped=false;LS.set("ctl_daily",D);renderDaily()}},
-  {id:"slot2",i:"🏛️",n:"2. miesto vo vitríne",d:"Ukáž kamarátom ďalšiu kartičku",c:200,once:1},
+  {id:"slot2",i:"🏛️",n:"2. miesto vo vitríne",d:"Vystav ďalšiu kartičku v záložke Ja",c:200,once:1},
   {id:"slot3",i:"🏛️",n:"3. miesto vo vitríne",d:"Plná vitrína",c:500,once:1,ok:()=>!!(COL.shop||{}).slot2},
   {id:"fr_tatry",i:"🏔️",n:"Rám Tatry",d:"Rám na všetky tvoje kartičky (dá sa prepínať)",c:150,once:1},
   {id:"fr_dunaj",i:"🌊",n:"Rám Dunaj",d:"Rám na všetky tvoje kartičky (dá sa prepínať)",c:250,once:1},

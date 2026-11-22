@@ -525,7 +525,7 @@ body[data-sky=d] .pageHead p,body[data-sky=d] .kick,body[data-sky=d] .lbl,body[d
 body[data-sky=d] .etaBox,body[data-sky=g] .etaBox{background:rgba(4,20,14,.45);border-color:rgba(109,255,199,.45)}
 .shareNudge{margin-top:8px;width:100%;font-size:calc(14px*var(--fs,1))!important;min-height:40px;padding:8px 12px}
 .newTag{display:inline-block;font:800 10px/1 var(--body);letter-spacing:.06em;padding:3px 6px;border-radius:6px;background:#ff4fd8;color:#fff;vertical-align:2px}
-.lgTabs{flex-wrap:wrap!important;overflow:visible!important}body.kid .lgTabs [data-t=f],body.kid .lgTabs [data-t=d]{display:none}
+.lgTabs{flex-wrap:wrap!important;overflow:visible!important}body.kid .lgTabs [data-t=f],body.kid .lgTabs [data-t=d],body.kid .lgTabs [data-t=t],body.kid .sr:has(#nick){display:none!important}
 #b-cduel{background:rgba(255,255,255,.1)!important;color:#fff!important;border:1px solid var(--gline)!important}
 .onbInvite{margin:0 0 10px;padding:10px 12px;border-radius:14px;background:rgba(255,79,216,.18);border:1px solid rgba(255,79,216,.45);font-weight:700;font-size:calc(14px*var(--fs,1))}
 body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
@@ -575,6 +575,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #repName{text-transform:none}
 .rep{min-width:44px;min-height:44px;display:inline-grid;place-items:center}
 #f-privacy,#onb-privacy,.src a{display:inline-block;padding:12px 6px;margin:-12px -6px}
+/* 🔠 Väčšie písmo: aj hlavné čísla a kódy letísk rastú s --fs (nie len popisky) */
+.st3 b{font-size:min(calc(18px*var(--fs,1)),5.6vw)}.grid2 b{font-size:calc(17px*var(--fs,1))}.route .ap b{font-size:calc(22px*var(--fs,1))}
+.spotLine{font-size:calc(13px*var(--fs,1))}.rar,.goldTag,.lookup{font-size:calc(11px*var(--fs,1))}
+#hero .kick{flex-wrap:wrap;row-gap:6px}
+#list .row .l div{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#momentBar{position:absolute}
+#hero .acts>#b-wave{flex:1 1 100%}#hero .acts>#b-ar{flex:1}
+.photo small{left:10px;text-align:right;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:8px;opacity:1}.photo small a{color:#fff}
 @media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}#onb .sky{inset:0 0 70% 0}}
 </style>
 </head>
@@ -642,8 +650,8 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="dir" id="h-dir">
-      <div class="compass" id="compass" aria-hidden="true"><span class="n" id="compN">S</span>
-        <svg viewBox="0 0 84 84" id="arrow"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6dffc7"/><stop offset="1" stop-color="#4fc3ff"/></linearGradient></defs><path d="M42 12 L56 52 L42 44 L28 52 Z" fill="url(#ag)"/></svg>
+      <div class="compass" id="compass" role="button" tabindex="0" aria-label="Zapnúť kompas – šípka ukáže smer k lietadlu"><span class="n" id="compN" aria-hidden="true">S</span>
+        <svg viewBox="0 0 84 84" id="arrow" aria-hidden="true"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6dffc7"/><stop offset="1" stop-color="#4fc3ff"/></linearGradient></defs><path d="M42 12 L56 52 L42 44 L28 52 Z" fill="url(#ag)"/></svg>
       </div>
       <div class="dirT"><b id="h-look">—</b><span id="h-lookSub"></span><div class="gauge"><i id="h-gauge"></i></div></div>
     </div>

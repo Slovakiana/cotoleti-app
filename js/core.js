@@ -309,7 +309,7 @@ try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o]
   if(t){if(!v.srv)t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny;if(v.ver){t.ver=1;if(v.seq&&(!t.seq||v.seq<t.seq))t.seq=v.seq}}else COL.types[nw]=v;
   delete COL.types[o]}}catch(e){}
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
-addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi","ed"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
+addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi","ed","lvlB","lvlFloor","lvlSeen"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
 const ACH=[
   {id:"first",i:"🐣",n:"Prvý úlovok",h:"Zamávaj prvému lietadlu (aspoň 10° nad obzorom)",c:()=>COL.n>=1,pr:()=>[COL.n,1]},
   {id:"ten",i:"🔟",n:"Desiatka",h:"Ulov 10 lietadiel",c:()=>COL.n>=10,pr:()=>[COL.n,10]},
@@ -334,11 +334,17 @@ const LEVELS=["Nováčik","Zvedavec","Mávač lietadlám","Pozorovateľ z okna",
 LEVELS.push("Strážca Dunaja","Vietor z Tatier","Pilot Váhu","Navigátor Hrona","Pán Kriváňa","Duch Gerlachu","Hviezdny pútnik","Kapitán Slovenska","Veterán vzduchu","Šampión oblohy","Majster mávania","Orol Malej Fatry","Sokol Slovenského raja","Kráľ Pienin","Dráčik Vysokých Tatier","Patrón letísk","Hviezda Ivanky","Admirál Barca","Kozmický spotter","Mýtus oblohy","Nebeský veľmajster","Oko Karpát","Vládca prúdových vetrov","Hrdina oblohy","Večná legenda","Hviezda letiska","Kniha rekordov","Živá legenda","Obloha sama","Absolútny spotter");
 // nová krivka (pomalšia, férovejšia) – nikto pri prechode neklesne (COL.lvlFloor)
 const lvlPts=l=>Math.round(12*Math.pow(l,2.5));
-const lvlOf=p=>{let l=0;while(lvlPts(l+1)<=p&&l<200)l++;return Math.max(l,(typeof COL!=="undefined"&&COL.lvlFloor)|0)};
+// lvlB = body navyše len pre level (z prechodu na novú krivku), aby level po prechode rástol ďalej a nestál na „podlahe“
+const lvlOf=p=>{const q=p+((typeof COL!=="undefined"&&COL.lvlB)|0);let l=0;while(lvlPts(l+1)<=q&&l<200)l++;return Math.max(l,(typeof COL!=="undefined"&&COL.lvlFloor)|0)};
 const ROM=["II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIII","XIV","XV","XVI","XVII","XVIII","XIX","XX"];
 // migrácia na vlnu 6: level sa nezníži, vzácnosť kartičiek podľa typu
 if(!COL.v6){let o=0;while(Math.round(10*Math.pow(o+1,1.8))<=COL.pts)o++;COL.lvlFloor=o;for(const k in COL.types)COL.types[k].r=typeTier(k);COL.v6=1;LS.set("ctl_col",COL)}
+if(COL.lvlFloor&&COL.lvlB==null){COL.lvlB=Math.max(0,lvlPts(COL.lvlFloor)-(COL.pts|0));LS.set("ctl_col",COL)}
 const lvlName=l=>l<LEVELS.length?LEVELS[l]:LEVELS[LEVELS.length-1]+" "+ROM[Math.min(ROM.length-1,l-LEVELS.length)];
+// ⬆️ nový level z hocijakých bodov (výzva, sada, séria, zlatá posádka…), nielen z úlovku
+function lvlWatch(B){const l=lvlOf(COL.pts);if(COL.lvlSeen==null||l<=COL.lvlSeen){if(COL.lvlSeen!==l){COL.lvlSeen=l;LS.set("ctl_col",COL)}return}
+  COL.lvlSeen=l;LS.set("ctl_col",COL);const m=["⬆️ Level "+(l+1)+": "+lvlName(l),"Obloha ťa začína poznávať."];if(B)B.items.push(m);else if(typeof toast==="function")toast(m[0],m[1])}
+HOOKS.live.push(()=>{if(!(typeof WB!=="undefined"&&WB))lvlWatch()});
 const ownTypes=()=>Object.entries(COL.types).filter(([k,v])=>v.n>0&&k!=="?").length;
 function tryCatch(a){
   if(a.el==null||a.el<10||COL.hex[a.hex])return false;
@@ -363,8 +369,8 @@ function tryCatch(a){
   if(newType)Sub+=" · nový typ!";
   if(newAch.length){T="🏅 "+(newAch.length>1?newAch.length+" nové odznaky":"Odznak: "+newAch[0].n);Sub=(newAch.length>1?newAch.map(x=>x.n).join(", ")+" · ":"")+"+"+pts+" b · "+titleOf(a)}
   // nový level neprekryje odznak – ukáže sa ako ďalšie oznámenie
-  if(lvlOf(COL.pts)>prevLvl){if(newAch.length){if(!(typeof WB!=="undefined"&&WB))setTimeout(()=>toast("⬆️ Nový level: "+lvlName(lvlOf(COL.pts)),"Obloha ťa začína poznávať."),100)}else{T="⬆️ Nový level: "+lvlName(lvlOf(COL.pts));Sub="Obloha ťa začína poznávať."}}
-  if(typeof WB!=="undefined"&&WB){WB.caught={type:ty,name:COL.types[ty].name||ty,title:titleOf(a),r,newType};newAch.forEach(x=>WB.items.push(["🏅 "+x.n]));if(lvlOf(COL.pts)>prevLvl)WB.items.push(["⬆️ Level "+(lvlOf(COL.pts)+1)+": "+lvlName(lvlOf(COL.pts))])}
+  if(lvlOf(COL.pts)>prevLvl){COL.lvlSeen=lvlOf(COL.pts);if(newAch.length){if(!(typeof WB!=="undefined"&&WB))setTimeout(()=>toast("⬆️ Nový level: "+lvlName(lvlOf(COL.pts)),"Obloha ťa začína poznávať."),100)}else{T="⬆️ Nový level: "+lvlName(lvlOf(COL.pts));Sub="Obloha ťa začína poznávať."}}
+  if(typeof WB!=="undefined"&&WB){WB.caught={type:ty,name:COL.types[ty].name||ty,title:titleOf(a),r,newType};newAch.forEach(x=>WB.items.push(["🏅 "+x.n]));if(lvlOf(COL.pts)>prevLvl){WB.items.push(["⬆️ Level "+(lvlOf(COL.pts)+1)+": "+lvlName(lvlOf(COL.pts))]);COL.lvlSeen=lvlOf(COL.pts)}}
   else toast(T,Sub,RAR[r].col);
   if(r!=="c"||newAch.length||newType)confetti(r==="l"?120:r==="e"?80:40);
   ping(r);

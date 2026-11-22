@@ -10,6 +10,7 @@ function waveBatchStart(){WB={t0:COL.pts,items:[],caught:null,low:null,social:""
 function waveBatchEnd(e){
   const B=WB;WB=null;if(!B)return;
   const got=COL.pts-B.t0,c=B.caught;
+  if(typeof lvlWatch==="function")lvlWatch(B);
   let T,Sub=[];
   if(c){T=c.newType?"🃏 Nová kartička: "+c.name:"👋 Ulovené: "+c.title;}
   else if(B.low!=null)T=(e||"👋")+" Zamávané · do zbierky až nad 10°";
@@ -19,7 +20,7 @@ function waveBatchEnd(e){
     if(/^🎯/.test(t)&&q[1])return "✅ Výzva: "+q[1];
     return (em?em+" ":"")+t.replace(/^[^\p{L}\d]+/u,"").replace(/^(Nový odznak|Odznak):\s*/,"").replace(/\s*\+\d+\s*(bod\w*|b)\b/,"").replace(/!$/,"").trim()};
   // overenie a poradie na Slovensku majú prednosť pred odznakmi
-  const pri=x=>/^(⏳|✓|🧭|č\. |PRVÝ)/.test(x)?0:1;
+  const pri=x=>/^(⏳|✓|🧭|č\. |PRVÝ|⬆)/.test(x)?0:1;
   const its=B.items.map(lab).filter(Boolean).sort((x,y)=>pri(x)-pri(y));
   Sub.push(...its.slice(0,3));if(its.length>3)Sub.push("ďalšie nájdeš v záložke Ja");
   if(!its.length&&B.social)Sub.push(B.social);
@@ -241,16 +242,16 @@ function renderPax(){
 function renderList(list){
   const rest=list.filter(a=>!S.top||a.hex!==S.top.hex).slice(0,12);
   $("radarCnt").textContent=list.filter(a=>a.el>0).length+" nad obzorom";
-  $("list").innerHTML=rest.length?rest.map(a=>{const m=S.meta.get(a.hex),rt=routeOf(a);return `<div class="row" role="button" tabindex="0" aria-label="${esc(titleOf(a)+", "+RAR[rarity(a)].n+", "+dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov")}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div></div>
-    <div class="r">${a.type&&!COL.types[a.type]&&!a.santa?'<span class="newTag">NOVÁ</span> ':""}<b>${a.alt!=null?nf(a.alt/1000,1)+" km":"—"}</b><br>${dirS(a.bear)} · ${nf(Math.max(0,a.el??0))}°</div></div>`}).join(""):'<div class="lookSub">Nič ďalšie v okolí.</div>';
+  $("list").innerHTML=rest.length?rest.map(a=>{const m=S.meta.get(a.hex),rt=routeOf(a);return `<div class="row" role="button" tabindex="0" aria-label="${esc([rt?"letí do "+citySk(rt.destination.municipality):"",titleOf(a),airlineOf(a),typeName(a,m),a.alt!=null?"výška "+nf(a.alt/1000,1)+" km":"",dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov nad obzorom",RAR[rarity(a)].n].filter(Boolean).join(", "))}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div></div>
+    <div class="r">${a.type&&!COL.types[a.type]&&!a.santa?'<span class="newTag">NOVÁ</span> ':""}${a.alt!=null?"výška <b>"+nf(a.alt/1000,1)+" km</b>":"—"}<br>${dirS(a.bear)} · ${nf(Math.max(0,a.el??0))}°</div></div>`}).join(""):'<div class="lookSub">Nič ďalšie v okolí.</div>';
 }
 $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pick=r.dataset.hex;haptic(10);tick(true);window.scrollTo({top:0,behavior:"smooth"})}};
 
 function renderCol(){
-  const l=lvlOf(COL.pts),a=lvlPts(l),b=lvlPts(l+1);
+  const l=lvlOf(COL.pts),a=lvlPts(l),b=lvlPts(l+1),E=COL.pts+(COL.lvlB|0);
   $("c-lvl").textContent="Level "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
-  $("c-bar").style.width=Math.max(0,Math.min(100,(COL.pts-a)/(b-a)*100))+"%";
-  $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
+  $("c-bar").style.width=Math.max(0,Math.min(100,(E-a)/(b-a)*100))+"%";
+  $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+Math.max(1,b-E)+" b)";
   {const z=seasonUpd(),T=[100,300,600],next=T.find(x=>z.pts<x),prev=[0,...T].filter(x=>x<=z.pts).pop(),pct=next?Math.round((z.pts-prev)/(next-prev)*100):100;
     $("c-season").innerHTML=`<b>${z.e} ${z.name}</b> · ${z.pts} b v sezóne${z.left<=7?` · <b style="color:#ffcf4f">končí o ${z.left} ${pl(z.left,"deň","dni","dní")}</b>`:" · končí "+z.end}${z.best?` · rekord ${z.best} b`:""}
       <div class="xp" style="margin-top:6px"><i style="width:${pct}%"></i></div><small>${next?"Stupeň "+(T.indexOf(next)+1)+": "+next+" b → odmena "+SEAS_REW[T.indexOf(next)]:"🏆 Všetky stupne sezóny hotové!"}</small>`}
@@ -265,7 +266,8 @@ function renderCol(){
     $("c-achN").textContent=got.length+"/"+L.length}
   const order={l:0,r:1,u:2,c:3};
   if(typeof renderCards==="function")renderCards();
-  const nk=LS.get("ctl_nick","");$("meName").textContent=nk||"Spotter";
+  const nk=LS.get("ctl_nick",""),pf=LS.get("ctl_profs",null);$("meName").textContent=nk||(pf&&pf.n&&pf.n[pf.cur])||"Spotter";
+  if(pf&&pf.n){const P=profState();$("meSub").innerHTML=`👨‍👩‍👧 Hrá <b>${esc(P.n[P.cur])}</b> · `+["A","B","C"].filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}">→ ${esc(P.n[x])}</button>`).join(" ")}
   if(typeof spotterType==="function"){const st=spotterType();$("c-type").textContent="Tento týždeň: "+st.e+" "+st.n;$("c-type").hidden=/Začínajúci/.test(st.n)}
 }
 
@@ -543,7 +545,8 @@ $("b-forget").onclick=async()=>{
   try{if(typeof apiPost==="function")await apiPost("/api/forget",{})}catch(e){}
   try{const r=await navigator.serviceWorker?.getRegistration();const sub=await r?.pushManager?.getSubscription();await sub?.unsubscribe()}catch(e){}
   try{await caches.delete("ctl-id")}catch(e){}
-  try{Object.keys(localStorage).filter(k=>k.startsWith("ctl_")||k.startsWith("nm_")).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  LSP.clear();LS.set=()=>{};
+  try{Object.keys(localStorage).filter(k=>(k.startsWith("ctl_")||k.startsWith("nm_"))&&!/^ctl_p[A-Z]:/.test(k)&&k!=="ctl_profs").forEach(k=>localStorage.removeItem(k))}catch(e){}
   toast("🗑️ Údaje zmazané","Zo servera aj z tohto mobilu");setTimeout(()=>location.reload(),1500);
 };
 
@@ -600,7 +603,7 @@ function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
 
 /* ============ 🔁 prenos zbierky jednorazovým kódom (platí 10 min, starý mobil stratí prístup) ============ */
-const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean"};
+const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean",ctl_kid:"boolean",ctl_kpin:"string",ctl_adopt:"string"};
 async function xferMake(){
   if(typeof apiPost!=="function")return;
   const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
@@ -616,7 +619,7 @@ async function xferClaim(){
     if(!j.id){toast("Kód je neplatný alebo vypršal","Vytvor v druhom mobile nový – platí 10 minút a len raz");return}
     let data={};try{data=JSON.parse(j.data||"{}")}catch(e){}
     for(const [k,t] of Object.entries(XKEYS)){if(typeof data[k]!=="string")continue;try{const v=JSON.parse(data[k]);if(typeof v===t&&v!==null)localStorage.setItem(k,data[k])}catch(e){}}
-    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_onb",1);
+    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_onb",1);LSP.clear();LS.set=()=>{}; // do reloadu nič neprepíše prenesenú zbierku
     toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);
   }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
 }
@@ -667,7 +670,7 @@ const pinH=p=>String(hash("cotoleti-pin:"+p));
 function kidPinSet(){if(LS.get("ctl_kpin",""))return;const p=prompt("Rodič: nastav 4-miestny PIN.\nBude treba na vypnutie detského režimu, prenos a mazanie zbierky.","");if(p&&/^\d{4}$/.test(p.trim()))LS.set("ctl_kpin",pinH(p.trim()));else if(p!==null)toast("PIN musí mať 4 číslice","Nastavíš ho pri ďalšom zapnutí")}
 function kidPinOk(what){const h=LS.get("ctl_kpin","");if(!KID()||!h)return true;const p=prompt("🔒 Rodičovský PIN ("+what+"):","");if(p===null)return false;if(pinH(String(p).trim())===h)return true;toast("🔒 Nesprávny PIN","Požiadaj rodiča");haptic([60,40,60]);return false}
 $("t-kid").onclick=()=>{
-  if(KID()){if(LS.get("ctl_kpin","")){if(!kidPinOk("vypnúť detský režim"))return}else if(!confirm("Naozaj máš 16 alebo viac rokov? Ak nie, nechaj tento režim zapnutý – chráni ťa."))return;kidSet(false);LS.set("ctl_kpin","")}
+  if(KID()){if(LS.get("ctl_kpin","")){if(!kidPinOk("vypnúť detský režim"))return}else{const a=6+Math.floor(Math.random()*7),b=13+Math.floor(Math.random()*7),r=prompt("🔒 Len pre rodiča: koľko je "+a+" × "+b+"?\n(Rodičovský PIN nie je nastavený.)","");if(r===null)return;if(parseInt(r,10)!==a*b){toast("🔒 Nesprávne","Detský režim ostáva zapnutý – požiadaj rodiča");haptic([60,40,60]);return}}kidSet(false);LS.set("ctl_kpin","")}
   else{kidSet(true);setTimeout(kidPinSet,300)}
   haptic(6)};
 if($("onbKid"))$("onbKid").onchange=e=>{kidSet(e.target.checked);if(e.target.checked)setTimeout(kidPinSet,300)};
@@ -817,18 +820,24 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen"];
-function profState(){return LS.get("ctl_profs",{cur:"A",n:{A:"Ja",B:"Dieťa"}})}
-function profRender(){const P=profState(),o=P.cur==="A"?"B":"A";const el=$("profTxt");if(!el)return;el.innerHTML=`Hrá: <b>${esc(P.n[P.cur])}</b>`;$("b-prof").textContent="Prepnúť na: "+P.n[o]}
-function profSwitch(){
-  const P=profState(),o=P.cur==="A"?"B":"A";
+const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp"];
+const PROF_IDS=["A","B","C"];
+function profState(){const P=LS.get("ctl_profs",{cur:"A",n:{}});P.n=Object.assign({A:"Ja",B:"Dieťa",C:"Dieťa 2"},P.n);return P}
+function profNext(P){return P.cur==="A"?"B":"A"}
+function profRender(){const P=profState(),el=$("profTxt");if(!el)return;
+  el.innerHTML=`Hrá: <b>${esc(P.n[P.cur])}</b><br>`+PROF_IDS.filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}" style="margin:6px 6px 0 0">→ ${esc(P.n[x])}</button>`).join("");
+  $("b-prof").textContent="Prepnúť na: "+P.n[profNext(P)]}
+function profSwitch(to){
+  const P=profState(),o=PROF_IDS.includes(to)&&to!==P.cur?to:profNext(P);
   if(!kidPinOk("prepnúť profil"))return;
+  lsFlush(); // odložený zápis zbierky (300 ms) najprv do localStorage, inak sa uloží stará zbierka
   for(const k of PKEYS){const v=localStorage.getItem(k);if(v==null)localStorage.removeItem("ctl_p"+P.cur+":"+k);else localStorage.setItem("ctl_p"+P.cur+":"+k,v)}
   const fresh=!PKEYS.some(k=>localStorage.getItem("ctl_p"+o+":"+k)!=null);
   for(const k of PKEYS){const v=localStorage.getItem("ctl_p"+o+":"+k);if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}
-  P.cur=o;if(fresh){const nm=prompt("Meno profilu (napr. Miško):",P.n[o]);if(nm&&nm.trim())P.n[o]=nm.trim().slice(0,16);if(confirm("Je to profil dieťaťa do 16 rokov? (zapne sa detský režim)")){LS.set("ctl_kid",true);LS.set("ctl_needPin",1)}}
-  LS.set("ctl_profs",P);location.reload()}
-if($("b-prof")){$("b-prof").onclick=profSwitch;profRender()}
+  P.cur=o;if(fresh){const nm=prompt("Meno profilu (napr. Miško):",P.n[o]);if(nm&&nm.trim())P.n[o]=nm.trim().slice(0,16);if(confirm("Je to profil dieťaťa do 16 rokov? (zapne sa detský režim)")){LS.set("ctl_kid",true);const pin=PROF_IDS.map(x=>LS.get("ctl_p"+x+":ctl_kpin","")).find(Boolean);if(pin)LS.set("ctl_kpin",pin);else LS.set("ctl_needPin",1)}}
+  LS.set("ctl_profs",P);LSP.clear();LS.set=()=>{};location.reload()} // pri pagehide sa už nezapíše zbierka starého profilu
+if($("b-prof")){$("b-prof").onclick=()=>profSwitch();profRender()}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-prof]");if(b){haptic(8);profSwitch(b.dataset.prof)}});
 if(LS.get("ctl_needPin",0)&&KID()){LS.set("ctl_needPin",0);setTimeout(kidPinSet,1500)}
 
 /* 📶 stav zdrojov dát v nastaveniach + ručné prepnutie */

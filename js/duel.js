@@ -27,7 +27,7 @@ const KIDM=()=>typeof KID==="function"&&KID();
 // 🏠 súboj na jednom mobile: hráč 1 vyberie, podá mobil, hráč 2 odohrá (bez odkazu, bez servera – aj pre deti)
 function cdLocalHandoff(){
   const seed=Math.floor(Math.random()*1e6),cats=[0,1,2].map(i=>CD_CATS[hash(String(seed)+i)%CD_CATS.length][0]);
-  const p={n:"Hráč 1",c:CD.sel.slice(),k:cats,s:seed,local:1};
+  const pf=typeof profState==="function"&&LS.get("ctl_profs",null)?profState():null,p={n:pf?pf.n[pf.cur]:"Hráč 1",c:CD.sel.slice(),k:cats,s:seed,local:1};
   cdOpen(`<div style="text-align:center;font-size:64px;margin-top:10px">👉📱</div><div class="cdScore">Podaj mobil súperovi</div>
     <div class="lookSub" style="text-align:center">Tvoje karty sú skryté. Súper si vyberie svoje 3 a odohrá 3 kolá.</div>
     <div class="acts"><button class="btn pri" id="cdLocalGo">Som súper – hrám</button><button class="btn ico" id="cdX" style="flex:0 0 56px">✕</button></div>`);
@@ -87,7 +87,7 @@ function cdResult(){
   // výsledok sa dozvie aj vyzývateľ (raz za súboj)
   if(!p.local&&p.pid&&/^[A-Za-z0-9]{16}$/.test(p.pid)&&!done.includes(key+"r")&&typeof apiPost==="function"){done.push(key+"r");LS.set("ctl_kdDone",done.slice(-200));apiPost("/api/duelres",{to:p.pid,res:`${me}:${them}`}).catch(()=>{})}
   // 👨‍👩‍👧 bilancia s týmto súperom tento týždeň (len v mobile)
-  const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),FS=LS.get("ctl_famScore",{}),nm=p.local?"Hráč 1":p.n;
+  const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),FS=LS.get("ctl_famScore",{}),nm=p.n;
   if(!done.includes(key+"s")){const r=FS[nm]&&FS[nm].wk===wk?FS[nm]:{wk,w:0,l:0,d:0};if(w)r.w++;else if(draw)r.d++;else r.l++;FS[nm]=r;LS.set("ctl_famScore",FS);done.push(key+"s");LS.set("ctl_kdDone",done.slice(-200))}
   const bal=FS[nm]&&FS[nm].wk===wk?FS[nm]:null;
   cdOpen(`<div style="text-align:center;font-size:64px;margin-top:6px">${w?"🏆":draw?"🤝":"😅"}</div>

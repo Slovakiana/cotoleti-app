@@ -183,7 +183,7 @@ export class Sky extends DurableObject {
       DROP INDEX IF EXISTS friends_a;`);
     for (const q of ["ALTER TABLE ids ADD COLUMN ep INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN ls TEXT", "ALTER TABLE idday ADD COLUMN la REAL", "ALTER TABLE idday ADD COLUMN lo REAL",
       "ALTER TABLE wavelog ADD COLUMN lg INTEGER DEFAULT 0", "ALTER TABLE tmembers ADD COLUMN jt INTEGER DEFAULT 0", "ALTER TABLE nicks ADD COLUMN lc TEXT", "ALTER TABLE teams ADD COLUMN lc TEXT",
-      "ALTER TABLE tmembers ADD COLUMN lc TEXT", "ALTER TABLE mails ADD COLUMN lc TEXT", "ALTER TABLE ids ADD COLUMN kid INTEGER DEFAULT 0", "ALTER TABLE reports ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN ok INTEGER DEFAULT 0"]) { try { this.sql.exec(q); } catch (e) {} }
+      "ALTER TABLE tmembers ADD COLUMN lc TEXT", "ALTER TABLE mails ADD COLUMN lc TEXT", "ALTER TABLE ids ADD COLUMN kid INTEGER DEFAULT 0", "ALTER TABLE reports ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN ok INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN pid TEXT", "CREATE INDEX IF NOT EXISTS ids_pid ON ids(pid)"]) { try { this.sql.exec(q); } catch (e) {} }
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS nicks_lc ON nicks(lc); CREATE INDEX IF NOT EXISTS teams_lc ON teams(lc); CREATE INDEX IF NOT EXISTS tmem_lc ON tmembers(lc); CREATE INDEX IF NOT EXISTS mails_lc ON mails(lc); CREATE INDEX IF NOT EXISTS wavelog_lg ON wavelog(day, lg); CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     // jednorazové doplnenie normalizovaných mien a vymazanie IP odtlačkov z účtov
     if (!this.row("SELECT 1 AS x FROM meta WHERE k='mig3'")) {
@@ -293,7 +293,7 @@ export class Sky extends DurableObject {
             if (!kid && this.row("SELECT 1 AS x FROM subs WHERE id=?", w.id)) this.notify(w.id, "🏛️ Si Starosta oblohy!", w.town + " – najaktívnejší spotter mesiaca (" + w.n + " 👋)", "./", true);
           }
           this.sql.exec("DELETE FROM mayorm WHERE m < ?", d.slice(0, 7)); this.sql.exec("DELETE FROM meta WHERE k LIKE 'la:%' AND k < ?", "la:" + d); this.sql.exec("DELETE FROM wavewhy WHERE t < ?", now - 7 * 86400e3); }
-        if (this.getMeta("rlDay") !== d) { this.setMeta("rlDay", d); this.sql.exec("DELETE FROM rl"); this.sql.exec("DELETE FROM idday WHERE day < ?", d); }
+        if (this.getMeta("rlDay") !== d) { this.setMeta("rlDay", d); this.sql.exec("DELETE FROM rl"); this.sql.exec("DELETE FROM idday WHERE day < ?", old); }
         this.sql.exec("DELETE FROM funnel WHERE day < ?", new Date(now - 60 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM errs WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM subs WHERE t < ?", now - 90 * 86400e3);
@@ -639,6 +639,7 @@ export class Sky extends DurableObject {
         return json({error: "moved"}, 401);
       }
       const pd = await this.pid(id);
+      this.sql.exec("UPDATE ids SET pid=? WHERE id=? AND pid IS NULL", pd, id);
       // detský režim sa z appky dá pri každom prihlásení len ZAPNÚŤ (vypnutie ide cez /api/kid)
       if (b.kid === 1 && !this.isKid(id)) this.sql.exec("UPDATE ids SET kid=1 WHERE id=?", id);
       return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd)});
@@ -911,15 +912,16 @@ export class Sky extends DurableObject {
       const b = await body(), id = cleanId(b.id);
       if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
       const wk = this.week(now);
-      if (!this._div || this._div.wk !== wk || now - this._div.t > 300e3) {
+      const myS = (this.row("SELECT SUM(n) AS s FROM idday WHERE day >= ? AND id=?", wk, id) || {}).s | 0;
+      if (!this._div || this._div.wk !== wk || now - this._div.t > 300e3 || (myS > 0 && !this._div.pos.has(id))) {
         const all = this.sql.exec("SELECT id, SUM(n) AS s FROM idday WHERE day >= ? GROUP BY id HAVING s > 0 ORDER BY s DESC, id LIMIT 30000", wk).toArray();
         const pos = new Map(); all.forEach((r, i) => pos.set(r.id, i)); this._div = {wk, t: now, all, pos};
       }
       const D = this._div, i = D.pos.get(id), dn = Math.ceil(D.all.length / 30);
       if (i == null) return json({div: null, divs: dn, players: D.all.length});
       const no = Math.floor(i / 30), part = D.all.slice(no * 30, no * 30 + 30);
-      const rows = part.map(r => { const x = this.row("SELECT n.nick, i.kid FROM ids i LEFT JOIN nicks n ON n.id = i.id WHERE i.id=?", r.id) || {}; return {n: r.id === id ? "Ty" : (x.kid || !x.nick ? "Spotter" : x.nick), w: r.s, me: r.id === id}; });
-      return json({div: no + 1, divs: dn, rank: i - no * 30 + 1, of: part.length, rows});
+      const rows = part.map(r => { const x = this.row("SELECT n.nick, i.kid FROM ids i LEFT JOIN nicks n ON n.id = i.id WHERE i.id=?", r.id) || {}; return {n: r.id === id ? "Ty" : (x.kid || !x.nick ? "Spotter" : x.nick), w: r.id === id ? Math.max(r.s, myS) : r.s, me: r.id === id}; }).sort((a, b) => b.w - a.w);
+      return json({div: no + 1, divs: dn, rank: rows.findIndex(r => r.me) + 1, of: part.length, rows});
     }
     if (p === "/api/friends" && req.method === "POST") {
       const b = await body(), pd = await this.pid(cleanId(b.id));
@@ -929,7 +931,7 @@ export class Sky extends DurableObject {
       const wk0 = this.day(now - ((new Date(this.day(now) + "T12:00:00Z").getUTCDay() + 6) % 7) * 86400e3), wk = x => (this.row("SELECT COUNT(*) AS c FROM wavelog WHERE pid=? AND day>=? AND lg=1", x, wk0) || {c: 0}).c;
       const list = this.sql.exec("SELECT b FROM friends WHERE a=? LIMIT 50", pd).toArray();
       const out = [];
-      for (const r of list) { const ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b), c: ids.length ? cc(ids[0].id) : 0}); }
+      for (const r of list) { let ids = this.sql.exec("SELECT id FROM wavelog WHERE pid=? LIMIT 1", r.b).toArray(); if (!ids.length) ids = this.sql.exec("SELECT id FROM ids WHERE pid=? LIMIT 1", r.b).toArray(); const nk = ids.length ? this.row("SELECT nick FROM nicks WHERE id=?", ids[0].id) : null; out.push({p: r.b, n: (nk && nk.nick) || "Kamarát", w: wk(r.b), c: ids.length ? cc(ids[0].id) : 0}); }
       return json({friends: out, me: wk(pd), meC: cc(cleanId(b.id))});
     }
     if (p === "/api/mydata" && req.method === "POST") {
@@ -1136,9 +1138,12 @@ export class Sky extends DurableObject {
       let host = ""; try { host = new URL(b.sub && b.sub.endpoint).hostname; } catch (e) {}
       if (id.length < 8 || !host || !/^https:\/\//.test(b.sub.endpoint) || !PUSH_HOSTS.some(h => host === h || host.endsWith("." + h))) return json({error: "bad"}, 400);
       if (!this.rate("sub:" + iph, 300, 86400e3)) return json({error: "rate"}, 429);
+      if (this.isKid(id)) return json({error: "kid"}, 403); // detský režim: žiadne upozornenia (ani keď je na rodinnom mobile push zapnutý)
       if (b.keep) { this.sql.exec("UPDATE subs SET sub=?, t=? WHERE id=?", JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), now, id); return json({ok: true}); }
       this.sql.exec("INSERT INTO subs(id, sub, lat, lon, k, moment, t) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, lat=excluded.lat, lon=excluded.lon, k=excluded.k, moment=excluded.moment, t=excluded.t",
         id, JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), round2(b.lat), round2(b.lon), krajOf(num(b.lat), num(b.lon)), b.moment ? 1 : 0, now);
+      // rodinné profily na jednom mobile: jeden prehliadač = jeden odber (inak chodia upozornenia 2–3×)
+      this.sql.exec("DELETE FROM subs WHERE sub=? AND id<>?", JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), id);
       return json({ok: true});
     }
     if (p === "/api/subset" && req.method === "POST") {

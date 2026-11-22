@@ -106,6 +106,9 @@ const LG_RULES={
   p:"Mávnutia kraja delené počtom aktívnych hráčov – aj malý kraj môže vyhrať.",
   o:"Mávnutia kraja tento týždeň na 100 000 obyvateľov (počty obyvateľov približne podľa ŠÚ SR) – férové derby veľkých aj malých krajov.",
   t:"Overené mávnutia do ligy všetkých členov tímu tento týždeň. Nový člen sa ráta od nasledujúceho dňa."};
+// 📈 posun v poradí oproti predošlému dňu (len v mobile): „▲ 2 od včera“
+function lgDelta(key,rank){const A=LS.get("ctl_lgRank",{}),d=dayKey(),o=A[key];if(!o||o.d!==d){A[key]={d,r:rank,p:o&&(key!=="d"||o.d>=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)))?o.r:0,l:o&&o.d===dayAgo(1)?"od včera":"od minule"};LS.set("ctl_lgRank",A)}else if(o.r!==rank){o.r=rank;LS.set("ctl_lgRank",A)}
+  const p=A[key].p,l=A[key].l||"od včera";return !p||p===rank?"":p>rank?` · <b style="color:#7be08a">▲ ${p-rank}</b> ${l}`:` · <b style="color:#ff8a8a">▼ ${rank-p}</b> ${l}`}
 function renderLeague(){
   const D=SOC.data;if(!D)return;let note="";
   if($("lgNote"))$("lgNote").innerHTML="";if($("recBox"))$("recBox").style.display=LG==="k"?"":"none";if($("lgHead"))$("lgHead").textContent=LG_HEAD[LG]||LG_HEAD.k;if($("lgRules"))$("lgRules").textContent=LG_RULES[LG]||LG_RULES.k;
@@ -119,16 +122,17 @@ function renderLeague(){
     if(!SOC.atl||SOC.atl.k!==kk||Date.now()-SOC.atl.t>300e3){if(!SOC.atlL){SOC.atlL=1;apiPost("/api/atlasy",{k:kk}).then(r=>r.json()).then(j=>{SOC.atlL=0;if(!j||!j.top){SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague();return}SOC.atl={k:kk,t:Date.now(),j};if(LG==="a")renderLeague()}).catch(()=>{SOC.atlL=0;SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague()})}}
     if(SOC.atl&&SOC.atl.err){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Rebríček sa nepodarilo načítať. Skúsim znova o chvíľu.</div>';return}
     const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
-    rows=(j.top||[]).slice(0,10).map(r=>[r.nick+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!r.me&&r.nick!=="Spotter"]);
+    const kd=typeof KID==="function"&&KID();rows=(j.top||[]).slice(0,10).map(r=>[(kd&&!r.me?"Zberateľ":r.nick)+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!kd&&!r.me&&r.nick!=="Spotter"]);
     if(j.me&&!(j.top||[]).some(r=>r.me))rows.push([(j.me.rank?j.me.rank+". ":"")+"Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true]);
-    note=j.me?`Si <b>${j.me.rank||"?"}.</b> v kraji${j.me.gap?" · na ďalšieho ti chýba "+nf(j.me.gap)+" b":" · vedieš 👑"}`:"Zamávaj s GPS a tvoje overené kartičky ťa dostanú do rebríčka.";
+    note=j.me?`Si <b>${j.me.rank||"?"}.</b> v kraji${j.me.gap?" · na ďalšieho ti chýba "+nf(j.me.gap)+" b":" · vedieš 👑"}${j.me.rank?lgDelta("a"+kk,j.me.rank):""}`:"Zamávaj s GPS a tvoje overené kartičky ťa dostanú do rebríčka.";
     if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
   }
   else if(LG==="d"){
     if(!SOC.dv||Date.now()-SOC.dv.t>120e3){if(!SOC.dvL){SOC.dvL=1;apiPost("/api/division",{}).then(r=>r.json()).then(j=>{SOC.dv={t:Date.now(),j};SOC.dvL=0;if(LG==="d")renderLeague()}).catch(()=>{SOC.dvL=0})}}
     const j=SOC.dv&&SOC.dv.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
     if(!j.div){$("kraje").innerHTML=`<div class="lookSub" style="padding:8px 0">Tento týždeň ešte nemáš overené mávnutie. Zamávaj a zaradíme ťa do divízie s hráčmi, ktorí mávajú podobne ako ty 👋</div>`;return}
-    note=`🏅 Divízia ${j.div} z ${j.divs} · si <b>${j.rank}.</b> z ${j.of}`;
+    {const me=(j.rows||[]).findIndex(r=>r.me),up=me>0?j.rows[me-1].w-j.rows[me].w+1:0;
+    note=`🏅 Divízia ${j.div} z ${j.divs} (1 = najlepšia) · si <b>${j.rank}.</b> z ${j.of}${up?` · na ${j.rank-1}. miesto ti chýba ${up} 👋`:j.rank===1?" · vedieš 👑":""}${lgDelta("d",j.rank)}`}
     rows=(j.rows||[]).map(r=>[r.n,r.w,r.me,!r.me&&r.n!=="Spotter"]);
   }
   else if(LG==="f"){
@@ -146,7 +150,7 @@ function renderLeague(){
   else rows=(D.teamsTop||[]).map(x=>[x.name,x.n,x.me,!x.me]);
   const max=Math.max(1,...rows.map(r=>r[1]));
   if($("lgNote"))$("lgNote").innerHTML=note;
-  $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
+  $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":LG==="p"?"Kraj sa ukáže, keď v ňom dnes mávajú aspoň 3 hráči. Pozvi kamarátov z kraja 👯":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
 }
 // 🏡 Adoptuj obec: fandi jednej obci (napr. rodnej) a sleduj, koľko sa v nej máva
 // ✋ skryté meno: hráč sa dozvie, prečo a môže požiadať o ľudskú kontrolu
@@ -177,7 +181,8 @@ function renderMayor(){
   if(!M||!M.town){el.hidden=true;return}
   el.hidden=false;
   const end=M.left!=null?(M.left===0?" · mesiac končí dnes":" · do konca mesiaca "+M.left+" "+pl(M.left,"deň","dni","dní")):"";
-  const hof=M.prev?`<br><small>🏆 Starosta minulého mesiaca: ${M.prev.me?"<b>ty</b>":esc(M.prev.nick)} (${M.prev.n} 👋)</small>`:"";
+  const kd=typeof KID==="function"&&KID();if(kd&&M.nick)M.nick="Spotter";
+  const hof=M.prev?`<br><small>🏆 Starosta minulého mesiaca: ${M.prev.me?"<b>ty</b>":kd?"Spotter":esc(M.prev.nick)} (${M.prev.n} 👋)</small>`:"";
   el.innerHTML=(M.me?`🏛️ <b>Vedieš v meste ${esc(M.town)}</b> – na Starostu oblohy (${M.n} 👋)<br><small>Udrž si náskok do konca mesiaca${end}.</small>`
     :M.nick?`🏛️ Vedie v meste ${esc(M.town)}: <b>${esc(M.nick)}</b>${M.nick!=="Spotter"?` <button class="rep" data-rep="${esc(M.nick)}" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""} (${M.n}\u00a0👋)<br><small>Ty máš tento mesiac ${M.mine|0} ${pl(M.mine|0,"mávnutie","mávnutia","mávnutí")}.${M.n-(M.mine|0)+1>0?" Na vedenie ti chýba ešte "+(M.n-(M.mine|0)+1)+".":""}${end}</small>`
     :`🏛️ <b>${esc(M.town)}</b> tento mesiac ešte nikto nevedie<br><small>Kto bude mať na konci mesiaca najviac mávnutí, bude Starosta oblohy${end}.</small>`)+hof;
@@ -254,7 +259,7 @@ function cardHint(a){
     // 🌅/🎯 chýbajúca forma, ktorá sa dá získať práve teraz
     if(v&&!COL.hex[a.hex]){const fm=v.forms||{},sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null;
       if(!fm.g&&sa!=null&&sa>-4&&sa<6)out.push('<span class="new">🌅 Zlatá hodinka – chýba ti táto forma</span>');
-      else if(!fm.z&&a.el>=80)out.push('<span class="new">🎯 Zenit – chýba ti táto forma</span>')}
+      else if(!fm.z&&a.el>=80)out.push('<span class="new">🎯 Je priamo nad hlavou – zamávaj a máš novú formu!</span>')}
     // 📚 dokončí sadu?
     if(!v&&typeof SETS!=="undefined"){const st=SETS.find(s=>!(COL.sets||{})[s.id]&&s.t&&s.t.includes(ty)&&s.t.filter(k=>k!==ty).every(k=>COL.types[k]));if(st)out.push(`<span class="new">📚 Dokončí sadu ${esc(st.n)}</span>`)}
   }catch(e){}
@@ -354,6 +359,9 @@ async function doWave1(e,a){LASTWAVE=null;
   // server overil (≥ 8°), hoci mobil ukazuje menej ako 10° → kartička aj tak patrí hráčovi
   if(j.ver&&a.el!=null&&a.el<10){a={...a,el:10}}
   credit();
+  // 🏅 liga hneď po mávnutí: obnov rebríčky a pochváľ posun v divízii
+  if(!j.dup){const old=SOC.dv&&SOC.dv.j&&SOC.dv.j.rank;SOC.dv=SOC.frw=null;if(j.ver)SOC.atl=null;
+    if(old)setTimeout(()=>apiPost("/api/division",{}).then(r=>r.json()).then(x=>{SOC.dv={t:Date.now(),j:x};if(x&&x.rank&&x.rank<old)toast("🏅 Divízia: si "+x.rank+". (bol(a) si "+old+".)","Len tak ďalej 👋");if(LG==="d")renderLeague()}).catch(()=>{}),2500)}
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
   if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["č. "+j.seq+" na Slovensku"]);

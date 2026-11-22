@@ -146,7 +146,7 @@ const SPACE=(()=>{
     if(p){
       const live=now>=p.start&&now<=p.end;
       $("sp-name").textContent=(live?"🔴 PRÁVE TERAZ: ":"")+LONG[p.sat.kind];
-      $("sp-when").textContent=fmtT(p.start)+" · "+(p.max>=60?"skoro priamo nad hlavou":"na "+dirL(p.azMax)+" oblohe");
+      $("sp-when").textContent=fmtT(p.start)+" · "+(p.max>=60?"skoro priamo nad hlavou":"smerom na "+dirL(p.azMax));
       $("sp-count").style.display="";$("sp-count").innerHTML=live?"✨ <b>Pozri hore!</b> Je na "+dirL(p.azMax):"⏱ O <b>"+cnt(p.start-now)+"</b>";
       $("sp-grid").style.display="";$("sp-max").textContent=nf(p.max)+"°";$("sp-dur").textContent=dur(p.end-p.start);
       $("sp-from").textContent=dirS(p.azStart);$("sp-to").textContent=dirS(p.azEnd);

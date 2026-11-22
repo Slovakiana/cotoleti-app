@@ -95,7 +95,7 @@ if(/vesmir/.test(location.hash))setTimeout(()=>{try{setView("space");history.rep
   t.onclick=async()=>{haptic(10);if(!granted()){LS.set("ctl_streakp",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush())apiPost("/api/subopt",{streak:true}).catch(()=>{});sync();return}
     LS.set("ctl_streakp",!LS.get("ctl_streakp",true));sync();if(SOC.api)apiPost("/api/subopt",{streak:on()}).catch(()=>{})}}}
 // ♛ vzácne lietadlo pri mne (max. 1× denne) – samostatný prepínač
-{const t=$("t-leg");if(t){const on=()=>LS.get("ctl_legp",true);const sync=()=>{t.classList.toggle("on",on()&&PUSH.on);t.setAttribute("aria-checked",on())};sync();setTimeout(sync,3000);
+{const t=$("t-leg");if(t){const on=()=>LS.get("ctl_legp",true);const sync=()=>{t.classList.toggle("on",on()&&PUSH.on);t.setAttribute("aria-checked",on()&&PUSH.on)};sync();setTimeout(sync,3000);
   t.onclick=async()=>{haptic(10);if(!PUSH.on){if(isIOS()&&!isStandalone()){installGuide();return}await enablePush()}else LS.set("ctl_legp",!on());sync();if(SOC.api)apiPost("/api/subopt",{leg:on()}).catch(()=>{})}}}
 // 👆 odkaz z upozornenia na spoločný moment (aj keď príde neskoro)
 function momentFromHash(){if(!/#moment/.test(location.hash))return;try{history.replaceState(null,"",location.pathname)}catch(e){}
