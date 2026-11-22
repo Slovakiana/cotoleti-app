@@ -625,7 +625,22 @@ $("instClose").onclick=()=>$("instM").classList.remove("on");
 $("instCopy").onclick=()=>{$("instM").classList.remove("on");xferMake()};
 // modálne okná: zatvorenie klávesom Esc a návrat zamerania
 function closeModal(m){if(!m)return;if(m.id==="shz"){const c=m.querySelector("#shzClose,[data-close],.ghost");if(c){c.click();return}}m.classList.remove("on");if(m.id==="ar"&&typeof closeAR==="function")closeAR();if(m.id==="cdM"&&typeof CD!=="undefined")CD=null}
-addEventListener("keydown",e=>{if(e.key!=="Escape")return;closeModal([...document.querySelectorAll(".modal.on")].pop())});
+addEventListener("keydown",e=>{
+  const top=[...document.querySelectorAll(".modal.on")].pop();if(!top)return;
+  if(e.key==="Escape"){closeModal(top);return}
+  // Tab zostáva v okne (VoiceOver / klávesnica)
+  if(e.key!=="Tab")return;const f=[...top.querySelectorAll(FOCUSABLE)].filter(x=>x.offsetParent!==null);if(!f.length)return;
+  const i=f.indexOf(document.activeElement);
+  if(e.shiftKey&&(i<=0)){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&(i===-1||i===f.length-1)){e.preventDefault();f[0].focus()}});
+// fokus: pri otvorení okna na jeho prvý prvok, po zatvorení späť na tlačidlo, ktoré ho otvorilo
+const FOCUSABLE='button:not([disabled]),[href],input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])';
+{const ret=new Map();
+  const mo=new MutationObserver(ms=>{for(const m of ms){const el=m.target;if(!el.classList||!el.classList.contains("modal"))continue;
+    const on=el.classList.contains("on");
+    if(on&&!ret.has(el)){ret.set(el,document.activeElement);el.setAttribute("role",el.getAttribute("role")||"dialog");el.setAttribute("aria-modal","true");
+      setTimeout(()=>{if(!el.classList.contains("on")||el.contains(document.activeElement))return;const t=el.querySelector("h2,h3,.mcard")||el;if(!t.hasAttribute("tabindex"))t.setAttribute("tabindex","-1");try{t.focus({preventScroll:true})}catch(e){}},60)}
+    else if(!on&&ret.has(el)){const r=ret.get(el);ret.delete(el);if(r&&r.focus&&document.contains(r)&&!document.querySelector(".modal.on"))try{r.focus({preventScroll:true})}catch(e){}}}});
+  document.querySelectorAll(".modal").forEach(el=>mo.observe(el,{attributes:true,attributeFilter:["class"]}))}
 // zatvorenie ťuknutím vedľa (na tmavé pozadie)
 document.addEventListener("click",e=>{const m=e.target;if(m.classList&&m.classList.contains("modal")&&m.classList.contains("on"))closeModal(m)});
 // zatvorenie potiahnutím okna nadol (za úchyt), keď je obsah na vrchu
