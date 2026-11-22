@@ -1,4 +1,4 @@
-# Nedokončené odporúčania expertov (stav 22. 11. 2026, verzia 52)
+# Nedokončené odporúčania expertov (stav 22. 11. 2026, verzia 59)
 
 Plná verzia s tabuľkami: dokument „Čo to letí? – nedokončené odporúčania expertov“ (https://claude.ai/artifact/6HsNcvNfy2LqKf25hJvUHT).
 
@@ -6,14 +6,7 @@ Plná verzia s tabuľkami: dokument „Čo to letí? – nedokončené odporúč
 ## ▶ Stav 22. 11. 2026 – čo z tohto zoznamu ešte zostáva
 Hotové zo starších sekcií: spoločné mávnutie · push séria v ohrození / ISS / legendárne lietadlo · sezóny so stupňami · „Letím“ · video odhalenia bez hudby · nápoveda ďalšej kartičky (štítky, hľadaná kartička dňa) · odpočet Santu, OG s mestom, Mikuláš, súhrn roka · automatická verzia + aktualizácia · odobrať kamaráta · offline fronta mávnutí · Dynamic Type, zatváranie okien, vzácnosť textom · štafeta, pondelkový súboj, album krajín, Daruj kópiu · testy servera, identity a odznakov v CI.
 
-Claude – zostáva:
-- tichý režim servera (social=min): pozvánky do tímu a výhra starostu
-- písma a satellite.js lokálne (treba sieť) · Playwright v CI + nasadenie len pri zelených testoch
-- /api/planes zdieľaná snímka, edge cache rebríčkov · fokus v modáloch
-- OpenSky záloha: typ a registrácia z metadát
-- Adoptuj obec, derby krajov na obyvateľa, heatmapa, /admin grafy, A/B · nočný/oblačný režim
-- nahlásenie s dôvodom + ľudská kontrola, LADD/PIA na serveri
-- výmena cez QR, divízie po 30, lokálna vzácnosť · špeciálne nátery a prvé lety (údaje od majiteľa)
+Claude – hotové 22. 11. večer (v53–v59): tichý režim (pozvaní, starosta) · písma, satellite.js a Leaflet lokálne · Playwright v CI + voliteľné nasadenie Pages po testoch · /api/planes + okrajová cache · fokus v modáloch · OpenSky typ/registrácia · Adoptuj obec, Derby krajov, Mapa mávania, /admin grafy, A/B · nočné/oblačné tlačidlo · odvolanie skrytého mena, LADD/PIA na serveri · darček cez QR, divízie po 30, lokálna vzácnosť · špeciálne nátery a prvé lety v /admin · oprava neplatného skriptu /admin.
 
 Majiteľ – zostáva: Workers Paid, UptimeRobot, notifikácie, TG_TOKEN · passkey/2FA, ruleset, secret scanning · súkromie (meno, e-mail), DPA, abuse@ · PR Santa do 5. 12., OZ, doména · rozhodnutia (Spotter+, čo vidí kamarát).
 
