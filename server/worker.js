@@ -417,7 +417,7 @@ export class Sky extends DurableObject {
   }
   planeRes(a, la, lo) {
     if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-    return {known: true, found: true, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
+    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
   }
   async verifyPlane(hex, la, lo) {
     // 1) čerstvý prehľad oblohy (≤ 30 s starý)
@@ -581,6 +581,8 @@ export class Sky extends DurableObject {
         return json({error: "moved"}, 401);
       }
       const pd = await this.pid(id);
+      // detský režim sa z appky dá pri každom prihlásení len ZAPNÚŤ (vypnutie ide cez /api/kid)
+      if (b.kid === 1 && !this.isKid(id)) this.sql.exec("UPDATE ids SET kid=1 WHERE id=?", id);
       return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd)});
     }
     if (p === "/api/ev" && req.method === "POST") {
@@ -690,6 +692,12 @@ export class Sky extends DurableObject {
       const vp = await this.verifyPlane(hex, la, lo);
       // žiadna sieť neodpovedala – nezapisovať, appka mávnutie o chvíľu zopakuje
       if (!vp.known && (num(b.try, 0) | 0) < 3) { this.bump("wave_retry"); return json({error: "busy"}, 503, {"Retry-After": "15"}); }
+      // odložené mávnutie (bez signálu / výpadok): poloha lietadla v čase mávnutia z mobilu – ak sedí s dnešnou polohou a rýchlosťou
+      const tw = num(b.t, 0), sp = b.pl && typeof b.pl === "object" ? b.pl : null;
+      if (vp.found && !vp.ground && tw && now - tw > 60e3 && now - tw < 15 * 60e3 && sp && isFinite(sp.la) && isFinite(sp.lo) && vp.lat != null) {
+        const moved = distKm(+sp.la, +sp.lo, vp.lat, vp.lon), maxKm = (now - tw) / 3600e3 * 1100 + 10;
+        if (moved <= maxKm) { vp.km = distKm(la, lo, +sp.la, +sp.lo); if (isFinite(sp.alt) && sp.alt > 0) vp.alt = Math.min(50000, +sp.alt); vp.late = 1; }
+      }
       if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
       const pdx = await this.pid(id);
       // do súťaží sa ráta len poloha zo Slovenska, ktorá sedí s IP adresou, a nie z VPN/serverov
@@ -887,7 +895,7 @@ export class Sky extends DurableObject {
     if (p === "/api/team" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), nick = this.nm(b.nick) || "Spotter";
       if (id.length < 8) return json({error: "bad"}, 400);
-      if (this.isKid(id) && (b.action === "create" || b.action === "join")) { /* deti môžu byť v tíme, ale bez prezývky */ }
+      if (this.isKid(id) && b.action === "create") return json({error: "kid"}, 403); // deti sa môžu pridať do tímu, ale nezakladajú verejný názov
       if (b.action === "create") {
         const name = this.nm(b.name, 24); if (!name) return json({error: "name"}, 400);
         if (!this.rate("team:" + iph, 40, 86400e3)) return json({error: "rate"}, 429);

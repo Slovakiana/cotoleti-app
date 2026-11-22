@@ -11,12 +11,20 @@ if(Date.now()-LS.get("ctl_fkT",0)>12*3600e3)FK="";
 function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.set(k,""));location.reload()}
 async function ensureTok(){
   if((TOK&&FK)||!SOC.api)return TOK;
-  if(!TOK&&SOC.helloNext&&Date.now()<SOC.helloNext)return TOK; // po chybe chvíľu počkaj, nezahlcuj server
-  try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref","")})});const j=await r.json();
-    if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
-    if(!j.tok){SOC.helloErr=r.status+"/"+(j.error||"?");SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+SOC.helloErr}))}catch(x){}}
-    if(j.tok){const was=!!SOC.helloFail;SOC.helloErr="";SOC.helloFail=0;SOC.helloNext=0;if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())}}catch(e){}
-  return TOK;
+  if(SOC.helloNext&&Date.now()<SOC.helloNext)return TOK; // po chybe chvíľu počkaj, nezahlcuj server
+  // súbežné volania (štart: sky, mycards, fronta…) zdieľajú jedno prihlásenie
+  if(SOC.helloP)return SOC.helloP;
+  SOC.helloP=(async()=>{
+    const fail=err=>{SOC.helloErr=err;SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+err}))}catch(x){}};
+    try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
+      const j=await r.json().catch(()=>({error:"json"}));
+      if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
+      if(!j.tok){fail(r.status+"/"+(j.error||"?"));return TOK}
+      const was=!!SOC.helloFail;SOC.helloErr="";SOC.helloFail=0;SOC.helloNext=0;if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);
+      LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())
+    }catch(e){fail("net")}
+    return TOK})().finally(()=>{SOC.helloP=null});
+  return SOC.helloP;
 }
 async function apiPost(path,obj){
   await ensureTok();
@@ -139,7 +147,7 @@ function waveInfo(a){
   const p=planeWaves(a.hex),mine=SOC.waved[dayKey()+a.hex];
   $("waveN").style.display=p.total?"":"none";if($("waveN").textContent!==nf(p.total)){$("waveN").textContent=nf(p.total);$("waveN").classList.remove("bump");void $("waveN").offsetWidth;$("waveN").classList.add("bump")}
   // stav tlačidla: po mávnutí je jasné, že je hotovo
-  $("b-wave").classList.toggle("waved",!!mine);$("waveLbl").textContent=mine?"✓ Zamávané":"👋 Mávni";
+  const again=mine&&!COL.hex[a.hex]&&(a.el??0)>=10;$("b-wave").classList.toggle("waved",!!mine&&!again);$("waveLbl").textContent=again?"👋 Mávni – teraz do zbierky":mine?"✓ Zamávané":a&&a.el!=null&&a.el<10&&!COL.hex[a.hex]?"👋 Mávni · nízko "+Math.max(0,Math.round(a.el))+"°":"👋 Mávni";
   $("waveHint").style.display=mine||(LS.get("ctl_waveN",0)|0)>=3?"none":"";
   const em=Object.entries(p.emoji||{}).sort((x,y)=>y[1]-x[1]).slice(0,4).map(([e,n])=>e+" "+n).join("  ");
   const fr=SOC.data&&SOC.data.friends&&SOC.data.friends[a.hex];
@@ -151,6 +159,11 @@ function waveInfo(a){
 }
 HOOKS.heroStatic.push(a=>{waveInfo(a);cardHint(a)});
 /* 🃏 čo ti zamávanie prinesie – ešte PRED mávnutím (prepojenie hlavnej akcie a zbierky) */
+// 📉 nízke lietadlo: zapamätaj si ho a ozvi sa, keď vystúpi nad 10°
+HOOKS.live.push(()=>{const w=SOC.lowWatch;if(!w)return;if(Date.now()-w.t>20*60e3){SOC.lowWatch=null;return}
+  const p=S.list&&S.list.find(x=>x.hex===w.hex);if(!p)return;
+  if(p.el>=10&&!COL.hex[p.hex]){SOC.lowWatch=null;S.pick=p.hex;try{tick(true)}catch(e){}toast("📈 "+(p.call||titleOf(p))+" je teraz "+Math.round(p.el)+"° nad tebou","Zamávaj – teraz už pôjde do zbierky 👋");haptic([40,40,40])}});
+$("cardHint")&&$("cardHint").addEventListener("click",e=>{if(e.target.closest("[data-gps]")&&$("placeGps"))$("placeGps").click()});
 function cardHint(a){
   const el=$("cardHint");if(!el)return;if(!a||a.santa){el.innerHTML="";return}
   const ty=a.type,v=ty&&COL.types[ty]&&COL.types[ty].n?COL.types[ty]:null,c=ty&&CAT[ty],out=[];
@@ -159,6 +172,10 @@ function cardHint(a){
   else if(!v&&c)out.push(`<span class="new">🃏 Nová ${(RAR[typeTier(a.type)]||RAR.c).n} kartička!${TROPHY.has(a.type)?" 🏆 trofej":" č. "+String(c.no).padStart(3,"0")}</span>`);
   else if(!v)out.push(`<span class="new">🃏 Nové lietadlo do zbierky</span>`);
   else{const nx=nextLv(v.n,ty);out.push(`<span>${stars(cardLvl(v.n,ty))}${nx?" · ešte "+(nx-v.n)+"× do ďalšej ★":" · max. úroveň"}</span>`)}
+  // ⏳ neoverený typ nad tebou – šanca overiť ho
+  if(v&&!v.ver&&!COL.hex[a.hex]&&!(a.el!=null&&a.el<10))out.unshift(`<span class="new">⏳ Tvoj ${esc(catGuess(ty).name||ty)} ešte nie je overený – zamávaj a overí sa</span>`);
+  // 📍 ručne vybrané mesto = bez overenia
+  if(S.manual)out.push(`<span class="low" data-gps="1" role="button">📍 Bez GPS sa kartička neoverí · Zapnúť</span>`);
   try{const r=rarity(a);if(RORD[r]>=2&&!COL.hex[a.hex])out.push(`<span class="new">${RAR[r].s} ${RAR[r].n} +${RAR[r].p} b</span>`);
     // 🌅/🎯 chýbajúca forma, ktorá sa dá získať práve teraz
     if(v&&!COL.hex[a.hex]){const fm=v.forms||{},sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null;
@@ -210,11 +227,11 @@ async function doWave1(e,a){LASTWAVE=null;
   const credit=()=>{
     SOC.waved[key]=e;waveBatchStart();
     // úlovok = zamávanie (nie automaticky, keď appka len beží)
-    if(!COL.hex[a.hex]){if((a.el??0)>=10)tryCatch(a);else WB.low=a.el??0}
+    if(!COL.hex[a.hex]){if((a.el??0)>=10)tryCatch(a);else{WB.low=a.el??0;SOC.lowWatch={hex:a.hex,t:Date.now()}}}
     if(typeof streakTouch==="function")streakTouch();
     for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
     LS.set("ctl_waved",SOC.waved);
-    // body za mávanie: +1, najviac 20 denne (hra je o pozeraní hore, nie o ťukaní)
+    // body za mávanie: +1, najviac 10 denne (hra je o pozeraní hore, nie o ťukaní)
     {const wd=LS.get("ctl_wpd",{d:"",n:0});if(wd.d!==dayKey()){wd.d=dayKey();wd.n=0}if(wd.n<10){COL.pts+=1;wd.n++}LS.set("ctl_wpd",wd)}LS.set("ctl_col",COL);
     const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
     grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");if(n===1&&typeof inAppBar==="function")setTimeout(inAppBar,6000);
@@ -225,12 +242,12 @@ async function doWave1(e,a){LASTWAVE=null;
   if(!SOC.api){credit();fin(to?"smer"+to.replace("→","").replace(/^\s*/," "):"");return}
   let r,j={},body;
   try{
-    body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):""};
+    body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):"",t:Date.now(),pl:a.lat!=null?{la:Math.round(a.lat*1e3)/1e3,lo:Math.round(a.lon*1e3)/1e3,alt:a.alt!=null?Math.round(a.alt/.3048):null}:null};
     r=await apiPost("/api/wave",body);
     if(r.status===401)r=await apiPost("/api/wave",body); // nový token a ešte raz
     j=await r.json().catch(()=>({}));
   }catch(err){ // bez internetu – mávnutie platí aspoň u teba a odošle sa neskôr
-    try{const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(q.length<20&&body)q.push({d:dayKey(),b:body});LS.set("ctl_wq",q)}catch(x){}
+    wqPush(body);
     credit();const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};waveInfo(a);
     fin("odošlem, keď budeš online");return}
   if(j.error==="far"){toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
@@ -240,11 +257,15 @@ async function doWave1(e,a){LASTWAVE=null;
     try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"wave fail "+code}))}catch(x){}
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     // prihlásenie/server zlyhali – mávnutie si odložíme a o chvíľu ho pošleme znova (overí sa, kým je lietadlo blízko)
-    if(r.status===401||r.status>=500||(r.status===429&&j.error!=="rate")){try{const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(q.length<20&&body)q.push({d:dayKey(),b:body,t:Date.now()});LS.set("ctl_wq",q)}catch(x){}setTimeout(flushWq,15000)}
+    if(r.status===401||r.status>=500||(r.status===429&&j.error!=="rate")){wqPush(body);setTimeout(flushWq,15000)}
+    {const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};waveInfo(a)}
     LASTWAVE=null;credit();fin(j.error==="busy"?"siete sú preťažené – overím o chvíľu":"overím o chvíľu");return}
   // server pozná typ z overených dát – kartička dostane ten istý typ, aby sedelo overenie
   if(j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
-  LASTWAVE={hex:a.hex,...j};credit();
+  LASTWAVE={hex:a.hex,...j};
+  // server overil (≥ 8°), hoci mobil ukazuje menej ako 10° → kartička aj tak patrí hráčovi
+  if(j.ver&&a.el!=null&&a.el<10){a={...a,el:10}}
+  credit();
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
   if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["č. "+j.seq+" na Slovensku"]);
@@ -279,17 +300,31 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-unf]
 if($("friendsBox"))$("friendsBox").addEventListener("toggle",()=>{if($("friendsBox").open)friendsRender()});
 
 /* 📴 mávnutia bez internetu: odoslať, keď sa signál vráti (server má kontrolu duplicít) */
+// fronta odložených mávnutí: platí do 1 h po polnoci (mávnutie z 23:50 sa nestratí)
+const wqFresh=x=>x.d===dayKey()||Date.now()-(x.b&&x.b.t||0)<3600e3;
+const wqPush=b=>{try{const q=LS.get("ctl_wq",[]).filter(wqFresh);if(q.length<20&&b)q.push({d:dayKey(),b});LS.set("ctl_wq",q)}catch(x){}};
 async function flushWq(){
-  const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(!q.length||!SOC.api||!navigator.onLine)return;
-  LS.set("ctl_wq",[]);let ok=0;
-  let ver=0,back=0;
-  for(const x of q){try{x.b.try=(x.b.try|0)+1;let r=await apiPost("/api/wave",x.b);if(r.status===401)r=await apiPost("/api/wave",x.b);
-      if(r.ok){ok++;const j=await r.json().catch(()=>({}));if(j.ver){const v=COL.types[j.type||x.b.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}}}
-      else if((r.status===401||r.status>=500)&&x.b.try<6){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
+  if(SOC.flushing)return;
+  const q=LS.get("ctl_wq",[]).filter(wqFresh);if(!q.length||!SOC.api||!navigator.onLine)return;
+  SOC.flushing=1;LS.set("ctl_wq",[]);
+  let ok=0,ver=0,back=0;const bad=[],res=[];
+  try{for(const x of q){try{x.b.try=(x.b.try|0)+1;let r=await apiPost("/api/wave",x.b);if(r.status===401)r=await apiPost("/api/wave",x.b);
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ok++;
+        // rovnaké zjednotenie typu ako pri živom mávnutí
+        let k=x.b.type||"?";if(j.type&&j.type!==k&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[k])){if(COL.types[k]&&!COL.types[j.type]){COL.types[j.type]=COL.types[k];delete COL.types[k]}k=j.type}
+        const v=COL.types[k];
+        if(v){if(j.ver){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}if(j.shiny&&!v.shiny)v.shiny=Date.now();if(j.ed&&typeof edAdd==="function")edAdd(k,j.ed)}
+        res.push(j.ver?"✓ "+(catGuess(k).name||k)+(j.seq?" · č. "+j.seq+" na Slovensku":""):"⏳ "+(catGuess(k).name||k)+(j.why?": "+j.why:""))}
+      else if((r.status===401||r.status>=500||(r.status===429&&j.error!=="rate"))&&x.b.try<6){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
+      else if(r.status===429){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
+      else bad.push(j.error==="far"?"lietadlo už bolo ďaleko":j.error||("kód "+r.status))
     }catch(e){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}}
-  if(ver)LS.set("ctl_col",COL);
+  }finally{SOC.flushing=0}
+  if(ok||ver)LS.set("ctl_col",COL);
   if(back)setTimeout(flushWq,30000);
-  if(ok)toast("✅ Odoslané na server",ok+" "+(ok===1?"mávnutie":ok<5?"mávnutia":"mávnutí")+(ver?" · overené: "+ver:""));
+  if(ok){toast("✅ Odložené mávnutia odoslané",res.slice(0,3).join(" · ")+(res.length>3?" · …":""));if(ver&&typeof renderCol==="function")renderCol()}
+  if(bad.length)setTimeout(()=>toast("⚠️ "+bad.length+" "+pl(bad.length,"mávnutie sa nepodarilo","mávnutia sa nepodarili","mávnutí sa nepodarilo")+" overiť",bad[0]),ok?4200:0);
 }
 addEventListener("online",()=>setTimeout(flushWq,1500));setTimeout(flushWq,5000);
 
@@ -301,7 +336,10 @@ $("frList")&&$("frList").addEventListener("click",e=>{const b=e.target.closest("
 async function syncCards(){
   if(!SOC.api||!navigator.onLine)return;
   try{const r=await apiPost("/api/mycards",{});const j=await r.json();if(!j.cards)return;let ch=0;
-    for(const [ty,sq] of j.cards){const v=COL.types[ty];if(!v)continue;if(!v.ver||v.seq!==sq){v.ver=1;v.seq=sq;ch=1}}
+    for(const [ty,sq] of j.cards){let v=COL.types[ty];
+      // overený typ na serveri, ktorý v mobile chýba (iný prah výšky, prenos, stará chyba identity) → doplniť kartičku
+      if(!v&&/^[A-Z0-9]{2,5}$/.test(ty)){v=COL.types[ty]={n:1,r:typeTier(ty),name:catGuess(ty).name||ty,first:Date.now(),srv:1};ch=1}
+      if(!v.ver||v.seq!==sq){v.ver=1;v.seq=sq;ch=1}}
     if(ch){LS.set("ctl_col",COL);if(S.view==="col")renderCol()}}catch(e){}
 }
 setTimeout(syncCards,4000);HOOKS.view.push(v=>{if(v==="col")syncCards()});

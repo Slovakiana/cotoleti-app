@@ -91,6 +91,14 @@ await t("nízko zamávané lietadlo sa overí, keď je neskôr vysoko", async ()
   plane.hex = "aabbcc";
   assert.equal(r2.j.ver, 1, JSON.stringify(r2.j));
 });
+await t("odložené mávnutie sa overí podľa polohy lietadla v čase mávnutia", async () => {
+  const id = "v2latelatelatelatelatelate01", tok = (await call("/api/hello", {id}, "4.4.4.5")).j.tok;
+  plane.hex = "ee0002"; plane.lat = 49.2; // teraz už ďaleko a nízko
+  const r = await call("/api/wave", {id, tok, hex: "ee0002", lat: 48.15, lon: 17.11, t: Date.now() - 8 * 60e3, pl: {la: 48.16, lo: 17.12, alt: 36000}}, "4.4.4.5");
+  const r2 = await call("/api/wave", {id: "v2latelatelatelatelatelate02", tok: (await call("/api/hello", {id: "v2latelatelatelatelatelate02"}, "4.4.4.6")).j.tok, hex: "ee0002", lat: 48.15, lon: 17.11}, "4.4.4.6");
+  plane.hex = "aabbcc"; plane.lat = 48.2;
+  assert.equal(r.j.ver, 1, JSON.stringify(r.j)); assert.ok(!r2.j.ver, JSON.stringify(r2.j));
+});
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
   assert.deepEqual(codes.slice(0, 20).filter(c => c !== 200), [], codes.join(","));

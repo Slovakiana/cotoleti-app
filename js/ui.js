@@ -483,6 +483,8 @@ async function boot(){
   if(manual){S.manual=true;showPos();fetchPlanes(true);bindOri()}
   else if(LS.get("ctl_onb",0)&&state==="granted"){startGps();if(S.pos)fetchPlanes(true);bindOri()}
   else if(LS.get("ctl_onb",0)&&S.pos){startGps();fetchPlanes(true);bindOri()}
+  // vracajúci sa hráč bez polohy: krátka voľba miesta namiesto celého úvodu
+  else if(LS.get("ctl_onb",0)){setTimeout(()=>{$("statusPill").onclick();toast("📍 Kde si?","Zapni GPS alebo vyber mesto")},400)}
   else{$("onb").style.display="flex";onbModal()}
 }
 
@@ -674,7 +676,7 @@ function seenLog(list){
   const d=dayKey(),L=LS.get("ctl_seen",{});let ch=false;
   const t=L[d]||(L[d]={n:0,h:{},best:null,bestR:0});
   const RO={c:0,u:1,r:2,l:3};
-  for(const a of list){if(a.el==null||a.el<15||a.santa||t.h[a.hex])continue;
+  for(const a of list){if(a.el==null||a.el<10||a.santa||t.h[a.hex])continue;
     if(t.n<400){t.h[a.hex]=COL.hex[a.hex]?2:1}t.n++;ch=true;
     const r=rarity(a);if(RO[r]>=t.bestR&&!a.priv){t.bestR=RO[r];t.best=titleOf(a)}}
   if(!ch)return;
@@ -683,10 +685,11 @@ function seenLog(list){
 }
 function seenSum(){
   const L=LS.get("ctl_seen",{}),y=L[dayAgo(1)],t=L[dayKey()];
-  const caught=x=>x?Object.keys(x.h).filter(h=>COL.hex[h]).length:0;
+  // ulovené dnes = aj tie, ktoré sme v zozname nezachytili (rovnaký prah 10° ako zbierka)
+  const caught=(x,d)=>x?new Set([...Object.keys(x.h).filter(h=>COL.hex[h]),...Object.keys(COL.hex).filter(h=>COL.hex[h]&&SKD.format(new Date(COL.hex[h]))===d)]).size:0;
   const parts=[];
-  if(t&&t.n)parts.push(`<b>Dnes nad tebou:</b> ${t.n} ✈️ · ulovené ${caught(t)} 👋`);
-  if(y&&y.n)parts.push(`<b>Včera:</b> ${y.n} ✈️ · ulovené ${caught(y)}${y.best?" · najvzácnejšie "+esc(y.best):""}`);
+  if(t&&t.n)parts.push(`<b>Dnes nad tebou:</b> ${t.n} ✈️ · ulovené ${caught(t,dayKey())} 👋`);
+  if(y&&y.n)parts.push(`<b>Včera:</b> ${y.n} ✈️ · ulovené ${caught(y,dayAgo(1))}${y.best?" · najvzácnejšie "+esc(y.best):""}`);
   return parts.length?parts.join("<br>")+'<br><small>Do zbierky pribudne každé lietadlo, ktorému zamávaš 👋</small>':"";
 }
 
