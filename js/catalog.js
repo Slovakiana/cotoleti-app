@@ -104,7 +104,7 @@ const CATALOG=[
 ["SF34","Saab 340","Saab","prop",19.7,21.4,520,1700,34,1983,"Švédsky regionálny turbovrtuľák pre krátke trate."],
 ["A338","Airbus A330-800","Airbus","twinW",58.8,64.0,870,15000,257,2018,"Najmenej vyrábaný člen rodiny A330neo – stretnúť ho je vzácnosť."],
 ["B762","Boeing 767-200","Boeing","twinW",48.5,47.6,850,7000,214,1981,"Prvý zo sedemšesťsedmičiek – dnes lieta hlavne s nákladom."],
-["CL60","Bombardier Challenger 650","Bombardier","rj",20.9,19.6,850,7400,12,1978,"Biznis jet so širokou kabínou – dá sa v nej stáť vzpriamene."],
+["CL60","Bombardier Challenger 600/650","Bombardier","rj",20.9,19.6,850,7400,12,1978,"Biznis jet so širokou kabínou – dá sa v nej stáť vzpriamene."],
 ["F2TH","Dassault Falcon 2000","Dassault","rj",20.2,19.3,850,6000,10,1993,"Dvojmotorový Falcon z Francúzska."],
 ["C25A","Cessna Citation CJ2","Cessna","rj",14.5,15.1,770,2800,7,1999,"Malý biznis jet, ktorý zvládne riadiť jediný pilot."],
 ["C510","Cessna Citation Mustang","Cessna","rj",12.4,13.2,630,2100,4,2005,"Jeden z najmenších tryskáčov s kabínou – len pre 4 cestujúcich."],

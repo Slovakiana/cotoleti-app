@@ -85,7 +85,10 @@ function pax(a){
 }
 const CITY_SK={"London":"Londýn","Vienna":"Viedeň","Wien":"Viedeň","Paris":"Paríž","Rome":"Rím","Roma":"Rím","Prague":"Praha","Praha":"Praha","Munich":"Mníchov","München":"Mníchov","Frankfurt am Main":"Frankfurt","Frankfurt":"Frankfurt","Warsaw":"Varšava","Budapest":"Budapešť","Athens":"Atény","Milan":"Miláno","Venice":"Benátky","Brussels":"Brusel","Copenhagen":"Kodaň","Kyiv":"Kyjev","Bucharest":"Bukurešť","Belgrade":"Belehrad","Zurich":"Zürich","Zürich":"Zürich","Geneva":"Ženeva","Lisbon":"Lisabon","Naples":"Neapol","Cologne":"Kolín","Nuremberg":"Norimberg","Dubai":"Dubaj","Cairo":"Káhira","Thessaloniki":"Solún","Krakow":"Krakov","Kraków":"Krakov","Kosice":"Košice","Košice":"Košice","Zilina":"Žilina","Stockholm":"Štokholm","Beijing":"Peking","Tokyo":"Tokio","Seoul":"Soul","Singapore":"Singapur","Moscow":"Moskva","Tel Aviv-Yafo":"Tel Aviv","Tel Aviv":"Tel Aviv","Hamburg":"Hamburg","Berlin":"Berlín","Amsterdam":"Amsterdam","Madrid":"Madrid","Barcelona":"Barcelona","Istanbul":"Istanbul","Antalya":"Antalya","Hurghada":"Hurghada","Larnaca":"Larnaka","Heraklion":"Heraklion","Split":"Split","Dubrovnik":"Dubrovník","Zagreb":"Záhreb","Ljubljana":"Ľubľana","Sofia":"Sofia","Dublin":"Dublin","Oslo":"Oslo","Helsinki":"Helsinki","Riga":"Riga","Vilnius":"Vilnius","Tallinn":"Tallinn","Doha":"Dauha","Abu Dhabi":"Abú Zabí","New York":"New York","Bangkok":"Bangkok","Malaga":"Málaga","Palma":"Mallorca","Palma De Mallorca":"Mallorca","Tenerife":"Tenerife","Bratislava":"Bratislava","Poprad":"Poprad","Lyon":"Lyon","Nice":"Nice","Marseille":"Marseille","Manchester":"Manchester","Edinburgh":"Edinburgh","Bologna":"Bologna","Catania":"Catania","Bari":"Bari","Porto":"Porto","Gdansk":"Gdansk","Katowice":"Katovice","Wroclaw":"Vroclav","Eindhoven":"Eindhoven","Charleroi":"Charleroi","Dusseldorf":"Düsseldorf","Düsseldorf":"Düsseldorf","Stuttgart":"Stuttgart","Salzburg":"Salzburg","Innsbruck":"Innsbruck","Graz":"Graz","Linz":"Linz"};
 const citySk=n=>n?(CITY_SK[n]||n):"";
-const routeOf=a=>{const m=S.meta.get(a.hex);return m&&m.route&&m.route.origin&&m.route.destination?m.route:null};
+// trasa z adsbdb podľa volacieho znaku býva zastaraná – ak lietadlo ďaleko od cieľa letí opačným smerom, radšej ju neukáž
+const routeOf=a=>{const m=S.meta.get(a.hex),r=m&&m.route;if(!(r&&r.origin&&r.destination))return null;const d=r.destination;
+  if(a.trk!=null&&a.lat!=null&&d.latitude!=null&&d.longitude!=null){const x=distBear(a.lat,a.lon,+d.latitude,+d.longitude);if(x.d>150e3&&Math.abs(((a.trk-x.b)%360+540)%360-180)>100)return null}
+  return r};
 
 /* ============ farba oblohy podľa slnka ============ */
 function skyGrad(sa){
@@ -185,7 +188,7 @@ function renderHeroStatic(a){
   ["h-st3","h-dir"].forEach(id=>$(id).style.display="");$("b-wave").disabled=false;$("b-wave").style.opacity=1;
   const m=S.meta.get(a.hex)||{},r=rarity(a),rt=routeOf(a),al=airlineOf(a)||(m.route&&m.route.airline&&m.route.airline.name)||"";
   $("h-lbl").textContent=S.pick&&S.pick===a.hex?"Vybrané lietadlo":t("now");
-  $("h-rar").style.display=r==="c"&&!a.mil?"none":"";$("h-rar").textContent=(a.mil?"VOJENSKÉ · ":"")+RAR[r].n.toUpperCase();$("h-rar").style.color=RAR[r].col;
+  $("h-rar").style.display=r==="c"&&!isMil(a)?"none":"";$("h-rar").textContent=(isMil(a)?"VOJENSKÉ · ":"")+RAR[r].n.toUpperCase();$("h-rar").style.color=RAR[r].col;
   $("h-call").textContent=rt?"→ "+citySk(rt.destination.municipality||rt.destination.name):(al||titleOf(a));
   $("h-type").textContent=[rt&&al?al:"",typeName(a,m),rt||al?(a.priv?"":titleOf(a)):""].filter(Boolean).join(" · ");
   // núdzový kód: žiadna hra ani zdieľanie, neutrálny text

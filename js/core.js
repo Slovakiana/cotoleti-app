@@ -56,7 +56,7 @@ const AIRLINES={RYR:"Ryanair",RUK:"Ryanair UK",LDM:"Lauda Europe",MAY:"Malta Air
 AFR:"Air France",KLM:"KLM",TRA:"Transavia",THY:"Turkish Airlines",PGT:"Pegasus",SXS:"SunExpress",UAE:"Emirates",QTR:"Qatar Airways",ETD:"Etihad",FDB:"flydubai",SVA:"Saudia",MSR:"EgyptAir",ELY:"El Al",LOT:"LOT",CSA:"Czech Airlines",TVS:"Smartwings",SWR:"Swiss",ITY:"ITA Airways",
 IBE:"Iberia",VLG:"Vueling",SAS:"SAS",FIN:"Finnair",AEE:"Aegean",ROT:"TAROM",BTI:"airBaltic",CTN:"Croatia Airlines",ASL:"Air Serbia",LGL:"Luxair",BEL:"Brussels Airlines",TAP:"TAP Air Portugal",EIN:"Aer Lingus",NOZ:"Norwegian",NSZ:"Norwegian",
 TUI:"TUI",TOM:"TUI",TFL:"TUI",ENT:"Enter Air",AIC:"Air India",SIA:"Singapore Airlines",CPA:"Cathay Pacific",CCA:"Air China",CES:"China Eastern",CSN:"China Southern",KAL:"Korean Air",AAL:"American Airlines",UAL:"United",DAL:"Delta",ACA:"Air Canada",
-DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",BOX:"AeroLogic (DHL Cargo)",TAY:"ASL Airlines Belgium",ICV:"Cargolux Italia",CAO:"Air China Cargo",CKK:"China Cargo Airlines",MPH:"Martinair Cargo",SWN:"West Atlantic Cargo",NCA:"Nippon Cargo",SWT:"Swiftair",QAC:"Qatar Cargo",SWW:"Silk Way West",NJE:"NetJets",VJT:"VistaJet",
+DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",BOX:"AeroLogic (DHL Cargo)",TAY:"ASL Airlines Belgium",ICV:"Cargolux Italia",CAO:"Air China Cargo",CKK:"China Cargo Airlines",MPH:"Martinair Cargo",SWN:"West Atlantic Cargo",NCA:"Nippon Cargo",SWT:"Swiftair",QAC:"Qatar Cargo",SWW:"Silk Way West",NJE:"NetJets",VJT:"VistaJet",OCN:"Discover Airlines",CLH:"Lufthansa CityLine",DLA:"Air Dolomiti",AXE:"AirExplore",JAF:"TUI fly Belgium",CAI:"Corendon Airlines",
 RCH:"US Air Force",GAF:"Nemecké letectvo",IAM:"Talianske letectvo",CEF:"České letectvo",PLF:"Poľské letectvo",BAF:"Belgické letectvo",NATO:"NATO",HUF:"Maďarské letectvo",AME:"Španielske letectvo",FAF:"Francúzske letectvo",RRR:"Kráľovské letectvo (RAF)"};
 /* 🃏 5 stupňov vzácnosti (zhodné so serverom): ● Bežná · ◆ Nezvyčajná · ▲ Vzácna · ⬟ Epická · ♛ Legendárna */
 const LEG=new Set(["B779","AN30","DC6","A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
@@ -71,7 +71,7 @@ const BIG=new Set([...WIDE,"A388","A343","A345","A346","B742","B744","B748","MD1
 // nákladné firmy (odznak, výzva, súhrn)
 const CARGO_RX=/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL|Cargolux|AeroLogic|West Atlantic|Swiftair|Silk Way/;
 // vojenské lety aj podľa volacieho znaku (keď dáta nemajú príznak)
-const MIL_CALL=/^(RCH|GAF|IAM|CEF|PLF|BAF|HUF|AME|FAF|RRR|NATO|ASY|CFC|DAF|NAF|SVF|SUI|HKY|LAGR|CNV|PAT|SAM|SPAR|BRK|DUKE)/;
+const MIL_CALL=/^(SQF|RCH|GAF|IAM|CEF|PLF|BAF|HUF|AME|FAF|RRR|NATO|ASY|CFC|DAF|NAF|SVF|SUI|HKY|LAGR|CNV|PAT|SAM|SPAR|BRK|DUKE)/;
 const isMil=a=>!!(a&&(a.mil||MIL_CALL.test(String(a.call||"").toUpperCase())));
 const RAR={c:{n:"Bežná",p:3,col:"#b8c4dc",s:"●"},u:{n:"Nezvyčajná",p:8,col:"#5ee08a",s:"◆"},r:{n:"Vzácna",p:25,col:"#4fa3ff",s:"▲"},e:{n:"Epická",p:45,col:"#b56bff",s:"⬟"},l:{n:"Legendárna",p:80,col:"#ffcf4f",s:"♛"}};
 const RORD={c:0,u:1,r:2,e:3,l:4};
@@ -80,7 +80,7 @@ const isHeli=a=>a.cat==="A7"||HELI.has(a.type);
 function typeTier(t){
   if(!t)return "c";
   if(LEG.has(t))return "l";if(EPIC.has(t))return "e";if(RARE.has(t))return "r";
-  if(WIDE.has(t)||HELI.has(t)||/^(B75|AT4|AT7|DH8|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C|F2TH|B734|A306|AT72|Z42|SHRK|A169|PC7|F900)/.test(t))return "u";
+  if(WIDE.has(t)||HELI.has(t)||/^(B75|AT4|AT7|DH8|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C|F2TH|B73[234]|A30B|A306|AT72|Z42|SHRK|A169|PC7|F900)/.test(t))return "u";
   return "c";
 }
 // vzácnosť ÚLOVKU: typ + osobitosti kusu (vojenské, 🇸🇰 OM-, zaujímavé) o stupeň vyššie
@@ -266,7 +266,7 @@ async function loadMeta(a){
 function quip(a,m){
   const h=hash(a.hex),pick=arr=>arr[h%arr.length],V=S.vych;
   if(a.sq==="7700")return "Hlási núdzovú situáciu. Držme palce posádke. 🙏";
-  if(a.mil)return V?"Vojenski let.":"Vojenský let. Lieta tu kvôli bezpečnosti nás všetkých.";
+  if(isMil(a))return V?"Vojenski let.":"Vojenský let. Lieta tu kvôli bezpečnosti nás všetkých.";
   if(isHeli(a))return pick(["Vrtuľník. Buď záchranka, alebo niekto veľmi bohatý. 🚁","Helikoptéra. Ak je žltá, niekomu práve pomáhajú. ❤️"]);
   const al=airlineOf(a),rt=m&&m.route,d=rt&&rt.destination,o=rt&&rt.origin,dc=d&&d.country_iso_name,oc=o&&o.country_iso_name,city=(d&&(d.municipality||d.name)||"");
   if(dc==="SK")return pick(V?["Ľeci domu. Mamka už vari. 🍲","Ľeci na Slovensko. Vitajce doma!"]:["Letí domov na Slovensko. Mama už varí. 🍲","Návrat domov. Bryndzové halušky už čakajú. 🧀"]);
@@ -306,7 +306,7 @@ function spdCompare(k){if(k==null)return "rýchlosť";if(k<200)return "rýchlo a
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
 // zlúč staré kódy typov do nových (napr. C390 → E390)
 try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o];if(!v)continue;const t=COL.types[nw];
-  if(t){t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny}else COL.types[nw]=v;
+  if(t){if(!v.srv)t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny;if(v.ver){t.ver=1;if(v.seq&&(!t.seq||v.seq<t.seq))t.seq=v.seq}}else COL.types[nw]=v;
   delete COL.types[o]}}catch(e){}
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
 addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});

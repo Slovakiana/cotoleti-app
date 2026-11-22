@@ -22,7 +22,7 @@ const UA = "cotoleti-app/1.0 (+https://github.com/Slovakiana/cotoleti-app)";
 const T_L = new Set(["B779","AN30","DC6","A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
 const T_E = new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","E390","L159","MI24","UH1Y","H47"]);
 const T_R = new Set(["A388","B744","B748","B742","A343","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","Z37T","Z26","PZ04","H60","MI8","B735","CRJ2","SF34","A338","B762","B3XM","F100","A189","W3","EC25","M28"]);
-const T_U = /^(F2TH|B734|AT72|Z42|SHRK|PC7|F900|B73|AS3|AS6|H160|B412|B212|B505|A119|R66|NH90|S76|A30|A31|A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
+const T_U = /^(F2TH|B734|AT72|Z42|SHRK|PC7|F900|B73[23]|AS3|AS6|H160|B412|B212|B505|A119|R66|NH90|S76|A30B|A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
 const TYPES_SRV = {B779: "Boeing 777-9", AN30: "Antonov An-30", DC6: "Douglas DC-6", E390: "Embraer C-390", C295: "Airbus C295", L159: "Aero L-159", MI24: "Mi-24", UH1Y: "UH-1Y Venom", H47: "CH-47 Chinook", R135: "RC-135", Q4: "Global Hawk", RQ4: "Global Hawk", P8: "P-8 Poseidon", Z37: "Čmelák", A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
 const T_ALIAS = {AT44: "AT43", AT45: "AT43", AT46: "AT43", E75S: "E75L", CRJX: "CRJ9", MI17: "MI8", MI171: "MI8", UH60: "H60", S70: "H60", C390: "E390", RQ4: "Q4", S22T: "SR22", P28R: "P28A", P28T: "P28A", P28B: "P28A", C150: "C152", CL30: "CL35"};
 const tAlias = t => T_ALIAS[t] || t;
@@ -435,7 +435,7 @@ export class Sky extends DurableObject {
   }
   planeRes(a, la, lo) {
     if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: a.t || "", priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
+    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: tAlias(String(a.t || "").toUpperCase()), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
   }
   async verifyPlane(hex, la, lo) {
     // 1) čerstvý prehľad oblohy (≤ 30 s starý)
@@ -1076,7 +1076,7 @@ export class Sky extends DurableObject {
       // ✓ ktoré moje kartičky sú overené serverom (+ poradie na Slovensku)
       const b = await body(), id = cleanId(b.id);
       const rows = this.sql.exec("SELECT type, seq FROM typeseq WHERE id=? LIMIT 500", id).toArray();
-      return json({cards: rows.map(r => [r.type, r.seq])});
+      return json({cards: rows.map(r => [tAlias(r.type), r.seq])});
     }
     if (p === "/api/duelres" && req.method === "POST") {
       // ⚔️ výsledok súboja kartičiek pre vyzývateľa (v appke + upozornenie)
@@ -1096,7 +1096,7 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/gift" && req.method === "POST") {
       // 🎁 daruj kópiu: len z overených duplikátov, len bežné/nezvyčajné, max 3 denne
-      const b = await body(), id = cleanId(b.id), ty = String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 6).toUpperCase();
+      const b = await body(), id = cleanId(b.id), ty = tAlias(String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 6).toUpperCase());
       if (this.isKid(id)) return json({error: "kid"}, 403);
       if (!ty || !["c", "u"].includes(tierOf(ty))) return json({error: "tier"}, 400);
       const acct = this.row("SELECT t FROM ids WHERE id=?", id);

@@ -425,7 +425,7 @@ $("frList")&&$("frList").addEventListener("click",e=>{const b=e.target.closest("
 async function syncCards(){
   if(!SOC.api||!navigator.onLine)return;
   try{const r=await apiPost("/api/mycards",{});const j=await r.json();if(!j.cards)return;let ch=0;
-    setTimeout(checkAch,500);for(const [ty,sq] of j.cards){let v=COL.types[ty];
+    setTimeout(checkAch,500);for(const [ty0,sq] of j.cards){const ty=T_ALIAS[ty0]||ty0;let v=COL.types[ty];
       // overený typ na serveri, ktorý v mobile chýba (iný prah výšky, prenos, stará chyba identity) → doplniť kartičku
       if(!v&&/^[A-Z0-9]{2,5}$/.test(ty)){v=COL.types[ty]={n:1,r:typeTier(ty),name:catGuess(ty).name||ty,first:Date.now(),srv:1};ch=1}
       if(!v.ver||v.seq!==sq){v.ver=1;v.seq=sq;ch=1}}
