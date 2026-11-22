@@ -253,7 +253,7 @@ function quip(a,m){
   if(oc==="SK")return pick(["Práve odletel zo Slovenska. Šťastnú cestu! 👋","Z domu do sveta. Nezabudni zavolať mame."]);
   if(/Ryanair|Malta Air|Lauda/.test(al))return pick(["Ryanair. Miesto na nohy sa platí zvlášť. 🦵","Ryanair. Batožina 40×20×25, ani o centimeter viac.","Ryanair. Po pristátí zatlieskať je povinné. 👏"]);
   if(/Wizz/.test(al))return pick(["Wizz Air. Letenka 9,99 €, kufor 79 €. 💜","Wizz Air. Fialová, lacná, plná."]);
-  if(/DHL|UPS|FedEx|Cargolux|Cargo|Kalitta|Atlas|ASL/.test(al))return pick(["Nákladné. Možno v ňom je tvoj balík z Číny. 📦","Cargo let. Žiadni pasažieri, len krabice."]);
+  if(/DHL|UPS|FedEx|Cargolux|Cargo|Kalitta|Atlas|ASL/.test(al))return pick(["Nákladné. Možno v ňom je tvoj balík z Číny. 📦","Nákladný let. Žiadni pasažieri, len krabice."]);
   if(/Emirates|Qatar|Etihad|Singapore|Cathay/.test(al))return "Vzadu si niekto práve berie teplý uterák. Luxus. ✨";
   if(/NetJets|VistaJet/.test(al)||rarity(a)==="u"&&/^(GLF|GL|CL|FA|C68|C700|PC24|LJ)/.test(a.type||""))return pick(["Súkromný jet. Niekto má lepší deň ako ty. 💸","Biznis jet. Šampanské je v cene."]);
   if(a.alt!=null&&a.alt<1500)return pick(["Nízko! Buď pristáva, alebo práve vzlietol. 🛬","Tak nízko, že by si mu skoro zamával."]);
@@ -261,8 +261,8 @@ function quip(a,m){
   return pick(["Tam hore teraz niekto bojuje o opierku na ruku. 💺","Mávni. Možno ťa uvidí cez okno. 👋","Pilot práve hlási: „Vpravo pod nami Slovensko.“","Tam hore je −50 °C. A ty sa sťažuješ na zimu?","Niekto tam práve otvára vrecúško arašidov. 🥜","Tam hore už rozdávajú kávu. Ty si si ju tiež zaslúžiš. ☕"]);
 }
 const GERLACH=2655;
-function altCompare(m){if(m==null)return "výška";if(m<200)return "nižšie ako bratislavské UFO";if(m<GERLACH)return "≈ "+nf(m/330,1)+"× Eiffelovka";return "≈ "+nf(m/GERLACH,1)+"× Gerlach 🏔️"}
-function spdCompare(k){if(k==null)return "rýchlosť";if(k<150)return "ako auto po D1";return nf(k/130,0)+"× rýchlejšie ako ty na D1 🚗"}
+function altCompare(m){if(m==null)return "výška";if(m<95)return "nižšie ako bratislavské UFO";if(m<GERLACH)return "≈ "+nf(m/330,1)+"× Eiffelovka";return "≈ "+nf(m/GERLACH,1)+"× Gerlach 🏔️"}
+function spdCompare(k){if(k==null)return "rýchlosť";if(k<200)return "rýchlo ako auto na diaľnici";return nf(k/130,0)+"× rýchlejšie ako ty na D1 🚗"}
 
 /* ============ zbierka ============ */
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
@@ -282,14 +282,14 @@ const ACH=[
   {id:"cargo",i:"📦",n:"Tvoj balík",c:e=>e&&/DHL|UPS|FedEx|Cargo/.test(airlineOf(e))},
   {id:"night",i:"🦉",n:"Nočná sova",c:e=>e&&typeof SPACE!=="undefined"&&SPACE.sunAlt()<-6},
   {id:"zenith",i:"🎯",n:"Presne nad hlavou",c:e=>e&&e.el>=80},
-  {id:"legend",i:"🌟",n:"Legenda",c:e=>e&&rarity(e)==="l"},{id:"epic",i:"⬟",n:"Epický úlovok",c:e=>e&&rarity(e)==="e"},{id:"om5",i:"🇸🇰",n:"Slovenské krídla (5 × OM-)",c:()=>Object.keys(COL.om||{}).length>=5},{id:"om15",i:"🇸🇰",n:"Domáca letka (15 × OM-)",c:()=>Object.keys(COL.om||{}).length>=15},
+  {id:"legend",i:"🌟",n:"Legenda",c:e=>e&&rarity(e)==="l"},{id:"epic",i:"⬟",n:"Epický úlovok",c:e=>e&&rarity(e)==="e"},{id:"om5",i:"🇸🇰",n:"Slovenské krídla (5 slovenských lietadiel OM-)",c:()=>Object.keys(COL.om||{}).length>=5},{id:"om15",i:"🇸🇰",n:"Domáca letka (15 × OM-)",c:()=>Object.keys(COL.om||{}).length>=15},
   {id:"iss",i:"🛰️",n:"ISS na vlastné oči",c:()=>false},
-  {id:"shazam",i:"👂",n:"Shazam na lietadlo",c:()=>false},
+  {id:"shazam",i:"👂",n:"Čo to hučí? 👂",c:()=>false},
   {id:"video",i:"🎬",n:"Režisér oblohy",c:()=>false},
   {id:"home",i:"🏠",n:"Domov na Slovensko",c:e=>{const m=e&&S.meta.get(e.hex);return !!(m&&m.route&&m.route.destination&&m.route.destination.country_iso_name==="SK")}},
 ];
 const LEVELS=["Nováčik","Zvedavec","Mávač lietadlám","Pozorovateľ z okna","Spotter z balkóna","Lovec kondenzačiek","Expert od plota","Kapitán z gauča","Navigátor z lavičky","Pán oblohy","Strážca trate","Legenda z Ivanky","Šerif letových ciest","Majster radaru","Nebeský šaman","Veliteľ oblakov","Tatranský orol","Duch stratosféry","Admirál oblohy","Legenda Slovenska"];
-LEVELS.push("Strážca Dunaja","Vietor z Tatier","Pilot Váhu","Navigátor Hrona","Pán Kriváňa","Duch Gerlachu","Hviezdny pútnik","Kapitán Slovenska","Veterán vzduchu","Šampión oblohy","Majster mávania","Orol Malej Fatry","Sokol Slovenského raja","Kráľ Pienin","Dráčik Vysokých Tatier","Patrón letísk","Strážca Ivanky","Admirál Barca","Kozmický spotter","Mýtus oblohy","Nebeský veľmajster","Oko Karpát","Pán stratosféry","Hrdina oblohy","Večná legenda","Legenda Ivanky","Kniha rekordov","Živá legenda","Obloha sama","Absolútny spotter");
+LEVELS.push("Strážca Dunaja","Vietor z Tatier","Pilot Váhu","Navigátor Hrona","Pán Kriváňa","Duch Gerlachu","Hviezdny pútnik","Kapitán Slovenska","Veterán vzduchu","Šampión oblohy","Majster mávania","Orol Malej Fatry","Sokol Slovenského raja","Kráľ Pienin","Dráčik Vysokých Tatier","Patrón letísk","Hviezda Ivanky","Admirál Barca","Kozmický spotter","Mýtus oblohy","Nebeský veľmajster","Oko Karpát","Vládca prúdových vetrov","Hrdina oblohy","Večná legenda","Hviezda letiska","Kniha rekordov","Živá legenda","Obloha sama","Absolútny spotter");
 // nová krivka (pomalšia, férovejšia) – nikto pri prechode neklesne (COL.lvlFloor)
 const lvlPts=l=>Math.round(12*Math.pow(l,2.5));
 const lvlOf=p=>{let l=0;while(lvlPts(l+1)<=p&&l<200)l++;return Math.max(l,(typeof COL!=="undefined"&&COL.lvlFloor)|0)};
@@ -325,7 +325,7 @@ function tryCatch(a){
   HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
   if(S.view==="col")renderCol();
 }
-function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);toast("🏅 Nový odznak: "+x.n,"Máš ho v zbierke. Ktorý bude ďalší?","#ffcf4f");confetti(50);ping("r");if(S.view==="col")renderCol()}
+function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);toast("🏅 Nový odznak: "+x.n,"Nájdeš ho v záložke Ja → Odznaky.","#ffcf4f");confetti(50);ping("r");if(S.view==="col")renderCol()}
 
 
 /* odkazy od kamarátov (výzva, súboj) počkajú, kým človek prejde úvodom */

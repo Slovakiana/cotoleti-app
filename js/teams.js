@@ -6,7 +6,7 @@ async function teamCall(body){
 }
 function teamRender(){
   const t=SOC.data&&SOC.data.myTeam,box=$("teamBox");
-  if(!SOC.api){box.innerHTML='<div class="lookSub">Tímy potrebujú server.</div>';return}
+  if(!SOC.api){box.innerHTML='<div class="lookSub">Tímy teraz nefungujú, skús to neskôr.</div>';return}
   if(!t){
     $("teamRank").textContent="";
     box.innerHTML=`<div class="lookSub" style="margin-top:8px">Založ tím pre triedu, firmu alebo partiu. Každé mávnutie člena sa počíta do týždenného rebríčka tímov.</div>

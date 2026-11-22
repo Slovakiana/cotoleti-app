@@ -260,7 +260,7 @@ await (async () => {
 await (async () => {
   const mc = (await call("/api/mycards", {id: C, tok: hc.tok}, "9.9.9.9")).j; assert.ok(mc.cards.length >= 1 && mc.cards[0][0] === "A21N", JSON.stringify(mc));
   plane.hex = "abc123"; const r = (await call("/api/wave", {id: C, tok: hc.tok, hex: "abc123", lat: 48.15, lon: 17.11, gps: false}, "9.9.9.9")).j;
-  assert.equal(r.ver, 0); assert.equal(r.why, "poloha nie je z GPS", JSON.stringify(r));
+  assert.equal(r.ver, 0); assert.equal(r.why, "poloha bola vybraná ručne, nie z GPS", JSON.stringify(r));
   plane.hex = "abc124"; const r2 = (await call("/api/wave", {id: C, tok: hc.tok, hex: "abc124", lat: 48.15, lon: 17.11, gps: true}, "9.9.9.9")).j;
   assert.equal(r2.ver, 1, JSON.stringify(r2)); assert.equal(r2.why, "");
   console.log("✓ overenie: dôvod neoverenia aj úspešné overenie, zoznam overených kartičiek");

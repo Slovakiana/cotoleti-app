@@ -39,7 +39,7 @@ function weekRender(w){
   $("weekCard").style.display="";
   const al=w.call?AIRLINES[w.call.slice(0,3)]||"":"",tn=TYPES[w.type]||w.type||"";
   $("weekT").textContent=(al?al+" ":"")+(w.call||w.hex.toUpperCase())+(w.dest?" → "+w.dest:"");
-  $("weekS").textContent=[tn,`zamávalo mu ${nf(w.n)} ${ludia(w.n)}`].filter(Boolean).join(" · ");
+  $("weekS").textContent=[tn,`${zam(w.n)} mu ${nf(w.n)} ${ludia(w.n)}`].filter(Boolean).join(" · ");
   $("weekN").textContent=nf(w.n)+" 👋";
   GOLD.week=w;
 }
@@ -53,10 +53,10 @@ $("weekShare").onclick=()=>{
   x.font="600 50px Inter, sans-serif";x.fillText([al,TYPES[w.type]||w.type].filter(Boolean).join(" · "),W/2,910);
   if(w.dest){x.font="800 64px Unbounded, sans-serif";x.fillText("→ "+w.dest,W/2,1030)}
   x.font="900 150px Unbounded, sans-serif";x.fillText(nf(w.n)+" 👋",W/2,1300);
-  x.font="600 44px Inter, sans-serif";x.fillText("ľudí zo Slovenska mu zamávalo",W/2,1380);
+  x.font="600 44px Inter, sans-serif";x.fillText(ludia(w.n)+" zo Slovenska mu "+zam(w.n),W/2,1380);
   x.fillStyle="#2a1d00";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-440);
   x.font="600 36px Inter, sans-serif";x.fillText(APP_HOST,W/2,H-380);
-  c.toBlob(b=>b&&shareBlob(b,"lietadlo-tyzdna.png",`🥇 Najzamávanejšie lietadlo týždňa: ${w.call}${al?" ("+al+")":""} – zamávalo mu ${w.n} ľudí zo Slovenska! ✈️👋 ${appLink()}${TAGS}`),"image/png");
+  c.toBlob(b=>b&&shareBlob(b,"lietadlo-tyzdna.png",`🥇 Najzamávanejšie lietadlo týždňa: ${w.call}${al?" ("+al+")":""} – ${zam(w.n)} mu ${w.n} ${ludia(w.n)} zo Slovenska! ✈️👋 ${appLink()}${TAGS}`),"image/png");
 };
 HOOKS.social=HOOKS.social||[];
 HOOKS.social.push(D=>{GOLD.g=D.golden||null;goldRender();weekRender(D.weekTop)});

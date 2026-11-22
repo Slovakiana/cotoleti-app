@@ -27,7 +27,7 @@ const CATALOG=[
 ["AT75","ATR 72-500","ATR","prop",27.2,27.1,510,1500,70,1996,"Krídlo má nad trupom – z okna vidíš celú krajinu."],
 ["AT76","ATR 72-600","ATR","prop",27.2,27.1,510,1500,72,2009,"Na krátkych tratiach míňa menej paliva než tryskáč."],
 ["DH8D","Dash 8 Q400","De Havilland","prop",32.8,28.4,667,2000,78,1998,"Najrýchlejší turbovrtuľový dopravák v službe."],
-["A332","Airbus A330-200","Airbus","twinW",58.8,60.3,870,13400,250,1997,"Dvojmotorový širokotrupý pre dlhé lety."],
+["A332","Airbus A330-200","Airbus","twinW",58.8,60.3,870,13400,250,1997,"Dvojmotorové širokotrupé lietadlo na dlhé lety."],
 ["A333","Airbus A330-300","Airbus","twinW",63.7,60.3,870,11750,300,1992,"Často vozí dovolenkárov k moru."],
 ["A339","Airbus A330-900neo","Airbus","twinW",63.7,64.0,870,13300,290,2017,"Krídla má predĺžené a so zahnutými koncami."],
 ["A343","Airbus A340-300","Airbus","quad",63.7,60.3,880,13500,280,1991,"Štyri motory – „4 Engines 4 Long Haul“."],
@@ -37,15 +37,15 @@ const CATALOG=[
 ["A388","Airbus A380","Airbus","quad",72.7,79.8,900,15200,510,2005,"Najväčšie dopravné lietadlo sveta – dve plné paluby."],
 ["B744","Boeing 747-400","Boeing","quad",70.7,64.4,910,13450,410,1988,"Kráľovná oblohy s ikonickým hrbom."],
 ["B748","Boeing 747-8","Boeing","quad",76.3,68.4,910,14300,400,2010,"Jedno z najdlhších dopravných lietadiel sveta – a posledný Jumbo."],
-["B763","Boeing 767-300","Boeing","twinW",54.9,47.6,850,11000,260,1986,"Prvý širokotrupý tryskáč s dvoma motormi cez Atlantik."],
+["B763","Boeing 767-300","Boeing","twinW",54.9,47.6,850,11000,260,1986,"Prvý dvojmotorový širokotrupý tryskáč, ktorý smel pravidelne lietať cez Atlantik."],
 ["B764","Boeing 767-400","Boeing","twinW",61.4,51.9,850,10400,290,1999,"Najdlhší 767."],
 ["B772","Boeing 777-200","Boeing","twinW",63.7,60.9,905,9700,320,1994,"Prvé lietadlo navrhnuté celé v počítači."],
-["B77L","Boeing 777-200LR","Boeing","twinW",63.7,64.8,905,15800,300,2005,"Kedysi držiteľ rekordu v najdlhšom lete bez pristátia."],
+["B77L","Boeing 777-200LR","Boeing","twinW",63.7,64.8,905,15800,300,2005,"Kedysi držal rekord v najdlhšom lete dopravného lietadla bez medzipristátia."],
 ["B77W","Boeing 777-300ER","Boeing","twinW",73.9,64.8,905,13650,380,2003,"Má motory GE90 – široké skoro ako trup Boeingu 737."],
 ["B788","Boeing 787-8","Boeing","twinW",56.7,60.1,903,13600,250,2009,"Trup je z kompozitov a okná sa stmievajú tlačidlom."],
 ["B789","Boeing 787-9","Boeing","twinW",62.8,60.1,903,14000,290,2013,"Krídla sa za letu ohnú nahor až o 3 metre."],
 ["B78X","Boeing 787-10","Boeing","twinW",68.3,60.1,903,11900,330,2017,"Najdlhší Dreamliner."],
-["MD11","McDonnell Douglas MD-11","McDonnell Douglas","tri",61.6,51.7,870,12600,290,1990,"Tri motory – jeden je zabudovaný v chvoste."],
+["MD11","McDonnell Douglas MD-11","McDonnell Douglas","tri",61.6,51.7,870,12600,290,1990,"Tri motory – jeden je zabudovaný vo chvoste."],
 ["BLCF","Boeing Dreamlifter","Boeing","quad",71.7,64.4,880,7800,0,2006,"Vozí krídla a časti trupu pre Boeing 787."],
 ["A3ST","Airbus Beluga","Airbus","beluga",56.2,44.8,750,2800,0,1994,"Lietadlo v tvare veľryby vozí časti Airbusov medzi továrňami."],
 ["A337","Airbus BelugaXL","Airbus","beluga",63.1,60.3,750,4000,0,2018,"Na nose má namaľované oči a úsmev 😄."],
@@ -59,7 +59,7 @@ const CATALOG=[
 ["E3TF","Boeing E-3 AWACS","Boeing","quad",46.6,44.4,850,7400,0,1976,"Na chrbte nesie radar ako obrovský tanier."],
 ["L39","Aero L-39 Albatros","Aero Vodochody","jetT",12.1,9.5,750,1600,2,1968,"Československý cvičný tryskáč – najrozšírenejší na svete."],
 ["F16","F-16 Fighting Falcon","Lockheed","fighter",15.1,9.8,2100,4200,1,1974,"Stíhačka, ktorú používa aj slovenské letectvo."],
-["EUFI","Eurofighter Typhoon","Eurofighter","delta",15.9,10.9,2400,2900,1,1994,"Prelieta rýchlosťou zvuku aj bez prídavného spaľovania."],
+["EUFI","Eurofighter Typhoon","Eurofighter","delta",15.9,10.9,2400,2900,1,1994,"Nadzvukovú rýchlosť dosiahne aj bez prídavného spaľovania."],
 ["GRIF","Saab Gripen","Saab","delta",14.1,8.4,2100,3200,1,1988,"Švédska stíhačka – lieta aj v Česku a Maďarsku."],
 ["F35","F-35 Lightning II","Lockheed","fighter",15.7,10.7,1900,2200,1,2006,"Pre radary ťažko zachytiteľná."],
 ["GLF6","Gulfstream G650","Gulfstream","rj",30.4,30.4,950,13000,18,2009,"Obľúbený súkromný jet miliardárov."],
@@ -74,7 +74,7 @@ const CATALOG=[
 ["PC24","Pilatus PC-24","Pilatus","rj",16.8,17.0,790,3600,10,2015,"„Super Versatile Jet“ – tryskáč pre trávnaté dráhy."],
 ["C172","Cessna 172 Skyhawk","Cessna","ga",8.3,11.0,226,1200,4,1955,"Najvyrábanejšie lietadlo histórie – vyše 45 000 kusov."],
 ["C152","Cessna 152","Cessna","ga",7.3,10.1,200,770,2,1977,"Na tejto Cessne sa učili lietať tisíce pilotov."],
-["P28A","Piper Cherokee","Piper","ga",7.3,10.7,230,1100,4,1960,"Krídlo má dole – spoznáš ho od Cessny."],
+["P28A","Piper Cherokee","Piper","ga",7.3,10.7,230,1100,4,1960,"Krídlo má dole – podľa toho ho odlíšiš od Cessny."],
 ["DA40","Diamond DA40","Diamond","ga",8.1,11.9,270,1400,4,1997,"Rakúske lietadlo z kompozitov."],
 ["SR22","Cirrus SR22","Cirrus","ga",7.9,11.7,340,1900,4,2000,"Má vlastný padák pre celé lietadlo."],
 ["EC35","Airbus H135","Airbus","heli",10.2,10.2,254,630,7,1994,"Typický vrtuľník leteckej záchrannej služby."],
@@ -109,5 +109,5 @@ function catGuess(code,a){
   if(CAT[code])return CAT[code];
   const v=COL.types[code]||{},fam=HELI.has(code)||(a&&a.cat==="A7")?"heli":WIDE.has(code)?"twinW":/^(GLF|GA[5-8]C|GL|CL|FA|C25|C56|C68|C700|LJ|E55|H25)/.test(code)?"rj":/^(C1|PA|P28|DA|SR2)/.test(code)?"ga":"twin";
   const d={heli:[12,11,250,700,6],twinW:[62,60,880,12000,280],rj:[20,20,850,5000,10],ga:[8,11,230,1100,4],twin:[36,34,820,4500,150]}[fam];
-  return {code,name:v.name||code,maker:(v.name||"").split(" ")[0]||"?",fam,len:d[0],span:d[1],spd:d[2],range:d[3],seats:SEATS[code]||d[4],year:null,fact:"Typ mimo Atlasu – vzácny úlovok mimo série!",no:null,guess:true};
+  return {code,name:v.name||code,maker:(v.name||"").split(" ")[0]||"?",fam,len:d[0],span:d[1],spd:d[2],range:d[3],seats:SEATS[code]||d[4],year:null,fact:"Tento typ v Atlase nie je – vzácny úlovok mimo série!",no:null,guess:true};
 }

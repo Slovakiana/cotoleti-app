@@ -6,7 +6,7 @@ let CD=null;
 // nákladné lietadlá v kategórii „Miesta/kapacita“: 1 t nosnosti = 2 body; vlastné kartičky: +3 % za ★, +5 % za shiny
 const cdStat=(k,cat,mine)=>{const c=catGuess(k);let v=cat==="seats"&&!c.seats?(SEATSX[k]||0)*2:(c[cat]||0);const o=mine&&COL.types[k];if(o&&o.n)v*=1+.03*(cardLvl(o.n,k)-1)+(o.shiny?.05:0);return Math.round(v*10)/10};
 const safeNick=n=>{n=String(n||"").replace(/https?:\S+|www\.\S+|@\S+|\b\S+\.(sk|com|cz|net)\b/gi,"").replace(/\d{4,}/g,"").replace(/[<>]/g,"").trim().slice(0,16);return n.length>=2?n:"Kamarát"};
-const cdVal=(k,cat,mine)=>{const v=cdStat(k,cat,mine),u=cat==="seats"&&!catGuess(k).seats?"b (náklad)":CD_CATS.find(x=>x[0]===cat)[2];return nf(v,cat==="span"||cat==="len"?1:0)+(u?" "+u:"")};
+const cdVal=(k,cat,mine)=>{const v=cdStat(k,cat,mine),u=cat==="seats"&&!catGuess(k).seats?"b (náklad · 1 t = 2 b)":CD_CATS.find(x=>x[0]===cat)[2];return nf(v,cat==="span"||cat==="len"?1:0)+(u?" "+u:"")};
 function myDeck(){const own=Object.keys(COL.types).filter(k=>k!=="?");return own.length>=3?own:[...new Set([...own,...LOAN])]}
 function cdMini(k,v){return cardSVG(k,v===undefined?COL.types[k]||{n:0,r:cardRar(k),first:Date.now()}:v,{id:"cd"})}
 function cdOpen(html){$("cdBox").innerHTML=html;$("cdM").classList.add("on")}
@@ -56,7 +56,7 @@ function cdReveal(mine){
   cdOpen(`<div class="lbl"><span>Kolo ${round+1} · ${catN}</span><span>${CD.score[1]} : ${CD.score[0]}</span></div>
     <div class="cdRow"><div><div class="lookSub" style="text-align:center;margin-bottom:6px">Ty · <b>${cdVal(mine,cat,1)}</b></div><div class="cdCard">${cdMini(mine)}</div></div><div class="vs">VS</div>
     <div><div class="lookSub" style="text-align:center;margin-bottom:6px">${esc(p.n)} · <b>${cdVal(theirs,cat)}</b></div><div class="cdCard">${cdMini(theirs,{n:1,r:cardRar(theirs),first:Date.now()})}</div></div></div>
-    <div class="cdScore">${win===1?"🎉 Bod pre teba!":win===0?"😬 Bod pre "+esc(p.n):"🤝 Remíza"}</div>
+    <div class="cdScore">${win===1?"🎉 Bod pre teba!":win===0?"😬 "+esc(p.n)+" berie bod":"🤝 Remíza"}</div>
     <div class="acts"><button class="btn pri" id="cdNext">${round<2?"Ďalšie kolo →":"Výsledok 🏁"}</button></div>`);
 }
 function cdResult(){

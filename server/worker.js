@@ -721,7 +721,7 @@ export class Sky extends DurableObject {
       const tier = tierOf(ty), shiny = vp.found && (sel == null || sel >= 8) ? (await this.shinyOf(hex, d, tier)) : false;
       let seq = 0, firstK = false, firstT = false, ed = null;
       // prečo úlovok nie je overený (appka to ukáže hráčovi)
-      const why = !fresh ? "" : !vp.found ? (vp.known ? "lietadlo sa nenašlo v sieti" : "siete neodpovedali") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha nie je z GPS" : !fair ? "poloha mimo Slovenska alebo VPN" : !near ? "ďaleko od tvojho dnešného miesta" : "";
+      const why = !fresh ? "" : !vp.found ? (vp.known ? "lietadlo sme v dátach o letoch nenašli" : "dáta o letoch boli dočasne nedostupné") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha bola vybraná ručne, nie z GPS" : !fair ? "si mimo Slovenska alebo máš zapnutú VPN" : !near ? "viac ako 30 km od miesta, kde si dnes začal(a)" : "";
       if (fresh && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
       if (cok && ty) {
         const had = this.row("SELECT seq FROM typeseq WHERE type=? AND id=?", ty, id);

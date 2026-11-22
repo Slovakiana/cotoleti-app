@@ -22,7 +22,7 @@ async function enablePush(silent){
     await apiPost("/api/sub",{sub:{endpoint:sub.toJSON().endpoint},...posR(),moment:PUSH.moment});
     PUSH.on=true;LS.set("ctl_push",true);LS.set("ctl_pushT",Date.now());swTell();syncPushUI();
     return true;
-  }catch(e){if(!silent)toast("Upozornenia sa nepodarilo zapnúť",String(e.message||e).slice(0,80));return false}
+  }catch(e){if(!silent)toast("Upozornenia sa nepodarilo zapnúť","Skontroluj, či máš appku pridanú na plochu, a skús znova.");return false}
 }
 function syncPushUI(){
   $("t-moment").classList.toggle("on",PUSH.on&&PUSH.moment);
@@ -54,7 +54,7 @@ function momentUI(mo){
     bar.textContent=`🔴 Pozri hore! · ešte ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`+((mo.n|0)>0?` · ${nf(mo.n)} 👀`:"");
     const d=dayKey();
     if(PUSH.joined!==d&&LS.get("ctl_onb",0)&&S.pos){PUSH.joined=d;LS.set("ctl_momJoined",d);
-      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{if(j.n)SOC.data.moment.n=j.n;const n=j.n||(SOC.data.moment&&SOC.data.moment.n)||0;toast("👀 Si pri tom!",n>1?"Spolu s tebou sa práve pozerá hore "+nf(n)+" "+ludia(n):"Celé Slovensko sa teraz pozerá hore");confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
+      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{if(j.n)SOC.data.moment.n=j.n;const n=j.n||(SOC.data.moment&&SOC.data.moment.n)||0;toast("👀 Si pri tom!",n>1?"Spolu s tebou sa práve "+(n>=2&&n<=4?"pozerajú":"pozerá")+" hore "+nf(n)+" "+ludia(n):"Celé Slovensko sa teraz pozerá hore");confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
     }
     if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data&&SOC.data.moment),1000);
     if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500);if(!$("ar").classList.contains("on"))wakeOff()}

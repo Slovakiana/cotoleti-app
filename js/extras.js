@@ -40,7 +40,7 @@ function shzDone(){
   $("shzRes").innerHTML=`<div class="lbl" style="margin-top:4px"><span>Počuješ</span></div>
     <div class="big" style="font-size:30px">${esc(titleOf(a))}</div>
     <div class="sub">${esc(typeName(a,m))}${airlineOf(a)?" · "+esc(airlineOf(a)):""}</div>
-    <div class="grid2" style="margin-top:10px"><div><b>${nf(sl/1000,1)} km</b><span>od tvojich uší</span></div><div><b>${nf(delay)} s</b><span>trvá zvuku cesta k tebe</span></div></div>
+    <div class="grid2" style="margin-top:10px"><div><b>${nf(sl/1000,1)} km</b><span>od tvojich uší</span></div><div><b>${nf(delay)} s</b><span>toľko k tebe letí zvuk</span></div></div>
     <div class="qbox">🤯 Zvuk je pomalší ako lietadlo. Počuješ ho tam, kde bolo pred ${nf(delay)} sekundami – odvtedy preletelo ďalších ${nf(back/1000,1)} km. Pozri sa ${a.trk!=null?"viac na "+dirL(a.trk):"pred zvuk"}!</div>`;
   ping("u");
 }
@@ -69,7 +69,7 @@ function gcPath(a,b,n=64){
 async function openMap(){
   const a=S.top;if(!a){toast("Nič na mape","Počkaj, kým niečo preletí");return}
   $("mapM").classList.add("on");$("mapInfo").textContent="Načítavam mapu…";
-  try{await loadLeaflet()}catch(e){$("mapInfo").textContent="Mapa sa nenačítala: "+e.message;return}
+  try{await loadLeaflet()}catch(e){$("mapInfo").innerHTML="Mapa sa nenačítala. Skontroluj internet a skús znova. <button class=\"btn sec\" id=\"mapRetry\">Skúsiť znova</button>";$("mapRetry").onclick=()=>openMap&&openMap();return}
   if(!LMAP){
     LMAP=L.map("map",{zoomControl:false,attributionControl:true});
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",subdomains:"abcd",maxZoom:18}).addTo(LMAP);
@@ -105,9 +105,9 @@ const DAILY_POOL=[
   {id:"fast",i:"⚡",n:"Zamávaj lietadlu rýchlejšiemu ako 950 km/h",h:"S poriadnym chvostovým vetrom",t:a=>a.spd!=null&&a.spd>950},
   {id:"cargo",i:"📦",n:"Zamávaj nákladnému lietadlu",h:"DHL, UPS, FedEx…",t:a=>/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL/.test(airlineOf(a))},
   {id:"five",i:"🖐️",n:"Zamávaj dnes 5 lietadlám",h:"Každé musí byť iné",need:5,t:()=>true},
-  {id:"air3",i:"🎨",n:"Zamávaj 3 rôznym aerolinkám",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
-  {id:"sun",i:"🏖️",n:"Nájdi let k moru",h:"Turecko, Egypt, Grécko, Španielsko, Chorvátsko…",t:a=>{const m=S.meta.get(a.hex),c=m&&m.route&&m.route.destination&&m.route.destination.country_iso_name;return ["TR","EG","GR","ES","HR","CY","PT","TN","IT","MT"].includes(c)}},
-  {id:"far",i:"🌏",n:"Nájdi let mimo Európy",h:"Ázia, Amerika, Afrika…",t:a=>{const m=S.meta.get(a.hex),d=m&&m.route&&m.route.destination;return !!(d&&d.latitude!=null&&(d.longitude>45||d.longitude<-25||d.latitude<34))}},
+  {id:"air3",i:"🎨",n:"Zamávaj lietadlám 3 rôznych aeroliniek",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
+  {id:"sun",i:"🏖️",n:"Zamávaj lietadlu, ktoré letí k moru",h:"Turecko, Egypt, Grécko, Španielsko, Chorvátsko…",t:a=>{const m=S.meta.get(a.hex),c=m&&m.route&&m.route.destination&&m.route.destination.country_iso_name;return ["TR","EG","GR","ES","HR","CY","PT","TN","IT","MT"].includes(c)}},
+  {id:"far",i:"🌏",n:"Zamávaj lietadlu, ktoré letí mimo Európy",h:"Ázia, Amerika, Afrika…",t:a=>{const m=S.meta.get(a.hex),d=m&&m.route&&m.route.destination;return !!(d&&d.latitude!=null&&(d.longitude>45||d.longitude<-25||d.latitude<34))}},
   {id:"rare",i:"💎",n:"Zamávaj vzácnemu lietadlu",h:"Modré, fialové alebo zlaté na radare",t:a=>["r","e","l"].includes(rarity(a))},
   {id:"zen",i:"🎯",n:"Zamávaj lietadlu vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
   {id:"shazam",i:"👂",n:"Vyskúšaj „Čo to hučí?“",h:"Keď počuješ lietadlo",ev:true},
@@ -196,7 +196,14 @@ function renderDaily(){
   $("d-streak").textContent=D.streak?"🔥 séria "+D.streak+((D.freeze|0)?" · ❄️ "+D.freeze:""):"";streakChip();
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
     return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
+  $("d-list").insertAdjacentHTML("beforeend",didYouKnow());
 }
+// 💡 Vieš, že…? – raz denne zaujímavosť, prednostne o kartičke, ktorá ti chýba
+function didYouKnow(){
+  const miss=CATALOG.filter(x=>!(COL.types[x[0]]&&COL.types[x[0]].n)&&!TROPHY.has(x[0])&&x[10]);
+  const pool=(miss.length?miss:CATALOG.filter(x=>x[10])),x=pool[hash(dayKey()+"dyk")%pool.length];if(!x)return "";
+  const have=COL.types[x[0]]&&COL.types[x[0]].n;
+  return `<div class="dyk" data-dyk="${esc(x[0])}">💡 <b>Vieš, že…?</b> ${esc(x[1])}: ${esc(x[10])}${have?"":" <small>Zamávaj mu a kartička je tvoja.</small>"}</div>`}
 $("dailyStrip").onclick=()=>setView("col");
 
 /* ============ ⚔️ Výzva pre kamaráta ============ */
@@ -207,7 +214,7 @@ function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:
 async function sendDuel(){
   if(typeof ensureTok==="function")await ensureTok();
   const me=myScore(),url=shareUrl("v",b64e(JSON.stringify(me)));
-  const town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";const text=`👋 Mávam lietadlám${town?" ("+town+")":""} a zbieram ich kartičky ✈️ Pridaj sa – keď zamávame tomu istému lietadlu do 10 minút, máme obaja bonus. Mám ${me.t} kartičiek, prekonáš ma?`;
+  const town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";const text=`👋 Mávam lietadlám${town?" ("+town+")":""} a zbieram ich kartičky ✈️ Pridaj sa – keď zamávame tomu istému lietadlu do 10 minút, máme obaja bonus. Mám ${me.t} ${pl(me.t,"kartičku","kartičky","kartičiek")}, prekonáš ma?`;
   try{if(navigator.share){await navigator.share({title:"Čo to letí? – výzva",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamarátovi")}catch(e){prompt("Skopíruj odkaz:",url)}
 }
@@ -234,7 +241,7 @@ function checkDuelLink(){
     $("duelFr").style.display=canFr&&!LS.get("ctl_kid",false)?"":"none";
     $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(async x=>{const j=await x.json().catch(()=>({}));if(x.ok)toast("👯 Ste kamaráti","Uvidíte, ktorým lietadlám ste dnes mávali. Odobrať sa dá v sekcii Ja.");else toast("Pozvánka už neplatí","Platí 24 hodín – popros o novú")}).catch(()=>{});$("duelM").classList.remove("on")};
     $("duelT").textContent=r.n+" ťa vyzýva!";
-    $("duelS").textContent=`Má ${r.p} bodov, ${r.c} ulovených lietadiel a ${r.t} typov (level ${r.l}). Dokážeš ho prekonať?`;
+    $("duelS").textContent=`Má ${r.p} b, ${r.c} ${pl(r.c,"úlovok","úlovky","úlovkov")} a ${r.t} ${pl(r.t,"typ","typy","typov")} (level ${r.l}). Prekonáš to?`;
     $("duelM").classList.add("on");
   }catch(e){}
   try{history.replaceState(null,"",location.pathname)}catch(e){}

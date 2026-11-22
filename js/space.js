@@ -162,7 +162,7 @@ const SPACE=(()=>{
     const nowL=visibleNow(),trains=nowL.filter(s=>s.kind==="starlink");
     $("sp-nowN").textContent=nowL.length?nowL.length+"":"";
     let html="";
-    if(trains.length>=3)html+=`<div class="qbox" style="margin:6px 0">🚂 Vláčik Starlink! Práve je nad tebou ${trains.length} nových satelitov – hľadaj rad svetielok, čo idú za sebou.</div>`;
+    if(trains.length>=3)html+=`<div class="qbox" style="margin:6px 0">🚂 Vláčik Starlink! Práve je nad tebou ${trains.length} ${pl(trains.length,"nový satelit","nové satelity","nových satelitov")} – hľadaj rad svetielok, čo idú za sebou.</div>`;
     html+=nowL.slice(0,12).map(s=>`<div class="row"><div class="l"><b>${s.kind==="iss"||s.kind==="css"?"⭐ ":s.kind==="starlink"?"🔹 ":"· "}${esc(s.kind==="iss"||s.kind==="css"?LONG[s.kind]:s.name)}</b><div>${s.sunlit?"viditeľný voľným okom ✨":s.lit?"na slnku, ale u teba je svetlo":"v tieni Zeme"}</div></div><div class="r"><b>${nf(s.el)}°</b><br>na ${dirS(s.az)}</div></div>`).join("");
     $("sp-now").innerHTML=html||'<div class="lookSub">'+(sunAlt()>-6?"Teraz je svetlo – satelity uvidíš až po zotmení. ISS a Tiangong ale ukazujem vždy.":"Momentálne nič jasné nad obzorom.")+'</div>';
   }

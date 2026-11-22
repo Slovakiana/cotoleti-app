@@ -48,12 +48,12 @@ function trRender(){
   $("trKick").textContent=TR.me?"🧳 Môj let":"👀 Sleduješ let";
   $("trTitle").textContent=(TR.me?"Ja · ":TR.label?TR.label+" · ":"")+(TR.disp||TR.cs);
   const w=TR.hex&&typeof planeWaves==="function"?planeWaves(TR.hex).total:0;
-  $("trWaves").textContent=w?`👋 ${TR.me?"Tebe":"Tomuto lietadlu"} dnes zamávalo ${nf(w)} ${ludia(w)} zo Slovenska`:(TR.me?"Pošli odkaz kamošom, nech ti zamávajú, keď budeš nad nimi 👋":"");
+  $("trWaves").textContent=w?`👋 ${TR.me?"Tebe":"Tomuto lietadlu"} dnes ${zam(w)} ${nf(w)} ${ludia(w)} zo Slovenska`:(TR.me?"Pošli odkaz kamarátom, nech ti zamávajú, keď budeš nad nimi 👋":"");
   $("trNotify").style.display=TR.me||(PUSH.on&&TR.srv)?"none":"";
   $("trShare").textContent=TR.me?"📤 Zamávajte mi!":"📤 Pošli odkaz";
   if(TR.landed){
     $("trLine").textContent="🛬 Lietadlo pristálo.";
-    $("trEta").textContent=w?`Počas letu ${TR.me?"ti":"mu"} zamávalo ${nf(w)} ${ludia(w)} 🥹`:"";return;
+    $("trEta").textContent=w?`Počas letu ${TR.me?"ti":"mu"} ${zam(w)} ${nf(w)} ${ludia(w)} 🥹`:"";return;
   }
   const G=trGeom();
   if(!G){$("trLine").textContent=TR.seen?"Lietadlo práve nevysiela polohu. Skúšam znova…":"Lietadlo ešte nevzlietlo alebo nevysiela polohu. Skúšam každú minútu.";$("trEta").textContent="";return}
@@ -72,7 +72,7 @@ function trRender(){
 }
 function trLanded(){
   const w=TR.hex&&typeof planeWaves==="function"?planeWaves(TR.hex).total:0;
-  toast(`🛬 ${TR.me?"Si na zemi!":trName()+" pristál(a)"}!`,w?`Počas letu zamávalo ${nf(w)} ${ludia(w)} 👋`:"Šťastný návrat","#6dffc7");
+  toast(`🛬 ${TR.me?"Si na zemi":trName()+" je na zemi"}!`,w?`Počas letu ${zam(w)} ${nf(w)} ${ludia(w)} 👋`:"Šťastný návrat","#6dffc7");
 }
 async function trServer(){
   if(!SOC.api||!TR||TR.me)return;
@@ -97,7 +97,7 @@ async function trShareLink(){
   const url=shareUrl("l",encodeURIComponent(TR.cs),nn?"n="+encodeURIComponent(nn):"");
   const text=TR.me?`✈️ Letím ${TR.disp||TR.cs}! Keď budem letieť nad tebou, zamávaj mi 👋 Appka ti dá vedieť:`:`✈️ Sleduj let ${TR.disp||TR.cs}${TR.label?" ("+TR.label+")":""} a zamávaj, keď bude nad tebou 👋`;
   try{if(navigator.share){await navigator.share({title:"Čo to letí?",text,url});return}}catch(e){if(e.name==="AbortError")return}
-  try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamošom")}catch(e){prompt("Skopíruj odkaz:",url)}
+  try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamarátom")}catch(e){prompt("Skopíruj odkaz:",url)}
 }
 $("b-track").onclick=()=>{haptic(8);if(TR&&!TR.landed){$("trackCard").scrollIntoView({behavior:"smooth",block:"center"});return}trOpen()};
 $("trFriend").onclick=()=>trSubmit(false);$("trMe").onclick=()=>trSubmit(true);$("trCancel").onclick=()=>$("trackM").classList.remove("on");

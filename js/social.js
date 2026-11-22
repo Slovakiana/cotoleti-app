@@ -37,6 +37,8 @@ const SKD=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"});
 const dayKey=()=>SKD.format(new Date());
 const dayAgo=n=>SKD.format(new Date(Date.now()-n*864e5));
 const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
+// sloveso k počtu ľudí: 1 zamával, 2–4 zamávali, 5+ zamávalo
+const zam=n=>n===1?"zamával":n>=2&&n<=4?"zamávali":"zamávalo";
 
 ACH.push({id:"discover",i:"🧭",n:"Objaviteľ – prvý na Slovensku",c:()=>false},{id:"mayor",i:"🏛️",n:"Starosta oblohy",c:()=>false},{id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár · priviesť kamaráta",c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"wave",i:"👋",n:"Zamávaj lietadlu",h:"Ťukni na „Mávni“ pri lietadle nad tebou",ev:true});
@@ -70,7 +72,7 @@ function socRender(){
     const kr=(D.kraje||[]).filter(x=>x.n>0);
     $("krajeCard").style.display=kr.length||D.allTime?"":"none";
     const rec=D.record;
-    $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Rekord dňa: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · chýba "+nf(Math.max(0,rec.n-w+1))}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
+    $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Denný rekord: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · do rekordu chýba "+nf(Math.max(0,rec.n-w+1))+" 👋"}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
     if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
     renderLeague();renderMayor();
   }
@@ -89,8 +91,8 @@ function renderLeague(){
     const kk=krajOf(S.pos);
     if(!SOC.atl||SOC.atl.k!==kk||Date.now()-SOC.atl.t>300e3){if(!SOC.atlL){SOC.atlL=1;apiPost("/api/atlasy",{k:kk}).then(r=>r.json()).then(j=>{SOC.atlL=0;j=j&&j.top?j:{top:[]};if(1){SOC.atl={k:kk,t:Date.now(),j};if(LG==="a")renderLeague()}}).catch(()=>{SOC.atlL=0})}}
     const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
-    rows=(j.top||[]).slice(0,10).map(r=>[r.nick+" · "+r.n+" typov",r.sc,r.me,!r.me&&r.nick!=="Spotter"]);
-    if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" typov",j.me.sc,true]);
+    rows=(j.top||[]).slice(0,10).map(r=>[r.nick+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!r.me&&r.nick!=="Spotter"]);
+    if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true]);
     if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
   }
   else if(LG==="f"){
@@ -112,7 +114,7 @@ function renderMayor(){
   if(M.me&&was!==M.town+dayKey().slice(0,7)){LS.set("ctl_mayor",M.town+dayKey().slice(0,7));grantAch("mayor");setTimeout(()=>{toast("🏛️ Si Starosta oblohy!",M.town+" – najaktívnejší spotter mesiaca","#ffcf4f");confetti(60)},1500)}
   el.hidden=false;
   el.innerHTML=M.me?`🏛️ <b>Si Starosta oblohy – ${esc(M.town)}</b><br><small>Najviac mávnutí v meste tento mesiac (${M.n}). Udrž si titul do konca mesiaca!</small>`
-    :M.nick?`🏛️ Starosta oblohy – ${esc(M.town)}: <b>${esc(M.nick)}</b>${M.nick!=="Spotter"?` <button class="rep" data-rep="${esc(M.nick)}" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""} (${M.n} 👋)<br><small>Ty máš tento mesiac ${M.mine|0}. ${M.n-(M.mine|0)+1>0?"Chýba ti "+(M.n-(M.mine|0)+1)+" na titul.":""}</small>`
+    :M.nick?`🏛️ Starosta oblohy – ${esc(M.town)}: <b>${esc(M.nick)}</b>${M.nick!=="Spotter"?` <button class="rep" data-rep="${esc(M.nick)}" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""} (${M.n} 👋)<br><small>Ty máš tento mesiac ${M.mine|0} ${pl(M.mine|0,"mávnutie","mávnutia","mávnutí")}.${M.n-(M.mine|0)+1>0?" Na vedenie ti chýba ešte "+(M.n-(M.mine|0)+1)+".":""}</small>`
     :`🏛️ <b>${esc(M.town)}</b> ešte nemá Starostu oblohy<br><small>Zamávaj ako prvý a titul je tvoj.</small>`;
 }
 $("kraje").onclick=e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)};
@@ -144,8 +146,8 @@ function waveInfo(a){
   const frTxt=fr&&fr.length?`<div class="frLine">👯 ${fr.slice(0,3).map(f=>esc(f.n)).join(", ")} ${fr.length===1?"mu dnes zamával":"mu dnes zamávali"}</div>`:"";
   const mOn=SOC.data&&SOC.data.mailOn&&SOC.data.mailOn[a.hex];
   const mailTxt=mOn?`<div class="frLine" style="color:#ffcf8a">✉️ Nesie ${mOn} ${mOn===1?"pozdrav":mOn<5?"pozdravy":"pozdravov"} po Slovensku</div>`:"";
-  if(!(LS.get("ctl_waveN",0)|0))return void($("waveInfo").innerHTML=p.total?`Dnes mu zamávalo <b>${nf(p.total)} ${ludia(p.total)}</b>`:"");
-  $("waveInfo").innerHTML=(p.total?`Dnes mu zamávalo <b>${nf(p.total)} ${ludia(p.total)}</b>${mine?" vrátane teba":""} · ${em}`:"Dnes mu ešte nikto nemával. Začni ty 👋")+frTxt+mailTxt;
+  if(!(LS.get("ctl_waveN",0)|0))return void($("waveInfo").innerHTML=p.total?`Dnes mu ${zam(p.total)} <b>${nf(p.total)} ${ludia(p.total)}</b>`:"");
+  $("waveInfo").innerHTML=(p.total?`Dnes mu ${zam(p.total)} <b>${nf(p.total)} ${ludia(p.total)}</b>${mine?" vrátane teba":""} · ${em}`:"Dnes mu ešte nikto nemával. Začni ty 👋")+frTxt+mailTxt;
 }
 HOOKS.heroStatic.push(a=>{waveInfo(a);cardHint(a)});
 /* 🃏 čo ti zamávanie prinesie – ešte PRED mávnutím (prepojenie hlavnej akcie a zbierky) */
@@ -239,15 +241,15 @@ async function doWave1(e,a){LASTWAVE=null;
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     // prihlásenie/server zlyhali – mávnutie si odložíme a o chvíľu ho pošleme znova (overí sa, kým je lietadlo blízko)
     if(r.status===401||r.status>=500||(r.status===429&&j.error!=="rate")){try{const q=LS.get("ctl_wq",[]).filter(x=>x.d===dayKey());if(q.length<20&&body)q.push({d:dayKey(),b:body,t:Date.now()});LS.set("ctl_wq",q)}catch(x){}setTimeout(flushWq,15000)}
-    LASTWAVE=null;credit();fin(j.error==="busy"?"siete sú preťažené – overím o chvíľu":"overím o chvíľu (kód "+code+")");return}
+    LASTWAVE=null;credit();fin(j.error==="busy"?"siete sú preťažené – overím o chvíľu":"overím o chvíľu");return}
   // server pozná typ z overených dát – kartička dostane ten istý typ, aby sedelo overenie
   if(j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
   LASTWAVE={hex:a.hex,...j};credit();
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
-  if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["#"+j.seq+" na Slovensku"]);
+  if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["č. "+j.seq+" na Slovensku"]);
   if(j.seq===1){grantAch("discover");confetti(160)}
-  if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");WB&&WB.items.push(["👯 Spoločné mávnutie s "+j.together.n]);confetti(40)}
+  if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");WB&&WB.items.push(["👯 Spoločné mávnutie s kamarátmi ("+j.together.n+")"]);confetti(40)}
   if(j.golden==="entered"){const v=COL.types[a.type||"?"];if(v&&!v.gold){v.gold=Date.now();COL.pts+=25;LS.set("ctl_col",COL);grantAch("golden")}WB&&WB.items.push(["🏆 Zlatá posádka – zlatá kartička"])}
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);

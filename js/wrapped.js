@@ -90,7 +90,7 @@ $("wshare").onclick=async()=>{
   x.font="200px sans-serif";x.fillText(s.type.e,80,500);
   x.fillStyle="#fff";let fs=110;x.font=`900 ${fs}px Unbounded, sans-serif`;while(x.measureText(s.type.n).width>W-180&&fs>56){fs-=8;x.font=`900 ${fs}px Unbounded, sans-serif`}x.fillText(s.type.n,90,650);
   x.fillStyle="rgba(255,255,255,.85)";x.font="500 40px Inter, sans-serif";wrapText(x,s.type.d,90,730,W-180,54,3);
-  const cells=[[nf(s.n),"lietadiel nad hlavou"],["~"+nf(s.pax),"ľudí na palube"],[s.top?s.top[0]:"—","najčastejšia aerolinka"],[s.far?s.far.city:"—",s.far?nf(s.far.km)+" km ďaleko":"najďalší cieľ"]];
+  const cells=[[nf(s.n),pl(s.n,"lietadlo","lietadlá","lietadiel")+" nad hlavou"],["~"+nf(s.pax),"ľudí na palube"],[s.top?s.top[0]:"—","najčastejšia aerolinka"],[s.far?s.far.city:"—",s.far?nf(s.far.km)+" km ďaleko":"najďalší cieľ"]];
   cells.forEach((q,i)=>{const cx=90+(i%2)*460,cy=960+Math.floor(i/2)*300;x.fillStyle="rgba(255,255,255,.12)";rr(x,cx,cy,440,260,40);x.fill();
     x.fillStyle="#fff";let f2=72;x.font=`800 ${f2}px Unbounded, sans-serif`;while(x.measureText(String(q[0])).width>380&&f2>34){f2-=6;x.font=`800 ${f2}px Unbounded, sans-serif`}x.fillText(String(q[0]),cx+34,cy+130);
     x.fillStyle="rgba(255,255,255,.8)";x.font="500 32px Inter, sans-serif";x.fillText(clip(x,q[1],380),cx+34,cy+200)});
@@ -110,12 +110,12 @@ async function yearOpen(){
     const KN=k=>(KRAJ[k]||KRAJ.XX)[2];
     const fd=s=>s?new Date(s+"T12:00:00").toLocaleDateString("sk-SK",{day:"numeric",month:"long"}):"";
     $("yearBody").innerHTML=`<div class="lookSub">Spolu sme zamávali</div><div class="yBig">${nf(j.waves)}×</div>
-      <div class="lookSub">${nf(j.users)} nových spotterov · ${j.days} dní mávania${j.gold?" · "+j.gold+"× zlaté lietadlo":""}</div>
+      <div class="lookSub">${nf(j.users)} ${pl(j.users,"nový spotter","noví spotteri","nových spotterov")} · ${j.days} ${pl(j.days,"deň","dni","dní")} mávania${j.gold?" · "+j.gold+"× zlaté lietadlo":""}</div>
       ${j.record?`<div class="ySec">🏆 Rekordný deň</div><div class="yRow"><span>${fd(j.record.day)}</span><b>${nf(j.record.n)} 👋</b></div>`:""}
       ${j.kraje.length?`<div class="ySec">🗺️ Kraje</div>`+j.kraje.slice(0,3).map((k,i)=>`<div class="yRow"><span>${["🥇","🥈","🥉"][i]} ${esc(KN(k.k))}</span><b>${nf(k.n)}</b></div>`).join(""):""}
       ${j.towns.length?`<div class="ySec">🏙️ Mestá</div>`+j.towns.slice(0,3).map((t,i)=>`<div class="yRow"><span>${["🥇","🥈","🥉"][i]} ${esc(t.town)}</span><b>${nf(t.n)}</b></div>`).join(""):""}
       ${j.planes.length?`<div class="ySec">✈️ Najzamávanejšie lietadlá</div>`+j.planes.map((p,i)=>`<div class="yRow"><span>${["🥇","🥈","🥉"][i]} ${esc(p.call||p.hex)}${p.dest?" → "+esc(p.dest):""}</span><b>${nf(p.n)}</b></div>`).join(""):""}
-      <div class="lookSub" style="margin-top:12px">Tvoj rok: ${nf(COL.n)} úlovkov · ${nf(COL.pts)} bodov</div>`;
+      <div class="lookSub" style="margin-top:12px">Tvoj rok: ${nf(COL.n)} ${pl(COL.n,"úlovok","úlovky","úlovkov")} · ${nf(COL.pts)} ${pl(COL.pts,"bod","body","bodov")}</div>`;
     YEAR=j;
   }catch(e){$("yearBody").innerHTML='<div class="lookSub">Súhrn sa nepodarilo načítať. Skús to o chvíľu.</div>'}
 }
@@ -124,7 +124,7 @@ if($("b-year")){
   $("b-year").onclick=yearOpen;
   $("yearClose").onclick=()=>$("yearM").classList.remove("on");
   $("yearShare").onclick=async()=>{
-    const url=shareUrl("rok",""),text=YEAR?`🇸🇰 Slovensko ${YEAR.y}: spolu sme lietadlám zamávali ${nf(YEAR.waves)}×! Ja mám ${nf(COL.n)} úlovkov ✈️`:"🇸🇰 Slovensko na oblohe – súhrn roka";
+    const url=shareUrl("rok",""),text=YEAR?`🇸🇰 Slovensko ${YEAR.y}: spolu sme lietadlám zamávali ${nf(YEAR.waves)}×! Ja mám ${nf(COL.n)} ${pl(COL.n,"úlovok","úlovky","úlovkov")} ✈️`:"🇸🇰 Slovensko na oblohe – súhrn roka";
     try{if(navigator.share){await navigator.share({title:"Slovensko na oblohe",text,url});return}}catch(e){if(e.name==="AbortError")return}
     try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho ďalej")}catch(e){}
   };

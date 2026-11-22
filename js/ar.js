@@ -121,7 +121,7 @@ function arFrame(){
       const dy=top.p.dy,dx=top.p.dx;
       hint=[dy>12?"vyššie":dy<-12?"nižšie":"",Math.abs(dx)>12?(dx>0?"doprava":"doľava"):""].filter(Boolean).join(" a ");
       hint=(hint?hint.charAt(0).toUpperCase()+hint.slice(1):"Tam")+" → "+titleOf(top.a);
-    }else hint=inView?(inView===1?"1 lietadlo v zábere":inView+" lietadlá v zábere"):"Namier mobil na oblohu 👆";
+    }else hint=inView?(inView===1?"1 lietadlo v zábere":inView+" "+pl(inView,"lietadlo","lietadlá","lietadiel")+" v zábere"):"Namier mobil na oblohu 👆";
   }
   // 🎯 automatický záber nad hlavou
   if(AR.auto&&!selfie){
@@ -209,7 +209,7 @@ if($("arCal"))$("arCal").onclick=()=>{
   if(!target){AR.calib=0;LS.set("ctl_arcal",0);toast("Kalibrácia zrušená","");return}
   const a=enrich(Date.now()).find(x=>x.hex===target.hex)||target;
   AR.calib=wrap180(a.bear-S.camHead);LS.set("ctl_arcal",AR.calib);
-  toast("🧭 Skalibrované","Namieril si na "+titleOf(a)+" – štítky sedia na oblohu");
+  toast("🧭 Skalibrované","Namieril si na "+titleOf(a)+" – štítky už sedia s oblohou");
 };
 
 /* ---- 🤳 selfie s lietadlom nad hlavou ---- */
