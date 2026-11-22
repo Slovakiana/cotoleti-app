@@ -140,7 +140,10 @@ function skyFrame(){
     const s=isTop?1.5:1;c.fillStyle=col;c.beginPath();c.moveTo(0,-7*s);c.lineTo(5*s,6*s);c.lineTo(0,3.5*s);c.lineTo(-5*s,6*s);c.closePath();c.fill();c.restore();
     if(isTop||list.length<8||a.el>45){const rt=routeOf(a),hide=$("guess").classList.contains("on")&&$("guess").dataset.hex===a.hex,lab=titleOf(a)+(isTop&&rt&&!hide?" → "+citySk(rt.destination.municipality):"");
       c.font=(isTop?"700 12px":"600 10px")+" Inter, sans-serif";c.textAlign="left";c.fillStyle=isTop?"#fff":"rgba(255,255,255,.75)";
-      c.lineWidth=3;c.strokeStyle="rgba(0,0,0,.45)";c.lineJoin="round";c.strokeText(lab,p.x+(isTop?18:9),p.y);c.fillText(lab,p.x+(isTop?18:9),p.y)}
+      c.lineWidth=3;c.strokeStyle="rgba(0,0,0,.45)";c.lineJoin="round";
+      // štítok sa nezmestí doprava → nakresli ho vľavo od lietadla (malé displeje)
+      const off=isTop?18:9,lw=c.measureText(lab).width,cw=c.canvas.width/(window.devicePixelRatio||1),lx=p.x+off+lw>cw-4?(c.textAlign="right",p.x-off):p.x+off;
+      c.strokeText(lab,lx,p.y);c.fillText(lab,lx,p.y);c.textAlign="left"}
   });
   // ty
   c.fillStyle="#fff";c.beginPath();c.arc(cx,cy,4,0,7);c.fill();
@@ -349,7 +352,7 @@ async function share(){
   if(rt&&rt.origin&&rt.destination){
     x.fillStyle="rgba(0,0,0,.3)";rr(x,90,y-110,W-180,260,40);x.fill();
     x.fillStyle="#fff";x.font="800 110px Unbounded, sans-serif";x.fillText(rt.origin.iata_code||"?",140,y+30);x.textAlign="right";x.fillText(rt.destination.iata_code||"?",W-140,y+30);
-    x.font="500 34px Inter, sans-serif";x.fillStyle="#97a3c7";x.fillText(clip(x,rt.destination.municipality||"",360),W-140,y+95);x.textAlign="left";x.fillText(clip(x,rt.origin.municipality||"",360),140,y+95);
+    x.font="500 34px Inter, sans-serif";x.fillStyle="#97a3c7";x.fillText(clip(x,citySk(rt.destination.municipality||""),360),W-140,y+95);x.textAlign="left";x.fillText(clip(x,citySk(rt.origin.municipality||""),360),140,y+95);
     x.textAlign="center";x.font="70px sans-serif";x.fillText("✈️",W/2,y+20);x.textAlign="left";y+=230;
   }
   const stats=[[a.alt!=null?nf(a.alt)+" m":"—",altCompare(a.alt)],[a.spd!=null?nf(a.spd)+" km/h":"—",spdCompare(a.spd)],[nf(a.dist/1000,1)+" km","odo mňa"],[nf(Math.max(0,a.el))+"°","nad obzorom"]];
@@ -576,7 +579,7 @@ function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
 
 /* ============ 🔁 prenos zbierky jednorazovým kódom (platí 10 min, starý mobil stratí prístup) ============ */
-const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_ach:"object",ctl_team:"object",ctl_track:"object"};
+const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_ach:"object",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean"};
 async function xferMake(){
   if(typeof apiPost!=="function")return;
   const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
@@ -607,7 +610,15 @@ function installGuide(){
 $("instClose").onclick=()=>$("instM").classList.remove("on");
 $("instCopy").onclick=()=>{$("instM").classList.remove("on");xferMake()};
 // modálne okná: zatvorenie klávesom Esc a návrat zamerania
-addEventListener("keydown",e=>{if(e.key!=="Escape")return;const m=[...document.querySelectorAll(".modal.on")].pop();if(m){m.classList.remove("on");if(m.id==="ar"&&typeof closeAR==="function")closeAR()}});
+function closeModal(m){if(!m)return;if(m.id==="shz"){const c=m.querySelector("#shzClose,[data-close],.ghost");if(c){c.click();return}}m.classList.remove("on");if(m.id==="ar"&&typeof closeAR==="function")closeAR();if(m.id==="cdM"&&typeof CD!=="undefined")CD=null}
+addEventListener("keydown",e=>{if(e.key!=="Escape")return;closeModal([...document.querySelectorAll(".modal.on")].pop())});
+// zatvorenie ťuknutím vedľa (na tmavé pozadie)
+document.addEventListener("click",e=>{const m=e.target;if(m.classList&&m.classList.contains("modal")&&m.classList.contains("on"))closeModal(m)});
+// zatvorenie potiahnutím okna nadol (za úchyt), keď je obsah na vrchu
+{let y0=null,card=null,dy=0;
+  document.addEventListener("touchstart",e=>{const c=e.target.closest(".modal.on .mcard");if(!c||c.scrollTop>0||e.target.closest("input,textarea,.cdPick,canvas,#mapBox,.leaflet-container")){y0=null;return}card=c;y0=e.touches[0].clientY;dy=0},{passive:true});
+  document.addEventListener("touchmove",e=>{if(y0==null||!card)return;dy=e.touches[0].clientY-y0;if(dy>0&&card.scrollTop<=0){card.style.transform=`translateY(${dy*.6}px)`;card.style.transition="none"}},{passive:true});
+  document.addEventListener("touchend",()=>{if(!card)return;const c=card;card=null;c.style.transition="transform .2s";if(dy>110){closeModal(c.closest(".modal"));setTimeout(()=>{c.style.transform="";c.style.transition=""},250)}else c.style.transform="";y0=null},{passive:true});}
 // odznak na ikone zmizne, keď otvoríš appku
 try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
 
@@ -749,3 +760,18 @@ $("shareNudge").onclick=async()=>{
 HOOKS.heroStatic.push(a=>{const sn=$("shareNudge");if(sn&&!sn.hidden&&(!a||a.hex!==sn.dataset.hex))sn.hidden=true});
 // prišiel si z odkazu od kamaráta? povedz to už na úvode
 if(!LS.get("ctl_onb",0)&&/(vyzva|kd|tim|let)=/.test(location.hash)){const d=document.createElement("div");d.className="onbInvite";d.textContent=/kd=/.test(location.hash)?"⚔️ Kamarát ťa vyzval na súboj kartičiek – najprv zisti, čo letí nad tebou":/tim=/.test(location.hash)?"👥 Dostal si pozvánku do tímu – najprv zisti, čo letí nad tebou":/let=/.test(location.hash)?"✈️ Kamarát ti posiela let – najprv povoľ polohu, nech vieš, kedy bude nad tebou":"⚔️ Kamarát ťa vyzýva – najprv zisti, čo letí nad tebou";const go=$("go");go&&go.parentNode.insertBefore(d,go)}
+
+/* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
+const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_ach","ctl_team","ctl_track","ctl_goldAlert"];
+function profState(){return LS.get("ctl_profs",{cur:"A",n:{A:"Ja",B:"Dieťa"}})}
+function profRender(){const P=profState(),o=P.cur==="A"?"B":"A";const el=$("profTxt");if(!el)return;el.innerHTML=`Hrá: <b>${esc(P.n[P.cur])}</b>`;$("b-prof").textContent="Prepnúť na: "+P.n[o]}
+function profSwitch(){
+  const P=profState(),o=P.cur==="A"?"B":"A";
+  if(!kidPinOk("prepnúť profil"))return;
+  for(const k of PKEYS){const v=localStorage.getItem(k);if(v==null)localStorage.removeItem("ctl_p"+P.cur+":"+k);else localStorage.setItem("ctl_p"+P.cur+":"+k,v)}
+  const fresh=!PKEYS.some(k=>localStorage.getItem("ctl_p"+o+":"+k)!=null);
+  for(const k of PKEYS){const v=localStorage.getItem("ctl_p"+o+":"+k);if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}
+  P.cur=o;if(fresh){const nm=prompt("Meno profilu (napr. Miško):",P.n[o]);if(nm&&nm.trim())P.n[o]=nm.trim().slice(0,16);if(confirm("Je to profil dieťaťa do 16 rokov? (zapne sa detský režim)")){LS.set("ctl_kid",true);LS.set("ctl_needPin",1)}}
+  LS.set("ctl_profs",P);location.reload()}
+if($("b-prof")){$("b-prof").onclick=profSwitch;profRender()}
+if(LS.get("ctl_needPin",0)&&KID()){LS.set("ctl_needPin",0);setTimeout(kidPinSet,1500)}

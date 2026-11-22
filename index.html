@@ -560,6 +560,21 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 #cardM .holoWrap{width:min(84vw,360px,calc(58vh*.714))}
 #cardM .cardBack{max-width:min(80vw,360px,calc(58vh*.714))}
 #cardM .acts{position:sticky;bottom:0;padding:10px 0 calc(var(--bot) + 6px);background:linear-gradient(transparent,rgba(5,8,20,.92) 30%);margin-top:10px!important}
+
+/* 3. run – rozloženie */
+body.moment #top{opacity:1!important;pointer-events:auto!important}
+#momentBar{top:calc(var(--top) + 58px)!important}#momentBar.mini{left:auto;right:12px;transform:none;padding:6px 10px}
+.pageHead .gearBtn{right:16px}
+#ptr{transform:translate(-50%,calc(-100% - var(--top) - 24px))}
+.formRow small{font-size:9px!important;line-height:1.2;display:block;opacity:.8}.mailList{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
+#cardM.locked .acts{max-width:none;justify-content:center;background:none!important}
+.kick{white-space:nowrap}
+#yearM .acts{bottom:-18px;padding-bottom:22px}
+#repName{text-transform:none}
+.rep{min-width:44px;min-height:44px;display:inline-grid;place-items:center}
+#f-privacy,#onb-privacy,.src a{display:inline-block;padding:12px 6px;margin:-12px -6px}
+body.moment .pageHead{padding-top:8px}
+@media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}#onb .sky{inset:0 0 70% 0}}
 </style>
 </head>
 <body>
@@ -813,6 +828,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
       <div class="acts"><button class="ghost" id="b-transfer" style="flex:1">Vytvoriť kód</button><button class="ghost" id="b-claim" style="flex:1">Mám kód</button></div></div>
     <div class="sr"><div>📄 Moje údaje<small>Stiahni si všetko, čo o tebe server má</small></div><button class="ghost" id="b-mydata">Stiahnuť</button></div>
     <div class="sr"><div>🔒 Súkromie a zdroje<small>Čo zbierame a odkiaľ sú dáta</small></div><button class="ghost" id="b-privacy">Otvoriť</button></div>
+    <div class="sr"><div>👨‍👩‍👧 Rodinné profily<small id="profTxt">Každý v rodine má vlastnú zbierku na tomto mobile</small></div><button class="ghost" id="b-prof">Prepnúť</button></div>
     <div class="setH">Nebezpečná zóna</div>
     <div class="sr"><div>🧹 Vymazať zbierku<small>Body, úlovky a odznaky v tomto mobile</small></div><button class="ghost" id="b-reset">Vymazať</button></div>
     <div class="sr"><div>🗑️ Zmazať moje údaje<small>Zo servera aj z tohto mobilu</small></div><button class="ghost danger" id="b-forget">Zmazať</button></div>
@@ -875,7 +891,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 
 <div class="modal" id="mailM" role="dialog" aria-modal="true"><div class="mcard">
   <div class="lbl"><span>✉️ Pošli pozdrav lietadlom</span></div>
-  <div class="trTitle" style="margin-top:10px" id="mailTo">Lietadlo ho doručí ľuďom, nad ktorými preletí</div>
+  <div class="trTitle" style="margin-top:10px" id="mailTo">Tvoj pozdrav doručí lietadlo ľuďom, nad ktorými preletí</div>
   <div class="mailList" id="mailList"></div>
   <div class="acts"><button class="ghost" id="mailClose" style="flex:1">Zrušiť</button></div>
 </div></div>
@@ -947,33 +963,40 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
   <div id="map"></div>
   <div style="padding:10px 6px 4px"><div id="mapInfo" class="lookSub"></div><div class="acts"><button class="ghost" id="mapClose" style="flex:1">Zavrieť</button></div></div>
 </div></div>
+<div class="modal" id="momM" role="dialog" aria-modal="true" aria-label="Spoločný moment"><div class="mcard" style="text-align:center">
+  <div style="font-size:calc(48px*var(--fs,1))">👀</div>
+  <div class="big" style="font-size:calc(24px*var(--fs,1))">Spoločný moment</div>
+  <div class="sub" id="momN"></div>
+  <div class="lookSub" style="margin:6px 0 10px">Pár minút sa všetci naraz pozrieme na oblohu. Za účasť máš odznak a cez kameru uvidíš štítky lietadiel.</div>
+  <div class="acts" style="flex-direction:column"><button class="btn pri" id="momCam">📷 Otvoriť kameru</button><button class="btn sec" id="momMini">Zmenšiť pás</button><button class="btn ghost" id="momClose">Zavrieť</button></div>
+</div></div>
 <div class="modal" id="duelM" role="dialog" aria-modal="true"><div class="mcard" style="text-align:center">
   <div style="font-size:calc(54px*var(--fs,1))">⚔️</div>
   <div class="big" style="font-size:calc(26px*var(--fs,1))" id="duelT"></div>
   <div class="sub" id="duelS"></div>
-  <div class="acts" style="flex-direction:column"><button class="btn sec" id="duelGo">Prijímam výzvu 💪</button><button class="btn ghost" id="duelFr" style="display:none">👯 Pridať ako kamaráta</button></div>
-  <div class="fine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
+  <div class="acts" style="flex-direction:column"><button class="btn sec" id="duelGo">Prijímam výzvu 💪</button><button class="btn ghost" id="duelFr" style="display:none">👯 Pridať ako kamaráta</button><button class="btn ghost" id="duelNo">Teraz nie</button></div>
+  <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=41"></script>
-<script src="js/ui.js?v=41"></script>
-<script src="js/ar.js?v=41"></script>
-<script src="js/space.js?v=41"></script>
-<script src="js/weather.js?v=41"></script>
-<script src="js/extras.js?v=41"></script>
-<script src="js/social.js?v=41"></script>
-<script src="js/wrapped.js?v=41"></script>
-<script src="js/push.js?v=41"></script>
-<script src="js/track.js?v=41"></script>
-<script src="js/towns.js?v=41"></script>
-<script src="js/catalog.js?v=41"></script>
-<script src="js/cards.js?v=41"></script>
-<script src="js/mail.js?v=41"></script>
-<script src="js/golden.js?v=41"></script>
-<script src="js/teams.js?v=41"></script>
-<script src="js/duel.js?v=41"></script>
-<script src="js/sound.js?v=41"></script>
-<script src="js/santa.js?v=41"></script>
-<script src="js/main.js?v=41"></script>
+<script src="js/core.js?v=42"></script>
+<script src="js/ui.js?v=42"></script>
+<script src="js/ar.js?v=42"></script>
+<script src="js/space.js?v=42"></script>
+<script src="js/weather.js?v=42"></script>
+<script src="js/extras.js?v=42"></script>
+<script src="js/social.js?v=42"></script>
+<script src="js/wrapped.js?v=42"></script>
+<script src="js/push.js?v=42"></script>
+<script src="js/track.js?v=42"></script>
+<script src="js/towns.js?v=42"></script>
+<script src="js/catalog.js?v=42"></script>
+<script src="js/cards.js?v=42"></script>
+<script src="js/mail.js?v=42"></script>
+<script src="js/golden.js?v=42"></script>
+<script src="js/teams.js?v=42"></script>
+<script src="js/duel.js?v=42"></script>
+<script src="js/sound.js?v=42"></script>
+<script src="js/santa.js?v=42"></script>
+<script src="js/main.js?v=42"></script>
 </body>
 </html>

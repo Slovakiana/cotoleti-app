@@ -262,7 +262,7 @@ function quip(a,m){
 }
 const GERLACH=2655;
 function altCompare(m){if(m==null)return "výška";if(m<95)return "nižšie ako bratislavské UFO";if(m<GERLACH)return "≈ "+nf(m/330,1)+"× Eiffelovka";return "≈ "+nf(m/GERLACH,1)+"× Gerlach 🏔️"}
-function spdCompare(k){if(k==null)return "rýchlosť";if(k<200)return "rýchlo ako auto na diaľnici";return nf(k/130,0)+"× rýchlejšie ako ty na D1 🚗"}
+function spdCompare(k){if(k==null)return "rýchlosť";if(k<200)return "rýchlo ako auto na diaľnici";return nf(k/130,0)+"× rýchlejšie než auto 🚗"}
 
 /* ============ zbierka ============ */
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
@@ -325,9 +325,11 @@ function tryCatch(a){
   HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
   if(S.view==="col")renderCol();
 }
-function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);toast("🏅 Nový odznak: "+x.n,"Nájdeš ho v záložke Ja → Odznaky.","#ffcf4f");confetti(50);ping("r");if(S.view==="col")renderCol()}
+function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);
+  // tesne po úvode nech odznak neprekryje prvý pohľad na oblohu
+  const wait=Math.max(0,20000-(Date.now()-LS.get("ctl_onbT",0)));setTimeout(()=>{toast("🏅 Nový odznak: "+x.n,"Nájdeš ho v záložke Ja → Odznaky.","#ffcf4f");confetti(50);ping("r")},wait);if(S.view==="col")renderCol()}
 
 
 /* odkazy od kamarátov (výzva, súboj) počkajú, kým človek prejde úvodom */
 const ONB_Q=[];function afterOnb(f){if(!ONB_Q.includes(f))ONB_Q.push(f)}
-function onbDone(){setTimeout(()=>{while(ONB_Q.length){try{ONB_Q.shift()()}catch(e){}}},2500)}
+function onbDone(){LS.set("ctl_onbT",Date.now());setTimeout(()=>{while(ONB_Q.length){try{ONB_Q.shift()()}catch(e){}}},2500)}

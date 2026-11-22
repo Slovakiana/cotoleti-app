@@ -237,16 +237,20 @@ function checkDuelLink(){
     LS.set("ctl_rival",r);
     // kamarátom až po ťuknutí (súhlas oboch: on poslal odkaz, ty potvrdíš)
     const canFr=r.pid&&/^[A-Za-z0-9]{16}$/.test(r.pid)&&/^[A-Za-z0-9]{10}$/.test(r.fk||"");
-    $("duelFr").style.display=canFr?"":"none";
-    $("duelFr").style.display=canFr&&!LS.get("ctl_kid",false)?"":"none";
+    const fr=canFr&&!LS.get("ctl_kid",false);$("duelFr").style.display="none";
+    // jedno hlavné tlačidlo: prijať výzvu a rovno sa stať kamarátmi
+    $("duelGo").textContent=fr?"💪 Prijímam a pridávam "+r.n:"Prijímam výzvu 💪";$("duelGo").className="btn pri";
+    $("duelGo").onclick=()=>{$("duelM").classList.remove("on");if(fr)$("duelFr").onclick();else toast("💪 Výzva prijatá","Zamávaj lietadlám a prekonaj "+r.n)};
     $("duelFr").onclick=()=>{apiPost("/api/friend",{pid:r.pid,fk:r.fk}).then(async x=>{const j=await x.json().catch(()=>({}));if(x.ok)toast("👯 Ste kamaráti","Uvidíte, ktorým lietadlám ste dnes mávali. Odobrať sa dá v sekcii Ja.");else toast("Pozvánka už neplatí","Platí 7 dní – popros o novú")}).catch(()=>{});$("duelM").classList.remove("on")};
     $("duelT").textContent=r.n+" ťa vyzýva!";
     $("duelS").textContent=`Má ${r.p} b, ${r.c} ${pl(r.c,"úlovok","úlovky","úlovkov")} a ${r.t} ${pl(r.t,"typ","typy","typov")} (level ${r.l}). Prekonáš to?`;
-    $("duelM").classList.add("on");
+    // výzvu ukáž až po prvom mávnutí – nech neprekryje prvý zážitok s lietadlom
+    const show=()=>$("duelM").classList.add("on");
+    if((LS.get("ctl_waveN",0)|0)>0)show();else{const t=setInterval(()=>{if((LS.get("ctl_waveN",0)|0)>0){clearInterval(t);setTimeout(show,3500)}},2000);toast("⚔️ "+r.n+" ťa vyzýva","Najprv zamávaj prvému lietadlu 👋")}
   }catch(e){}
   try{history.replaceState(null,"",location.pathname)}catch(e){}
 }
-$("duelGo").onclick=()=>$("duelM").classList.remove("on");
+$("duelGo").onclick=()=>$("duelM").classList.remove("on");$("duelNo")&&($("duelNo").onclick=()=>$("duelM").classList.remove("on"));
 addEventListener("hashchange",()=>checkDuelLink());
 $("b-duel").onclick=sendDuel;
 $("nick").value=LS.get("ctl_nick","");

@@ -6,7 +6,7 @@ const POSTQ=[];let postCur=null;
 function openMail(){
   const a=S.top;if(!a){toast("Nad tebou práve nič neletí","Počkaj na lietadlo");return}
   const rt=routeOf(a);
-  $("mailTo").textContent=`Lietadlo ${rt?"→ "+citySk(rt.destination.municipality):titleOf(a)} ho doručí ľuďom, nad ktorými preletí`;
+  $("mailTo").textContent=`Tvoj pozdrav doručí lietadlo ${rt?"→ "+citySk(rt.destination.municipality):titleOf(a)} ľuďom, nad ktorými preletí`;
   $("mailList").innerHTML=MAILS.map((m,i)=>`<button data-i="${i}">${esc(m)}</button>`).join("");
   $("mailM").classList.add("on");haptic(8);
 }
@@ -28,7 +28,7 @@ $("mailList").onclick=async e=>{
 function showPost(){
   if(postCur||!POSTQ.length)return;postCur=POSTQ.shift();const m=postCur,pl=S.list.find(x=>x.hex===m.hex);
   $("postCard").innerHTML=`<div class="stamp">${esc(m.emoji||"✉️")}</div><div class="k">✉️ Z neba ti prišiel pozdrav</div>
-    <div class="m">${esc(MAILS[m.msg]||"Ahoj!")}</div><div class="f">od <b>${esc(m.nick||"niekoho")}</b>${m.nick?` <button class="rep" id="postRep" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""}${m.town?" · "+esc(m.town):m.k&&KRAJ[m.k]?" · "+esc(KRAJ[m.k][2])+" kraj":""}</div>
+    <div class="m">${esc(MAILS[m.msg]||"Ahoj!")}</div><div class="f">Posiela: <b>${esc(m.nick||"neznámy spotter")}</b>${m.nick?` <button class="rep" id="postRep" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""}${m.town?" · "+esc(m.town):m.k&&KRAJ[m.k]?" · "+esc(KRAJ[m.k][2])+" kraj":""}</div>
     <div class="via">✈️ doručil ${esc(pl?[airlineOf(pl),titleOf(pl)].filter(Boolean).join(" "):"let nad tebou")} · ${new Date().toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})}</div>`;
   if($("postRep"))$("postRep").onclick=e=>reportName(m.nick,e.currentTarget);
   $("postM").classList.add("on");haptic([30,60,30]);ping("r");grantAch("post");
@@ -41,7 +41,7 @@ $("postShare").onclick=()=>{
   x.fillStyle="#fff8ec";rr(x,90,460,900,900,50);x.fill();x.setLineDash([18,14]);x.strokeStyle="rgba(193,120,40,.5)";x.lineWidth=5;rr(x,120,490,840,840,36);x.stroke();x.setLineDash([]);
   x.fillStyle="#b06a1e";x.font="700 34px Inter, sans-serif";x.textAlign="left";x.fillText("✉️ LIETADLO MI PRINIESLO POZDRAV",160,600);
   x.fillStyle="#2b1d0e";x.font="900 76px Unbounded, sans-serif";wrapText(x,MAILS[m.msg]||"Ahoj!",160,760,760,92,3);
-  x.fillStyle="#6b4a2a";x.font="500 40px Inter, sans-serif";x.fillText("od "+(m.nick||"niekoho")+(m.town?" · "+m.town:""),160,1180);
+  x.fillStyle="#6b4a2a";x.font="500 40px Inter, sans-serif";x.fillText("Posiela: "+(m.nick||"neznámy spotter")+(m.town?" · "+m.town:""),160,1180);
   x.font="160px sans-serif";x.textAlign="right";x.fillText(m.emoji||"✉️",940,1290);
   x.textAlign="center";x.fillStyle="#fff";x.font="900 60px Unbounded, sans-serif";x.fillText("Čo to letí? ✈️",W/2,H-450);
   x.font="500 36px Inter, sans-serif";x.fillText("Lietadlá roznášajú pozdravy po Slovensku",W/2,H-385);x.fillText(APP_HOST,W/2,H-335);

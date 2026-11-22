@@ -175,7 +175,7 @@ function renderCards(){
   const tab=(m,l)=>`<button class="${atlasMode===m?"on":""}" data-m="${m}">${l}</button>`;
   $("c-types").innerHTML=`<div class="atlasTop" style="grid-column:1/-1"><div class="xp"><i style="width:${inCat/tot*100}%"></i></div>
     <div class="lookSub">Séria 1: ${inCat} z ${tot}${trN?" · 🏆 "+trN+(trN===1?" trofej":trN<5?" trofeje":" trofejí"):""}${shinyN?" · ✨ "+shinyN+" shiny":""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
-    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.length+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆")}</div></div>`+
+    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.length+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆 Trofeje")}</div></div>`+
     (atlasMode==="sets"?setsHTML():atlasMode==="ed"?edHTML():"")+
     (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
     (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n||1,k)+" zo 4":" · ešte nemáš"))}">${cardMini(k,owned[k])}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Zamávaj lietadlu nad tebou (aspoň 10° nad obzorom) a získaš prvú kartičku.":"Máš celú sériu! 🏆"}</div>`);
@@ -193,10 +193,10 @@ $("c-types").onclick=e=>{
   if(!COL.types[k]){openLocked(k);haptic(20);return}
   cardK=k;openCard(k);
 };
-function openCard(k,reveal){
+function openCard(k,reveal){$("cardM").classList.remove("locked");
   const v=COL.types[k];if(!v)return;const r=typeTier(k);
   const own=Object.keys(COL.types).filter(x=>inSeries(x)&&COL.types[x].n).length,tot=CATALOG.filter(c=>!TROPHY.has(c[0])).length;
-  const face=()=>{$("cardShare").style.visibility="";if($("cardVideo"))$("cardVideo").style.visibility="";$("cardBig").innerHTML=(reveal?`<div class="revealHd">${v.shiny?"…a je ✨ LESKLÁ!":RAR[r].s+" Nová kartička: "+RAR[r].n+"!"}<small>${own}. z ${tot} typov v tvojom atlase · ${v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"⏳ zatiaľ neoverená"}</small></div>`:"")+`<div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>`+cardExtras(k,v);
+  const face=()=>{$("cardShare").style.visibility="";$("cardShare").style.display=v.n?"":"none";if($("cardVideo"))$("cardVideo").hidden=!v.n;if($("cardVideo"))$("cardVideo").style.visibility="";$("cardBig").innerHTML=(reveal?`<div class="revealHd">${v.shiny?"…a je ✨ LESKLÁ!":RAR[r].s+" Nová kartička: "+RAR[r].n+"!"}<small>${own}. z ${tot} typov v tvojom atlase · ${v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"⏳ zatiaľ neoverená"}</small></div>`:"")+`<div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>`+cardExtras(k,v);
     cardStat(k);if(reveal){if(RORD[r]>=3){confetti(r==="l"?160:90);haptic(r==="l"?[60,80,60,80,200]:[20,40,20])}ping(r)}};
   $("cardM").classList.add("on");bindTilt();
   if($("cardVideo"))$("cardVideo").hidden=!vidOK()||!v.n;
@@ -213,14 +213,16 @@ function cardExtras(k,v){
   const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
   const verL=v.ver?`<div class="verOk">✓ Overená${v.seq?" · č. "+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená · <button data-why="1" style="display:inline;margin:0">🔎 Prečo?</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · zamávané ${v.n}× · ${nextLv(v.n,k)?"ďalšia ★ pri "+nextLv(v.n,k)+". úlovku":"max. úroveň – veterán"}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
-  h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:"?"}</small></span>`).join("")}</div>`;
+  // tlačidlá hneď pod kartičkou (na malom displeji nie sú schované pod lištou)
+  if(v.n){h+=`<div class="cardBtns">`;const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
+    if(["c","u"].includes(r)&&(v.n|0)>=2&&!(typeof KID==="function"&&KID()))h+=v.ver?`<button class="btn sec" data-gift="${esc(k)}">🎁 Daruj kópiu</button>`:`<button class="btn sec" disabled title="Darovať sa dá len overená kartička">🎁 Daruj (po overení)</button>`;
+    h+=`</div>`}
+  // formy: podmienka priamo pod ikonou (title na iPhone nevidieť)
+  h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:f[3]}</small></span>`).join("")}</div>`;
   // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
   if(v.fp&&(v.fp.dest||v.fp.alt||v.fp.t))h+=`<div class="lookSub">🧾 Pri prvom úlovku${v.fp.t?" ("+new Date(v.fp.t).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric",year:"numeric"})+")":""}${v.fp.dest?" letel → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt)+" m":""}</div>`;
   if(al.length)h+=`<div class="lookSub">🎨 Aerolinky na tejto kartičke: ${al.map(x=>esc(AIRLINES[x]||x)).join(", ")}</div>`;
-  h+=`<div class="cardBtns">`;
-  const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
-  if(["c","u"].includes(r)&&(v.n|0)>=2&&!(typeof KID==="function"&&KID()))h+=`<button class="btn sec" data-gift="${esc(k)}">🎁 Daruj kópiu</button>`;
-  return h+`</div></div>`;
+  return h+`</div>`;
 }
 // 🇸🇰 „Má ju X % hráčov“ + objaviteľ (server)
 async function cardStat(k){
@@ -418,9 +420,9 @@ function openLocked(k){
     <p style="margin:12px 0 6px;line-height:1.45">💡 ${esc(c.fact)}</p>
     <p class="lookSub" style="margin:0">🔭 ${hint}</p>
   </div>`;
-  $("cardShare").style.display="none";$("cardM").classList.add("on");
+  $("cardShare").style.display="none";$("cardM").classList.add("on","locked");
 }
-{const cl=$("cardClose").onclick;$("cardClose").onclick=()=>{$("cardShare").style.display="";cl()}}
+{const cl=$("cardClose").onclick;$("cardClose").onclick=()=>{$("cardShare").style.display="";$("cardM").classList.remove("locked");cl()}}
 const _ol=openLocked;openLocked=k=>{_ol(k);if($("cardVideo"))$("cardVideo").hidden=true};
 
 /* 🎬 6-sekundové video s odhalením kartičky (na TikTok/Reels/stories), bez hudby */
