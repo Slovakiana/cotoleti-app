@@ -59,11 +59,11 @@ TUI:"TUI",TOM:"TUI",TFL:"TUI",ENT:"Enter Air",AIC:"Air India",SIA:"Singapore Air
 DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",BOX:"AeroLogic (DHL Cargo)",TAY:"ASL Airlines Belgium",ICV:"Cargolux Italia",CAO:"Air China Cargo",CKK:"China Cargo Airlines",MPH:"Martinair Cargo",SWN:"West Atlantic Cargo",NCA:"Nippon Cargo",SWT:"Swiftair",QAC:"Qatar Cargo",SWW:"Silk Way West",NJE:"NetJets",VJT:"VistaJet",
 RCH:"US Air Force",GAF:"Nemecké letectvo",IAM:"Talianske letectvo",CEF:"České letectvo",PLF:"Poľské letectvo",BAF:"Belgické letectvo",NATO:"NATO",HUF:"Maďarské letectvo",AME:"Španielske letectvo",FAF:"Francúzske letectvo",RRR:"Kráľovské letectvo (RAF)"};
 /* 🃏 5 stupňov vzácnosti (zhodné so serverom): ● Bežná · ◆ Nezvyčajná · ▲ Vzácna · ⬟ Epická · ♛ Legendárna */
-const LEG=new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
+const LEG=new Set(["B779","AN30","DC6","A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
 const EPIC=new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","E390","L159","MI24","UH1Y","H47"]);
-const RARE=new Set(["A388","B744","B748","B742","A343","B779","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","Z37T","Z26","PZ04","H60","MI8","B735","CRJ2","SF34","A338","B762","B3XM","F100","A189","W3","EC25","M28"]);
+const RARE=new Set(["A388","B744","B748","B742","A343","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","Z37T","Z26","PZ04","H60","MI8","B735","CRJ2","SF34","A338","B762","B3XM","F100","A189","W3","EC25","M28"]);
 // legendy, ktoré nad Slovenskom takmer nelietajú – trofejná polička, nerátajú sa do 100 %
-const TROPHY=new Set(["A124","BLCF","A3ST","A337","F35"]);
+const TROPHY=new Set(["B779","A124","BLCF","A3ST","A337","F35"]);
 const WIDE=new Set(["A306","A310","A332","A333","A338","A339","A359","A35K","B762","B763","B764","B772","B77W","B77L","B788","B789","B78X","B773"]);
 const HELI=new Set(["EC35","EC45","EC30","EC55","AS50","A109","A139","A169","B06","B407","R44","R22","H60","MI8","S92","B429","H160","EC75","EC20","EC25","AS32","AS55","AS65","B412","B212","B505","A119","R66","MI24","NH90","S76","A189","W3","UH1Y","H47"]);
 // 🐋 veľké lietadlá pre odznak „Obor“ (aj štvormotorové a legendy, nielen dvojmotorové širokotrupé)
@@ -130,11 +130,13 @@ function approach(a){
 }
 
 /* ============ dáta ============ */
+// rovnaké lietadlo pod rôznymi kódmi → jedna kartička (zhodné so serverom T_ALIAS)
+const T_ALIAS={AT44:"AT43",AT45:"AT43",AT46:"AT43",E75S:"E75L",CRJX:"CRJ9",MI17:"MI8",MI171:"MI8",UH60:"H60",S70:"H60",C390:"E390",RQ4:"Q4",S22T:"SR22",P28R:"P28A",P28T:"P28A",P28B:"P28A",C150:"C152",CL30:"CL35"};
 function normReadsb(j){
   return (j.ac||j.aircraft||[]).filter(a=>a.lat!=null&&a.lon!=null).map(a=>{
     const ground=a.alt_baro==="ground";
     const altFt=typeof a.alt_geom==="number"?a.alt_geom:(typeof a.alt_baro==="number"?a.alt_baro:null);
-    return {hex:a.hex,call:(a.flight||"").trim(),reg:a.r||"",type:a.t||"",desc:"",op:a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),dbf:a.dbFlags|0,priv:!!(a.dbFlags&12),emg:/^7[567]00$/.test(a.squawk||"")||!!(a.emergency&&a.emergency!=="none"),fl:typeof a.alt_baro==="number"?Math.round(a.alt_baro/100):null,kt:a.gs!=null?Math.round(a.gs):null,
+    return {hex:a.hex,call:(a.flight||"").trim(),reg:a.r||"",type:T_ALIAS[a.t]||a.t||"",desc:"",op:a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),dbf:a.dbFlags|0,priv:!!(a.dbFlags&12),emg:/^7[567]00$/.test(a.squawk||"")||!!(a.emergency&&a.emergency!=="none"),fl:typeof a.alt_baro==="number"?Math.round(a.alt_baro/100):null,kt:a.gs!=null?Math.round(a.gs):null,
       lat:a.lat,lon:a.lon,alt:ground?0:(altFt!=null?altFt*FT:null),ground,spd:a.gs!=null?a.gs*KT:null,trk:a.track??a.true_heading??null,
       vr:a.baro_rate??a.geom_rate??null,sq:a.squawk||""};
   });
@@ -293,6 +295,10 @@ function spdCompare(k){if(k==null)return "rýchlosť";if(k<200)return "rýchlo a
 
 /* ============ zbierka ============ */
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
+// zlúč staré kódy typov do nových (napr. C390 → E390)
+try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o];if(!v)continue;const t=COL.types[nw];
+  if(t){t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny}else COL.types[nw]=v;
+  delete COL.types[o]}}catch(e){}
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
 addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
 const ACH=[

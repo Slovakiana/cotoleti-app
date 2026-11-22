@@ -19,12 +19,14 @@ const BIG_TOWNS = ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystr
 const DC_ASN = new Set([16509, 14618, 15169, 396982, 8075, 14061, 16276, 24940, 9009, 60068, 63949, 20473, 51167, 31898, 45102, 12876, 60781, 212238, 136787]);
 const UA = "cotoleti-app/1.0 (+https://github.com/Slovakiana/cotoleti-app)";
 /* 🃏 vzácnosť typov (zhodná s js/core.js) – server z nej počíta zbierkové skóre a šancu na shiny */
-const T_L = new Set(["A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
-const T_E = new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","L159"]);
-const T_R = new Set(["A388","B744","B748","B742","A343","B779","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","H60","MI8"]);
-const T_U = /^(A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
-const TYPES_SRV = {A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
-const tierOf = t => !t ? "c" : T_L.has(t) ? "l" : T_E.has(t) ? "e" : T_R.has(t) ? "r" : T_U.test(t) ? "u" : "c";
+const T_L = new Set(["B779","AN30","DC6","A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
+const T_E = new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","E390","L159","MI24","UH1Y","H47"]);
+const T_R = new Set(["A388","B744","B748","B742","A343","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","Z37T","Z26","PZ04","H60","MI8","B735","CRJ2","SF34","A338","B762","B3XM","F100","A189","W3","EC25","M28"]);
+const T_U = /^(F2TH|B734|AT72|Z42|SHRK|PC7|F900|B73|AS3|AS6|H160|B412|B212|B505|A119|R66|NH90|S76|A30|A31|A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
+const TYPES_SRV = {B779: "Boeing 777-9", AN30: "Antonov An-30", DC6: "Douglas DC-6", E390: "Embraer C-390", C295: "Airbus C295", L159: "Aero L-159", MI24: "Mi-24", UH1Y: "UH-1Y Venom", H47: "CH-47 Chinook", R135: "RC-135", Q4: "Global Hawk", RQ4: "Global Hawk", P8: "P-8 Poseidon", Z37: "Čmelák", A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
+const T_ALIAS = {AT44: "AT43", AT45: "AT43", AT46: "AT43", E75S: "E75L", CRJX: "CRJ9", MI17: "MI8", MI171: "MI8", UH60: "H60", S70: "H60", C390: "E390", RQ4: "Q4", S22T: "SR22", P28R: "P28A", P28T: "P28A", P28B: "P28A", C150: "C152", CL30: "CL35"};
+const tAlias = t => T_ALIAS[t] || t;
+const tierOf = t0 => { const t = tAlias(t0); return !t ? "c" : T_L.has(t) ? "l" : T_E.has(t) ? "e" : T_R.has(t) ? "r" : T_U.test(t) ? "u" : "c"; };
 const TIER_W = {c: 3, u: 8, r: 25, e: 45, l: 80};
 const SHINY_P = {c: 15, u: 30, r: 60, e: 80, l: 100}; // z 1000
 /* 📅 edície „Bol som pri tom“ – časové okná (UTC), číslované serverom */
