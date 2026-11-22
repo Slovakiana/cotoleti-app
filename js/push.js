@@ -37,10 +37,13 @@ $("t-moment").onclick=async()=>{
 function maybeAskPush(){
   // ponúkni hneď, keď človek niečo zažil (úlovok/mávnutie), nie až pri 2. návšteve
   if(!SOC.api||PUSH.on||LS.get("ctl_pushAsked",false)||((LS.get("ctl_visits",0)|0)<2&&COL.n<1&&!(LS.get("ctl_waveN",0)|0)))return;
-  if(isIOS()&&!isStandalone())$("pushAskTxt").textContent="Raz denne ti v náhodnej chvíli dáme vedieť. Na iPhone treba appku najprv pridať na plochu (Zdieľať ⬆️ → Pridať na plochu).";
-  $("pushAsk").classList.add("on");
+  // pri sérii 2+ ponúkni upozornenia ako strážcu série (najsilnejší dôvod)
+  const st=typeof streakLive==="function"?streakLive().n:0;
+  if(st>=2)$("pushAskTxt").textContent=`🔥 ${st} ${pl(st,"deň","dni","dní")} v rade! Mám ti pripomenúť, keď ti séria bude chýbať? Raz denne aj spoločný moment.`+(isIOS()&&!isStandalone()?" Na iPhone najprv pridaj appku na plochu (Zdieľať ⬆️ → Pridať na plochu).":"");
+  else if(isIOS()&&!isStandalone())$("pushAskTxt").textContent="Raz denne ti v náhodnej chvíli dáme vedieť. Na iPhone treba appku najprv pridať na plochu (Zdieľať ⬆️ → Pridať na plochu).";
+  $("pushAsk").classList.add("on");if(st>=2)setTimeout(()=>{try{$("pushAsk").scrollIntoView({behavior:"smooth",block:"center"})}catch(e){}},400);
 }
-$("pushYes").onclick=async()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on");PUSH.moment=true;LS.set("ctl_moment",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush()){ev("push_ok");}if(PUSH.on)toast("🔔 Hotovo!","Dáme ti vedieť, keď sa celé Slovensko pozrie hore")};
+$("pushYes").onclick=async()=>{LS.set("ctl_pushAsked",true);LS.set("ctl_streakp",true);$("pushAsk").classList.remove("on");PUSH.moment=true;LS.set("ctl_moment",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush()){ev("push_ok");}if(PUSH.on)toast("🔔 Hotovo!","Dáme ti vedieť, keď sa celé Slovensko pozrie hore")};
 $("pushNo").onclick=()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on")};
 
 // spoločný moment v appke
@@ -55,7 +58,7 @@ function momentUI(mo){
     bar.textContent=mini?`🔴 ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`:`🔴 Pozri hore! · ešte ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`+((mo.n|0)>0?` · ${nf(mo.n)} 👀`:"");
     const d=dayKey();
     if(PUSH.joined!==d&&LS.get("ctl_onb",0)&&S.pos){PUSH.joined=d;LS.set("ctl_momJoined",d);
-      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{if(j.n)SOC.data.moment.n=j.n;const n=j.n||(SOC.data.moment&&SOC.data.moment.n)||0;toast("👀 Si pri tom!",n>1?"Spolu s tebou sa práve "+(n>=2&&n<=4?"pozerajú":"pozerá")+" hore "+nf(n)+" "+ludia(n):"Celé Slovensko sa teraz pozerá hore");confetti(60);haptic([30,60,30]);grantAch("moment")}).catch(()=>{});
+      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{if(j.n)SOC.data.moment.n=j.n;const n=j.n||(SOC.data.moment&&SOC.data.moment.n)||0;toast("👀 Si pri tom!",n>1?"Spolu s tebou sa práve "+(n>=2&&n<=4?"pozerajú":"pozerá")+" hore "+nf(n)+" "+ludia(n):"Celé Slovensko sa teraz pozerá hore");confetti(60);haptic([30,60,30]);grantAch("moment");if(LS.get("ctl_momPts","")!==dayKey()){LS.set("ctl_momPts",dayKey());COL.pts+=5;LS.set("ctl_col",COL);if(typeof streakTouch==="function")streakTouch()}}).catch(()=>{});
     }
     if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data&&SOC.data.moment),1000);
     if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500);if(!$("ar").classList.contains("on"))wakeOff()}
@@ -86,5 +89,16 @@ if($("sp-remind"))$("sp-remind").onclick=async()=>{
 if(/vesmir/.test(location.hash))setTimeout(()=>{try{setView("space");history.replaceState(null,"",location.pathname)}catch(e){}},600);
 
 // 🔥 pripomienka série sa dá vypnúť samostatne
-{const t=$("t-streakp");if(t){const on=()=>LS.get("ctl_streakp",true);const sync=()=>{t.classList.toggle("on",on());t.setAttribute("aria-checked",on())};sync();
-  t.onclick=()=>{LS.set("ctl_streakp",!on());sync();haptic(10);if(SOC.api)apiPost("/api/subopt",{streak:on()}).catch(()=>{})}}}
+// prepínač svieti len vtedy, keď upozornenia naozaj fungujú; ťuk bez povolenia rovno požiada o povolenie
+{const t=$("t-streakp");if(t){const granted=()=>PUSH.on&&typeof Notification!=="undefined"&&Notification.permission==="granted",on=()=>granted()&&LS.get("ctl_streakp",true);
+  const sync=()=>{t.classList.toggle("on",on());t.setAttribute("aria-checked",on())};sync();setTimeout(sync,3000);
+  t.onclick=async()=>{haptic(10);if(!granted()){LS.set("ctl_streakp",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush())apiPost("/api/subopt",{streak:true}).catch(()=>{});sync();return}
+    LS.set("ctl_streakp",!LS.get("ctl_streakp",true));sync();if(SOC.api)apiPost("/api/subopt",{streak:on()}).catch(()=>{})}}}
+// ♛ vzácne lietadlo pri mne (max. 1× denne) – samostatný prepínač
+{const t=$("t-leg");if(t){const on=()=>LS.get("ctl_legp",true);const sync=()=>{t.classList.toggle("on",on()&&PUSH.on);t.setAttribute("aria-checked",on())};sync();setTimeout(sync,3000);
+  t.onclick=async()=>{haptic(10);if(!PUSH.on){if(isIOS()&&!isStandalone()){installGuide();return}await enablePush()}else LS.set("ctl_legp",!on());sync();if(SOC.api)apiPost("/api/subopt",{leg:on()}).catch(()=>{})}}}
+// 👆 odkaz z upozornenia na spoločný moment (aj keď príde neskoro)
+function momentFromHash(){if(!/#moment/.test(location.hash))return;try{history.replaceState(null,"",location.pathname)}catch(e){}
+  setTimeout(async()=>{try{await socPoll()}catch(e){}const mo=SOC.data&&SOC.data.moment;if(mo&&mo.live)return;
+    if(mo&&mo.end){const ago=Math.max(1,Math.round((Date.now()-mo.end)/60e3));toast("👀 Moment skončil pred "+ago+" min",(mo.n?"Pozeralo sa "+nf(mo.n)+" "+ludia(mo.n)+". ":"")+"Ďalší bude zajtra – nech ťa nezmešká 🔔")}},1200)}
+momentFromHash();addEventListener("hashchange",momentFromHash);

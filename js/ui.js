@@ -248,7 +248,9 @@ function renderCol(){
   $("c-lvl").textContent="Level "+(l+1)+" · "+lvlName(l);$("c-pts").textContent=COL.pts+" "+(COL.pts===1?"bod":COL.pts>1&&COL.pts<5?"body":"bodov");
   $("c-bar").style.width=Math.max(0,Math.min(100,(COL.pts-a)/(b-a)*100))+"%";
   $("c-next").textContent="Ďalší level: "+lvlName(l+1)+" (ešte "+(b-COL.pts)+" b)";
-  {const z=seasonUpd();$("c-season").innerHTML=`<b>${z.e} ${z.name}</b> · ${z.pts} b v sezóne · končí ${z.end}${z.best?` · rekord ${z.best} b`:""}`}
+  {const z=seasonUpd(),T=[100,300,600],next=T.find(x=>z.pts<x),prev=[0,...T].filter(x=>x<=z.pts).pop(),pct=next?Math.round((z.pts-prev)/(next-prev)*100):100;
+    $("c-season").innerHTML=`<b>${z.e} ${z.name}</b> · ${z.pts} b v sezóne${z.left<=7?` · <b style="color:#ffcf4f">končí o ${z.left} ${pl(z.left,"deň","dni","dní")}</b>`:" · končí "+z.end}${z.best?` · rekord ${z.best} b`:""}
+      <div class="xp" style="margin-top:6px"><i style="width:${pct}%"></i></div><small>${next?"Stupeň "+(T.indexOf(next)+1)+": "+next+" b → odmena "+SEAS_REW[T.indexOf(next)]:"🏆 Všetky stupne sezóny hotové!"}</small>`}
   {const sd=seenSum();$("c-seen").innerHTML=sd?sd:"";$("c-seen").hidden=!sd}
   const types=Object.entries(COL.types);
   const typesOwn=types.filter(([,v])=>v.n);$("c-n").textContent=COL.n;$("c-t").textContent=typesOwn.length;const rr=types.filter(([k,v])=>v.n&&RORD[typeTier(k)]>=2).length;$("c-r").textContent=rr;
@@ -722,11 +724,12 @@ function seenSum(){
 }
 
 /* 🗓️ sezóny (každé 3 mesiace) – zbierka sa nikdy nemaže, len sa začína nové počítadlo */
+const SEAS_REW=["+50 míľ","+120 míľ","+250 míľ a odznak"];
 const SEAS=[["Zima","❄️"],["Jar","🌱"],["Leto","☀️"],["Jeseň","🍂"]];
 function seasonNow(d=new Date()){
   const m=d.getMonth(),i=m===11||m<2?0:m<5?1:m<8?2:3,y=m===11?d.getFullYear()+1:d.getFullYear();
   const endM=[2,5,8,11][i],end=new Date(i===0?y:y,endM,0);
-  return {k:y+"-"+i,name:SEAS[i][0]+(i===0?" "+(y-1)+"/"+String(y).slice(2):" "+y),e:SEAS[i][1],end:end.getDate()+". "+(end.getMonth()+1)+"."};
+  return {k:y+"-"+i,name:SEAS[i][0]+(i===0?" "+(y-1)+"/"+String(y).slice(2):" "+y),e:SEAS[i][1],end:end.getDate()+". "+(end.getMonth()+1)+".",endY:i===0?y:y,endM};
 }
 function seasonUpd(){
   const n=seasonNow(),st=LS.get("ctl_season",null);
@@ -735,13 +738,19 @@ function seasonUpd(){
   else if(z.k!==n.k){
     const got=COL.pts-z.base,old=z.k;
     z.hist=(z.hist||[]).concat([{k:old,p:got}]).slice(-8);z.best=Math.max(z.best||0,got);z.k=n.k;z.base=COL.pts;
-    if(got>0)setTimeout(()=>toast("🗓️ Nová sezóna: "+n.name,"Minulá sezóna: "+got+" b. Zbierka ti zostáva celá."),3000);
+    // súhrn uzavretej sezóny ako karta
+    if(got>0)setTimeout(()=>{$("cdBox").innerHTML=`<div style="text-align:center;font-size:56px">🗓️</div><div class="cdScore">Sezóna skončila</div><div class="lookSub" style="text-align:center">Získal(a) si <b>${got} b</b>${got>=(z.best||0)?" – tvoj rekord! 🏆":""}.<br>Začína ${esc(n.name)} – zbierka ti zostáva celá, body sezóny idú od nuly.</div><div class="acts"><button class="btn pri" id="cdX">Ideme na to 💪</button></div>`;$("cdM").classList.add("on")},3000);
     if(got>=100)grantAch("season100");
   }
+  // 🏅 stupne sezóny 100/300/600 b: míle a odznaky (raz za sezónu)
+  const pts=Math.max(0,COL.pts-z.base);z.tiers=z.tiers&&z.tierK===n.k?z.tiers:[];z.tierK=n.k;
+  [100,300,600].forEach((t,i)=>{if(pts>=t&&!z.tiers.includes(t)){z.tiers.push(t);COL.mi=(COL.mi|0)+[50,120,250][i];LS.set("ctl_col",COL);if(i===0)grantAch("season100");if(i===2)grantAch("season600");
+    setTimeout(()=>toast("🏅 Stupeň sezóny "+(i+1)+"/3",t+" b · odmena "+SEAS_REW[i]),2000)}});
   LS.set("ctl_season",z);
-  return {...n,pts:Math.max(0,COL.pts-z.base),best:z.best||0};
+  const endD=new Date(n.endY,n.endM,0),left=Math.max(0,Math.ceil((endD.setHours(23,59,59)-Date.now())/864e5));
+  return {...n,pts,best:z.best||0,left};
 }
-if(typeof ACH!=="undefined")ACH.push({id:"season100",i:"🗓️",n:"100 bodov za jednu sezónu",c:()=>false});
+if(typeof ACH!=="undefined")ACH.push({id:"season100",i:"🗓️",n:"100 bodov za jednu sezónu",c:()=>false},{id:"season600",i:"🏅",n:"600 bodov za jednu sezónu",c:()=>false});
 
 /* 🔠 veľkosť písma: systémová (Dynamic Type na iPhone) × vlastné „Väčšie písmo“ */
 function fsApply(){

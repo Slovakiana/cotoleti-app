@@ -278,7 +278,7 @@ async function doWave1(e,a){LASTWAVE=null;
   if(!SOC.api){credit();fin(to?"smer"+to.replace("→","").replace(/^\s*/," "):"");return}
   let r,j={},body;
   try{
-    body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):"",t:Date.now(),pl:a.lat!=null?{la:Math.round(a.lat*1e3)/1e3,lo:Math.round(a.lon*1e3)/1e3,alt:a.alt!=null?Math.round(a.alt/.3048):null}:null};
+    body={hex:a.hex,emoji:e,...posR(),gps:!S.manual,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||"",dest:rt?citySk(rt.destination.municipality):"",t:Date.now(),st:typeof streakLive==="function"?(L=>L.st==="done"?L.n:L.st==="dead"?1:L.n+1)(streakLive()):0,pl:a.lat!=null?{la:Math.round(a.lat*1e3)/1e3,lo:Math.round(a.lon*1e3)/1e3,alt:a.alt!=null?Math.round(a.alt/.3048):null}:null};
     r=await apiPost("/api/wave",body);
     if(r.status===401)r=await apiPost("/api/wave",body); // nový token a ešte raz
     j=await r.json().catch(()=>({}));

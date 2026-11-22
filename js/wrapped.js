@@ -62,6 +62,10 @@ function openWrapped(){
     if(s.far)SL.push({e:"🌍",k:"Najďalší cieľ",h:s.far.city||"Ďaleko",p:nf(s.far.km)+" km odtiaľto"+(s.cs>1?" · celkom "+s.cs+" krajín":"")+"."});
     if(s.rare)SL.push({e:s.rare.r==="l"?"🌟":s.rare.r==="r"?"💎":"🛩️",k:"Najvzácnejší úlovok",h:s.rare.tn||s.rare.ty||"Lietadlo",p:RAR[s.rare.r].n+(s.rare.c?" · "+s.rare.c:"")});
   }
+  // moje čísla z hry: séria, nové kartičky, výzvy, súboje
+  {const D=typeof dailyEnsure==="function"?dailyEnsure():{},wk=Date.now()-7*864e5,newC=Object.values(COL.types).filter(v=>v.n&&(v.first||0)>wk).length,days=(D.days||[]).filter(x=>x>=SKD.format(new Date(wk))).length;
+    if(days||newC)SL.push({e:"🔥",k:"Tvoj týždeň v hre",h:days+" "+pl(days,"deň","dni","dní")+" pod oblohou",p:(newC?newC+" "+pl(newC,"nová kartička","nové kartičky","nových kartičiek"):"Zatiaľ bez novej kartičky")+(D.streak>1?" · séria "+D.streak+" 🔥":"")+"."});}
+  if(WR.nat&&WR.nat.waves)SL.push({e:"🇸🇰",k:"Slovensko tento týždeň",h:nf(WR.nat.waves)+"× 👋",p:[WR.nat.kraj?"Vyhral "+(KRAJ[WR.nat.kraj.k]||KRAJ.XX)[2]+" kraj":"",WR.nat.town?"najaktívnejšie mesto: "+WR.nat.town.name:"",WR.nat.plane&&WR.nat.plane.call?"lietadlo týždňa: "+WR.nat.plane.call:""].filter(Boolean).join(" · ")+"."});
   SL.push({e:s.type.e,k:"Tvoj spotter typ",h:s.type.n,p:s.type.d,last:true});
   WR.slides=SL;WR.stats=s;WR.i=0;
   $("wbars").innerHTML=SL.map(()=>"<i><b></b></i>").join("");
@@ -79,7 +83,10 @@ function wrShow(i){
 }
 function closeWrapped(){clearInterval(WR.timer);$("wrap").classList.remove("on")}
 $("wnext").onclick=()=>wrShow(WR.i+1);$("wprev").onclick=()=>wrShow(WR.i-1);$("wclose").onclick=closeWrapped;
-$("b-wrapped").onclick=openWrapped;
+// celoslovenský týždeň zo servera (načíta sa vopred) + v pondelok značka „nové“
+WR.nat=null;if(typeof SOC!=="undefined"&&SOC.api)setTimeout(()=>fetch(SOC.api+"/api/weekly").then(r=>r.json()).then(j=>{WR.nat=j}).catch(()=>{}),6000);
+{const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),b=$("b-wrapped");if(b&&new Date().getDay()===1&&LS.get("ctl_wrSeen","")!==wk){b.classList.add("isNew");b.insertAdjacentHTML("beforeend",' <span class="newDot">nové</span>')}
+  $("b-wrapped").onclick=()=>{LS.set("ctl_wrSeen",wk);b&&b.classList.remove("isNew");const d=b&&b.querySelector(".newDot");d&&d.remove();openWrapped()}}
 $("wduel").onclick=()=>sendDuel();
 $("wshare").onclick=async()=>{
   const s=WR.stats||weekStats(),W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");

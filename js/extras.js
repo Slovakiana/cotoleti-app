@@ -157,27 +157,37 @@ function streakTouch(){
     if(D.repair&&D.repair.day===D.date){D.repair.cnt=(D.repair.cnt|0)+1;if(D.repair.cnt>=2){D.streak=D.repair.from+1;D.repairT=Date.now();D.repair=null;toast("🔧 Séria opravená!","Pokračuješ: "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" 🔥");LS.set("ctl_daily",D);streakChip()}else LS.set("ctl_daily",D)}
     return}
   const prev=D.streak||0;let used=false;
+  // ❄️ zmrazenie pokryje toľko vynechaných dní, koľko ich máš (max. 3)
+  const gap=D.lastDay?Math.round((new Date(D.date+"T12:00:00")-new Date(D.lastDay+"T12:00:00"))/864e5)-1:99;
   if(D.lastDay===dAgo(1))D.streak=prev+1;
-  else if(D.lastDay===dAgo(2)&&(D.freeze|0)>0){D.freeze--;D.streak=prev+1;used=true}
+  else if(gap>=1&&gap<=3&&(D.freeze|0)>=gap){D.freeze-=gap;D.streak=prev+1;used=gap}
   else{if(prev>=3)D.lost=prev;D.streak=1;if(prev>=3&&D.lastDay===dAgo(2)&&(!D.repairT||Date.now()-D.repairT>30*864e5))D.repair={from:prev,day:D.date,cnt:1}}
   D.best=Math.max(D.best|0,D.streak);
   D.lastDay=D.date;D.days=[D.date,...(D.days||[])].slice(0,14);
   if(D.streak%7===0&&(D.freeze|0)<2){D.freeze=(D.freeze|0)+1;toast("❄️ Zmrazenie série +1","Keď raz vynecháš deň, séria nespadne")}
-  if(used)toast("❄️ Zmrazenie zachránilo sériu","Včera si nemával, séria "+D.streak+" ide ďalej");
+  if(used)toast("❄️ Zmrazenie zachránilo sériu",(used>1?"Vynechal(a) si "+used+" dni":"Včera si nemával(a)")+", séria "+D.streak+" ide ďalej");
   const ms=STREAK_MS[D.streak];
   if(ms){COL.pts+=ms[0];if(ms[1])grantAch(ms[1]);toast("🔥 "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" v rade! +"+ms[0]+" bodov")}
-  else if(D.streak>1)toast("🔥 Séria "+D.streak+(D.streak<5?" dni":" dní"));
+  else if(D.streak>1)toast("🔥 "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" v rade",nextMs(D.streak));
   else if(D.lost)toast("🏅 Séria "+D.lost+" "+pl(D.lost,"deň","dni","dní")+" sa skončila",D.repair?"Zamávaj dnes ešte raz a séria sa obnoví 🔧":"Dnes začína nová séria");
   if(D.streak>1)D.lost=0;
+  if(D.streak===2&&typeof maybeAskPush==="function")setTimeout(maybeAskPush,9000);
   LS.set("ctl_daily",D);LS.set("ctl_col",COL);renderDaily();streakChip();
 }
+// stav série jedným miestom: koľko, či je dnes hotová, či sa dá zachrániť
+function streakLive(){const D=dailyEnsure(),n=D.streak|0,gap=D.lastDay?Math.round((new Date(D.date+"T12:00:00")-new Date(D.lastDay+"T12:00:00"))/864e5)-1:99;
+  if(D.lastDay===D.date)return {n,st:"done"};
+  if(gap===0)return {n,st:"pending"};
+  if(gap>=1&&gap<=3&&(D.freeze|0)>=gap)return {n,st:"pending",freeze:gap};
+  if(gap===1&&n>=3&&(!D.repairT||Date.now()-D.repairT>30*864e5))return {n,st:"repair"};
+  return {n:0,st:"dead"}}
+// ďalší míľnik série
+function nextMs(n){const k=Object.keys(STREAK_MS).map(Number).sort((a,b)=>a-b).find(x=>x>n);return k?"ešte "+(k-n)+" "+pl(k-n,"deň","dni","dní")+" do 🔥"+k+" (+"+STREAK_MS[k][0]+" b)":""}
 function streakChip(){
-  const D=dailyEnsure(),el=$("streakChip");if(!el)return;
-  const live=D.lastDay===D.date||D.lastDay===dAgo(1)||(D.lastDay===dAgo(2)&&(D.freeze|0)>0);
-  const n=live?D.streak|0:0;el.hidden=n<2;
-  const wk=(D.days||[]).filter(x=>x>=dAgo(6)).length;
-  el.textContent="🔥 "+n+((D.freeze|0)?" · ❄️"+D.freeze:"")+" · týždeň "+wk+"/7";
-  el.classList.toggle("pend",D.lastDay!==D.date&&!(typeof KID==="function"&&KID()));
+  const el=$("streakChip");if(!el)return;const L=streakLive(),D=dailyEnsure();
+  el.hidden=L.st==="dead"||(L.n<2&&L.st!=="repair");
+  el.textContent=L.st==="repair"?"🔧 "+L.n+" · zachráň":"🔥 "+L.n+" "+pl(L.n,"deň","dni","dní")+((D.freeze|0)?" · ❄️ "+D.freeze:"");
+  el.classList.toggle("pend",L.st!=="done"&&!(typeof KID==="function"&&KID()));
 }
 function dailyEvent(id){const D=dailyEnsure();if(D.ids.includes(id))dailyComplete(id)}
 HOOKS.caught.push(a=>{
@@ -192,12 +202,31 @@ HOOKS.caught.push(a=>{
 });
 function renderDaily(){
   const D=dailyEnsure(),n=D.ids.filter(i=>D.done[i]).length;
-  $("dailyTxt").textContent=`🎯 Dnešné výzvy ${n}/3`+(D.streak?` · 🔥 ${D.streak}`:"")+(n===3?" ✅":"");
-  $("d-streak").textContent=D.streak?"🔥 séria "+D.streak+((D.freeze|0)?" · ❄️ "+D.freeze:""):"";streakChip();
+  const L=streakLive();
+  $("dailyTxt").textContent=`🎯 Dnešné výzvy ${n}/3`+(L.n?` · 🔥 ${L.n}`:"")+(n===3?" ✅":"");
+  $("d-streak").innerHTML=L.st==="repair"?`🔧 Séria ${L.n} ${pl(L.n,"deň","dni","dní")} sa dá zachrániť: dnes zamávaj 2 lietadlám`:L.n?`🔥 ${L.n} ${pl(L.n,"deň","dni","dní")} v rade${(D.freeze|0)?" · ❄️ "+D.freeze:""}<small style="display:block;opacity:.75">${nextMs(L.n)}</small>`:"";streakChip();
+  $("d-streak").insertAdjacentHTML("afterend",'<div id="stamps"></div>');const ost=document.querySelectorAll("#stamps");if(ost.length>1)for(let i=0;i<ost.length-1;i++)ost[i].remove();$("stamps").innerHTML=stampsHTML(D);
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
     return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
   $("d-list").insertAdjacentHTML("beforeend",didYouKnow());
+  if(n===3)$("d-list").insertAdjacentHTML("beforeend",`<div class="dyk">🌅 <b>Zajtra:</b> ${tomorrowIds().map(id=>{const q=DAILY_POOL.find(x=>x.id===id);return q?q.i+" "+esc(q.n):""}).join(" · ")}${L.n?` · séria ${L.n+1} 🔥`:""}</div>`);
 }
+// 🗓️ pečiatková karta Po–Ne: 5/7 = +1 ❄️, 7/7 = darovaná nezvyčajná kartička + 100 míľ
+function weekDays(){const d=new Date(),wd=(d.getDay()+6)%7;return Array.from({length:7},(_,i)=>SKD.format(new Date(d.getTime()+(i-wd)*864e5)))}
+function stampsHTML(D){const W=weekDays(),got=W.filter(x=>(D.days||[]).includes(x)).length;stampReward(D,W,got);
+  return `<div class="stamps">${W.map((x,i)=>`<span class="${(D.days||[]).includes(x)?"on":x===D.date?"now":""}">${"PUSŠPSN"[i]}<b>${(D.days||[]).includes(x)?"✓":""}</b></span>`).join("")}</div><div class="lookSub" style="text-align:center;font-size:12px">Týždeň ${got}/7 · 5 dní = ❄️ zmrazenie · 7 dní = 🎁 kartička + 100 míľ</div>`}
+function stampReward(D,W,got){const k=W[0];D.wkRew=D.wkRew||{};const r=D.wkRew[k]||(D.wkRew[k]={});let ch=false;
+  if(got>=5&&!r[5]){r[5]=1;ch=true;if((D.freeze|0)<3)D.freeze=(D.freeze|0)+1;setTimeout(()=>toast("🗓️ 5 dní tento týždeň!","❄️ Zmrazenie série +1"),1200)}
+  if(got>=7&&!r[7]){r[7]=1;ch=true;COL.mi=(COL.mi|0)+100;const miss=CATALOG.map(c=>c[0]).filter(k=>typeTier(k)==="u"&&!(COL.types[k]&&COL.types[k].n));const g=miss[hash(k)%Math.max(1,miss.length)];
+    if(g){COL.types[g]=COL.types[g]||{n:0,r:"u",name:catGuess(g).name,first:Date.now()};COL.types[g].gift={from:"Týždeň 7/7",t:Date.now()}}LS.set("ctl_col",COL);
+    setTimeout(()=>toast("🏆 Celý týždeň pod oblohou!","+100 míľ"+(g?" a kartička "+catGuess(g).name+" 🤝":"")),1500)}
+  for(const x of Object.keys(D.wkRew))if(x<W[0]&&Object.keys(D.wkRew).length>4)delete D.wkRew[x];
+  if(ch)LS.set("ctl_daily",D)}
+// výzvy na zajtra (rovnaký výber ako dailyEnsure)
+function tomorrowIds(){const d=SKD.format(new Date(Date.now()+864e5)),h=hash(d),pool=DAILY_POOL.filter(q=>!q.sp),ids=[];
+  const sp=DAILY_POOL.find(q=>q.sp===d.slice(5));if(sp)ids.push(sp.id);
+  else{const easy=pool.filter(q=>["wave","five","air3","shazam"].includes(q.id));if(easy.length){const e=easy[h%easy.length];ids.push(e.id);pool.splice(pool.indexOf(e),1)}}
+  for(let k=ids.length;k<3;k++){const i=(h>>>(k*5))%pool.length;ids.push(pool.splice(i,1)[0].id)}return ids}
 // 💡 Vieš, že…? – raz denne zaujímavosť, prednostne o kartičke, ktorá ti chýba
 function didYouKnow(){
   const miss=CATALOG.filter(x=>!(COL.types[x[0]]&&COL.types[x[0]].n)&&!TROPHY.has(x[0])&&x[10]);
