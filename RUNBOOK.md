@@ -43,3 +43,8 @@
 - **24. 12. ráno:** `/api/health` → `"ok":true`. Od 12:00 do 22:00 **nenasadzovať žiadne zmeny**.
 - **14:45:** /admin → Santa push „zapnutý“. Ak by server nestíhal: /admin → Sociálne funkcie → **šetriaci režim** (Santa a lietadlá idú ďalej, len bez rebríčkov).
 - **Ak sa niečo pokazí:** Cloudflare → Deployments → Rollback na verziu z 23. 12.
+
+## Nasadenie len pri zelených testoch
+- Testy (`.github/workflows/test.yml`) bežia pri každom pushi: syntax, verzia, server, identita, odznaky a dymový test appky v prehliadači (`tests/smoke.py`, Playwright).
+- **Appka (GitHub Pages):** workflow `pages.yml` nasadí stránku až po zelených testoch. Zapnutie (raz): Settings → Pages → Source = **GitHub Actions**, potom Settings → Secrets and variables → Actions → **Variables** → `PAGES_Z_TESTOV` = `1`. Vrátenie: Source späť na „Deploy from a branch“ (main).
+- **Server (Cloudflare Builds):** nasadzuje sa pri pushi nezávisle od testov. Pred pushom zmeny servera spusti `node tests/worker.test.mjs`.

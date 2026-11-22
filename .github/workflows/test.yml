@@ -22,3 +22,14 @@ jobs:
         run: node tests/cid.test.mjs
       - name: Odznaky
         run: node tests/ach.test.mjs
+  appka:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Playwright
+        run: pip install playwright==1.63.0 && python -m playwright install --with-deps chromium
+      - name: Dymový test appky v prehliadači
+        run: python tests/smoke.py
