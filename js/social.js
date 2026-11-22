@@ -239,6 +239,7 @@ function flyEmoji(e,fromEl){
 }
 async function doWave(e){
   const a=S.top;if(!a)return;
+  if(S.lastKnown){toast("⏳ Načítavam aktuálnu oblohu…","Zamávaj o sekundu – teraz ukazujem poslednú známu polohu lietadiel");return}
   if(SOC.inflight===a.hex)return; // dvojťuk: druhé mávnutie počas odosielania ignoruj
   SOC.inflight=a.hex;try{return await doWave1(e,a)}finally{SOC.inflight=null}
 }

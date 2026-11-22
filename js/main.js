@@ -1,7 +1,11 @@
 "use strict";
 /* ============ štart ============ */
-applyTexts();syncToggles();showPos();renderCol();renderHeroStatic(null);renderDaily();checkDuelLink();installHint();
-boot();
+// ⚡ posledná známa obloha (max. 3 min) – kým prídu čerstvé dáta, radar nie je prázdny
+{const lk=LS.get("ctl_lastSky",null),p0=LS.get("ctl_pos",null);if(lk&&lk.raw&&lk.raw.length&&Date.now()-lk.t<180e3&&p0&&lk.p&&Math.abs(lk.p[0]-p0.lat)<.2&&Math.abs(lk.p[1]-p0.lon)<.3){S.raw=lk.raw;S.rawT=lk.t;S.lastKnown=true}}
+// zbierka sa vykreslí, až keď je chvíľa (pri veľkej zbierke to inak brzdí štart)
+const idle=f=>(window.requestIdleCallback?requestIdleCallback(f,{timeout:2500}):setTimeout(f,300));
+applyTexts();syncToggles();showPos();if(S.view==="col")renderCol();else idle(()=>renderCol());renderHeroStatic(null);renderDaily();checkDuelLink();installHint();
+boot();if(S.lastKnown)setTimeout(()=>{if(S.lastKnown)setStatus("🕒 Posledná známa obloha",false)},50);
 setInterval(()=>{if(!document.hidden&&S.raw.length)tick(false)},1000);
 setInterval(()=>{if(!document.hidden)fetchPlanes()},15000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)fetchPlanes()});

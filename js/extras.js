@@ -305,7 +305,13 @@ $("installBar").onclick=async()=>{
   else installGuide();
 };
 $("b-installX").onclick=e=>{e.stopPropagation();LS.set("ctl_noinst",true);$("installBar").style.display="none"};
-if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+// 🔄 nová verzia: pri návrate do appky sa skontroluje a keď sa prevezme, appka sa potichu obnoví (keď ju práve nepoužívaš)
+if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").then(reg=>{
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)reg.update().catch(()=>{})});setInterval(()=>reg.update().catch(()=>{}),30*60e3)}).catch(()=>{});
+  const had=!!navigator.serviceWorker.controller;let pending=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!had)return;pending=true;
+    const go=()=>{if(document.querySelector(".modal.on")||WB)return false;if(typeof lsFlush==="function")lsFlush();location.reload();return true};
+    if(document.hidden)go();else document.addEventListener("visibilitychange",function h(){if(document.hidden&&pending&&go())document.removeEventListener("visibilitychange",h)})})}
 
 
 // jedna výmena výzvy denne (keď je výzva v tvojom okolí nesplniteľná)

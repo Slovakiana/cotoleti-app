@@ -805,3 +805,10 @@ function profSwitch(){
   LS.set("ctl_profs",P);location.reload()}
 if($("b-prof")){$("b-prof").onclick=profSwitch;profRender()}
 if(LS.get("ctl_needPin",0)&&KID()){LS.set("ctl_needPin",0);setTimeout(kidPinSet,1500)}
+
+/* 📶 stav zdrojov dát v nastaveniach + ručné prepnutie */
+function srcRender(){const el=$("srcStat");if(!el||typeof COMBOS==="undefined")return;
+  el.innerHTML=COMBOS.map((c,i)=>{const st=SRCST[i]||{},nm=c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:"");return `${i===comboIdx?"▶ ":""}${esc(nm)}: ${st.ok?"✓"+(st.ms?" "+st.ms+" ms":""):st.err?"✗ "+esc(st.err):"–"}`}).join("<br>")}
+if($("b-src"))$("b-src").onclick=()=>{haptic(8);const n=COMBOS.length;let k=(comboIdx+1)%n;for(let j=0;j<n;j++){const st=SRCST[(comboIdx+1+j)%n];if(!st||!st.err){k=(comboIdx+1+j)%n;break}}
+  comboIdx=k;LS.set("ctl_combo",k);toast("📶 Skúšam iný zdroj",COMBOS[k].s.name);fetchPlanes(true).then(srcRender)};
+HOOKS.view.push(v=>{if(v==="col")srcRender()});setInterval(()=>{if(S.view==="col"&&$("settings")&&$("settings").open)srcRender()},5000);

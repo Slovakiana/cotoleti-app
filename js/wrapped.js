@@ -11,9 +11,10 @@ HOOKS.list.push(list=>{
     if(LOGK.has(d+a.hex))continue;
     LOGK.add(d+a.hex);ch=true;
     const rt=routeOf(a),h=new Date().getHours();
-    LOG.push({d,t:Date.now(),h:a.hex,ty:a.type||"",tn:typeName(a,S.meta.get(a.hex)),c:a.call||"",al:airlineOf(a),pax:pax(a),alt:Math.round(a.alt||0),r:rarity(a),mil:a.mil?1:0,
+    // úsporný záznam (Safari má na všetko 5 MB): názov typu a aerolinky sa dopočítajú pri čítaní
+    LOG.push({d,t:Math.round(Date.now()/1000),h:a.hex,ty:a.type||"",c:a.call||"",pax:pax(a),alt:Math.round((a.alt||0)/100)*100,r:rarity(a),mil:a.mil?1:0,
       w:WIDE.has(a.type)?1:0,cg:CARGO_RX.test(airlineOf(a))?1:0,n:(h>=21||h<5)?1:0,
-      dest:rt?citySk(rt.destination.municipality):"",dc:rt?rt.destination.country_iso_name:"",dla:rt?rt.destination.latitude:null,dlo:rt?rt.destination.longitude:null});
+      dest:rt?citySk(rt.destination.municipality):"",dc:rt?rt.destination.country_iso_name:"",dla:rt?Math.round(rt.destination.latitude*100)/100:null,dlo:rt?Math.round(rt.destination.longitude*100)/100:null});
   }
   if(ch)logSave();
 });
@@ -25,7 +26,7 @@ setInterval(()=>{
   if(ch)logSave();
 },10000);
 
-function weekLog(){const since=Date.now()-7*86400e3;return LOG.filter(e=>e.t>=since)}
+function weekLog(){const since=Date.now()-7*86400e3;return LOG.filter(e=>(e.t<1e11?e.t*1e3:e.t)>=since)}
 function spotterType(L=weekLog()){
   const n=L.length;
   if(n<3)return {e:"🐣",n:"Začínajúci pozorovateľ",d:"Pozeraj hore častejšie a odhalíme tvoj typ."};
@@ -40,7 +41,7 @@ function spotterType(L=weekLog()){
 }
 function weekStats(){
   const L=weekLog(),n=L.length,pax=L.reduce((s,e)=>s+(e.pax||0),0);
-  const cnt={};L.forEach(e=>{if(e.al)cnt[e.al]=(cnt[e.al]||0)+1});
+  const cnt={};L.forEach(e=>{const al=e.al||(e.c&&AIRLINES[e.c.slice(0,3)])||"";if(al)cnt[al]=(cnt[al]||0)+1});
   const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]||null;
   let far=null;if(S.pos)L.forEach(e=>{if(e.dla!=null){const km=distBear(S.pos.lat,S.pos.lon,e.dla,e.dlo).d/1000;if(!far||km>far.km)far={km,city:e.dest}}});
   const ord={l:0,r:1,u:2,c:3},rare=L.slice().sort((a,b)=>ord[a.r]-ord[b.r]||b.alt-a.alt)[0]||null;
@@ -60,7 +61,7 @@ function openWrapped(){
     if(s.pax)SL.push({e:"🧑‍🤝‍🧑",k:"V nich sedelo",h:"~"+nf(s.pax),p:"ľudí. Niektorí z nich sa možno práve pozerali dole na teba. 👋"});
     if(s.top)SL.push({e:"🏆",k:"Najčastejšia aerolinka",h:s.top[0],p:"Preletela nad tebou "+s.top[1]+"×. Mala by ti platiť nájom."});
     if(s.far)SL.push({e:"🌍",k:"Najďalší cieľ",h:s.far.city||"Ďaleko",p:nf(s.far.km)+" km odtiaľto"+(s.cs>1?" · celkom "+s.cs+" krajín":"")+"."});
-    if(s.rare)SL.push({e:s.rare.r==="l"?"🌟":s.rare.r==="r"?"💎":"🛩️",k:"Najvzácnejší úlovok",h:s.rare.tn||s.rare.ty||"Lietadlo",p:RAR[s.rare.r].n+(s.rare.c?" · "+s.rare.c:"")});
+    if(s.rare)SL.push({e:s.rare.r==="l"?"🌟":s.rare.r==="r"?"💎":"🛩️",k:"Najvzácnejší úlovok",h:s.rare.tn||(s.rare.ty&&catGuess(s.rare.ty).name)||s.rare.ty||"Lietadlo",p:RAR[s.rare.r].n+(s.rare.c?" · "+s.rare.c:"")});
   }
   // moje čísla z hry: séria, nové kartičky, výzvy, súboje
   {const D=typeof dailyEnsure==="function"?dailyEnsure():{},wk=Date.now()-7*864e5,newC=Object.values(COL.types).filter(v=>v.n&&(v.first||0)>wk).length,days=(D.days||[]).filter(x=>x>=SKD.format(new Date(wk))).length;

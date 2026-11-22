@@ -2,7 +2,16 @@
 /* ============ základy ============ */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+// úložisko: plná pamäť Safari (5 MB) → orež históriu a skús znova; zbierka (ctl_col) sa zapisuje s krátkym odkladom (1 zápis namiesto 4 pri mávnutí)
+const LSP=new Map();let LST=null;
+function lsWrite(k,s){try{localStorage.setItem(k,s);return true}catch(e){
+  try{const L=JSON.parse(localStorage.getItem("ctl_log")||"[]");if(Array.isArray(L)&&L.length>50)localStorage.setItem("ctl_log",JSON.stringify(L.slice(-Math.floor(L.length/2))));localStorage.removeItem("ctl_seenT");localStorage.removeItem("ctl_seen")}catch(x){}
+  try{localStorage.setItem(k,s);return true}catch(x){try{navigator.sendBeacon&&navigator.sendBeacon("https://cotoleti-app.radovan-kudela.workers.dev/api/err",JSON.stringify({m:"quota "+k+" "+s.length}))}catch(y){}
+    if(!lsWrite.warned){lsWrite.warned=1;setTimeout(()=>typeof toast==="function"&&toast("⚠️ Pamäť mobilu je plná","Úlovok sa nemusel uložiť – uvoľni miesto v Safari"),500)}return false}}}
+function lsFlush(){clearTimeout(LST);LST=null;for(const [k,s] of LSP)lsWrite(k,s);LSP.clear()}
+const LS={get(k,d){if(LSP.has(k)){try{return JSON.parse(LSP.get(k))}catch(e){}}try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){let s;try{s=JSON.stringify(v)}catch(e){return}if(k==="ctl_col"){LSP.set(k,s);if(!LST)LST=setTimeout(lsFlush,300);return}lsWrite(k,s)}};
+addEventListener("pagehide",lsFlush);document.addEventListener("visibilitychange",()=>{if(document.hidden)lsFlush()});
 const FT=0.3048,KT=1.852,R=6371000,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
 const wrap180=a=>((a%360)+540)%360-180;
 // tvar podľa čísla: pl(n,"deň","dni","dní")
@@ -166,22 +175,29 @@ async function getJSON(url,ms=7000,outer){
   finally{clearTimeout(tm)}
 }
 
+// 📶 stav dátových zdrojov (pre nastavenia)
+const SRCST={};
 async function tryCombo(i,r,signal){
-  const c=COMBOS[i];
+  const c=COMBOS[i];SRCST._t=performance.now();
   const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url((Math.round(S.pos.lat*4)/4).toFixed(2),(Math.round(S.pos.lon*4)/4).toFixed(2),r+10)),9000,signal);
-  if(!ok)throw new Error("HTTP "+status);
-  if(!j.ac&&!j.aircraft&&!("states" in j))throw new Error("zlý formát");
+  if(!ok){SRCST[i]={err:"HTTP "+status,t:Date.now()};throw new Error("HTTP "+status)}
+  if(!j.ac&&!j.aircraft&&!("states" in j)){SRCST[i]={err:"zlý formát",t:Date.now()};throw new Error("zlý formát")}
   return {i,list:c.s.parse(j)};
 }
 function gotPlanes(i,list){S.failN=0;S.nextTry=0;S.loaded=true;
   if(typeof SOC!=="undefined"&&SOC.data&&SOC.data.flags&&SOC.data.flags.hideMil)list=list.filter(a=>!a.mil);
-  S.raw=list;S.rawT=Date.now();comboIdx=i;LS.set("ctl_combo",i);err("");
+  S.raw=list;S.rawT=Date.now();comboIdx=i;LS.set("ctl_combo",i);err("");S.lastKnown=false;
+  // 📊 čas do prvého lietadla (anonymne, po pásmach) + posledná známa obloha na rýchly štart
+  if(!S.ttfp&&typeof ev==="function"){S.ttfp=performance.now();const t=S.ttfp/1000;ev("ttfp_"+(t<1?"1s":t<3?"3s":t<6?"6s":t<12?"12s":"slow"))}
+  if(!S.lkT||Date.now()-S.lkT>60e3){S.lkT=Date.now();try{LS.set("ctl_lastSky",{t:Date.now(),p:S.pos?[S.pos.lat,S.pos.lon]:null,raw:list.filter(a=>!a.ground).slice(0,40)})}catch(e){}}
+  SRCST[i]={ok:Date.now(),ms:Math.round(performance.now()-(SRCST._t||performance.now()))};
   const c=COMBOS[i];
   {const n=S.raw.filter(a=>!a.ground).length;setStatus(n+" "+(n===1?"lietadlo":n>=2&&n<=4?"lietadlá":"lietadiel")+" naživo",true);S.src=c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:"")}
   tick(true);
 }
 async function fetchPlanes(force){
   if(!S.pos||busy)return;
+  if(navigator.onLine===false){setStatus("📴 Bez internetu",false);return}
   if(!force&&S.nextTry&&Date.now()<S.nextTry)return;
   busy=true;
   const r=+$("radius").value;
@@ -198,7 +214,9 @@ async function fetchPlanes(force){
       setStatus("Bez spojenia",false);
       S.failN=(S.failN||0)+1;S.nextTry=Date.now()+Math.min(60000,10000*S.failN);
       err("Dáta o lietadlách sú dočasne nedostupné, skúšam znova…");console.warn("fetchPlanes",fails);
-      if(!S.raw.length)$("h-type").textContent="Polohu máme ✓ Lietadlá sa ešte načítavajú…";
+      fails.forEach(f=>{const i=COMBOS.findIndex(c=>f.startsWith(c.s.name+"/"+c.rt.name+":"));if(i>=0)SRCST[i]={err:f.split(": ").slice(1).join(": "),t:Date.now()}});
+      // jeden jasný stav namiesto troch protichodných hlášok
+      if(!S.raw.length){S.noData=true;$("h-type").textContent="Dáta o lietadlách sú chvíľu nedostupné"}
     }
   }finally{busy=false}
 }
@@ -214,13 +232,15 @@ async function adsbdb(path){
   return null;
 }
 async function loadMeta(a){
-  if(S.meta.has(a.hex))return;
+  if(S.meta.has(a.hex)){const x=S.meta.get(a.hex);if(!(x&&x.retryAt&&Date.now()>x.retryAt))return}
   S.meta.set(a.hex,{loading:true});
   const m={ac:null,route:null};
   const r1=await adsbdb("aircraft/"+a.hex+(a.call?"?callsign="+encodeURIComponent(a.call):""));
   if(r1&&typeof r1==="object"){m.ac=r1.aircraft||null;m.route=r1.flightroute||null}
   if(!m.route&&a.call){const r2=await adsbdb("callsign/"+encodeURIComponent(a.call));if(r2&&typeof r2==="object")m.route=r2.flightroute||null}
-  S.meta.set(a.hex,m);
+  // nič neprišlo (výpadok) → skús znova o 2 min; pamäť nech nerastie donekonečna
+  if(!r1&&!m.route){S.metaRetry=S.metaRetry||{};const n=S.metaRetry[a.hex]=(S.metaRetry[a.hex]|0)+1;S.meta.set(a.hex,n<=3?{retryAt:Date.now()+120e3}:m);return}
+  S.meta.set(a.hex,m);if(S.meta.size>600){const ks=[...S.meta.keys()].slice(0,200);ks.forEach(k=>S.meta.delete(k))}
   if(S.top&&S.top.hex===a.hex){renderHeroStatic(S.top);announce(S.top,true)}
 }
 
@@ -305,8 +325,10 @@ function tryCatch(a){
   const v=COL.types[ty];v.r=typeTier(ty);
   // 🧾 pamäť úlovku: kde, kto, kam – pre albumy (aerolinky, krajiny, OM-) a „Prvá: nad Petržalkou“
   try{const rt=routeOf(a),al=(a.call||"").slice(0,3).toUpperCase();COL.cx=COL.cx||{};
-    const c={t:Date.now(),ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&rt.destination.iso_country||"",oc:rt&&rt.origin&&rt.origin.iso_country||"",alt:a.alt,el:Math.round(a.el),spd:a.spd,mil:a.mil?1:0};
+    const c={t:Date.now(),ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&rt.destination.iso_country||"",oc:rt&&rt.origin&&rt.origin.iso_country||"",alt:a.alt!=null?Math.round(a.alt):null,el:Math.round(a.el),spd:a.spd!=null?Math.round(a.spd):null,mil:a.mil?1:0};
     COL.cx[a.hex]=c;if(!v.fp)v.fp=c;
+    // 🧹 pamäť: veľmi stará história úlovkov (> 20 000) sa skráti, zbierka a kartičky ostávajú
+    {const ks=Object.keys(COL.hex);if(ks.length>20000){const old=Date.now()-365*864e5;for(const k of ks)if(COL.hex[k]<old){delete COL.hex[k];if(COL.cx)delete COL.cx[k]}}}
     if(c.al){v.al=v.al||{};v.al[c.al]=(v.al[c.al]||0)+1}
     if(/^OM-/.test(c.reg)){COL.om=COL.om||{};COL.om[c.reg]=COL.om[c.reg]||Date.now()}
     const ks=Object.keys(COL.cx);if(ks.length>4000)ks.sort((x,y)=>COL.cx[x].t-COL.cx[y].t).slice(0,ks.length-4000).forEach(k=>delete COL.cx[k]);

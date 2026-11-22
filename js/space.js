@@ -192,7 +192,7 @@ const SPACE=(()=>{
   HOOKS.radar.push(radar);
   HOOKS.fresh.push(()=>{if(!st.sats.length&&!st.loading)init();else computePasses(false)});
   HOOKS.view.push(v=>{if(v==="space"){if(!st.sats.length)init();render()}});
-  setInterval(()=>{if(document.hidden)return;if(S.view==="space")render();strip()},1000);
+  setInterval(()=>{if(document.hidden)return;if(S.view==="space")render();else if(S.view==="now")strip()},1000);
   $("issStrip").onclick=()=>setView("space");
   return {init,sunAlt,visibleNow,render};
 })();
