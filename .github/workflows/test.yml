@@ -22,6 +22,10 @@ jobs:
         run: node tests/cid.test.mjs
       - name: Odznaky
         run: node tests/ach.test.mjs
+      - name: Lesklé a edície
+        run: node tests/shiny_ed.test.mjs
+      - name: Rodinné profily (server)
+        run: node tests/family.test.mjs
   appka:
     runs-on: ubuntu-latest
     steps:
