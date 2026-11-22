@@ -539,10 +539,17 @@ async function giftMake(k){
     if(!j.code){toast("🎁 Darovať sa nedá",{dup:"Potrebuješ aspoň 2 overené úlovky tohto typu",tier:"Darovať sa dajú len bežné a nezvyčajné – legendu musí každý vidieť sám",new:"Darovať môžeš po 7 dňoch v appke",rate:"Dnes si už daroval(a) 3×",kid:"V detskom režime to nejde"}[j.error]||"Skús to neskôr");return}
     const url=shareUrl("g",j.code,"n="+encodeURIComponent(LS.get("ctl_nick","")||"Kamarát")+"&ty="+k),text=`🎁 Darujem ti kartičku ${catGuess(k).name} z appky Čo to letí? ✈️ Keď mu potom sám zamávaš, bude celá tvoja.`;
     toast("🎁 Darček je pripravený","Kamarát dostane kartičku 🤝 – celá bude jeho, keď lietadlu sám zamává"+(j.left!=null?" · dnes ešte "+j.left+"×":""));
-    try{if(navigator.share){await navigator.share({title:"Darček",text,url});return}}catch(e){if(e.name==="AbortError")return}
-    try{await navigator.clipboard.writeText(text+" "+url);toast("🎁 Odkaz skopírovaný","Pošli ho kamarátovi – platí 14 dní")}catch(e){prompt("Skopíruj odkaz a pošli ho kamarátovi:",url)}
+    // 📱 výmena na mieste: QR kód (kamarát ho nasníma), alebo odkaz správou
+    giftQR(url,text,catGuess(k).name);
   }catch(e){toast("Bez internetu","Darovať môžeš, keď budeš online")}
 }
+function loadQR(){return window.qrcode?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement("script");s.src="lib/qrcode.js";s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+async function giftQR(url,text,name){
+  const send=async()=>{try{if(navigator.share){await navigator.share({title:"Darček",text,url});return}}catch(e){if(e.name==="AbortError")return}
+    try{await navigator.clipboard.writeText(text+" "+url);toast("🎁 Odkaz skopírovaný","Pošli ho kamarátovi – platí 14 dní")}catch(e){prompt("Skopíruj odkaz a pošli ho kamarátovi:",url)}};
+  try{await loadQR();const q=qrcode(0,"M");q.addData(url);q.make();$("qrBox").innerHTML=q.createSvgTag({cellSize:6,margin:2,scalable:true,alt:"QR kód darčeka"})}catch(e){return send()}
+  $("qrT").textContent="🎁 "+name+" pre kamaráta";$("qrM").classList.add("on");
+  $("qrShare").onclick=()=>{$("qrM").classList.remove("on");send()};$("qrClose").onclick=()=>$("qrM").classList.remove("on")}
 async function giftClaim(){const m=location.hash.match(/dar=([A-Za-z0-9]{6,8})/);if(!m)return;
   if(!LS.get("ctl_onb",0)){afterOnb(giftClaim);return}if(typeof KID==="function"&&KID())return;
   history.replaceState(null,"",location.pathname);
