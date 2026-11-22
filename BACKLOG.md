@@ -1,6 +1,21 @@
-# Nedokončené odporúčania expertov (stav 20. 11. 2026)
+# Nedokončené odporúčania expertov (stav 22. 11. 2026, verzia 52)
 
 Plná verzia s tabuľkami: dokument „Čo to letí? – nedokončené odporúčania expertov“ (https://claude.ai/artifact/6HsNcvNfy2LqKf25hJvUHT).
+
+
+## ▶ Stav 22. 11. 2026 – čo z tohto zoznamu ešte zostáva
+Hotové zo starších sekcií: spoločné mávnutie · push séria v ohrození / ISS / legendárne lietadlo · sezóny so stupňami · „Letím“ · video odhalenia bez hudby · nápoveda ďalšej kartičky (štítky, hľadaná kartička dňa) · odpočet Santu, OG s mestom, Mikuláš, súhrn roka · automatická verzia + aktualizácia · odobrať kamaráta · offline fronta mávnutí · Dynamic Type, zatváranie okien, vzácnosť textom · štafeta, pondelkový súboj, album krajín, Daruj kópiu · testy servera, identity a odznakov v CI.
+
+Claude – zostáva:
+- tichý režim servera (social=min): pozvánky do tímu a výhra starostu
+- písma a satellite.js lokálne (treba sieť) · Playwright v CI + nasadenie len pri zelených testoch
+- /api/planes zdieľaná snímka, edge cache rebríčkov · fokus v modáloch
+- OpenSky záloha: typ a registrácia z metadát
+- Adoptuj obec, derby krajov na obyvateľa, heatmapa, /admin grafy, A/B · nočný/oblačný režim
+- nahlásenie s dôvodom + ľudská kontrola, LADD/PIA na serveri
+- výmena cez QR, divízie po 30, lokálna vzácnosť · špeciálne nátery a prvé lety (údaje od majiteľa)
+
+Majiteľ – zostáva: Workers Paid, UptimeRobot, notifikácie, TG_TOKEN · passkey/2FA, ruleset, secret scanning · súkromie (meno, e-mail), DPA, abuse@ · PR Santa do 5. 12., OZ, doména · rozhodnutia (Spotter+, čo vidí kamarát).
 
 ## Majiteľ
 Workers Paid 5 $ · ADMIN_KEY · TG_TOKEN/TG_CHAT (Cloudflare + GitHub Secrets) · Cloudflare notifikácie · UptimeRobot · občianske združenie (2 %) · licencie dát pred zarábaním · vlastná doména.
@@ -126,3 +141,8 @@ Claude: i18n (hu, cs, en) a CZ kraje · nahlásenie s dôvodom + ľudská kontro
 - Zdieľanie: osobná kartička, IG bezpečné zóny, odkaz do schránky, /s/c a /s/g náhľady, štafeta „bude nad mestom“, uvítací darček, +100 míľ za pozvaného, súhrn roka obrázok.
 - Výkon: plná pamäť, odložený zápis zbierky, posledná známa obloha, stav zdrojov, aktualizácia verzie, tests/bump.mjs.
 - Nedá sa bez siete v build prostredí: lokálne satellite.js a písma (Google Fonts) – zostáva.
+
+## v48–v52 (21.–22. 11. 2026) – hotové
+- Atlasy: to isté meno len raz, rozloženie pečiatok a série, väčšie ťukacie plochy.
+- Odznaky (audit 10 agentov): návod a pokrok, opravy udeľovania (široké, nákladné, vojenské, séria, sezóna, hľadaná, video, tím, súboj), doplatenie, viac odznakov v jednom toaste, tests/ach.test.mjs v CI.
+- Atlas (rešerš 5 agentov): +52 kartičiek (146 spolu) – Zlín, Čmelák, Shark, Viper, Dynamic, biznis jety, Mi-24, Chinook, C-390, 777-9…; zlúčenie kódov typov (T_ALIAS), opravy faktov, vzácnosť server = appka.
