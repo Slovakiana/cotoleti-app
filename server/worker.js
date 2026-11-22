@@ -1103,7 +1103,13 @@ export class Sky extends DurableObject {
       if (id.length >= 8) { const pr = this.row("SELECT t FROM pres WHERE id=?", id); if (!pr || now - pr.t > 60e3) { this.sql.exec("INSERT INTO pres(id, t, k) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET t = excluded.t, k = excluded.k", id, now, k); this.sql.exec("INSERT OR IGNORE INTO seen(day, id) VALUES(?, ?)", d, id); this.sql.exec("UPDATE ids SET ls=? WHERE id=?", d, id); } }
       const G = this.snap(d, now);
       // šetriaci režim (vypínač v /admin): len spoločné údaje, žiadne osobné dotazy
-      if (this.flags().social === "min") return json({...G, teamsTop: G.teamsTop.map(r => ({name: r.name, n: r.n})), planes: {}, friends: {}, now, mailsIn: [], mailsOut: [], mailOn: {}, myTeam: null, myInvites: 0, goldMine: 0, flags: this.flags()});
+      if (this.flags().social === "min") {
+        // aj v šetriacom režime: počet pozvaných a výhra starostu (2 lacné dotazy podľa kľúča) – inak by sa nepripísali odznaky
+        const pidM = id ? await this.pid(id) : "", prevM = new Date(new Date(d + "T12:00:00Z").setUTCDate(0)).toISOString().slice(0, 7);
+        const myInvites = pidM ? (this.row("SELECT n FROM refs WHERE pid=?", pidM) || {n: 0}).n : 0;
+        const won = id.length >= 8 ? (this.row("SELECT town FROM mayorhof WHERE id=? AND m=?", id, prevM) || {}).town || "" : "";
+        return json({...G, teamsTop: G.teamsTop.map(r => ({name: r.name, n: r.n})), planes: {}, friends: {}, now, mailsIn: [], mailsOut: [], mailOn: {}, myTeam: null, myInvites, goldMine: 0, mayor: won ? {won} : null, flags: this.flags()});
+      }
       const hexes = (qp("hexes") || "").split(",").map(cleanHex).filter(Boolean).slice(0, 25);
       // čo hráč práve vidí na oblohe (pamäť pár minút) – liga verí mávnutiu nového účtu, len ak to lietadlo naozaj videl
       if (id && hexes.length) { this.seenBy = this.seenBy || new Map(); this.seenBy.set(id, {t: now, h: new Set(hexes)}); if (this.seenBy.size > 20000) this.seenBy.clear(); }

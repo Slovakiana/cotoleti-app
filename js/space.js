@@ -7,7 +7,7 @@ const SPACE=(()=>{
   function loadLib(){
     return new Promise((res,rej)=>{
       if(window.satellite)return res();
-      const urls=["https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js","https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js","https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"];
+      const urls=["lib/satellite.min.js","https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js","https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js","https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"];
       let i=0;const next=()=>{if(i>=urls.length)return rej(new Error("nepodarilo sa načítať výpočtovú knižnicu"));
         const sc=document.createElement("script");sc.src=urls[i++];sc.onload=()=>window.satellite?res():next();sc.onerror=next;document.head.appendChild(sc)};
       next();

@@ -52,8 +52,8 @@ let LMAP=null,LLAYER=null;
 function loadLeaflet(){
   return new Promise((res,rej)=>{
     if(window.L)return res();
-    const css=document.createElement("link");css.rel="stylesheet";css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";document.head.appendChild(css);
-    const urls=["https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"];let i=0;
+    const css=document.createElement("link");css.rel="stylesheet";css.href="lib/leaflet/leaflet.css";document.head.appendChild(css);
+    const urls=["lib/leaflet/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"];let i=0;
     const next=()=>{if(i>=urls.length)return rej(new Error("mapa sa nenačítala"));const s=document.createElement("script");s.src=urls[i++];s.onload=()=>window.L?res():next();s.onerror=next;document.head.appendChild(s)};next();
   });
 }

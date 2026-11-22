@@ -138,10 +138,10 @@ function renderLeague(){
 }
 function renderMayor(){
   const M=SOC.data&&SOC.data.mayor,el=$("mayor");if(!el)return;
-  if(!M||!M.town){el.hidden=true;return}
   const was=LS.get("ctl_mayor","");
-  // odznak a titul až po uzávierke mesiaca (server: sieň slávy)
-  if(M.won&&was!=="won:"+M.won+dayKey().slice(0,7)){LS.set("ctl_mayor","won:"+M.won+dayKey().slice(0,7));grantAch("mayor");setTimeout(()=>{toast("🏛️ Si Starosta oblohy!",M.won+" – minulý mesiac si bol(a) najaktívnejší spotter","#ffcf4f");confetti(80)},1500)}
+  // odznak a titul až po uzávierke mesiaca (server: sieň slávy) – aj v šetriacom režime servera (bez mesta)
+  if(M&&M.won&&was!=="won:"+M.won+dayKey().slice(0,7)){LS.set("ctl_mayor","won:"+M.won+dayKey().slice(0,7));grantAch("mayor");setTimeout(()=>{toast("🏛️ Si Starosta oblohy!",M.won+" – minulý mesiac si bol(a) najaktívnejší spotter","#ffcf4f");confetti(80)},1500)}
+  if(!M||!M.town){el.hidden=true;return}
   el.hidden=false;
   const end=M.left!=null?(M.left===0?" · mesiac končí dnes":" · do konca mesiaca "+M.left+" "+pl(M.left,"deň","dni","dní")):"";
   const hof=M.prev?`<br><small>🏆 Starosta minulého mesiaca: ${M.prev.me?"<b>ty</b>":esc(M.prev.nick)} (${M.prev.n} 👋)</small>`:"";

@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Čo to letí?">
 <meta name="description" content="Pozri hore. Zisti, čo ti práve letí nad hlavou, koľko ľudí v tom sedí a zamávaj im spolu s celým Slovenskom.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/ https://unpkg.com/leaflet@1.9.4/ https://unpkg.com/satellite.js@4.1.4/ https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/ https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/ https://unpkg.com/leaflet@1.9.4/ https://unpkg.com/satellite.js@4.1.4/ https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/ https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'">
 <meta property="og:title" content="Čo to letí? ✈️ Pozri hore.">
 <meta property="og:description" content="Každé lietadlo nad tebou naživo – odkiaľ, kam a koľko ľudí v ňom sedí. Zamávaj mu s celým Slovenskom 👋">
 <meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og/default.jpg">
@@ -18,9 +18,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Čo to letí? ✈️</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/inter.woff" as="font" type="font/woff" crossorigin>
+<style>@font-face{font-family:Inter;src:url(fonts/inter.woff) format("woff");font-weight:400 800;font-display:swap}@font-face{font-family:Unbounded;src:url(fonts/unbounded.woff) format("woff");font-weight:500 900;font-display:swap}</style>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1320x2868.png">
 <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1206x2622.png">
@@ -984,25 +983,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=52"></script>
-<script src="js/ui.js?v=52"></script>
-<script src="js/ar.js?v=52"></script>
-<script src="js/space.js?v=52"></script>
-<script src="js/weather.js?v=52"></script>
-<script src="js/extras.js?v=52"></script>
-<script src="js/social.js?v=52"></script>
-<script src="js/wrapped.js?v=52"></script>
-<script src="js/push.js?v=52"></script>
-<script src="js/track.js?v=52"></script>
-<script src="js/towns.js?v=52"></script>
-<script src="js/catalog.js?v=52"></script>
-<script src="js/cards.js?v=52"></script>
-<script src="js/mail.js?v=52"></script>
-<script src="js/golden.js?v=52"></script>
-<script src="js/teams.js?v=52"></script>
-<script src="js/duel.js?v=52"></script>
-<script src="js/sound.js?v=52"></script>
-<script src="js/santa.js?v=52"></script>
-<script src="js/main.js?v=52"></script>
+<script src="js/core.js?v=53"></script>
+<script src="js/ui.js?v=53"></script>
+<script src="js/ar.js?v=53"></script>
+<script src="js/space.js?v=53"></script>
+<script src="js/weather.js?v=53"></script>
+<script src="js/extras.js?v=53"></script>
+<script src="js/social.js?v=53"></script>
+<script src="js/wrapped.js?v=53"></script>
+<script src="js/push.js?v=53"></script>
+<script src="js/track.js?v=53"></script>
+<script src="js/towns.js?v=53"></script>
+<script src="js/catalog.js?v=53"></script>
+<script src="js/cards.js?v=53"></script>
+<script src="js/mail.js?v=53"></script>
+<script src="js/golden.js?v=53"></script>
+<script src="js/teams.js?v=53"></script>
+<script src="js/duel.js?v=53"></script>
+<script src="js/sound.js?v=53"></script>
+<script src="js/santa.js?v=53"></script>
+<script src="js/main.js?v=53"></script>
 </body>
 </html>
