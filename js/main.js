@@ -5,6 +5,7 @@
 // zbierka sa vykreslí, až keď je chvíľa (pri veľkej zbierke to inak brzdí štart)
 const idle=f=>(window.requestIdleCallback?requestIdleCallback(f,{timeout:2500}):setTimeout(f,300));
 applyTexts();syncToggles();showPos();if(S.view==="col")renderCol();else idle(()=>renderCol());renderHeroStatic(null);renderDaily();checkDuelLink();installHint();
+setTimeout(checkAch,4000);
 boot();if(S.lastKnown)setTimeout(()=>{if(S.lastKnown)setStatus("🕒 Posledná známa obloha",false)},50);
 setInterval(()=>{if(!document.hidden&&S.raw.length)tick(false)},1000);
 setInterval(()=>{if(!document.hidden)fetchPlanes()},15000);

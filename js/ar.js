@@ -165,7 +165,7 @@ function arMusic(){
 }
 function startRec(opt={}){
   if(!AR.cv.captureStream||!window.MediaRecorder){toast("Nahrávanie tu nejde","Tento prehliadač ho nepodporuje – skús fotku 📷");return}
-  const mime=pickMime();AR.chunks=[];AR.maxS=opt.auto?10:30;
+  const mime=pickMime();AR.chunks=[];AR.maxS=opt.auto?10:30;AR.recAuto=!!opt.auto;
   const st=AR.cv.captureStream(30);
   if(opt.auto){AR.music=arMusic();if(AR.music&&AR.music.track)st.addTrack(AR.music.track)}
   try{AR.rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:5e6}:undefined)}
@@ -174,10 +174,11 @@ function startRec(opt={}){
   AR.rec.ondataavailable=e=>{if(e.data&&e.data.size)AR.chunks.push(e.data)};
   AR.rec.onstop=()=>{
     if(AR.music){AR.music.stop();AR.music=null}
-    if(AR.auto){AR.auto=false;$("arAuto").classList.remove("on");$("arAuto").textContent="🎯 Auto-záber";grantAch("autoshot")}
+    if(AR.auto&&AR.recAuto){AR.auto=false;$("arAuto").classList.remove("on");$("arAuto").textContent="🎯 Auto-záber"}
     const type=(AR.rec.mimeType||mime||"video/webm").split(";")[0],blob=new Blob(AR.chunks,{type});
     if(!blob.size){toast("Video je prázdne","Skús to znova");return}
-    grantAch("video");
+    // auto-záber len keď video naozaj natočil automat
+    if(AR.recAuto)grantAch("autoshot");grantAch("video");
     shareBlob(blob,"co-to-leti."+(type.includes("mp4")?"mp4":"webm"),"Pozri, čo mi letelo nad hlavou ✈️ "+(S.top?planeLink(S.top):appLink())+TAGS);
   };
   AR.rec.start(500);AR.recStart=Date.now();$("arRec").classList.add("on");
@@ -244,4 +245,4 @@ $("arAuto").onclick=()=>{
   $("arAuto").textContent=AR.auto?"🎯 Auto: čakám…":"🎯 Auto-záber";
   if(AR.auto)toast("🎯 Auto-záber zapnutý","Namier mobil hore. Keď bude lietadlo nad tebou, sám natočí 10 s aj s hudbou 🎵");
 };
-ACH.push({id:"autoshot",i:"🎯",n:"Auto-záber",c:()=>false});
+ACH.push({id:"autoshot",i:"🎥",n:"Auto-záber",h:"V AR kamere zapni 🎯 Auto-záber a nechaj ho natočiť lietadlo",c:()=>false});

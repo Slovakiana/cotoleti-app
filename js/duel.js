@@ -124,7 +124,7 @@ $("cdBox").onclick=async e=>{
   if(t.id==="cdBack"){cdStart();return}
 };
 $("b-cduel").onclick=()=>{haptic(8);cdStart()};
-ACH.push({id:"cardduel",i:"🃏",n:"Víťaz súboja kartičiek",c:()=>false});
+ACH.push({id:"cardduel",i:"🃏",n:"Víťaz súboja kartičiek",h:"Vyhraj súboj kartičiek s kamarátom cez odkaz",soc:1,c:()=>false});
 function cdFromHash(){const m=location.hash.match(/kd=([\w-]+)/);if(!m)return;if(!LS.get("ctl_onb",0)){afterOnb(cdFromHash);return}
   // detský režim: žiadne výzvy od cudzích ľudí
   if(typeof KID==="function"&&KID()){try{history.replaceState(null,"",location.pathname)}catch(e){}return}
@@ -145,6 +145,6 @@ function famScoreRender(){const el=$("famScore");if(!el)return;const wk=SKD.form
 HOOKS.view.push(v=>{if(v==="col")famScoreRender()});
 
 // ⚔️ výsledky súbojov, ktoré dohrali tvoji súperi (zo servera)
-HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{for(const x of (D&&D.duelIn)||[]){const [a,b]=String(x.res).split(":").map(Number);
+HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{for(const x of (D&&D.duelIn)||[]){const [a,b]=String(x.res).split(":").map(Number);if(a<b)grantAch("cardduel");
   const FS=LS.get("ctl_famScore",{}),wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),r=FS[x.n]&&FS[x.n].wk===wk?FS[x.n]:{wk,w:0,l:0,d:0};if(a>b)r.l++;else if(a<b)r.w++;else r.d++;FS[x.n]=r;LS.set("ctl_famScore",FS);
   toast("⚔️ "+x.n+(a>b?" ťa porazil(a) ":a<b?" prehral(a) s tebou ":" remizoval(a) ")+x.res,"Súboj kartičiek – daj si odvetu v záložke Ja");famScoreRender()}});

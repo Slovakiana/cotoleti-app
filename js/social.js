@@ -48,7 +48,7 @@ const ludia=n=>n===1?"človek":n>=2&&n<=4?"ľudia":"ľudí";
 // sloveso k počtu ľudí: 1 zamával, 2–4 zamávali, 5+ zamávalo
 const zam=n=>n===1?"zamával":n>=2&&n<=4?"zamávali":"zamávalo";
 
-ACH.push({id:"discover",i:"🧭",n:"Objaviteľ – prvý na Slovensku",c:()=>false},{id:"mayor",i:"🏛️",n:"Starosta oblohy",c:()=>false},{id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",c:()=>false},{id:"wave10",i:"🙌",n:"10 mávnutí",c:()=>false},{id:"recruit",i:"🤝",n:"Náborár · priviesť kamaráta",c:()=>false});
+ACH.push({id:"discover",i:"🧭",n:"Objaviteľ – prvý na Slovensku",h:"Buď prvý na Slovensku, kto overí tento typ lietadla",c:()=>false},{id:"mayor",i:"🏛️",n:"Starosta oblohy",h:"Maj najviac mávnutí vo svojom meste za celý mesiac",c:()=>false},{id:"together",i:"👯",n:"Spoločné mávnutie s kamarátom",h:"Zamávaj tomu istému lietadlu ako tvoj kamarát",soc:1,c:()=>false},{id:"wave",i:"👋",n:"Prvé mávnutie",h:"Ťukni na 👋 Mávni pri lietadle nad tebou",pr:()=>[LS.get("ctl_waveN",0)|0,1],c:()=>(LS.get("ctl_waveN",0)|0)>=1},{id:"wave10",i:"🙌",n:"10 mávnutí",h:"Zamávaj 10-krát",pr:()=>[LS.get("ctl_waveN",0)|0,10],c:()=>(LS.get("ctl_waveN",0)|0)>=10},{id:"recruit",i:"🤝",n:"Náborár · priviesť kamaráta",h:"Pošli kamarátovi odkaz – keď si appku otvorí, odznak je tvoj",soc:1,c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"wave",i:"👋",n:"Zamávaj lietadlu",h:"Ťukni na „Mávni“ pri lietadle nad tebou",ev:true});
 
 async function socPoll(){
@@ -237,6 +237,16 @@ function flyEmoji(e,fromEl){
     document.body.appendChild(el);setTimeout(()=>el.remove(),1600+i*70);
   }
 }
+// odmeny z odpovede servera (živé mávnutie, opakované mávnutie aj odložené z fronty)
+function waveRewards(j,a){
+  const k=j.type||a.type||"?",v=COL.types[k];
+  if(j.seq===1&&j.ver&&!(v&&v.discShown)){grantAch("discover");confetti(160);if(v){v.discShown=1;LS.set("ctl_col",COL)}}
+  if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");WB&&WB.items.push(["👯 Spoločné mávnutie s kamarátmi ("+j.together.n+")"]);confetti(40)}
+  if(j.golden==="entered"){const gs=(SOC.data&&SOC.data.golden&&SOC.data.golden.seq)||dayKey();COL.goldSeq=COL.goldSeq||[];
+    // +25 b za každé zlaté lietadlo (aj druhé rovnakého typu), zlatá kartička len raz za typ
+    if(!COL.goldSeq.includes(gs)){COL.goldSeq.push(gs);COL.goldSeq=COL.goldSeq.slice(-60);COL.pts+=25;if(v&&!v.gold)v.gold=Date.now();LS.set("ctl_col",COL);grantAch("golden")}
+    WB&&WB.items.push(["🏆 Si v zlatej posádke"])}
+}
 async function doWave(e){
   const a=S.top;if(!a)return;
   if(S.lastKnown){toast("⏳ Načítavam aktuálnu oblohu…","Zamávaj o sekundu – teraz ukazujem poslednú známu polohu lietadiel");return}
@@ -244,6 +254,8 @@ async function doWave(e){
   SOC.inflight=a.hex;try{return await doWave1(e,a)}finally{SOC.inflight=null}
 }
 async function doWave1(e,a){LASTWAVE=null;
+  // trasa letu (krajina cieľa) pre odznak 🏠 a formy – chvíľu počkaj, ak sa ešte načítava
+  if(typeof routeOf==="function"&&!routeOf(a)&&typeof loadMeta==="function")await Promise.race([loadMeta(a).catch(()=>{}),new Promise(r=>setTimeout(r,1200))]);
   $("wavePick").classList.remove("on");
   haptic([18,40,18]);flyEmoji(e,$("b-wave"));
   if(a.santa){tryCatch(a);toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
@@ -256,6 +268,7 @@ async function doWave1(e,a){LASTWAVE=null;
         if(r.ok&&j.ok&&j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
         LASTWAVE=r.ok&&j.ok?{hex:a.hex,...j}:null;tryCatch(a);
         if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
+        if(r.ok&&j.ok)waveRewards(j,a);
       }catch(x){tryCatch(a)}
       return}
     tryCatch(a);toast("👋 Dnes už zamávané","Každému lietadlu sa ráta 1 mávnutie denne");return}
@@ -271,8 +284,8 @@ async function doWave1(e,a){LASTWAVE=null;
     // body za mávanie: +1, najviac 10 denne (hra je o pozeraní hore, nie o ťukaní)
     {const wd=LS.get("ctl_wpd",{d:"",n:0});if(wd.d!==dayKey()){wd.d=dayKey();wd.n=0}if(wd.n<10){COL.pts+=1;wd.n++}LS.set("ctl_wpd",wd)}LS.set("ctl_col",COL);
     const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);
-    grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");if(n===1&&typeof inAppBar==="function")setTimeout(inAppBar,6000);
-    if(typeof dailyEvent==="function")dailyEvent("wave");
+    if(n>=1)grantAch("wave");if(n>=10)grantAch("wave10");ev("wave1");if(n===1&&typeof inAppBar==="function")setTimeout(inAppBar,6000);
+    if(typeof dailyEvent==="function"){dailyEvent("wave");dailyEvent("silvester");dailyEvent("miki")}
     if(typeof maybeAskPush==="function")setTimeout(maybeAskPush,8000);
   };
   const fin=(soc)=>{if(WB&&soc)WB.social=soc;setTimeout(()=>waveBatchEnd(e),60)};
@@ -306,13 +319,8 @@ async function doWave1(e,a){LASTWAVE=null;
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
   if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["č. "+j.seq+" na Slovensku"]);
-  if(j.seq===1){grantAch("discover");confetti(160)}
-  if(j.together&&j.together.n){COL.pts+=2;LS.set("ctl_col",COL);grantAch("together");WB&&WB.items.push(["👯 Spoločné mávnutie s kamarátmi ("+j.together.n+")"]);confetti(40)}
-  if(j.golden==="entered"){const v=COL.types[a.type||"?"],gs=(SOC.data&&SOC.data.golden&&SOC.data.golden.seq)||dayKey();COL.goldSeq=COL.goldSeq||[];
-    // +25 b za každé zlaté lietadlo (aj druhé rovnakého typu), zlatá kartička len raz za typ
-    if(!COL.goldSeq.includes(gs)){COL.goldSeq.push(gs);COL.goldSeq=COL.goldSeq.slice(-60);COL.pts+=25;if(v&&!v.gold)v.gold=Date.now();LS.set("ctl_col",COL);grantAch("golden")}
-    WB&&WB.items.push(["🏆 Si v zlatej posádke"])}
-  else if(typeof j.golden==="string"&&j.golden.startsWith("no:")){const GW={gps:"poloha musí byť z GPS",league:"mávnutie sa nerátalo do ligy (nový účet alebo mimo Slovenska)",far:"lietadlo bolo ďalej ako 60 km",new:"posádka je pre hráčov, ktorí mali appku už pred vyhlásením lietadla",days:"posádka je pre hráčov, ktorí appku používajú aspoň 2 dni",active:"appku treba mať otvorenú, keď lietadlo vyhlásime"};
+  waveRewards(j,a);
+  if(typeof j.golden==="string"&&j.golden.startsWith("no:")){const GW={gps:"poloha musí byť z GPS",league:"mávnutie sa nerátalo do ligy (nový účet alebo mimo Slovenska)",far:"lietadlo bolo ďalej ako 60 km",new:"posádka je pre hráčov, ktorí mali appku už pred vyhlásením lietadla",days:"posádka je pre hráčov, ktorí appku používajú aspoň 2 dni",active:"appku treba mať otvorenú, keď lietadlo vyhlásime"};
     setTimeout(()=>toast("🏆 Do zlatej posádky sa to nerátalo",GW[j.golden.slice(3)]||""),4500)}
   if(j.plane){SOC.data=SOC.data||{planes:{}};SOC.data.planes=SOC.data.planes||{};SOC.data.planes[a.hex]=j.plane;delete SOC.local[a.hex]}
   waveInfo(a);
@@ -357,6 +365,7 @@ async function flushWq(){
         let k=x.b.type||"?";if(j.type&&j.type!==k&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[k])){if(COL.types[k]&&!COL.types[j.type]){COL.types[j.type]=COL.types[k];delete COL.types[k]}k=j.type}
         const v=COL.types[k];
         if(v){if(j.ver){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}if(j.shiny&&!v.shiny)v.shiny=Date.now();if(j.ed&&typeof edAdd==="function")edAdd(k,j.ed)}
+        try{waveRewards(j,{hex:x.b.hex,type:k})}catch(er){}
         res.push(j.ver?"✓ "+(catGuess(k).name||k)+(j.seq?" · č. "+j.seq+" na Slovensku":""):"⏳ "+(catGuess(k).name||k)+(j.why?": "+j.why:""))}
       else if((r.status===401||r.status>=500||(r.status===429&&j.error!=="rate"))&&x.b.try<6){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
       else if(r.status===429){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
@@ -378,7 +387,7 @@ $("frList")&&$("frList").addEventListener("click",e=>{const b=e.target.closest("
 async function syncCards(){
   if(!SOC.api||!navigator.onLine)return;
   try{const r=await apiPost("/api/mycards",{});const j=await r.json();if(!j.cards)return;let ch=0;
-    for(const [ty,sq] of j.cards){let v=COL.types[ty];
+    setTimeout(checkAch,500);for(const [ty,sq] of j.cards){let v=COL.types[ty];
       // overený typ na serveri, ktorý v mobile chýba (iný prah výšky, prenos, stará chyba identity) → doplniť kartičku
       if(!v&&/^[A-Z0-9]{2,5}$/.test(ty)){v=COL.types[ty]={n:1,r:typeTier(ty),name:catGuess(ty).name||ty,first:Date.now(),srv:1};ch=1}
       if(!v.ver||v.seq!==sq){v.ver=1;v.seq=sq;ch=1}}

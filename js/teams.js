@@ -16,7 +16,7 @@ function teamRender(){
       <div class="trActs"><button id="tmJoin">Pridať sa</button></div>`;
     return;
   }
-  $("teamRank").textContent=t.rank+". miesto";
+  $("teamRank").textContent=t.rank+". miesto";grantAch("team");
   box.innerHTML=`<div class="trTitle">${esc(t.name)}</div>
     <div class="trLine">Tento týždeň ${nf(t.n)} 👋 · ${t.rank}. miesto na Slovensku · ${(t.count||t.members.length)} ${(t.count||t.members.length)===1?"člen":(t.count||t.members.length)<5?"členovia":"členov"}</div>
 
@@ -34,7 +34,7 @@ $("teamBox").onclick=async e=>{
       try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","")}catch(er){prompt("Skopíruj odkaz:",url)}}
   }catch(er){toast("Nepodarilo sa","Skús znova")}
 };
-ACH.push({id:"team",i:"👥",n:"Tímový hráč",c:()=>false});
+ACH.push({id:"team",i:"👥",n:"Tímový hráč",h:"Založ tím alebo sa pridaj kódom",soc:1,c:()=>false});
 HOOKS.view.push(v=>{if(v==="col")teamRender()});
 HOOKS.social=HOOKS.social||[];HOOKS.social.push(()=>{if(S.view==="col")teamRender()});
 function tmFromHash(){const m=location.hash.match(/tim=([A-Za-z0-9]{6})/);if(!m)return;

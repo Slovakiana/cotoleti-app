@@ -458,7 +458,7 @@ if($("cardVideo"))$("cardVideo").onclick=()=>{
     const kidV=typeof KID==="function"&&KID(),proof=[v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"",!kidV&&v.fp&&v.fp.town?"nad "+v.fp.town:"",!kidV?LS.get("ctl_nick",""):""].filter(Boolean).join(" · ");
     const mime=vidMime(),st=c.captureStream(30),rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:4e6}:{}),chunks=[];
     rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
-    rec.onstop=()=>{done();const b=new Blob(chunks,{type:(mime||"video/webm").split(";")[0]});shareBlob(b,"kartička."+(b.type.includes("mp4")?"mp4":"webm"),(shiny?"✨ Lesklá ":"")+"kartička: "+name+" ✈️ "+shareUrl("c",cardK,["s="+(shiny?1:0),v.ver&&v.seq?"n="+v.seq:""].filter(Boolean).join("&"))+TAGS)};
+    rec.onstop=()=>{done();const b=new Blob(chunks,{type:(mime||"video/webm").split(";")[0]});if(b.size)grantAch("video");shareBlob(b,"kartička."+(b.type.includes("mp4")?"mp4":"webm"),(shiny?"✨ Lesklá ":"")+"kartička: "+name+" ✈️ "+shareUrl("c",cardK,["s="+(shiny?1:0),v.ver&&v.seq?"n="+v.seq:""].filter(Boolean).join("&"))+TAGS)};
     const T=6000,t0=performance.now();
     const frame=now=>{
       const t=Math.min(1,(now-t0)/T),ms=now-t0;
@@ -597,16 +597,19 @@ HOOKS.live.push(()=>{if(!S.list)return;const now=Date.now(),L=LS.get("ctl_seenT"
   if(ch){const ks=Object.keys(L);if(ks.length>400)for(const k of ks.sort((x,y)=>L[x]-L[y]).slice(0,100))delete L[k];LS.set("ctl_seenT",L)}});
 
 // 🎯 Hľadaná kartička dňa: 1 chýbajúca bežná/nezvyčajná kartička (rovnaká pre celý kraj), za úlovok v ten deň +50 míľ
-function wantedToday(){const kk=typeof krajOf==="function"?krajOf(S.pos):"XX",pool=CATALOG.map(c=>c[0]).filter(k=>!TROPHY.has(k)&&["c","u"].includes(typeTier(k))).sort();
+function wantedToday(){
+  // pevná na celý deň (vyberie sa, až keď appka pozná polohu), aby sa po úlovku nezmenila
+  const sv=LS.get("ctl_wantedK","");if(sv.slice(0,10)===dayKey())return sv.slice(10)||null;
+  if(!S.pos)return null;
+  const w=wantedPick();if(w)LS.set("ctl_wantedK",dayKey()+w);return w}
+function wantedPick(){const kk=typeof krajOf==="function"?krajOf(S.pos):"XX",pool=CATALOG.map(c=>c[0]).filter(k=>!TROPHY.has(k)&&["c","u"].includes(typeTier(k))).sort();
   const order=pool.slice().sort((a,b)=>hash(dayKey()+kk+a)-hash(dayKey()+kk+b));return order.find(k=>!(COL.types[k]&&COL.types[k].n))||null}
 function wantedHTML(){const k=wantedToday();if(!k)return "";const got=LS.get("ctl_wanted","")===dayKey()+k;
   return `<div class="wanted" style="grid-column:1/-1" data-lk="${esc(k)}" role="button"><div class="wT">🎯 HĽADANÁ DNES</div><div class="wN">${esc(catGuess(k).name)}</div><div class="lookSub">${got?"✅ Ulovené! +50 míľ":"Zamávaj jej dnes a dostaneš +50 míľ ✈ a odznak"}</div></div>`}
-HOOKS.caught.push(a=>{const k=a.type;if(!k||k!==wantedToday()&&!(LS.get("ctl_wantedK","")===dayKey()+k))return;
+HOOKS.caught.push(a=>{const k=a.type;if(!k||k!==wantedToday())return;
   if(LS.get("ctl_wanted","")===dayKey()+k)return;LS.set("ctl_wanted",dayKey()+k);COL.mi=(COL.mi|0)+50;LS.set("ctl_col",COL);grantAch("wanted");
   setTimeout(()=>toast("🎯 Hľadaná kartička dňa!","+50 míľ ✈ – presne túto si dnes mal(a) nájsť","#ffcf4f"),3000)});
-// zapamätaj si ráno vybranú hľadanú (aby sa po úlovku nezmenila skôr, ako sa pripíše odmena)
-setTimeout(()=>{const k=wantedToday();if(k)LS.set("ctl_wantedK",dayKey()+k)},3000);
-ACH.push({id:"wanted",i:"🎯",n:"Hľadaná kartička dňa",c:()=>false});
+ACH.push({id:"wanted",i:"🔎",n:"Hľadaná kartička dňa",h:"Ulov kartičku, ktorú appka v Atlase označí ako Hľadaná dnes",c:()=>false});
 
 // 🤝 popros kamaráta: ten, kto má 2 overené kópie, ti môže jednu darovať (🎁 Daruj kópiu na kartičke)
 $("cardBig").addEventListener("click",async e=>{const b=e.target.closest("[data-ask]");if(!b)return;const k=b.dataset.ask,nm=catGuess(k).name;

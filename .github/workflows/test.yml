@@ -20,3 +20,5 @@ jobs:
         run: node tests/worker.test.mjs
       - name: Identita
         run: node tests/cid.test.mjs
+      - name: Odznaky
+        run: node tests/ach.test.mjs

@@ -69,7 +69,7 @@ $("momentBar").onclick=()=>{haptic(10);const mo=SOC.data&&SOC.data.moment;$("mom
 $("momCam").onclick=()=>{$("momM").classList.remove("on");openAR()};
 $("momMini").onclick=()=>{$("momM").classList.remove("on");LS.set("ctl_momMini",dayKey());$("momentBar").classList.add("mini")};
 $("momClose").onclick=()=>$("momM").classList.remove("on");
-ACH.push({id:"moment",i:"👀",n:"Spoločný moment",c:()=>false});
+ACH.push({id:"moment",i:"👀",n:"Spoločný moment",h:"Buď v appke počas spoločného momentu (červený pás Pozri hore)",c:()=>false});
 HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{if(D.now)SOC.skew=D.now-Date.now();momentUI(D.moment)});
 // pri spustení: obnov prihlásenie raz denne a pošli SW identitu
 setTimeout(()=>{syncPushUI();maybeAskPush();if(PUSH.on&&pushSupported()&&Notification.permission==="granted"){swTell();if(Date.now()-LS.get("ctl_pushT",0)>86400e3)enablePush(true)}},3000);

@@ -103,7 +103,7 @@ const DAILY_POOL=[
   {id:"low",i:"🛬",n:"Zamávaj lietadlu nižšie ako 3 000 m",h:"Pristávajúce alebo štartujúce",t:a=>a.alt!=null&&a.alt<3000},
   {id:"high",i:"🏔️",n:"Zamávaj lietadlu vyššie ako 11 500 m",h:"To je viac ako 4× Gerlach",t:a=>a.alt!=null&&a.alt>11500},
   {id:"fast",i:"⚡",n:"Zamávaj lietadlu rýchlejšiemu ako 950 km/h",h:"S poriadnym chvostovým vetrom",t:a=>a.spd!=null&&a.spd>950},
-  {id:"cargo",i:"📦",n:"Zamávaj nákladnému lietadlu",h:"DHL, UPS, FedEx…",t:a=>/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL/.test(airlineOf(a))},
+  {id:"cargo",i:"📦",n:"Zamávaj nákladnému lietadlu",h:"DHL, UPS, FedEx…",t:a=>CARGO_RX.test(airlineOf(a))},
   {id:"five",i:"🖐️",n:"Zamávaj dnes 5 lietadlám",h:"Každé musí byť iné",need:5,t:()=>true},
   {id:"air3",i:"🎨",n:"Zamávaj lietadlám 3 rôznych aeroliniek",h:"Ryanair, Wizz, Lufthansa…",need:3,key:a=>airlineOf(a)},
   {id:"sun",i:"🏖️",n:"Zamávaj lietadlu, ktoré letí k moru",h:"Turecko, Egypt, Grécko, Španielsko, Chorvátsko…",t:a=>{const m=S.meta.get(a.hex),c=m&&m.route&&m.route.destination&&m.route.destination.country_iso_name;return ["TR","EG","GR","ES","HR","CY","PT","TN","IT","MT"].includes(c)}},
@@ -112,13 +112,13 @@ const DAILY_POOL=[
   {id:"zen",i:"🎯",n:"Zamávaj lietadlu vyššie ako 70°",h:"Takmer priamo nad hlavou",t:a=>a.el>=70},
   {id:"shazam",i:"👂",n:"Vyskúšaj „Čo to hučí?“",h:"Keď počuješ lietadlo",ev:true},
   // 📅 sviatočné výzvy (len v daný deň, vždy ako prvá)
-  {id:"miki",sp:"12-06",i:"🎅",n:"Mikulášska výzva: zamávaj 6 lietadlám",h:"Zamávaj 6 rôznym lietadlám · odznak Mikuláš",need:6,t:()=>true,ach:"mikulas"},
+  {id:"miki",sp:"12-06",i:"🎅",n:"Mikulášska výzva: zamávaj 6 lietadlám",h:"Zamávaj 6-krát · odznak Mikuláš",need:6,ev:true,ach:"mikulas"},
   {id:"civil",sp:"12-07",i:"✈️",n:"Deň civilného letectva: 3 aerolinky",h:"Zamávaj lietadlám 3 rôznych aeroliniek",need:3,key:a=>airlineOf(a),ach:"civil"},
   {id:"stefanik",sp:"05-04",i:"🇸🇰",n:"Deň Štefánika: zamávaj lietadlu nad 11 500 m",h:"Na počesť prvého slovenského letca",t:a=>a.alt!=null&&a.alt>11500,ach:"stefanik"},
   {id:"snp",sp:"08-29",i:"🇸🇰",n:"Výročie SNP: zamávaj 5 lietadlám",h:"Zamávaj 5 rôznym lietadlám",need:5,t:()=>true},
-  {id:"silvester",sp:"12-31",i:"🎆",n:"Silvester: zamávaj poslednému lietadlu roka",h:"Zamávaj ešte dnes aspoň jednému",t:()=>true,ach:"silvester"},
+  {id:"silvester",sp:"12-31",i:"🎆",n:"Silvester: zamávaj poslednému lietadlu roka",h:"Zamávaj ešte dnes aspoň jednému",ev:true,ach:"silvester"},
 ];
-ACH.push({id:"mikulas",i:"🎅",n:"Mikulášsky spotter",c:()=>false},{id:"civil",i:"✈️",n:"Deň civilného letectva",c:()=>false},{id:"stefanik",i:"⭐",n:"Na počesť Štefánika",c:()=>false},{id:"silvester",i:"🎆",n:"Posledné lietadlo roka",c:()=>false});
+ACH.push({id:"mikulas",i:"🎁",n:"Mikulášsky spotter",h:"Len 6. 12.: splň Mikulášsku výzvu",c:()=>false},{id:"civil",i:"✈️",n:"Deň civilného letectva",h:"Len 7. 12.: splň výzvu Dňa civilného letectva",c:()=>false},{id:"stefanik",i:"⭐",n:"Na počesť Štefánika",h:"Len 4. 5.: splň výzvu na počesť Štefánika",c:()=>false},{id:"silvester",i:"🎆",n:"Posledné lietadlo roka",h:"Len 31. 12.: zamávaj aspoň jednému lietadlu",c:()=>false});
 const today=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Bratislava"}).format(new Date());
 let DAILY=LS.get("ctl_daily",null);
 function dailyEnsure(){
@@ -149,12 +149,12 @@ function dailyComplete(id){
 }
 /* 🔥 séria = deň, keď si zamával (nie výzvy – tie závisia od premávky) + ❄️ zmrazenie + míľniky */
 const STREAK_MS={3:[20,""],7:[50,"streak7"],14:[80,""],30:[200,"streak30"],60:[300,""],100:[500,"streak100"]};
-ACH.push({id:"streak7",i:"🔥",n:"Týždeň pod oblohou",c:()=>false},{id:"streak30",i:"🌟",n:"Verný spotter (30 dní)",c:()=>false},{id:"streak100",i:"💯",n:"Sto dní pod oblohou",c:()=>false});
+ACH.push({id:"streak7",i:"🔥",n:"Týždeň pod oblohou",h:"Mávaj 7 dní v rade",pr:()=>[Math.min(7,(LS.get("ctl_daily",0).streak|0)),7],c:()=>(LS.get("ctl_daily",0).best|0)>=7},{id:"streak30",i:"🌙",n:"Verný spotter (30 dní)",h:"Mávaj 30 dní v rade",pr:()=>[Math.min(30,(LS.get("ctl_daily",0).streak|0)),30],c:()=>(LS.get("ctl_daily",0).best|0)>=30},{id:"streak100",i:"🏔️",n:"Sto dní pod oblohou",h:"Mávaj 100 dní v rade",pr:()=>[Math.min(100,(LS.get("ctl_daily",0).streak|0)),100],c:()=>(LS.get("ctl_daily",0).best|0)>=100});
 function dAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"})}
 function streakTouch(){
   const D=dailyEnsure();
   if(D.lastDay===D.date){ // 🔧 oprava série: po výpadku stačia dnes 2 mávnutia (1× za 30 dní)
-    if(D.repair&&D.repair.day===D.date){D.repair.cnt=(D.repair.cnt|0)+1;if(D.repair.cnt>=2){D.streak=D.repair.from+1;D.repairT=Date.now();D.repair=null;toast("🔧 Séria opravená!","Pokračuješ: "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" 🔥");LS.set("ctl_daily",D);streakChip()}else LS.set("ctl_daily",D)}
+    if(D.repair&&D.repair.day===D.date){D.repair.cnt=(D.repair.cnt|0)+1;if(D.repair.cnt>=2){D.streak=D.repair.from+1;D.repairT=Date.now();D.repair=null;{const ms=STREAK_MS[D.streak];if(ms){COL.pts+=ms[0];if(ms[1])grantAch(ms[1]);LS.set("ctl_col",COL)}}toast("🔧 Séria opravená!","Pokračuješ: "+D.streak+" "+pl(D.streak,"deň","dni","dní")+" 🔥");LS.set("ctl_daily",D);streakChip()}else LS.set("ctl_daily",D)}
     return}
   const prev=D.streak||0;let used=false;
   // ❄️ zmrazenie pokryje toľko vynechaných dní, koľko ich máš (max. 3)
@@ -189,7 +189,9 @@ function streakChip(){
   el.textContent=L.st==="repair"?"🔧 "+L.n+" · zachráň":"🔥 "+L.n+" "+pl(L.n,"deň","dni","dní")+((D.freeze|0)?" · ❄️ "+D.freeze:"");
   el.classList.toggle("pend",L.st!=="done"&&!(typeof KID==="function"&&KID()));
 }
-function dailyEvent(id){const D=dailyEnsure();if(D.ids.includes(id))dailyComplete(id)}
+function dailyEvent(id){const D=dailyEnsure();if(!D.ids.includes(id)||D.done[id])return;const x=DAILY_POOL.find(q=>q.id===id);
+  // výzvy s počtom (Mikuláš 6×) rátajú každé mávnutie
+  if(x&&x.need){D.prog[id]=(D.prog[id]|0)+1;LS.set("ctl_daily",D);if(D.prog[id]<x.need){if(typeof renderDaily==="function")renderDaily();return}}dailyComplete(id)}
 HOOKS.caught.push(a=>{
   const D=dailyEnsure();
   D.ids.forEach(id=>{
@@ -208,7 +210,7 @@ function renderDaily(){
   $("d-streak").textContent=L.st==="repair"?"🔧 "+L.n:L.n?"🔥 "+L.n+((D.freeze|0)?" · ❄️ "+D.freeze:""):"";streakChip();
   $("stampBox").innerHTML=(L.st==="repair"?`<div class="stNext">🔧 Séria ${L.n} ${pl(L.n,"deň","dni","dní")} sa dá zachrániť – dnes zamávaj 2 lietadlám</div>`:L.n?`<div class="stNext">🔥 ${L.n} ${pl(L.n,"deň","dni","dní")} v rade${nextMs(L.n)?" · "+nextMs(L.n):""}</div>`:"")+stampsHTML(D);
   $("d-list").innerHTML=D.ids.map(id=>{const x=DAILY_POOL.find(q=>q.id===id),p=D.prog[id],prog=x.need?` (${Array.isArray(p)?p.length:p||0}/${x.need})`:"";
-    return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
+    return `<div class="dl ${D.done[id]?"done":""}"><i>${D.done[id]?"✅":x.i}</i><div class="t">${x.n}${D.done[id]?"":prog}<small>${x.h}</small></div><b>+10</b>${!D.done[id]&&!D.swapped&&!x.sp?`<button class="swap" data-sw="${id}" aria-label="Vymeniť výzvu">🔄</button>`:""}</div>`}).join("");
   $("d-list").insertAdjacentHTML("beforeend",didYouKnow());
   if(n===3)$("d-list").insertAdjacentHTML("beforeend",`<div class="dyk">🌅 <b>Zajtra:</b> ${tomorrowIds().map(id=>{const q=DAILY_POOL.find(x=>x.id===id);return q?q.i+" "+esc(q.n):""}).join(" · ")}${L.n?` · séria ${L.n+1} 🔥`:""}</div>`);
 }
@@ -317,7 +319,7 @@ if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.service
 
 // jedna výmena výzvy denne (keď je výzva v tvojom okolí nesplniteľná)
 $("d-list").addEventListener("click",e=>{
-  const b=e.target.closest("[data-sw]");if(!b)return;const D=dailyEnsure();if(D.swapped)return;
+  const b=e.target.closest("[data-sw]");if(!b)return;const D=dailyEnsure();if(D.swapped)return;{const q=DAILY_POOL.find(q=>q.id===b.dataset.sw);if(q&&q.sp)return}
   const pool=DAILY_POOL.filter(q=>!q.sp&&!D.ids.includes(q.id));if(!pool.length)return;
   const nw=pool[Math.floor(Math.random()*pool.length)];D.ids=D.ids.map(i=>i===b.dataset.sw?nw.id:i);D.swapped=1;LS.set("ctl_daily",D);renderDaily();haptic(8);toast("🔄 Nová výzva",nw.n);
 });

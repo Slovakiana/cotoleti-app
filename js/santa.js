@@ -27,7 +27,7 @@ function santaNext(now=Date.now()){const f=(now%SANTA.P)/SANTA.P;return Math.rou
 {const base=quip;quip=(a,m)=>a&&a.santa?["Ho-ho-ho! Sane ťahá 9 sobov, Rudolf svieti vpredu 🔴","Za jednu noc obletí celý svet – nad Slovenskom spomalí, aby si mu stihol zamávať.","Darčeky na palube: neúrekom. Batožina navyše: zadarmo."][Math.floor(Date.now()/20000)%3]:base(a,m)}
 LEG.add("SLEIGH");TYPES.SLEIGH="Santove sane 🎅";SEATS.SLEIGH=1;
 CAT.SLEIGH={code:"SLEIGH",name:"Santove sane",maker:"Severný pól",fam:"ga",len:6,span:4,spd:900,range:40075,seats:1,year:null,fact:"Za jednu noc obletí celý svet – a nad Slovenskom spomalí, aby si mu stihol zamávať.",no:null};
-ACH.push({id:"santa",i:"🎅",n:"Videl som Santu",c:e=>e&&e.santa});
+ACH.push({id:"santa",i:"🎅",n:"Videl som Santu",h:"24. 12. od 15:00 do 22:00 zamávaj Santovým saniam",c:e=>e&&e.santa});
 // čip s odpočtom / výzvou
 function santaChip(){
   const w=santaWin(),c=$("santaChip");if(!c)return;

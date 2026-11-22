@@ -255,8 +255,11 @@ function renderCol(){
   const types=Object.entries(COL.types);
   const typesOwn=types.filter(([,v])=>v.n);$("c-n").textContent=COL.n;$("c-t").textContent=typesOwn.length;const rr=types.filter(([k,v])=>v.n&&RORD[typeTier(k)]>=2).length;$("c-r").textContent=rr;
   {const sp=id=>$(id)&&$(id).nextElementSibling;if(sp("c-n"))sp("c-n").textContent=pl(COL.n,"úlovok","úlovky","úlovkov");if(sp("c-t"))sp("c-t").textContent=pl(typesOwn.length,"typ","typy","typov");if(sp("c-r"))sp("c-r").textContent=pl(rr,"vzácny","vzácne","vzácnych")}
-  $("c-ach").innerHTML=ACH.map(x=>`<div class="${COL.ach[x.id]?"got":""}"><i>${x.i}</i>${x.n}</div>`).join("");
-  $("c-achN").textContent=Object.keys(COL.ach).length+"/"+ACH.length;
+  // odznaky: získané (najnovšie hore), potom zamknuté s návodom a pokrokom; v detskom režime bez sociálnych
+  {const kid=typeof KID==="function"&&KID(),L=ACH.filter(x=>!(kid&&x.soc)),got=L.filter(x=>COL.ach[x.id]).sort((a,b)=>COL.ach[b.id]-COL.ach[a.id]),rest=L.filter(x=>!COL.ach[x.id]);
+    const prog=x=>{try{const p=x.pr&&x.pr();return p?`<b class="achP">${Math.min(p[0],p[1])}/${p[1]}</b>`:""}catch(e){return ""}};
+    $("c-ach").innerHTML=[...got,...rest].map(x=>`<div class="${COL.ach[x.id]?"got":""}" data-ach="${x.id}" role="button"><i>${x.i}</i>${esc(x.n)}${COL.ach[x.id]?"":(x.h?`<small>${esc(x.h)}</small>`:"")+prog(x)}</div>`).join("");
+    $("c-achN").textContent=got.length+"/"+L.length}
   const order={l:0,r:1,u:2,c:3};
   if(typeof renderCards==="function")renderCards();
   const nk=LS.get("ctl_nick","");$("meName").textContent=nk||"Spotter";
@@ -458,7 +461,7 @@ $("mset").onclick=()=>{
 };
 $("mgps").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 let resetArm=0;
-$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať zbierku"))return;COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);renderCol();$("b-reset").textContent="Vymazané";toast("Zbierka vymazaná","Začínaš od nuly")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
+$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať zbierku"))return;COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);localStorage.removeItem("ctl_season");renderCol();$("b-reset").textContent="Vymazané";toast("Zbierka vymazaná","Začínaš od nuly")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
 $("b-pos").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 $("b-man").onclick=()=>{showCities(true)};
 $("sky").addEventListener("click",skyTap);
@@ -523,7 +526,7 @@ $("gOpts").onclick=e=>{
   guessDone(box.dataset.hex);
 };
 $("gSkip").onclick=()=>guessDone($("guess").dataset.hex);
-ACH.push({id:"oracle",i:"🔮",n:"Jasnovidec (5×)",c:()=>false});
+ACH.push({id:"oracle",i:"🔮",n:"Jasnovidec (5×)",h:"5× za sebou správne uhádni, kam lietadlo letí",pr:()=>[LS.get("ctl_gstreak",0)|0,5],c:()=>false});
 $("t-guess").classList.toggle("on",S.guess);
 $("t-guess").onclick=()=>{S.guess=!S.guess;LS.set("ctl_guess",S.guess);$("t-guess").classList.toggle("on",S.guess);if(S.top)renderHeroStatic(S.top)};
 
@@ -590,7 +593,7 @@ function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
 
 /* ============ 🔁 prenos zbierky jednorazovým kódom (platí 10 min, starý mobil stratí prístup) ============ */
-const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_ach:"object",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean"};
+const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean"};
 async function xferMake(){
   if(typeof apiPost!=="function")return;
   const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
@@ -724,7 +727,7 @@ function seenSum(){
 }
 
 /* 🗓️ sezóny (každé 3 mesiace) – zbierka sa nikdy nemaže, len sa začína nové počítadlo */
-const SEAS_REW=["+50 míľ","+120 míľ","+250 míľ a odznak"];
+const SEAS_REW=["+50 míľ a odznak","+120 míľ","+250 míľ a odznak"];
 const SEAS=[["Zima","❄️"],["Jar","🌱"],["Leto","☀️"],["Jeseň","🍂"]];
 function seasonNow(d=new Date()){
   const m=d.getMonth(),i=m===11||m<2?0:m<5?1:m<8?2:3,y=m===11?d.getFullYear()+1:d.getFullYear();
@@ -740,17 +743,17 @@ function seasonUpd(){
     z.hist=(z.hist||[]).concat([{k:old,p:got}]).slice(-8);z.best=Math.max(z.best||0,got);z.k=n.k;z.base=COL.pts;
     // súhrn uzavretej sezóny ako karta
     if(got>0)setTimeout(()=>{$("cdBox").innerHTML=`<div style="text-align:center;font-size:56px">🗓️</div><div class="cdScore">Sezóna skončila</div><div class="lookSub" style="text-align:center">Získal(a) si <b>${got} b</b>${got>=(z.best||0)?" – tvoj rekord! 🏆":""}.<br>Začína ${esc(n.name)} – zbierka ti zostáva celá, body sezóny idú od nuly.</div><div class="acts"><button class="btn pri" id="cdX">Ideme na to 💪</button></div>`;$("cdM").classList.add("on")},3000);
-    if(got>=100)grantAch("season100");
+    if(got>=100)setTimeout(()=>grantAch("season100"),0);
   }
   // 🏅 stupne sezóny 100/300/600 b: míle a odznaky (raz za sezónu)
   const pts=Math.max(0,COL.pts-z.base);z.tiers=z.tiers&&z.tierK===n.k?z.tiers:[];z.tierK=n.k;
-  [100,300,600].forEach((t,i)=>{if(pts>=t&&!z.tiers.includes(t)){z.tiers.push(t);COL.mi=(COL.mi|0)+[50,120,250][i];LS.set("ctl_col",COL);if(i===0)grantAch("season100");if(i===2)grantAch("season600");
+  [100,300,600].forEach((t,i)=>{if(pts>=t&&!z.tiers.includes(t)){z.tiers.push(t);COL.mi=(COL.mi|0)+[50,120,250][i];LS.set("ctl_col",COL);LS.set("ctl_season",z);/* uložiť hneď – grantAch prekreslí Ja a znova zavolá seasonUpd */if(i===0)setTimeout(()=>grantAch("season100"),0);if(i===2)setTimeout(()=>grantAch("season600"),0);
     setTimeout(()=>toast("🏅 Stupeň sezóny "+(i+1)+"/3",t+" b · odmena "+SEAS_REW[i]),2000)}});
   LS.set("ctl_season",z);
   const endD=new Date(n.endY,n.endM,0),left=Math.max(0,Math.ceil((endD.setHours(23,59,59)-Date.now())/864e5));
   return {...n,pts,best:z.best||0,left};
 }
-if(typeof ACH!=="undefined")ACH.push({id:"season100",i:"🗓️",n:"100 bodov za jednu sezónu",c:()=>false},{id:"season600",i:"🏅",n:"600 bodov za jednu sezónu",c:()=>false});
+if(typeof ACH!=="undefined")ACH.push({id:"season100",i:"🗓️",n:"100 bodov za jednu sezónu",h:"Získaj 100 bodov v jednej sezóne",c:()=>false},{id:"season600",i:"🏅",n:"600 bodov za jednu sezónu",h:"Získaj 600 bodov v jednej sezóne",c:()=>false});
 
 /* 🔠 veľkosť písma: systémová (Dynamic Type na iPhone) × vlastné „Väčšie písmo“ */
 function fsApply(){
@@ -792,7 +795,7 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_ach","ctl_team","ctl_track","ctl_goldAlert"];
+const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen"];
 function profState(){return LS.get("ctl_profs",{cur:"A",n:{A:"Ja",B:"Dieťa"}})}
 function profRender(){const P=profState(),o=P.cur==="A"?"B":"A";const el=$("profTxt");if(!el)return;el.innerHTML=`Hrá: <b>${esc(P.n[P.cur])}</b>`;$("b-prof").textContent="Prepnúť na: "+P.n[o]}
 function profSwitch(){
@@ -812,3 +815,7 @@ function srcRender(){const el=$("srcStat");if(!el||typeof COMBOS==="undefined")r
 if($("b-src"))$("b-src").onclick=()=>{haptic(8);const n=COMBOS.length;let k=(comboIdx+1)%n;for(let j=0;j<n;j++){const st=SRCST[(comboIdx+1+j)%n];if(!st||!st.err){k=(comboIdx+1+j)%n;break}}
   comboIdx=k;LS.set("ctl_combo",k);toast("📶 Skúšam iný zdroj",COMBOS[k].s.name);fetchPlanes(true).then(srcRender)};
 HOOKS.view.push(v=>{if(v==="col")srcRender()});setInterval(()=>{if(S.view==="col"&&$("settings")&&$("settings").open)srcRender()},5000);
+
+// ťuk na odznak: ako ho získať / kedy si ho získal
+$("c-ach")&&$("c-ach").addEventListener("click",e=>{const d=e.target.closest("[data-ach]");if(!d)return;const x=ACH.find(q=>q.id===d.dataset.ach);if(!x)return;haptic(6);
+  toast(x.i+" "+x.n,COL.ach[x.id]?"Získaný "+new Date(COL.ach[x.id]).toLocaleDateString("sk-SK"):(x.h||"Zatiaľ zamknutý"))});

@@ -2,7 +2,7 @@
 /* ============ ✨ Moja obloha (príbeh v štýle Wrapped) ============ */
 let LOG=LS.get("ctl_log",[]);
 const LOGK=new Set(LOG.map(e=>e.d+e.h));
-const CARGO_RX=/DHL|UPS|FedEx|Cargo|Kalitta|Atlas|ASL|Cargolux/;
+// CARGO_RX je v core.js
 function logSave(){if(LOG.length>3000)LOG=LOG.slice(-3000);LS.set("ctl_log",LOG)}
 HOOKS.list.push(list=>{
   const d=new Date().toLocaleDateString("sv-SE");let ch=false;

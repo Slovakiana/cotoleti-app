@@ -14,7 +14,7 @@ $("mailClose").onclick=()=>$("mailM").classList.remove("on");
 $("mailList").onclick=async e=>{
   const b=e.target.closest("button");if(!b)return;const i=+b.dataset.i,a=S.top;$("mailM").classList.remove("on");if(!a)return;
   haptic([20,40,20]);flyEmoji("✉️",$("b-wave"));
-  if(!SOC.api){toast("✉️ Pozdrav odoslaný","");return}
+  if(!SOC.api){toast("Pozdrav sa teraz nedá poslať","Skús to, keď budeš online");return}
   try{
     const r=await apiPost("/api/mail",{hex:a.hex,msg:i,...posR(),nick:LS.get("ctl_nick","")});
     const j=await r.json();
@@ -56,7 +56,7 @@ $("postShare").onclick=()=>{
   x.font="500 36px Inter, sans-serif";x.fillText("Lietadlá roznášajú pozdravy po Slovensku",W/2,H-385);x.fillText(APP_HOST,W/2,H-335);
   c.toBlob(b=>b&&shareBlob(b,"pozdrav.png",(m.town?"Z neba mi prišiel pozdrav z "+m.town:"Z neba mi prišiel pozdrav")+" ✉️ Doručilo ho lietadlo. "+appLink()+TAGS),"image/png");
 };
-ACH.push({id:"mail",i:"✉️",n:"Prvý pozdrav lietadlom",c:()=>false},{id:"post",i:"📬",n:"Prišiel mi pozdrav",c:()=>false});
+ACH.push({id:"mail",i:"✉️",n:"Prvý pozdrav lietadlom",h:"Podrž 👋 a vyber ✉️ – pošli pozdrav lietadlom",soc:1,c:()=>false},{id:"post",i:"📬",n:"Prišiel mi pozdrav",h:"Príde, keď nad tebou preletí lietadlo s pozdravom od iného hráča",soc:1,c:()=>false});
 if(typeof DAILY_POOL!=="undefined")DAILY_POOL.push({id:"mail",i:"✉️",n:"Pošli pozdrav lietadlom",h:"Mávni → ✉️",ev:true});
 HOOKS.social=HOOKS.social||[];
 HOOKS.social.push(D=>{

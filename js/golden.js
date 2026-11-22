@@ -32,7 +32,7 @@ function goldenWon(a){
   COL.pts+=25;LS.set("ctl_col",COL);grantAch("golden");
   setTimeout(()=>{toast("🏆 Zlatá posádka to dala!","20+ ľudí zamávalo spolu · +25 bodov pre každého","#ffcf4f");confetti(160);haptic([80,50,80,50,80,50,400]);ping("l")},600);
 }
-ACH.push({id:"golden",i:"🏆",n:"Zlaté lietadlo",c:()=>false});
+ACH.push({id:"golden",i:"🏆",n:"Zlaté lietadlo",h:"Zamávaj zlatému lietadlu dňa a pridaj sa k posádke",c:()=>false});
 // lietadlo týždňa
 function weekRender(w){
   if(!w||!w.n){$("weekCard").style.display="none";return}
