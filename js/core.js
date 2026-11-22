@@ -309,7 +309,7 @@ try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o]
   if(t){if(!v.srv)t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny;if(v.ver){t.ver=1;if(v.seq&&(!t.seq||v.seq<t.seq))t.seq=v.seq}}else COL.types[nw]=v;
   delete COL.types[o]}}catch(e){}
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
-addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
+addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi","ed"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
 const ACH=[
   {id:"first",i:"🐣",n:"Prvý úlovok",h:"Zamávaj prvému lietadlu (aspoň 10° nad obzorom)",c:()=>COL.n>=1,pr:()=>[COL.n,1]},
   {id:"ten",i:"🔟",n:"Desiatka",h:"Ulov 10 lietadiel",c:()=>COL.n>=10,pr:()=>[COL.n,10]},

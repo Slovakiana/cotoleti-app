@@ -26,7 +26,10 @@ $("mailList").onclick=async e=>{
   }catch(err){toast("Pozdrav sa nepodarilo poslať","Skús znova")}
 };
 function showPost(){
-  if(postCur||!POSTQ.length)return;postCur=POSTQ.shift();const m=postCur,pl=S.list.find(x=>x.hex===m.hex);
+  if(postCur||!POSTQ.length)return;
+  // nie cez úvod ani cez iné otvorené okno – počkaj
+  if(!LS.get("ctl_onb",0)||document.querySelector(".modal.on")){clearTimeout(showPost.t);showPost.t=setTimeout(showPost,4000);return}
+  postCur=POSTQ.shift();const m=postCur,pl=S.list.find(x=>x.hex===m.hex);
   $("postCard").innerHTML=`<div class="stamp">${esc(m.emoji||"✉️")}</div><div class="k">✉️ Z neba ti prišiel pozdrav</div>
     <div class="m">${esc(MAILS[m.msg]||"Ahoj!")}</div><div class="f">Posiela: <b>${esc(m.nick||"neznámy spotter")}</b>${m.nick?` <button class="rep" id="postRep" aria-label="Nahlásiť nevhodné meno">🚩</button>`:""}${m.town?" · "+esc(m.town):m.k&&KRAJ[m.k]?" · "+esc(KRAJ[m.k][2])+" kraj":""}</div>
     <div class="via">✈️ doručil ${esc(pl?[airlineOf(pl),titleOf(pl)].filter(Boolean).join(" "):"let nad tebou")} · ${new Date().toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})}</div>`;

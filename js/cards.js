@@ -225,6 +225,7 @@ function cardExtras(k,v){
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:f[3]}</small></span>`).join("")}</div>`;
   // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
   if(v.fp&&(v.fp.dest||v.fp.alt||v.fp.t))h+=`<div class="lookSub">🧾 Pri prvom úlovku${v.fp.t?" ("+new Date(v.fp.t).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric",year:"numeric"})+")":""}${v.fp.dest?" letel → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt).replace(/\s/g,"\u00a0")+"\u00a0m":""}</div>`;
+  {const eds=Object.entries(COL.ed||{}).filter(([,g])=>g.ty===k);if(eds.length)h+=`<div class="lookSub">📅 ${eds.map(([,g])=>esc(g.n)+(g.no?" · č. "+g.no:"")).join(" · ")}</div>`}
   if(al.length)h+=`<div class="lookSub">🎨 Aerolinky na tejto kartičke: ${al.map(x=>esc(AIRLINES[x]||x)).join(", ")}</div>`;
   return h+`</div>`;
 }
@@ -260,7 +261,7 @@ HOOKS.caught.push(a=>{
   if(W&&W.shiny){v.shinyN=(v.shinyN|0)+1;if(!v.shiny){v.shiny=Date.now();msg=["✨ LESKLÁ KARTIČKA!",(v.name||ty)+" – dnes je toto lietadlo lesklé pre všetkých, čo mu zamávajú"]}}
   if(W&&W.seq&&!v.seq)v.seq=W.seq;
   if(W&&(W.firstK||W.firstT)&&W.seq!==1){v.firstK=W.firstK?1:0;v.firstT=W.firstT?1:0}
-  if(W&&W.ed){COL.ed=COL.ed||{};if(!COL.ed[W.ed.id]){COL.ed[W.ed.id]={n:W.ed.n,no:W.ed.no,t:Date.now(),ty};msg=msg||["📅 Edícia: "+W.ed.n,"Tvoja kartička má číslo "+W.ed.no+" – bol si pri tom!"]}}
+  if(W&&W.ed&&edAdd(ty,W.ed))msg=msg||["📅 Edícia: "+W.ed.n,"Tvoja kartička má číslo "+W.ed.no+" – bol si pri tom!"];
   // formy
   v.forms=v.forms||{};const sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null,c=COL.cx&&COL.cx[a.hex],fm=v.forms,got=[];
   const set=(k)=>{if(!fm[k]){fm[k]=Date.now();got.push(FORMS.find(f=>f[0]===k))}};
@@ -399,11 +400,19 @@ function setsCheck(a){
   if(msg){LS.set("ctl_col",COL);setTimeout(()=>{toast(msg[0],msg[1],"#ffcf4f");confetti(90)},typeof WB!=="undefined"&&WB?0:3600)}
 }
 /* 📅 edície „Bol som pri tom“ – číslované serverom, zmeškané sa nedajú doplniť */
-const EDS=[["santa2026","🛷","Santa 2026","24. 12. 2026"],["silvester2026","🎆","Posledné lietadlo 2026","31. 12. 2026 večer"],["novyrok2027","🥂","Prvé lietadlo 2027","1. 1. 2027"],["valentin2027","❤️","Valentínske lietadlo 2027","14. 2. 2027"],["rovnodennost2027","🌗","Jarná rovnodennosť 2027","20. 3. 2027"],["stefanik2027","⭐","Deň Štefánika 2027","4. 5. 2027"],["detom2027","🧒","Deň detí 2027","1. 6. 2027"],["slnovrat2027","☀️","Letný slnovrat 2027","21. 6. 2027"],["zatmenie2027","🌘","Zatmenie Slnka 2027","2. 8. 2027, 10:10–12:30 (do Slnka nepozeraj!)"],["perzeidy2027","🌠","Noc Perzeíd 2027","12./13. 8. 2027"],["snp2027","🇸🇰","Výročie SNP 2027","29. 8. 2027"],["halloween2027","🎃","Strašidelné lietadlo 2027","31. 10. 2027 po zotmení"]];
+const EDS=[["advent2026","🕯️","Prvá adventná nedeľa 2026","29. 11. 2026","2026-11-28T23:00:00Z","2026-11-29T23:00:00Z"],["mikulas2026","🎅","Mikulášske lietadlo 2026","6. 12. 2026","2026-12-05T23:00:00Z","2026-12-06T23:00:00Z"],["lucia2026","🕯️","Lucia 2026","13. 12. 2026","2026-12-12T23:00:00Z","2026-12-13T23:00:00Z"],["zslnovrat2026","🌌","Zimný slnovrat 2026","21. 12. 2026 – najdlhšia noc","2026-12-20T23:00:00Z","2026-12-21T23:00:00Z"],["vianoce2026","🎄","Štedrý deň 2026","24. 12. 2026","2026-12-23T23:00:00Z","2026-12-24T23:00:00Z"],["santa2026","🛷","Santa 2026","24. 12. 2026 15:00–22:00 · ulov Santove sane","2026-12-24T14:00:00Z","2026-12-24T21:00:00Z"],["silvester2026","🎆","Posledné lietadlo 2026","31. 12. 2026 večer","2026-12-31T19:00:00Z","2026-12-31T23:00:00Z"],["novyrok2027","🥂","Prvé lietadlo 2027","1. 1. 2027","2026-12-31T23:00:00Z","2027-01-01T23:00:00Z"],["valentin2027","❤️","Valentínske lietadlo 2027","14. 2. 2027","2027-02-13T23:00:00Z","2027-02-14T23:00:00Z"],["rovnodennost2027","🌗","Jarná rovnodennosť 2027","20. 3. 2027","2027-03-19T23:00:00Z","2027-03-20T23:00:00Z"],["stefanik2027","⭐","Deň Štefánika 2027","4. 5. 2027","2027-05-03T22:00:00Z","2027-05-04T22:00:00Z"],["detom2027","🧒","Deň detí 2027","1. 6. 2027","2027-05-31T22:00:00Z","2027-06-01T22:00:00Z"],["slnovrat2027","☀️","Letný slnovrat 2027","21. 6. 2027","2027-06-20T22:00:00Z","2027-06-21T22:00:00Z"],["zatmenie2027","🌘","Zatmenie Slnka 2027","2. 8. 2027, 10:10–12:30 (do Slnka nepozeraj!)","2027-08-02T08:10:00Z","2027-08-02T10:30:00Z"],["perzeidy2027","🌠","Noc Perzeíd 2027","12./13. 8. 2027","2027-08-12T20:00:00Z","2027-08-13T02:00:00Z"],["snp2027","🇸🇰","Výročie SNP 2027","29. 8. 2027","2027-08-28T22:00:00Z","2027-08-29T22:00:00Z"],["halloween2027","🎃","Strašidelné lietadlo 2027","31. 10. 2027 po zotmení","2027-10-31T16:00:00Z","2027-10-31T23:00:00Z"]];
+// zapíše edíciu zo servera (živé mávnutie, odložené z fronty aj synchronizácia); true = nová
+function edAdd(ty,ed){if(!ed||!ed.id)return false;COL.ed=COL.ed||{};if(COL.ed[ed.id])return false;COL.ed[ed.id]={n:ed.n,no:ed.no|0,t:Date.now(),ty:ty||""};LS.set("ctl_col",COL);return true}
+// práve prebiehajúca alebo najbližšia edícia (bez santa – tú dáva Santa, nie server)
+function edNext(now=Date.now()){return EDS.find(e=>!e[0].startsWith("santa")&&Date.parse(e[5])>now)||null}
+function edCountdown(){const e=edNext();if(!e)return "";const now=Date.now(),f=Date.parse(e[4]),live=now>=f,dd=Math.ceil((f-now)/864e5),hh=Math.ceil((f-now)/36e5),g=(COL.ed||{})[e[0]];
+  return `<div class="setRow ${live?"done":""}" style="grid-column:1/-1"><span class="si">${e[1]}</span><span class="sn">${live?(g?"Máš ju! Edícia "+e[2]+(g.no?" · č. "+g.no:""):"PRÁVE TERAZ: "+e[2]):"Najbližšia edícia: "+e[2]}<small>${live?(g?"Ďalšia edícia príde čoskoro":"Zamávaj ktorémukoľvek lietadlu nad tebou (GPS, aspoň 10°) a dostaneš číslovanú kartičku"):hh<=48?"začína o "+hh+" "+pl(hh,"hodinu","hodiny","hodín"):"o "+dd+" "+pl(dd,"deň","dni","dní")+" · "+e[3]}</small></span><span class="sp">${live?(g?"✅":"⏳"):"📅"}</span></div>`}
 function edHTML(){
-  const E=COL.ed||{};
-  return `<div class="lookSub" style="grid-column:1/-1">Kartičky „Bol som pri tom“: stačí v daný deň zamávať akémukoľvek lietadlu. Majú poradové číslo a zmeškané sa nedajú doplniť.</div><div class="sets" style="grid-column:1/-1">${EDS.map(([id,i,n,w])=>{const g=E[id];return `<div class="setRow ${g?"done":""}"><span class="si">${i}</span><span class="sn">${n}<small>${g?(g.no?"č. "+g.no+" · ":"")+new Date(g.t).toLocaleDateString("sk-SK"):w}</small></span><span class="sp">${g?"✅":"📅"}</span></div>`}).join("")}</div>`;
+  const E=COL.ed||{},shN=Object.values(COL.types).filter(v=>v.shiny).length;
+  return `<div class="sets" style="grid-column:1/-1">${edCountdown()}</div><div class="lookSub" style="grid-column:1/-1">Kartičky „Bol som pri tom“: stačí v daný deň zamávať akémukoľvek lietadlu (overené mávnutie). Majú poradové číslo a zmeškané sa nedajú doplniť.</div><div class="sets" style="grid-column:1/-1">${EDS.map(([id,i,n,w])=>{const g=E[id];return `<div class="setRow ${g?"done":""}"><span class="si">${i}</span><span class="sn">${n}<small>${g?(g.no?"č. "+g.no+" · ":"")+new Date(g.t).toLocaleDateString("sk-SK"):w}</small></span><span class="sp">${g?"✅":"📅"}</span></div>`}).join("")}</div><div class="lookSub" style="grid-column:1/-1">✨ Lesklé kartičky: každý deň je asi 1 z 70 lietadiel lesklé – pre všetkých, čo mu zamávajú (vzácne typy častejšie, legendárne až 1 z 10). ${shN?"Máš "+shN+" "+pl(shN,"lesklú","lesklé","lesklých")+".":"Zatiaľ nemáš žiadnu – mávaj čo najviac rôznym lietadlám."}</div>`;
 }
+// pri otvorení appky: dnes je edícia → jedno upozornenie denne
+setTimeout(()=>{try{const e=edNext(),now=Date.now();if(!e||now<Date.parse(e[4])||(COL.ed||{})[e[0]]||LS.get("ctl_edHint","")===e[0])return;LS.set("ctl_edHint",e[0]);toast(e[1]+" Dnes je edícia: "+e[2],"Zamávaj ktorémukoľvek lietadlu a získaš číslovanú kartičku „Bol som pri tom“","#ffcf4f")}catch(x){}},9000);
 // opakovaný úlovok toho istého typu zvyšuje úroveň kartičky
 HOOKS.caught.push(a=>{
   const v=COL.types[a.type||"?"];if(!v)return;

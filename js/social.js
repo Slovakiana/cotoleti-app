@@ -402,9 +402,9 @@ async function flushWq(){
         // rovnaké zjednotenie typu ako pri živom mávnutí
         let k=x.b.type||"?";if(j.type&&j.type!==k&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[k])){if(COL.types[k]&&!COL.types[j.type]){COL.types[j.type]=COL.types[k];delete COL.types[k]}k=j.type}
         const v=COL.types[k];
-        if(v){if(j.ver){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}if(j.shiny&&!v.shiny)v.shiny=Date.now();if(j.ed&&typeof edAdd==="function")edAdd(k,j.ed)}
+        if(v){if(j.ver){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}if(j.shiny&&!v.shiny)v.shiny=Date.now()}if(j.ed)edAdd(k,j.ed)
         try{waveRewards(j,{hex:x.b.hex,type:k})}catch(er){}
-        res.push(j.ver?"✓ "+(catGuess(k).name||k)+(j.seq?" · č. "+j.seq+" na Slovensku":""):"⏳ "+(catGuess(k).name||k)+(j.why?": "+j.why:""))}
+        res.push((j.shiny?"✨ ":"")+(j.ver?"✓ "+(catGuess(k).name||k)+(j.seq?" · č. "+j.seq+" na Slovensku":""):"⏳ "+(catGuess(k).name||k)+(j.why?": "+j.why:""))+(j.ed?" · 📅 "+j.ed.n+" č. "+j.ed.no:""))}
       else if((r.status===401||r.status>=500||(r.status===429&&j.error!=="rate"))&&x.b.try<6){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
       else if(r.status===429){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
       else bad.push(j.error==="far"?"lietadlo už bolo ďaleko":j.error||("kód "+r.status))
@@ -412,7 +412,7 @@ async function flushWq(){
   }finally{SOC.flushing=0}
   if(ok||ver)LS.set("ctl_col",COL);
   if(back)setTimeout(flushWq,30000);
-  if(ok){toast("✅ Odložené mávnutia odoslané",res.slice(0,3).join(" · ")+(res.length>3?" · …":""));if(ver&&typeof renderCol==="function")renderCol()}
+  if(ok){toast("✅ Odložené mávnutia odoslané",res.slice(0,3).join(" · ")+(res.length>3?" · …":""));if(S.view==="col"&&typeof renderCol==="function")renderCol()}
   if(bad.length)setTimeout(()=>toast("⚠️ "+bad.length+" "+pl(bad.length,"mávnutie sa nepodarilo","mávnutia sa nepodarili","mávnutí sa nepodarilo")+" overiť",bad[0]),ok?4200:0);
 }
 addEventListener("online",()=>setTimeout(flushWq,1500));setTimeout(flushWq,5000);
@@ -429,6 +429,9 @@ async function syncCards(){
       // overený typ na serveri, ktorý v mobile chýba (iný prah výšky, prenos, stará chyba identity) → doplniť kartičku
       if(!v&&/^[A-Z0-9]{2,5}$/.test(ty)){v=COL.types[ty]={n:1,r:typeTier(ty),name:catGuess(ty).name||ty,first:Date.now(),srv:1};ch=1}
       if(!v.ver||v.seq!==sq){v.ver=1;v.seq=sq;ch=1}}
+    // ✨ lesklé a 📅 edície zo servera – len pridáva, nič neuberá
+    for(const ty of j.sh||[]){const v=COL.types[ty];if(v&&!v.shiny){v.shiny=Date.now();ch=1}}
+    for(const [id,n,no,ty] of j.ed||[])if(edAdd(ty,{id,n,no}))ch=1;
     if(ch){LS.set("ctl_col",COL);if(S.view==="col")renderCol()}}catch(e){}
 }
 setTimeout(syncCards,4000);HOOKS.view.push(v=>{if(v==="col")syncCards()});

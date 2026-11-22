@@ -31,6 +31,11 @@ const TIER_W = {c: 3, u: 8, r: 25, e: 45, l: 80};
 const SHINY_P = {c: 15, u: 30, r: 60, e: 80, l: 100}; // z 1000
 /* 📅 edície „Bol som pri tom“ – časové okná (UTC), číslované serverom */
 const EVENTS = [
+  {id: "advent2026", n: "Prvá adventná nedeľa 2026", from: "2026-11-28T23:00:00Z", to: "2026-11-29T23:00:00Z"},
+  {id: "mikulas2026", n: "Mikulášske lietadlo 2026", from: "2026-12-05T23:00:00Z", to: "2026-12-06T23:00:00Z"},
+  {id: "lucia2026", n: "Lucia 2026", from: "2026-12-12T23:00:00Z", to: "2026-12-13T23:00:00Z"},
+  {id: "zslnovrat2026", n: "Zimný slnovrat 2026", from: "2026-12-20T23:00:00Z", to: "2026-12-21T23:00:00Z"},
+  {id: "vianoce2026", n: "Štedrý deň 2026", from: "2026-12-23T23:00:00Z", to: "2026-12-24T23:00:00Z"},
   {id: "silvester2026", n: "Posledné lietadlo 2026", from: "2026-12-31T19:00:00Z", to: "2026-12-31T23:00:00Z"},
   {id: "novyrok2027", n: "Prvé lietadlo 2027", from: "2026-12-31T23:00:00Z", to: "2027-01-01T23:00:00Z"},
   {id: "valentin2027", n: "Valentínske lietadlo 2027", from: "2027-02-13T23:00:00Z", to: "2027-02-14T23:00:00Z"},
@@ -845,8 +850,10 @@ export class Sky extends DurableObject {
           if (this.cstat) this.cstat.delete(ty); this._players = null;
           if (seq === 1) this.bump("first_sk");
         }
-        // edícia „Bol som pri tom“
-        const ev = EVENTS.find(e => now >= Date.parse(e.from) && now < Date.parse(e.to));
+      }
+      // edícia „Bol som pri tom“ – stačí overené mávnutie (aj keď typ lietadla nepoznáme); odložené mávnutie sa ráta v čase mávnutia
+      if (cok) {
+        const te = vp.late ? tw : now, ev = EVENTS.find(e => te >= Date.parse(e.from) && te < Date.parse(e.to));
         if (ev) {
           const h = this.row("SELECT no FROM edcatch WHERE ev=? AND id=?", ev.id, id);
           if (h) ed = {id: ev.id, n: ev.n, no: h.no};
@@ -1076,7 +1083,10 @@ export class Sky extends DurableObject {
       // ✓ ktoré moje kartičky sú overené serverom (+ poradie na Slovensku)
       const b = await body(), id = cleanId(b.id);
       const rows = this.sql.exec("SELECT type, seq FROM typeseq WHERE id=? LIMIT 500", id).toArray();
-      return json({cards: rows.map(r => [tAlias(r.type), r.seq])});
+      // ✨ lesklé typy a 📅 edície – aby sa obnovili aj po preinštalovaní / pri chýbajúcej kartičke
+      const sh = this.sql.exec("SELECT DISTINCT type FROM catches WHERE id=? AND shiny=1 AND type<>'' LIMIT 500", id).toArray().map(r => tAlias(r.type));
+      const eds = this.sql.exec("SELECT ev, no, type FROM edcatch WHERE id=? LIMIT 100", id).toArray().map(r => [r.ev, (EVENTS.find(e => e.id === r.ev) || {}).n || r.ev, r.no, tAlias(r.type || "")]);
+      return json({cards: rows.map(r => [tAlias(r.type), r.seq]), sh, ed: eds});
     }
     if (p === "/api/duelres" && req.method === "POST") {
       // ⚔️ výsledok súboja kartičiek pre vyzývateľa (v appke + upozornenie)
