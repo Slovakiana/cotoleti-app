@@ -142,6 +142,55 @@ function cardSVG(code,v,opt={}){
   return s;
 }
 
+
+/* 💎 Klenotnica: status vzniká len z reálnych dát kartičky, nikdy nie z náhodnej nálepky. */
+const collectorFormCount=v=>Object.values((v&&v.forms)||{}).filter(Boolean).length;
+const collectorEditions=k=>Object.values(COL.ed||{}).filter(ed=>ed.ty===k);
+const collectorSpecial=(k,v)=>!!(v&&(v.shiny||(v.seq>0&&v.seq<=10)||RORD[typeTier(k)]>=2||collectorEditions(k).length||collectorFormCount(v)>=3));
+function collectorTitle(k,v){
+  if(v.shiny)return "✨ Lesklý originál";
+  if(v.seq===1)return "👑 Prvý na Slovensku";
+  if(v.seq>1&&v.seq<=10)return "🏅 Prvá desiatka · č. "+v.seq;
+  if(collectorEditions(k).length)return "📅 Limitovaná edícia";
+  if(typeTier(k)==="l")return "♛ Legendárny úlovok";
+  if(typeTier(k)==="e")return "⬟ Epický úlovok";
+  if(typeTier(k)==="r")return "▲ Vzácny úlovok";
+  if(collectorFormCount(v)>=3)return "🌈 Majster foriem";
+  return "✈️ Atlas oblohy";
+}
+function collectorProof(k,v){
+  const badges=[RAR[typeTier(k)].s+" "+RAR[typeTier(k)].n];
+  if(v.shiny)badges.push("✨ Lesklá");
+  if(v.seq>0&&v.seq<=10)badges.push(v.seq===1?"👑 Prvý overený v SR":"🏅 Číslo "+v.seq+" v SR");
+  if(v.ver)badges.push("✓ Overená");
+  else badges.push("⏳ Čaká na overenie");
+  const ed=collectorEditions(k);if(ed.length)badges.push("📅 "+ed.length+" "+pl(ed.length,"edícia","edície","edícií"));
+  const fc=collectorFormCount(v);if(fc)badges.push("🌌 "+fc+"/5 foriem");
+  return badges;
+}
+function collectorDossier(k,v){
+  const first=v.fp&&v.fp.t||v.first,when=first?new Date(first):null;
+  const date=when&&!isNaN(when.getTime())?when.toLocaleDateString("sk-SK",{day:"numeric",month:"long",year:"numeric"}):"Neznámy dátum";
+  const badges=collectorProof(k,v);
+  return `<section class="collectorDossier" aria-label="Zberateľský certifikát"><div class="collectorDossierTop"><span>✦ OSOBNÝ ZBERATEĽSKÝ LIST</span><b>SÉRIA 01</b></div>
+    <div class="collectorDossierTitle">${esc(collectorTitle(k,v))}</div>
+    <div class="collectorProof">${badges.map(b=>`<span>${esc(b)}</span>`).join("")}</div>
+    <div class="collectorRecord"><div><small>PRVÝ ÚLOVOK</small><strong>${esc(date)}</strong></div><div><small>ÚROVEŇ KARTY</small><strong>${cardLvl(v.n||1,k)}/4 ★</strong></div></div>
+    <p>Každá kartička je spomienka na skutočné zamávanie. Overenie a poradie v SR sa zobrazujú len vtedy, keď ich potvrdia údaje.</p></section>`;
+}
+function collectorVaultHTML(keys,owned){
+  const all=keys.filter(k=>owned[k]&&owned[k].n);
+  const rare=all.filter(k=>RORD[typeTier(k)]>=2).length,shiny=all.filter(k=>owned[k].shiny).length;
+  const forms=all.filter(k=>collectorFormCount(owned[k])>=3).length;
+  const goals=[[rare,1,"Ulov prvú vzácnu kartičku","▲"],[shiny,1,"Objav lesklú kartičku","✨"],[forms,1,"Odomkni 3 formy jednej karty","🌌"]];
+  const special=all.filter(k=>collectorSpecial(k,owned[k]));
+  return `<div class="collectorVault" style="grid-column:1/-1">
+    <div class="vaultEyebrow">✦ TVOJ SÚKROMNÝ ATLAS</div>
+    <div class="vaultHeading"><div><strong>💎 Klenotnica</strong><small>Každý úlovok má svoj príbeh. Tie výnimočné vystav na obdiv.</small></div><span class="vaultCounter">${special.length} klenotov</span></div>
+    <div class="vaultGoals">${goals.map(([got,target,label,sym])=>`<div class="vaultGoal ${got>=target?"done":""}"><span>${sym}</span><div><b>${esc(label)}</b><small>${got>=target?"✓ Splnené":got+"/"+target+" · zatiaľ neobjavené"}</small></div></div>`).join("")}</div>
+  </div>`;
+}
+
 /* ---- Atlas v záložke Ja ---- */
 let atlasOpen=false;let atlasMode="mine";let atlasRare=false;
 const cardRar=k=>typeTier(k);
@@ -168,21 +217,23 @@ function renderCards(){
   $("c-cardsN").textContent=`${inCat}/${tot}`;
   const inSet=k=>SETS.some(s=>!(COL.sets||{})[s.id]&&s.t&&s.t.includes(k)&&s.t.some(x=>owned[x]))?-1:0;
   const mine=ownedKeys.sort((x,y)=>(owned[y].first||0)-(owned[x].first||0));
+  const vault=mine.filter(k=>owned[k].n&&collectorSpecial(k,owned[k])).sort((a,b)=>prestige(b,owned[b])-prestige(a,owned[a]));
   // chýba = ešte si mu nezamával (darovaná kópia 🤝 sa neráta ako vlastná)
   // 👀 typy, ktoré dnes preleteli nad tebou, idú na začiatok
   const seenT=LS.get("ctl_seenT",{}),today=SKD.format(new Date()),seenToday=k=>seenT[k]&&SKD.format(new Date(seenT[k]))===today;
   const missing=CATALOG.map(c=>c[0]).filter(k=>!(owned[k]&&owned[k].n)&&!TROPHY.has(k)).sort((x,y)=>(seenToday(y)?1:0)-(seenToday(x)?1:0)||inSet(x)-inSet(y)||RORD[typeTier(x)]-RORD[typeTier(y)]||CAT[x].no-CAT[y].no);
   const trophies=CATALOG.map(c=>c[0]).filter(k=>TROPHY.has(k));
-  let list=atlasMode==="mine"?(atlasRare?mine.filter(k=>RORD[typeTier(k)]>=2&&owned[k].n):mine):atlasMode==="miss"?missing:atlasMode==="trophy"?trophies:[];
+  let list=atlasMode==="mine"?(atlasRare?mine.filter(k=>RORD[typeTier(k)]>=2&&owned[k].n):mine):atlasMode==="miss"?missing:atlasMode==="trophy"?trophies:atlasMode==="vault"?vault:[];
   const more=!atlasOpen&&list.length>6&&atlasMode!=="trophy"?list.length-6:0;if(more)list=list.slice(0,6);
   const tab=(m,l)=>`<button class="${atlasMode===m?"on":""}" data-m="${m}">${l}</button>`;
   $("c-types").innerHTML=`<div class="atlasTop" style="grid-column:1/-1"><div class="xp"><i style="width:${inCat/tot*100}%"></i></div>
     <div class="lookSub">Séria 1: ${inCat} z ${tot}${trN?" · 🏆 "+trN+" "+pl(trN,"trofej","trofeje","trofejí"):""}${shinyN?" · ✨ "+shinyN+" "+pl(shinyN,"lesklá","lesklé","lesklých"):""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
-    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.filter(k=>owned[k].n).length+(ownedKeys.some(k=>!owned[k].n)?" + 🤝":"")+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆 Trofeje")}</div></div>`+
+    <div class="atTabs">${tab("mine","Moje ("+ownedKeys.filter(k=>owned[k].n).length+(ownedKeys.some(k=>!owned[k].n)?" + 🤝":"")+")")}${tab("vault","💎 Klenoty ("+vault.length+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}${tab("ed","Edície")}${tab("trophy","🏆 Trofeje")}</div></div>`+
     (atlasMode==="sets"?setsHTML():atlasMode==="ed"?edHTML():"")+
+    (atlasMode==="vault"?collectorVaultHTML(ownedKeys,owned):"")+
     (atlasMode==="miss"?wantedHTML():"")+
     (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
-    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n||1,k)+" zo 4":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Zamávaj lietadlu nad tebou (aspoň 10° nad obzorom) a získaš prvú kartičku.":"Máš celú sériu! 🏆"}</div>`);
+    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n||1,k)+" zo 4":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="vault"?`<b class="vaultCardBadge">${esc(collectorTitle(k,owned[k]))}</b>`:""}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Zamávaj lietadlu nad tebou (aspoň 10° nad obzorom) a získaš prvú kartičku.":atlasMode==="vault"?"Tvoja prvá výnimočná kartička ešte len čaká. Ulov vzácny typ alebo objav špeciálnu formu.":"Máš celú sériu! 🏆"}</div>`);
   if(more)$("c-types").insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ${pl(more,"ďalšia","ďalšie","ďalších")} ${more} ›</button>`);
 }
 HOOKS.view.push(v=>{if(v==="col")renderCards()});
@@ -200,7 +251,7 @@ $("c-types").onclick=e=>{
 function openCard(k,reveal){$("cardM").classList.remove("locked");
   const v=COL.types[k];if(!v)return;const r=typeTier(k);
   const own=Object.keys(COL.types).filter(x=>inSeries(x)&&COL.types[x].n).length,tot=CATALOG.filter(c=>!TROPHY.has(c[0])).length;
-  const face=()=>{$("cardShare").style.visibility="";$("cardShare").style.display=v.n?"":"none";if($("cardVideo"))$("cardVideo").hidden=!v.n;if($("cardVideo"))$("cardVideo").style.visibility="";$("cardBig").innerHTML=(reveal?`<div class="revealHd">${v.shiny?"…a je ✨ LESKLÁ!":RAR[r].s+" Nová kartička: "+RAR[r].n+"!"}<small>${own}. z ${tot} typov v tvojom atlase · ${v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"⏳ zatiaľ neoverená"}</small></div>`:"")+`<div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>`+cardExtras(k,v);
+  const face=()=>{$("cardShare").style.visibility="";$("cardShare").style.display=v.n?"":"none";if($("cardVideo"))$("cardVideo").hidden=!v.n;if($("cardVideo"))$("cardVideo").style.visibility="";$("cardBig").innerHTML=(reveal?`<div class="revealHd">${esc(collectorTitle(k,v))}!<small>${own}. z ${tot} typov v tvojom atlase · ${v.ver?"✓ Overená"+(v.seq?" · č. "+v.seq+" na Slovensku":""):"⏳ zatiaľ neoverená"}</small></div>`:"")+`<div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>`+collectorDossier(k,v)+cardExtras(k,v);
     cardStat(k);if(reveal){if(RORD[r]>=3){confetti(r==="l"?160:90);haptic(r==="l"?[60,80,60,80,200]:[20,40,20])}ping(r)}};
   $("cardM").classList.add("on");bindTilt();
   if($("cardVideo"))$("cardVideo").hidden=!vidOK()||!v.n;
@@ -208,9 +259,9 @@ function openCard(k,reveal){$("cardM").classList.remove("locked");
     // ⏳ odhalenie s napätím: rub kartičky žiari farbou stupňa, čím vzácnejšia, tým dlhšie
     const d=450+RORD[r]*450;
     $("cardShare").style.visibility="hidden";if($("cardVideo"))$("cardVideo").style.visibility="hidden";
-    $("cardBig").innerHTML=`<div class="revealHd">Čo ti priletelo?<small>ťukni na kartičku</small></div><div class="cardBack ${r}" role="button" aria-label="Otočiť kartičku"><b>✈️</b><span>Atlas oblohy</span></div>`;
+    $("cardBig").innerHTML=`<div class="revealScene ${r}"><div class="vaultEyebrow">✦ NOVÝ OBJAV · ATLAS OBLOHY</div><div class="revealHd">Niekto výnimočný preletel nad tebou…<small>Odkry svoj úlovok</small></div><button type="button" class="cardBack ${r}" aria-label="Otočiť a odhaliť kartičku"><b>✈️</b><span>ODHALIŤ KARTIČKU</span><small>ŤUKNI NA MŇA</small></button><div class="revealFoot">Vzácnosť sa odhalí spolu s kartičkou ✦</div></div>`;
     haptic(15);const bk=$("cardBig").querySelector(".cardBack");let done=false;const go=()=>{if(done)return;done=true;face()};
-    bk.onclick=go;setTimeout(go,d+(typeof KID==="function"&&KID()?6000:600));
+    bk.onclick=go;setTimeout(()=>{if($("cardM").classList.contains("on")&&$("cardBig").contains(bk))go()},d+(typeof KID==="function"&&KID()?6000:2200));
   }else{face();haptic(15)}
 }
 function cardExtras(k,v){
