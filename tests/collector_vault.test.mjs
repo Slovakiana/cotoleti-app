@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const src=readFileSync(new URL("../js/cards.js",import.meta.url),"utf8");
 const first=src.indexOf("/* 💎 Klenotnica:");
-const last=src.indexOf("/* ---- Atlas v záložke Ja ---- */",first);
+const last=src.indexOf("/* 🔭 Živý osobný lov:",first);
 assert.ok(first>=0&&last>first);
 const tier={A320:"c",A388:"r",B779:"l"};
 const COL={ed:{},types:{}};
