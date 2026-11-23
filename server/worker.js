@@ -624,6 +624,8 @@ export class Sky extends DurableObject {
     if (p === "/api/hello" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
       if (id.length < 16) return json({error: "bad"}, 400);
+      const epoch=Number(this.getMeta("player_reset_epoch")||0);
+      if (Number(b.epoch||0)!==epoch) return json({error:"reset",epoch},409);
       const ex = this.row("SELECT ep FROM ids WHERE id=?", id);
       if (!ex) {
         // starší používateľ s platným tokenom (z čias pred tabuľkou ids) – zaregistrovať bez limitu
@@ -642,7 +644,7 @@ export class Sky extends DurableObject {
       this.sql.exec("UPDATE ids SET pid=? WHERE id=? AND pid IS NULL", pd, id);
       // detský režim sa z appky dá pri každom prihlásení len ZAPNÚŤ (vypnutie ide cez /api/kid)
       if (b.kid === 1 && !this.isKid(id)) this.sql.exec("UPDATE ids SET kid=1 WHERE id=?", id);
-      return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd)});
+      return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd),epoch});
     }
     if (p === "/api/ev" && req.method === "POST") {
       // anonymné počítadlo krokov (bez id, bez IP) – lievik
@@ -949,8 +951,39 @@ export class Sky extends DurableObject {
       this.sql.exec("INSERT INTO xfer(code, id, data, t) VALUES(?, ?, ?, ?)", code, id, data, now);
       return json({code, ttl: 600});
     }
+
     if (p === "/api/admin" && req.method === "POST") {
       const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
+      if (b.resetAction) {
+      if (b.resetAction === "prepare") {
+        const nonce = crypto.randomUUID();
+        this.setMeta("wipe_nonce", nonce);
+        this.setMeta("wipe_until", now + 5 * 60e3);
+        const users = (this.row("SELECT COUNT(*) AS c FROM ids") || {}).c || 0;
+        const cards = (this.row("SELECT COUNT(*) AS c FROM typeseq") || {}).c || 0;
+        return json({ok:true,phase:"prepare",nonce,expires:now + 5 * 60e3,users,cards,epoch:Number(this.getMeta("player_reset_epoch")||0)});
+      }
+      if (b.resetAction !== "execute" || b.confirm !== "VYMAZAT VSETKY DATA"
+        || typeof b.nonce !== "string"
+        || !sameStr(b.nonce, this.getMeta("wipe_nonce") || "")
+        || now > Number(this.getMeta("wipe_until") || 0)) return json({error:"confirm"}, 400);
+      // Všetky herné tabuľky, identity, prvé overenia, štatistiky a ligy.
+      // Whitelist: žiadne dynamicky zadané SQL názvy a žiadne systémové tabuľky.
+      const wipe = ["waves","waveby","wavelog","kraje","totals","pres","nicks","subs",
+        "tracks","msgs","queue","moments","momentby","planes","towns","mails","maildel",
+        "maildeliv","golden","teams","tmembers","tweek","ids","rl","friends","reminders",
+        "catches","heatp","typeseq","edcatch","wavewhy","gifts","mayorhof","mayorm",
+        "yagg","yplane","seen","reports","banned","idday","funnel","refs","errs",
+        "gcand","xfer","sig","hidden","streaks","duelres"];
+      const nextEpoch = Number(this.getMeta("player_reset_epoch")||0) + 1;
+      // Durable Object serializuje operácie; reset celého DB sa vykoná synchronne.
+      for (const table of wipe) this.sql.exec("DELETE FROM " + table);
+      this.sql.exec("DELETE FROM meta WHERE k NOT IN ('flags','specials','mig3','player_reset_epoch')");
+      this.setMeta("player_reset_epoch", nextEpoch);
+      this._snap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
+      this.atlC={};this.cstat=new Map();this._spec=null;
+      return json({ok:true,phase:"complete",epoch:nextEpoch,clearedTables:wipe.length});
+      }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
       if (typeof b.specials === "string") {
         // 🎨 špeciálne nátery a 🥇 prvé lety – riadky „OM-ABC = Retro náter“ alebo „2026-12-15 WZZ1234 = Prvý let do Dubaja“
@@ -1277,7 +1310,14 @@ function adminPage() {
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
 <button id="s">📊 Štatistiky</button><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
-<button id="f">💾 Uložiť vypínače</button><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
+<button id="f">💾 Uložiť vypínače</button>
+<section style="border:2px solid #f4a4a4;border-radius:14px;padding:12px;margin:20px 0;background:#4a1828">
+<strong>⚠️ CELÁ HRA OD NULY – iba správca</strong>
+<p>Nezvratne odstráni všetkých hráčov, ligy, overenia, kartičkové prvenstvá, históriu mávnutí a štatistiky. Zmena sa prejaví aj na starých zariadeniach po obnovení aplikácie. Predtým urob zálohu Durable Object databázy.</p>
+<button id="wipePreview" style="background:#ffd9a8;color:#3b1f15">1. Skontrolovať rozsah resetu</button>
+<pre id="wipeInfo">Reset sa nespustil.</pre>
+<button id="wipeExecute" disabled style="background:#ff7183;color:#3a101a">2. Natrvalo vymazať všetkých hráčov</button>
+</section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 const bars=(t,rows,key,col)=>{const w=340,h=120,n=rows.length,mx=Math.max(1,...rows.map(r=>+r[key]||0)),bw=w/n;let sv="<svg viewBox='0 0 "+w+" "+(h+34)+"' style='width:100%;background:#ffffff0d;border-radius:12px'>";rows.forEach((r,i)=>{const v=+r[key]||0,bh=Math.round(v/mx*(h-18));sv+="<rect x='"+(i*bw+2)+"' y='"+(h-bh)+"' width='"+(bw-4)+"' height='"+bh+"' rx='3' fill='"+col+"'/><text x='"+(i*bw+bw/2)+"' y='"+(h-bh-4)+"' font-size='9' fill='#fff' text-anchor='middle'>"+v+"</text><text x='"+(i*bw+bw/2)+"' y='"+(h+14)+"' font-size='8' fill='#ffffffaa' text-anchor='middle'>"+r.day.slice(8)+"."+r.day.slice(5,7)+"</text>"});return "<h3 style='margin:14px 0 6px'>"+t+"</h3>"+sv+"</svg>"};
 $("s").onclick=async()=>{o.textContent="…";const r=await fetch("/api/stats",{headers:H()});const j=await r.json();const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";o.textContent=JSON.stringify(j,null,1)};
@@ -1286,6 +1326,23 @@ const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),bo
 const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
 $("q").onclick=()=>Q();
 $("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx").value});const s=j.specials||{lv:{},fi:[]};o.textContent="Uložené: "+Object.keys(s.lv).length+" náterov, "+s.fi.length+" prvých letov"};
+let wipeNonce="";
+$("wipePreview").onclick=async()=>{
+  wipeNonce="";$("wipeExecute").disabled=true;$("wipeInfo").textContent="Kontrolujem…";
+  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"prepare"})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
+    wipeNonce=j.nonce;$("wipeInfo").textContent="Pripravené na nezvratné zmazanie: "+j.users+" účtov, "+j.cards+" serverových kartičiek. Potvrdenie platí päť minút."; $("wipeExecute").disabled=false;
+  }catch(e){$("wipeInfo").textContent="Chyba: "+e.message}
+};
+$("wipeExecute").onclick=async()=>{
+  if(!wipeNonce)return;
+  const text=prompt("NAPÍŠ PRESNE: VYMAZAT VSETKY DATA");
+  if(text!=="VYMAZAT VSETKY DATA")return;
+  if(!confirm("Naozaj navždy odstrániť údaje VŠETKÝCH hráčov?"))return;
+  $("wipeExecute").disabled=true;
+  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"execute",nonce:wipeNonce,confirm:text})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
+    $("wipeInfo").textContent="✅ Reset vykonaný. Nová sezóna: "+j.epoch+". Hráči sa po obnovení appky začnú od nuly.";
+  }catch(e){$("wipeInfo").textContent="Reset zlyhal: "+e.message}finally{wipeNonce=""}
+};
 $("ov").onclick=async()=>{o.textContent="…";const j=await A({nick:$("nk").value});o.textContent=(j.overenie||[]).map(x=>"Overených typov: "+x.karticky+"\\n"+x.mavnutia.map(m=>new Date(m.t).toLocaleString("sk-SK")+" · "+(m.type||"?")+" · "+(m.el==null?"?":Math.round(m.el)+"°")+" · "+(m.ok?"✓ overené":"✗ "+m.why)).join("\\n")).join("\\n\\n")||"Hráč sa nenašiel."};</script></body></html>`;
   return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"}});
