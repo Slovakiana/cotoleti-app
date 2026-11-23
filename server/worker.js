@@ -709,7 +709,7 @@ export class Sky extends DurableObject {
     if (p === "/api/weekly") return json(JSON.parse(this.getMeta("weeklyData") || "null") || this.weekly(this.week()));
     if (p === "/api/tname") { const t = this.row("SELECT name FROM teams WHERE code=?", String(u.searchParams.get("c") || "").toUpperCase().slice(0, 6)); return json({name: t ? t.name : ""}); }
     if (p === "/api/stats") {
-      if (!this.admin(u, req, B && B.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
+      if (!this.admin(u, req, B && B.key)) { this.bump("401admin"); return json({error:"auth",configured:!!this.env.ADMIN_KEY,keyReceived:!!((req.headers.get("x-admin-key"))||(B&&B.key))},401); }
       const days = [];
       for (let i = 0; i < 14; i++) {
         const dd = new Date(now - i * 86400e3).toISOString().slice(0, 10), prevD = new Date(now - (i + 1) * 86400e3).toISOString().slice(0, 10);
@@ -953,7 +953,7 @@ export class Sky extends DurableObject {
     }
 
     if (p === "/api/admin" && req.method === "POST") {
-      const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
+      const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error:"auth",configured:!!this.env.ADMIN_KEY,keyReceived:!!((req.headers.get("x-admin-key"))||b.key)},401); }
       if (b.resetAction) {
       if (b.resetAction === "prepare") {
         const nonce = crypto.randomUUID();
@@ -1320,16 +1320,25 @@ function adminPage() {
 </section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 const bars=(t,rows,key,col)=>{const w=340,h=120,n=rows.length,mx=Math.max(1,...rows.map(r=>+r[key]||0)),bw=w/n;let sv="<svg viewBox='0 0 "+w+" "+(h+34)+"' style='width:100%;background:#ffffff0d;border-radius:12px'>";rows.forEach((r,i)=>{const v=+r[key]||0,bh=Math.round(v/mx*(h-18));sv+="<rect x='"+(i*bw+2)+"' y='"+(h-bh)+"' width='"+(bw-4)+"' height='"+bh+"' rx='3' fill='"+col+"'/><text x='"+(i*bw+bw/2)+"' y='"+(h-bh-4)+"' font-size='9' fill='#fff' text-anchor='middle'>"+v+"</text><text x='"+(i*bw+bw/2)+"' y='"+(h+14)+"' font-size='8' fill='#ffffffaa' text-anchor='middle'>"+r.day.slice(8)+"."+r.day.slice(5,7)+"</text>"});return "<h3 style='margin:14px 0 6px'>"+t+"</h3>"+sv+"</svg>"};
-$("s").onclick=async()=>{o.textContent="…";const r=await fetch("/api/stats",{headers:H()});const j=await r.json();const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";o.textContent=JSON.stringify(j,null,1)};
+$("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";try{
+ const key=$("k").value;
+ if(!key){o.textContent="Zadaj hodnotu ADMIN_KEY, nie názov premennej.";return}
+ const r=await fetch("/api/stats",{method:"POST",headers:H(),body:JSON.stringify({key})});
+ const j=await r.json();
+ if(r.status===401){o.textContent=j.configured===false?"⚠️ Produkčný server nevidí ADMIN_KEY. Skontroluj, či je Secret aktívny v nasadení Workeru (nie iba uložený v Settings).":j.keyReceived===false?"⚠️ Server nedostal zadaný kľúč. Skontroluj pripojenie a aktuálne nasadenie.":"⚠️ Server ADMIN_KEY vidí, ale zadaná hodnota sa nezhoduje. Zadaj hodnotu Secret presne tak, ako bola uložená, bez ďalších medzier.";return}
+ if(!r.ok){o.textContent="Server odpovedal chybou "+r.status+": "+(j.error||"neznáma");return}
+ const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";
+ o.textContent=JSON.stringify(j,null,1)
+ }catch(e){o.textContent="Spojenie so serverom zlyhalo. Skús obnoviť stránku."}};
 $("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};
-const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify(x)});return r.json()};
+const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({...x,key:$("k").value})});return r.json()};
 const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
 $("q").onclick=()=>Q();
 $("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx").value});const s=j.specials||{lv:{},fi:[]};o.textContent="Uložené: "+Object.keys(s.lv).length+" náterov, "+s.fi.length+" prvých letov"};
 let wipeNonce="";
 $("wipePreview").onclick=async()=>{
   wipeNonce="";$("wipeExecute").disabled=true;$("wipeInfo").textContent="Kontrolujem…";
-  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"prepare"})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
+  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"prepare",key:$("k").value})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
     wipeNonce=j.nonce;$("wipeInfo").textContent="Pripravené na nezvratné zmazanie: "+j.users+" účtov, "+j.cards+" serverových kartičiek. Potvrdenie platí päť minút."; $("wipeExecute").disabled=false;
   }catch(e){$("wipeInfo").textContent="Chyba: "+e.message}
 };
@@ -1339,7 +1348,7 @@ $("wipeExecute").onclick=async()=>{
   if(text!=="VYMAZAT VSETKY DATA")return;
   if(!confirm("Naozaj navždy odstrániť údaje VŠETKÝCH hráčov?"))return;
   $("wipeExecute").disabled=true;
-  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"execute",nonce:wipeNonce,confirm:text})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
+  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"execute",nonce:wipeNonce,confirm:text,key:$("k").value})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
     $("wipeInfo").textContent="✅ Reset vykonaný. Nová sezóna: "+j.epoch+". Hráči sa po obnovení appky začnú od nuly.";
   }catch(e){$("wipeInfo").textContent="Reset zlyhal: "+e.message}finally{wipeNonce=""}
 };

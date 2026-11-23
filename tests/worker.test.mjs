@@ -227,6 +227,13 @@ await t("zdravie servera", async () => assert.equal((await call("/api/health")).
 await t("štatistiky len s kľúčom", async () => {
   assert.equal((await call("/api/stats")).s, 401);
   assert.equal((await call("/api/stats?key=tajne")).s, 401); // kľúč v adrese už neplatí
+  const p=await call("/api/stats",{key:"tajne"});
+  assert.equal(p.s,200,"kľúč v POST tele autorizuje štatistiky aj keď proxy stratí hlavičku");
+  const missing=await call("/api/stats");
+  assert.equal(missing.j.configured,true);assert.equal(missing.j.keyReceived,false);
+  const wrong=await call("/api/stats",{key:"zlý"});
+  assert.equal(wrong.s,401);assert.equal(wrong.j.configured,true);assert.equal(wrong.j.keyReceived,true);
+
   const r = await W.fetch(new Request("https://x/api/stats", {headers: {"x-admin-key": "tajne"}}), env); const j = await r.json();
   assert.equal(r.status, 200); assert.ok(j.days.length === 14);
   assert.equal((await call("/api/export")).s, 404); // export celej databázy je zrušený
