@@ -91,16 +91,16 @@ function socRender(){
   waveInfo(S.top);
   if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
 }
-let LG="k";
+let LG="k";let LG_ATLAS_SCOPE="region";
 // počet obyvateľov krajov (približne, ŠÚ SR 2024) – pre derby na obyvateľa
 const KRAJ_POP={BA:736e3,TT:565e3,TN:570e3,NR:666e3,ZA:688e3,BB:615e3,PO:809e3,KE:778e3};
 const LG_HEAD={k:"🇸🇰 Dnes mávalo Slovensko",w:"🇸🇰 Kraje tento týždeň",m:"🏙️ Mestá dnes",s:"🏘️ Menšie mestá dnes",a:"🃏 Zberatelia v kraji",d:"🏅 Tvoja divízia (30 hráčov)",f:"👯 Kamaráti tento týždeň",p:"⚖️ Kraje na hráča",o:"🏁 Derby krajov (na obyvateľa)",t:"👥 Tímy tento týždeň"};
 const LG_RULES={
-  k:"Rátajú sa mávnutia s polohou z GPS na Slovensku, najviac 25 za deň na hráča. Tvoje mesto sa na deň určí podľa prvého mávnutia.",
-  w:"Súčet mávnutí za týždeň (pondelok–nedeľa) s polohou z GPS, najviac 25 denne na hráča.",
+  k:"Do súťaže sa za deň započíta najviac 25 overených mávnutí od každého hráča (nie 25 na celý kraj). Ostatné mávnutia môžeš ďalej zbierať do Atlasu. Na ligu treba GPS na Slovensku; mesto sa na deň určí podľa prvého mávnutia.",
+  w:"Súčet ligových mávnutí za týždeň (pondelok–nedeľa) s GPS na Slovensku; najviac 25 započítaných mávnutí denne od jedného hráča, nie od celého kraja.",
   m:"Mávnutia z GPS podľa mesta, kde si dnes prvýkrát zamával(a). Menšie mestá súťažia zvlášť.",
   s:"Mestá do 20 000 obyvateľov. Mávnutia z GPS podľa mesta prvého mávnutia dňa.",
-  a:"Body = vzácnosť tvojich rôznych overených typov (bežná 3, nezvyčajná 8, vzácna 25, epická 45, legendárna 80) + 100 b za každý typ, ktorý si na Slovensku overil(a) ako prvý.",
+  a:"V rebríčku sú iba typy lietadiel overené serverom pomocou GPS. Každý typ sa ráta raz: bežná 3, nezvyčajná 8, vzácna 25, epická 45, legendárna 80 bodov. Prvý overený typ na Slovensku pridá 100 b. Kraj sa určuje podľa miesta prvého overenia typu, nie aktuálneho pobytu hráča. Toto nie je zoznam všetkých používateľov.",
   f:"Overené mávnutia do ligy od pondelka. Kamaráti ste cez pozvánku – obaja ste ju potvrdili.",
   d:"Hráči sú zoradení podľa overených mávnutí od pondelka a rozdelení po 30 – súperíš s ľuďmi, ktorí mávajú podobne ako ty. Ako mávaš, posúvaš sa medzi divíziami.",
   p:"Mávnutia kraja delené počtom aktívnych hráčov – aj malý kraj môže vyhrať.",
@@ -111,20 +111,21 @@ function lgDelta(key,rank){const A=LS.get("ctl_lgRank",{}),d=dayKey(),o=A[key];i
   const p=A[key].p,l=A[key].l||"od včera";return !p||p===rank?"":p>rank?` · <b style="color:#7be08a">▲ ${p-rank}</b> ${l}`:` · <b style="color:#ff8a8a">▼ ${rank-p}</b> ${l}`}
 function renderLeague(){
   const D=SOC.data;if(!D)return;let note="";
-  if($("lgNote"))$("lgNote").innerHTML="";if($("recBox"))$("recBox").style.display=LG==="k"?"":"none";if($("lgHead"))$("lgHead").textContent=LG_HEAD[LG]||LG_HEAD.k;if($("lgRules"))$("lgRules").textContent=LG_RULES[LG]||LG_RULES.k;
-  const bar=(name,n,max,me,i,rep)=>`<div class="kr${me?" me":""}"><div class="nm">${i===0?"👑 ":""}${esc(String(name).split(" · ")[0])}${rep?`<button class="rep" data-rep="${esc(String(name).split(" · ")[0])}" aria-label="Nahlásiť nevhodný názov">🚩</button>`:""}${String(name).includes(" · ")?"<small>"+esc(String(name).split(" · ").slice(1).join(" · "))+"</small>":""}</div><div class="bar"><i style="width:${max?n/max*100:0}%"></i></div><div class="v">${nf(n,n%1?1:0)}</div></div>`;
+  if($("lgNote"))$("lgNote").innerHTML="";if($("lgAtlasScope"))$("lgAtlasScope").hidden=LG!=="a";if($("recBox"))$("recBox").style.display=LG==="k"?"":"none";if($("lgHead"))$("lgHead").textContent=LG==="a"&&LG_ATLAS_SCOPE==="sk"?"🇸🇰 Zberatelia na Slovensku":LG_HEAD[LG]||LG_HEAD.k;if($("lgRules"))$("lgRules").textContent=LG_RULES[LG]||LG_RULES.k;
+  const bar=(name,n,max,me,i,rep,position)=>`<div class="kr${me?" me":""}"><div class="nm">${i===0?"👑 ":""}${LG==="a"?(position||i+1)+". ":""}${esc(String(name).split(" · ")[0])}${rep?`<button class="rep" data-rep="${esc(String(name).split(" · ")[0])}" aria-label="Nahlásiť nevhodný názov">🚩</button>`:""}${String(name).includes(" · ")?"<small>"+esc(String(name).split(" · ").slice(1).join(" · "))+"</small>":""}</div><div class="bar"><i style="width:${max?n/max*100:0}%"></i></div><div class="v">${nf(n,n%1?1:0)}</div></div>`;
   let rows=[];
   if(LG==="k"||LG==="w"){const me=krajOf(S.pos),all=((LG==="w"?D.krajeWeek:D.kraje)||[]).filter(x=>x.n>0&&x.k!=="XX");rows=all.slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2],x.n,x.k===me]);
     const mi=all.findIndex(x=>x.k===me);if(mi>=8)rows.push([(mi+1)+". "+(KRAJ[me]||KRAJ.XX)[2]+" (tvoj kraj)",all[mi].n,true])}
   else if(LG==="a"){
     // 🃏 rebríček zberateľov v kraji: vzácnosť rôznych typov (overené serverom) + 100 b za každé prvenstvo v SR
-    const kk=krajOf(S.pos);
+    const kk=LG_ATLAS_SCOPE==="sk"?"":krajOf(S.pos);
+    if($("lgAtlasScope"))$("lgAtlasScope").querySelectorAll("button[data-scope]").forEach(b=>{const on=b.dataset.scope===LG_ATLAS_SCOPE;b.classList.toggle("on",on);b.setAttribute("aria-pressed",String(on))});
     if(!SOC.atl||SOC.atl.k!==kk||Date.now()-SOC.atl.t>300e3){if(!SOC.atlL){SOC.atlL=1;apiPost("/api/atlasy",{k:kk}).then(r=>r.json()).then(j=>{SOC.atlL=0;if(!j||!j.top){SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague();return}SOC.atl={k:kk,t:Date.now(),j};if(LG==="a")renderLeague()}).catch(()=>{SOC.atlL=0;SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague()})}}
     if(SOC.atl&&SOC.atl.err){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Rebríček sa nepodarilo načítať. Skúsim znova o chvíľu.</div>';return}
     const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
-    const kd=typeof KID==="function"&&KID();rows=(j.top||[]).slice(0,10).map(r=>[(kd&&!r.me?"Zberateľ":r.nick)+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!kd&&!r.me&&r.nick!=="Spotter"]);
-    if(j.me&&!(j.top||[]).some(r=>r.me))rows.push([(j.me.rank?j.me.rank+". ":"")+"Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true]);
-    note=j.me?`Si <b>${j.me.rank||"?"}.</b> v kraji${j.me.gap?" · na ďalšieho ti chýba "+nf(j.me.gap)+" b":" · vedieš 👑"}${j.me.rank?lgDelta("a"+kk,j.me.rank):""}`:"Zamávaj s GPS a tvoje overené kartičky ťa dostanú do rebríčka.";
+    const kd=typeof KID==="function"&&KID();rows=(j.top||[]).map((r,i)=>[(kd&&!r.me?"Zberateľ":r.nick)+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!kd&&!r.me&&r.nick!=="Spotter",i+1]);
+    if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true,false,j.me.rank||null]);
+    note=`<b>${rows.length} zobrazených zberateľov</b> · ${LG_ATLAS_SCOPE==="sk"?"celé Slovensko":"tvoj kraj"}. Tu vidíš overených zberateľov, nie všetkých používateľov. ${j.me?`Ty: <b>${j.me.rank||"?"}. miesto</b> · ${j.me.gap?"k ďalšiemu ti chýba "+nf(j.me.gap)+" b":"si na čele! 👑"}${j.me.rank?lgDelta("a"+(kk||"SK"),j.me.rank):""}`:"Tvoj prvý overený úlovok ťa zaradí do rebríčka."}`;
     if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
   }
   else if(LG==="d"){
@@ -150,7 +151,7 @@ function renderLeague(){
   else rows=(D.teamsTop||[]).map(x=>[x.name,x.n,x.me,!x.me]);
   const max=Math.max(1,...rows.map(r=>r[1]));
   if($("lgNote"))$("lgNote").innerHTML=note;
-  $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":LG==="p"?"Kraj sa ukáže, keď v ňom dnes mávajú aspoň 3 hráči. Pozvi kamarátov z kraja 👯":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
+  $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3],r[4])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v záložke Ja 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":LG==="p"?"Kraj sa ukáže, keď v ňom dnes mávajú aspoň 3 hráči. Pozvi kamarátov z kraja 👯":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
 }
 // 🏡 Adoptuj obec: fandi jednej obci (napr. rodnej) a sleduj, koľko sa v nej máva
 // ✋ skryté meno: hráč sa dozvie, prečo a môže požiadať o ľudskú kontrolu
@@ -203,6 +204,7 @@ $("repM").addEventListener("click",async e=>{
 $("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.more){const m=$("lgTabs").classList.toggle("more");b.setAttribute("aria-expanded",m);b.textContent=m?"×":"⋯";return}
   LG=b.dataset.t;[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x===b));renderLeague();haptic(6)};
+$("lgAtlasScope").onclick=e=>{const b=e.target.closest("button[data-scope]");if(!b||LG_ATLAS_SCOPE===b.dataset.scope)return;LG_ATLAS_SCOPE=b.dataset.scope;SOC.atl=null;renderLeague();haptic(6)};
 function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}
   if(!a){$("waveInfo").textContent="";$("waveN").style.display="none";return}
