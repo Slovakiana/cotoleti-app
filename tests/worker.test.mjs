@@ -374,3 +374,25 @@ await (async () => {
   assert.deepEqual(r, {lv: {"OM-ABC": "Retro náter"}, fi: [{d: "2026-12-15", call: "WZZ1234", txt: "Prvý let do Dubaja"}]}, JSON.stringify(r));
   console.log("✓ špeciálne nátery a prvé lety");
 })();
+
+
+const adminReset=async b=>{
+  const r=await W.fetch(new Request("https://x/api/admin",{method:"POST",headers:{"x-admin-key":"tajne"},body:JSON.stringify({...b,key:"tajne"})}),env);
+  return {s:r.status,j:await r.json()};
+};
+await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {
+  assert.equal((await call("/api/admin",{resetAction:"prepare"})).s,401);
+  assert.equal((await call("/api/admin",{resetAction:"execute",key:"nespravny"})).s,401);
+  assert.equal(sky.admin(new URL("https://x"),new Request("https://x",{headers:{"x-admin-key":"tajne"}})),true,"owner key in direct Sky");
+  const draft=await adminReset({resetAction:"prepare"});
+  if(draft.s!==200)throw new Error("admin reset prepare: "+JSON.stringify(draft));
+  assert.equal(draft.s,200);assert.ok(draft.j.nonce);
+  assert.equal((await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"nie"})).s,400);
+  assert.ok(db.prepare("SELECT COUNT(*) c FROM ids").get().c>0);
+  const done=await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
+  assert.equal(done.j.ok,true);assert.equal(done.j.epoch,1);
+  for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres"])
+    assert.equal(db.prepare("SELECT COUNT(*) c FROM "+table).get().c,0,table);
+  assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001"})).s,409);
+  assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001",epoch:1})).s,200);
+});

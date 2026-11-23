@@ -16,12 +16,17 @@ async function ensureTok(){
   if(SOC.helloP)return SOC.helloP;
   SOC.helloP=(async()=>{
     const fail=err=>{SOC.helloErr=err;SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+err}))}catch(x){}};
-    try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
+    try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),epoch:LS.get("ctl_reset_epoch",0),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
       const j=await r.json().catch(()=>({error:"json"}));
+      if(j.error==="reset"&&Number.isSafeInteger(j.epoch)&&j.epoch>0){
+        // Po administrátorskom resete sa nesmú zachovať staré úlovky ani tokeny.
+        LSP.clear();try{for(const k of Object.keys(localStorage))if(k.startsWith("ctl_")||k.startsWith("nm_"))localStorage.removeItem(k)}catch(e){}
+        LS.set("ctl_reset_epoch",j.epoch);TOK="";SOC.cid="";toast("🆕 Nová testovacia sezóna","Všetci hráči začínajú od nuly.");setTimeout(()=>location.reload(),150);return "";
+      }
       if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
       if(!j.tok){fail(r.status+"/"+(j.error||"?"));return TOK}
       const was=!!SOC.helloFail;SOC.helloErr="";SOC.helloFail=0;SOC.helloNext=0;if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);
-      LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())
+      LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())
     }catch(e){fail("net")}
     return TOK})().finally(()=>{SOC.helloP=null});
   return SOC.helloP;
