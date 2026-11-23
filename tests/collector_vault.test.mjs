@@ -32,7 +32,7 @@ assert.doesNotMatch(html,/Lesklá/);
 const before=JSON.stringify(COL);
 const vault=run('collectorVaultHTML(["A320","A388"],owned)',{owned:{A320:common,A388:{...common,ver:true}}});
 assert.match(vault,/Klenotnica/);
-assert.match(vault,/1 klenotov/);
+assert.match(vault,/1 klenot/);
 assert.equal(JSON.stringify(COL),before,"vitrína nemení zbierku ani body");
 assert.match(src,/class="revealScene/,"nové odhalenie existuje");
 assert.match(src,/type="button" class="cardBack/,"odhalenie je ovládateľné");
