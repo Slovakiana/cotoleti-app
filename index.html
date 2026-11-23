@@ -670,6 +670,17 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 .compPulseTrack i{display:block;height:100%;background:linear-gradient(90deg,#6dffc7,#ffcf4f);border-radius:20px;transition:width .35s ease-out}
 .compPulseGo{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin-top:12px;padding:10px 13px;border-radius:13px;background:rgba(255,207,79,.13);border:1px solid rgba(255,207,79,.3);color:#ffeab4;font-weight:850;font-size:13px;text-align:left}
 @media(prefers-reduced-motion:reduce){.compPulseTrack i{transition:none}}
+
+/* Lov legendy v66 – živý cieľ a výzva na hlavnej obrazovke. */
+.huntHome{padding:17px!important;position:relative;overflow:hidden;border:1px solid rgba(130,194,255,.36)!important;background:radial-gradient(circle at 100% 0%,rgba(91,137,255,.2),transparent 58%),linear-gradient(145deg,#172443,#0c1427)}
+.huntHomeKicker{font-size:10px;font-weight:900;letter-spacing:.12em;color:#b6d6ff}
+.huntHomeTitle{margin:10px 0 8px;font:900 clamp(18px,5.2vw,24px)/1.23 var(--disp);color:#fff}
+.huntHomeDetail{font-size:13px;line-height:1.5;color:#bdcceb;margin:0 0 12px}
+.huntHomeGo{min-height:45px;padding:9px 15px;border-radius:13px;border:1px solid rgba(146,197,255,.44);background:rgba(146,197,255,.14);color:#deedff;font-size:13px;font-weight:850}
+.huntHome[data-state="near"]{border-color:rgba(109,255,199,.78)!important;background:radial-gradient(circle at 100% 0%,rgba(109,255,199,.25),transparent 62%),#112c31;box-shadow:0 0 22px rgba(109,255,199,.13)}
+.huntHome[data-state="near"] .huntHomeKicker{color:#95ffcd}
+.huntHome[data-state="near"] .huntHomeGo{background:#176d57;color:#fff}
+.huntHome[data-state="done"]{border-color:rgba(255,207,79,.58)!important;background:radial-gradient(circle at 100% 0%,rgba(255,207,79,.2),transparent 62%),#252035}
 </style>
 </head>
 <body>
@@ -792,6 +803,12 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <div class="links" id="h-links"></div>
     </div>
   </details>
+  <section class="card glass huntHome" id="huntHome" data-state="empty" aria-label="Osobný lov lietadla">
+    <div class="huntHomeKicker">🎯 TVOJA ZBERATEĽSKÁ MISIA</div>
+    <div class="huntHomeTitle" id="huntHomeTitle">Vyber si vysnívanú kartičku</div>
+    <p class="huntHomeDetail" id="huntHomeDetail">V Atlase vyber typ lietadla, po ktorom pátraš.</p>
+    <button class="huntHomeGo" type="button" id="huntHomeGo">🃏 Vyber v Atlase</button>
+  </section>
   <section class="card glass compPulse" id="compPulse" hidden aria-label="Tvoja týždenná súťaž">
     <div class="compPulseEyebrow" id="compPulseEyebrow">🏅 Tvoja týždenná liga</div>
     <div class="compPulseTitle" id="compPulseTitle">Načítavam poradie…</div>
@@ -1097,25 +1114,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=65"></script>
-<script src="js/ui.js?v=65"></script>
-<script src="js/ar.js?v=65"></script>
-<script src="js/space.js?v=65"></script>
-<script src="js/weather.js?v=65"></script>
-<script src="js/extras.js?v=65"></script>
-<script src="js/social.js?v=65"></script>
-<script src="js/wrapped.js?v=65"></script>
-<script src="js/push.js?v=65"></script>
-<script src="js/track.js?v=65"></script>
-<script src="js/towns.js?v=65"></script>
-<script src="js/catalog.js?v=65"></script>
-<script src="js/cards.js?v=65"></script>
-<script src="js/mail.js?v=65"></script>
-<script src="js/golden.js?v=65"></script>
-<script src="js/teams.js?v=65"></script>
-<script src="js/duel.js?v=65"></script>
-<script src="js/sound.js?v=65"></script>
-<script src="js/santa.js?v=65"></script>
-<script src="js/main.js?v=65"></script>
+<script src="js/core.js?v=66"></script>
+<script src="js/ui.js?v=66"></script>
+<script src="js/ar.js?v=66"></script>
+<script src="js/space.js?v=66"></script>
+<script src="js/weather.js?v=66"></script>
+<script src="js/extras.js?v=66"></script>
+<script src="js/social.js?v=66"></script>
+<script src="js/wrapped.js?v=66"></script>
+<script src="js/push.js?v=66"></script>
+<script src="js/track.js?v=66"></script>
+<script src="js/towns.js?v=66"></script>
+<script src="js/catalog.js?v=66"></script>
+<script src="js/cards.js?v=66"></script>
+<script src="js/mail.js?v=66"></script>
+<script src="js/golden.js?v=66"></script>
+<script src="js/teams.js?v=66"></script>
+<script src="js/duel.js?v=66"></script>
+<script src="js/sound.js?v=66"></script>
+<script src="js/santa.js?v=66"></script>
+<script src="js/main.js?v=66"></script>
 </body>
 </html>

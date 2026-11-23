@@ -248,6 +248,32 @@ function collectorHuntHTML(){
   return `<div class="huntPanel ${m.done?"complete":""}" style="grid-column:1/-1"><span class="vaultEyebrow">🎯 TVOJ OSOBNÝ LOV</span><b>${m.done?"🏆 Lov úspešný!":"🔭 Pátraš po"} ${esc(m.name)}</b><p>${m.done?"Táto karta je teraz v tvojej zbierke. Vyber si ďalšiu výzvu.":"Vzácnosť: "+esc(m.tier)+". Otvor Atlas, sleduj prelety a zamávaj, keď bude naozaj nad tebou."}</p><div class="huntActs"><button class="btn sec" data-hunt-open="${esc(m.k)}">${m.done?"Pozrieť trofej":"Detail hľadaného typu"}</button><button class="btn sec" data-hunt-clear="1">${m.done?"Nový lov":"Zrušiť"}</button></div></div>`;
 }
 
+
+/* 🔭 Živý osobný lov: žiadny umelý výskyt, iba dáta z aktuálneho radaru. */
+function collectorHuntLiveModel(){
+  const m=collectorHuntModel();
+  if(!m.k)return {kind:"empty",title:"Vyber si vysnívanú kartičku",detail:"V Atlase otvor Chýbajú a vyber typ, ktorý chceš uloviť.",k:""};
+  if(m.done)return {kind:"done",title:"🏆 Ulovené: "+m.name,detail:"Tvoja trofej už je v zbierke. Pozri si ju alebo začni nový lov.",k:m.k};
+  const list=Array.isArray(S.list)?S.list:[],close=list.filter(a=>a.type===m.k&&a.el!=null&&a.el>=10).sort((a,b)=>(b.el||0)-(a.el||0))[0];
+  if(close)return {kind:"near",title:"🚨 Tvoj cieľ je na oblohe!",detail:m.name+" · "+Math.round(close.el)+"° nad obzorom. Otvor lietadlo a zamávaj.",k:m.k,hex:close.hex};
+  return {kind:"waiting",title:"🔭 Lovíš: "+m.name,detail:m.tier+" · sleduj oblohu a zapni upozornenie na tento typ.",k:m.k};
+}
+function renderCollectorHuntHome(){
+  const root=$("huntHome");if(!root)return;
+  const m=collectorHuntLiveModel();root.dataset.state=m.kind;
+  $("huntHomeTitle").textContent=m.title;$("huntHomeDetail").textContent=m.detail;
+  const b=$("huntHomeGo");b.textContent=m.kind==="near"?"✈️ Ukáž lietadlo":m.kind==="done"?"🏆 Pozri kartičku":m.kind==="empty"?"🃏 Vyber v Atlase":"🎯 Detail cieľa";
+}
+HOOKS.live.push(renderCollectorHuntHome);
+HOOKS.view.push(v=>{if(v==="now")renderCollectorHuntHome()});
+$("huntHomeGo").onclick=()=>{
+  const m=collectorHuntLiveModel();
+  if(m.kind==="near"&&m.hex){S.pick=m.hex;try{tick(true)}catch(e){}$("hero").scrollIntoView({behavior:"smooth",block:"start"});return}
+  if(m.kind==="done"&&m.k){openCard(m.k);return}
+  if(m.kind==="waiting"&&m.k){openLocked(m.k);return}
+  atlasMode="miss";atlasOpen=false;document.querySelector('nav [data-v="col"]')?.click();
+};
+
 /* ---- Atlas v záložke Ja ---- */
 let atlasOpen=false;let atlasMode="mine";let atlasRare=false;
 const cardRar=k=>typeTier(k);
@@ -300,7 +326,7 @@ HOOKS.view.push(v=>{if(v==="col")renderCards()});
 let cardK=null;
 $("c-types").onclick=e=>{
   const choose=e.target.closest("[data-hunt-open]");if(choose){const k=choose.dataset.huntOpen;if(COL.types[k]&&COL.types[k].n)openCard(k);else openLocked(k);return}
-  if(e.target.closest("[data-hunt-clear]")){LS.set("ctl_collectorHunt","");renderCards();return}
+  if(e.target.closest("[data-hunt-clear]")){LS.set("ctl_collectorHunt","");renderCards();renderCollectorHuntHome();return}
   const tb=e.target.closest(".atTabs button");if(tb){atlasMode=tb.dataset.m;atlasRare=false;renderCards();return}
   const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();return}
   if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();return}
@@ -563,7 +589,7 @@ function openLocked(k){
 }
 {const cl=$("cardClose").onclick;$("cardClose").onclick=()=>{$("cardShare").style.display="";$("cardM").classList.remove("locked");cl()}}
 const _ol=openLocked;openLocked=k=>{_ol(k);if($("cardVideo"))$("cardVideo").hidden=true};
-$("cardBig").addEventListener("click",e=>{const b=e.target.closest("[data-hunt-pick]");if(!b)return;const k=b.dataset.huntPick;if(!CAT[k]||TROPHY.has(k))return;LS.set("ctl_collectorHunt",k);b.textContent="🎯 Toto je môj cieľ";b.classList.remove("pri");b.classList.add("sec");if(atlasMode==="mine"||atlasMode==="miss")renderCards();toast("🎯 Osobný lov: "+CAT[k].name,"Cieľ uložený na tomto zariadení. Môžeš zapnúť aj upozornenie na prelet.");});
+$("cardBig").addEventListener("click",e=>{const b=e.target.closest("[data-hunt-pick]");if(!b)return;const k=b.dataset.huntPick;if(!CAT[k]||TROPHY.has(k))return;LS.set("ctl_collectorHunt",k);b.textContent="🎯 Toto je môj cieľ";b.classList.remove("pri");b.classList.add("sec");if(atlasMode==="mine"||atlasMode==="miss")renderCards();renderCollectorHuntHome();toast("🎯 Osobný lov: "+CAT[k].name,"Cieľ uložený na tomto zariadení. Môžeš zapnúť aj upozornenie na prelet.");});
 
 /* 🎬 6-sekundové video s odhalením kartičky (na TikTok/Reels/stories), bez hudby */
 function vidOK(){return typeof MediaRecorder!=="undefined"&&!!HTMLCanvasElement.prototype.captureStream}
