@@ -28,6 +28,8 @@ jobs:
         run: node tests/league_visibility.test.mjs
       - name: Súťažný pulz na hlavnej obrazovke
         run: node tests/competition_pulse.test.mjs
+      - name: Collector Edition a osobný lov
+        run: node tests/collector_edition.test.mjs
       - name: Identita
         run: node tests/cid.test.mjs
       - name: Odznaky

@@ -19,7 +19,31 @@
 <link rel="manifest" href="manifest.webmanifest">
 <title>Čo to letí? ✈️</title>
 <link rel="preload" href="fonts/inter.woff" as="font" type="font/woff" crossorigin>
-<style>@font-face{font-family:Inter;src:url(fonts/inter.woff) format("woff");font-weight:400 800;font-display:swap}@font-face{font-family:Unbounded;src:url(fonts/unbounded.woff) format("woff");font-weight:500 900;font-display:swap}</style>
+<style>@font-face{font-family:Inter;src:url(fonts/inter.woff) format("woff");font-weight:400 800;font-display:swap}@font-face{font-family:Unbounded;src:url(fonts/unbounded.woff) format("woff");font-weight:500 900;font-display:swap}
+/* Collector Edition v65: päť dizajnov, nie iba päť farieb okraja. */
+.mini.owned{box-shadow:0 5px 15px rgba(0,0,0,.24)}
+.mini.owned.u{box-shadow:0 4px 16px rgba(109,255,199,.21)}
+.mini.owned.r{box-shadow:0 7px 23px rgba(79,163,255,.25);border:1px solid rgba(79,163,255,.5)}
+.mini.owned.e{box-shadow:0 8px 27px rgba(175,107,255,.34);border:1px solid rgba(195,146,255,.64)}
+.mini.owned.l{box-shadow:0 10px 30px rgba(255,207,79,.39);border:1px solid rgba(255,226,158,.86)}
+.mini.owned.shiny{box-shadow:0 10px 30px rgba(255,79,216,.3),0 0 0 1px rgba(109,255,199,.5)}
+.holoWrap.r{box-shadow:0 26px 55px rgba(0,0,0,.55),0 0 30px rgba(79,163,255,.19)}
+.holoWrap.e{box-shadow:0 26px 65px rgba(0,0,0,.56),0 0 45px rgba(175,107,255,.42)}
+.holoWrap.l{box-shadow:0 26px 80px rgba(0,0,0,.6),0 0 65px rgba(255,207,79,.40)}
+.holoWrap.shiny{box-shadow:0 25px 75px rgba(0,0,0,.56),0 0 55px rgba(255,79,216,.42)}
+.revealScene.r{border:2px solid rgba(79,163,255,.54);background:radial-gradient(circle at 50% 40%,rgba(79,163,255,.26),transparent 62%),#101936}
+.revealScene.e{border:2px solid rgba(180,117,255,.63);background:radial-gradient(circle at 50% 42%,rgba(137,72,255,.36),transparent 62%),#171232}
+.revealScene.l{border:2px solid rgba(255,225,159,.8);background:radial-gradient(circle at 50% 40%,rgba(255,207,79,.34),transparent 62%),#211a18;box-shadow:0 0 65px rgba(255,207,79,.25)}
+.revealScene.shiny{border:2px solid rgba(255,111,221,.75);background:radial-gradient(circle at 50% 40%,rgba(255,111,221,.28),transparent 60%),linear-gradient(135deg,#261341,#10284c)}
+.revealScene.l .cardBack{filter:drop-shadow(0 0 16px rgba(255,207,79,.35))}
+.huntPanel{margin:8px 0 13px;padding:16px;border-radius:21px;background:radial-gradient(circle at 95% 0%,rgba(79,163,255,.2),transparent 58%),linear-gradient(140deg,#1b2243,#11162b);border:1px solid rgba(119,185,255,.32)}
+.huntPanel.complete{border-color:rgba(255,207,79,.58);background:radial-gradient(circle at 90% 0%,rgba(255,207,79,.22),transparent 60%),#1b1b34}
+.huntPanel>b{display:block;margin:9px 0;font:900 clamp(16px,4.7vw,22px)/1.25 var(--disp);color:#fff}
+.huntPanel p{color:#b8c9e7;line-height:1.5;font-size:12px;margin:0 0 12px}
+.huntActs{display:flex;gap:7px;flex-wrap:wrap}
+.huntActs button{min-height:44px;flex:1;font-size:12px}
+@media(prefers-reduced-motion:reduce){.mini.owned::after{animation:none!important}}
+</style>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1320x2868.png">
 <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1206x2622.png">
@@ -1073,25 +1097,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=64"></script>
-<script src="js/ui.js?v=64"></script>
-<script src="js/ar.js?v=64"></script>
-<script src="js/space.js?v=64"></script>
-<script src="js/weather.js?v=64"></script>
-<script src="js/extras.js?v=64"></script>
-<script src="js/social.js?v=64"></script>
-<script src="js/wrapped.js?v=64"></script>
-<script src="js/push.js?v=64"></script>
-<script src="js/track.js?v=64"></script>
-<script src="js/towns.js?v=64"></script>
-<script src="js/catalog.js?v=64"></script>
-<script src="js/cards.js?v=64"></script>
-<script src="js/mail.js?v=64"></script>
-<script src="js/golden.js?v=64"></script>
-<script src="js/teams.js?v=64"></script>
-<script src="js/duel.js?v=64"></script>
-<script src="js/sound.js?v=64"></script>
-<script src="js/santa.js?v=64"></script>
-<script src="js/main.js?v=64"></script>
+<script src="js/core.js?v=65"></script>
+<script src="js/ui.js?v=65"></script>
+<script src="js/ar.js?v=65"></script>
+<script src="js/space.js?v=65"></script>
+<script src="js/weather.js?v=65"></script>
+<script src="js/extras.js?v=65"></script>
+<script src="js/social.js?v=65"></script>
+<script src="js/wrapped.js?v=65"></script>
+<script src="js/push.js?v=65"></script>
+<script src="js/track.js?v=65"></script>
+<script src="js/towns.js?v=65"></script>
+<script src="js/catalog.js?v=65"></script>
+<script src="js/cards.js?v=65"></script>
+<script src="js/mail.js?v=65"></script>
+<script src="js/golden.js?v=65"></script>
+<script src="js/teams.js?v=65"></script>
+<script src="js/duel.js?v=65"></script>
+<script src="js/sound.js?v=65"></script>
+<script src="js/santa.js?v=65"></script>
+<script src="js/main.js?v=65"></script>
 </body>
 </html>
