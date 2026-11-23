@@ -669,7 +669,7 @@ export class Sky extends DurableObject {
       const pd = await this.pid(x.id);
       return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), data: x.data});
     }
-    const OPEN = ["/api/sky", "/api/msg", "/api/admin"];
+    const OPEN = ["/api/sky", "/api/msg", "/api/admin", "/api/stats"]; // /api/stats overuje ADMIN_KEY samostatne
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {
       if (!this.rate("post:" + iph, 1500, 60e3)) { this.bump("429:post"); return json({error: "rate"}, 429); }
       const b = await body();
