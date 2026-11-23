@@ -26,6 +26,8 @@ jobs:
         run: node tests/collector_vault.test.mjs
       - name: Viditeľnosť rebríčkov a férové limity
         run: node tests/league_visibility.test.mjs
+      - name: Súťažný pulz na hlavnej obrazovke
+        run: node tests/competition_pulse.test.mjs
       - name: Identita
         run: node tests/cid.test.mjs
       - name: Odznaky

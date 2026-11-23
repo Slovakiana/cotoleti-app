@@ -1,0 +1,25 @@
+// Čistá logika súťažného pulzu – férové odstupy bez zmeny bodov.
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import vm from "node:vm";
+const src=readFileSync(new URL("../js/social.js",import.meta.url),"utf8");
+const from=src.indexOf("function competitionPulseModel(j)");
+const to=src.indexOf("function renderCompetitionPulse()",from);
+assert.ok(from>0&&to>from,"funkcia modelu existuje");
+const model=vm.runInNewContext(src.slice(from,to)+";competitionPulseModel", {});
+const before={div:3,of:3,rows:[{n:"Rival",w:14},{n:"Ty",w:11,me:true},{n:"Iný",w:8}]};
+const copy=JSON.stringify(before);
+const x=model(before);
+assert.match(x.title,/4/,"na súpera je potrebné 4 ďalšie mávnutia");
+assert.match(x.detail,/Rival/,"ukazuje najbližšieho súpera");
+assert.ok(x.pct>=0&&x.pct<=100);
+assert.equal(JSON.stringify(before),copy,"nič nemení v dátach ligy");
+const first=model({div:1,of:2,rows:[{n:"Ty",w:12,me:true},{n:"Iný",w:10}]});
+assert.match(first.title,/Vedieš/);
+const empty=model({div:null,players:0});
+assert.match(empty.title,/Nastúp/);
+assert.match(src,/SOC\.dv=\{t:Date\.now\(\),j\};SOC\.pulseRetry/,"súťažný pulz využíva serverovú divíziu");
+const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
+assert.match(html,/id="compPulse"/);
+assert.match(html,/id="compPulseGo"/);
+console.log("✓ aktuálna divízia, rival, rozdiel a bezpečný fallback");
