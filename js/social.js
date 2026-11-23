@@ -76,6 +76,40 @@ function planeWaves(hex){
   if(!d)return l;if(!l)return d;
   return d.total>=l.total?d:l;
 }
+
+/* 🏆 Súťažný pulz: iba overené týždenné mávnutia z existujúcej divízie; bez nových herných odmien. */
+function competitionPulseModel(j){
+  if(!j||!j.div)return {eyebrow:"🏅 Tvoja týždenná liga",title:"Nastúp do divízie",detail:"Zamávaj overenému lietadlu s GPS a získaš prvé miesto v ligovej tabuľke.",pct:0};
+  const rows=Array.isArray(j.rows)?j.rows:[],my=rows.find(r=>r.me);
+  if(!my)return {eyebrow:"🏅 Divízia "+j.div,title:"Pozri svoje poradie",detail:"Prebieha aktualizácia výsledkov tvojej divízie.",pct:0};
+  const rank=rows.findIndex(r=>r.me)+1,up=rank>1?rows[rank-2]:null,down=rank===1?rows[1]:null;
+  const count=Math.max(1,j.of||rows.length),mine=Math.max(0,Number(my.w)||0);
+  if(up){const gap=Math.max(1,Math.floor((Number(up.w)||0)-mine)+1);
+    return {eyebrow:"🏅 Divízia "+j.div+" · "+rank+". z "+count,title:"Do vyššieho miesta: "+gap+" 👋",detail:"Najbližší súper: "+String(up.n||"Spotter")+". Rátajú sa overené mávnutia, najviac 25 za deň.",pct:Math.max(0,Math.min(100,Math.round(100*mine/Math.max(mine+gap,Number(up.w)||1))))};}
+  if(down){const lead=Math.max(0,mine-(Number(down.w)||0));
+    return {eyebrow:"👑 Divízia "+j.div+" · 1. z "+count,title:"Vedieš svoju divíziu!",detail:lead?"Pred druhým hráčom máš náskok "+lead+" 👋. Udrž si prvenstvo do konca týždňa.":"O prvenstvo sa delíš počtom mávnutí. Každý overený úlovok rozhoduje.",pct:100};}
+  return {eyebrow:"🏅 Divízia "+j.div,title:"Si prvý v divízii 👑",detail:"Zatiaľ si tu sám. Pozvi ďalších spotterov a začnite súťažiť.",pct:100};
+}
+function renderCompetitionPulse(){
+  const el=$("compPulse");if(!el||!SOC.api||!SOC.data)return;
+  el.hidden=false;
+  const old=SOC.dv,j=old&&old.j,model=competitionPulseModel(j);
+  $("compPulseEyebrow").textContent=model.eyebrow;
+  $("compPulseTitle").textContent=model.title;
+  $("compPulseDetail").textContent=model.detail;
+  $("compPulseBar").style.width=model.pct+"%";
+  if(!old||Date.now()-old.t>120e3){
+    if(!SOC.pulseLoading&&(!SOC.pulseRetry||Date.now()>SOC.pulseRetry)){
+      SOC.pulseLoading=true;
+      apiPost("/api/division",{}).then(r=>{if(!r.ok)throw Error("division "+r.status);return r.json()}).then(j=>{
+        SOC.dv={t:Date.now(),j};SOC.pulseRetry=0;SOC.pulseLoading=false;
+        renderCompetitionPulse();if(LG==="d")renderLeague();
+      }).catch(()=>{SOC.pulseLoading=false;SOC.pulseRetry=Date.now()+120e3;
+        $("compPulseDetail").textContent="Poradie sa teraz nedá obnoviť. Môžeš ďalej zbierať kartičky."});
+    }
+  }
+}
+
 function socRender(){
   const D=SOC.data;
   if(D){
@@ -86,7 +120,7 @@ function socRender(){
     const rec=D.record;
     $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Denný rekord: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · do rekordu chýba "+nf(Math.max(0,rec.n-w+1))+" 👋"}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
     if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
-    renderLeague();renderMayor();renderAdopt();renderHidden();
+    renderLeague();renderMayor();renderAdopt();renderHidden();renderCompetitionPulse();
   }
   waveInfo(S.top);
   if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
@@ -204,6 +238,7 @@ $("repM").addEventListener("click",async e=>{
 $("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.more){const m=$("lgTabs").classList.toggle("more");b.setAttribute("aria-expanded",m);b.textContent=m?"×":"⋯";return}
   LG=b.dataset.t;[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x===b));renderLeague();haptic(6)};
+$("compPulseGo").onclick=()=>{LG="d";[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x.dataset.t==="d"));$("krajeCard").style.display="";renderLeague();$("krajeCard").scrollIntoView({behavior:typeof RM==="function"&&RM()?"auto":"smooth",block:"start"});haptic(6)};
 $("lgAtlasScope").onclick=e=>{const b=e.target.closest("button[data-scope]");if(!b||LG_ATLAS_SCOPE===b.dataset.scope)return;LG_ATLAS_SCOPE=b.dataset.scope;SOC.atl=null;renderLeague();haptic(6)};
 function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}
@@ -363,7 +398,7 @@ async function doWave1(e,a){LASTWAVE=null;
   credit();
   // 🏅 liga hneď po mávnutí: obnov rebríčky a pochváľ posun v divízii
   if(!j.dup){const old=SOC.dv&&SOC.dv.j&&SOC.dv.j.rank;SOC.dv=SOC.frw=null;if(j.ver)SOC.atl=null;
-    if(old)setTimeout(()=>apiPost("/api/division",{}).then(r=>r.json()).then(x=>{SOC.dv={t:Date.now(),j:x};if(x&&x.rank&&x.rank<old)toast("🏅 Divízia: si "+x.rank+". (bol(a) si "+old+".)","Len tak ďalej 👋");if(LG==="d")renderLeague()}).catch(()=>{}),2500)}
+    if(old)setTimeout(()=>apiPost("/api/division",{}).then(r=>r.json()).then(x=>{SOC.dv={t:Date.now(),j:x};renderCompetitionPulse();if(x&&x.rank&&x.rank<old)toast("🏅 Divízia: si "+x.rank+". (bol(a) si "+old+".)","Len tak ďalej 👋");if(LG==="d")renderLeague()}).catch(()=>{}),2500)}
   if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
   if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["č. "+j.seq+" na Slovensku"]);

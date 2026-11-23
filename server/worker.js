@@ -1010,7 +1010,9 @@ export class Sky extends DurableObject {
       return json({ok: true});
     }
     if (p === "/api/forget" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
+      const b = await body(), id = cleanId(b.id);
+      if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
+      const pd = await this.pid(id);
       for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
         // náhrobok: starý token sa už nedá použiť ani na samoopravu účtu
         this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, Date.now(), 1e6 + Math.floor(Math.random() * 1e6));
