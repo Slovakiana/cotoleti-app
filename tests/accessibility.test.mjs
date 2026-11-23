@@ -13,7 +13,7 @@ for(const id of ["mlat","mlon","trInput","trLabel"]){
   const tag=html.split("<input").find(x=>x.includes('id="'+id+'"'))||"";
   assert.match(tag,/aria-label="[^"]+"/,id);
 }
-assert.match(html,/nav button\\{[^}]*min-height:48px/);
+assert.ok(html.includes("nav button{flex:1;min-height:48px;"),"nav targets");
 assert.match(html,/id="statusPill"[^>]*aria-describedby="status"/);
 assert.match(html,/id="map"[^>]*aria-label="Mapa letu"/);
 console.log("✓ názvy dialógov, označenia vstupov a navigačné dotykové plochy");
