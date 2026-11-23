@@ -954,6 +954,7 @@ export class Sky extends DurableObject {
 
     if (p === "/api/admin" && req.method === "POST") {
       const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
+      if (b.resetAction) {
       if (b.resetAction === "prepare") {
         const nonce = crypto.randomUUID();
         this.setMeta("wipe_nonce", nonce);
@@ -982,6 +983,7 @@ export class Sky extends DurableObject {
       this._snap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
       this.atlC={};this.cstat=new Map();this._spec=null;
       return json({ok:true,phase:"complete",epoch:nextEpoch,clearedTables:wipe.length});
+      }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
       if (typeof b.specials === "string") {
         // 🎨 špeciálne nátery a 🥇 prvé lety – riadky „OM-ABC = Retro náter“ alebo „2026-12-15 WZZ1234 = Prvý let do Dubaja“
