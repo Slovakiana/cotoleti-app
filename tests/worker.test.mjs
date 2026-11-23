@@ -374,3 +374,19 @@ await (async () => {
   assert.deepEqual(r, {lv: {"OM-ABC": "Retro náter"}, fi: [{d: "2026-12-15", call: "WZZ1234", txt: "Prvý let do Dubaja"}]}, JSON.stringify(r));
   console.log("✓ špeciálne nátery a prvé lety");
 })();
+
+
+await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {
+  assert.equal((await call("/api/admin/reset-all",{action:"prepare"})).s,401);
+  assert.equal((await call("/api/admin/reset-all",{action:"execute",key:"nespravny"})).s,401);
+  const draft=await call("/api/admin/reset-all",{action:"prepare",key:"tajne"});
+  assert.equal(draft.s,200);assert.ok(draft.j.nonce);
+  assert.equal((await call("/api/admin/reset-all",{action:"execute",key:"tajne",nonce:draft.j.nonce,confirm:"nie"})).s,400);
+  assert.ok(db.prepare("SELECT COUNT(*) c FROM ids").get().c>0);
+  const done=await call("/api/admin/reset-all",{action:"execute",key:"tajne",nonce:draft.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
+  assert.equal(done.j.ok,true);assert.equal(done.j.epoch,1);
+  for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres"])
+    assert.equal(db.prepare("SELECT COUNT(*) c FROM "+table).get().c,0,table);
+  assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001"})).s,409);
+  assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001",epoch:1})).s,200);
+});
