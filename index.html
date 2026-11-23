@@ -584,6 +584,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #hero .acts>#b-wave{flex:1 1 100%}#hero .acts>#b-ar{flex:1}
 .photo small{left:10px;text-align:right;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:8px;opacity:1}.photo small a{color:#fff}
 @media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}#onb .sky{inset:0 0 70% 0}}
+
+/* Súťažný Atlas: jasná voľba regiónu alebo celého Slovenska */
+.lgAtlasScope{margin:13px 0 10px;padding:12px;border-radius:16px;background:linear-gradient(135deg,rgba(79,195,255,.08),rgba(181,107,255,.08));border:1px solid rgba(255,255,255,.12)}
+.lgAtlasScope[hidden]{display:none!important}
+.scopeBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scopeBtns button{min-height:46px;padding:9px 8px;border-radius:12px;border:1px solid rgba(255,255,255,.2);font-size:13px;font-weight:800;color:var(--txt);background:rgba(255,255,255,.06)}
+.scopeBtns button.on{border-color:#6dffc7;background:rgba(109,255,199,.15);color:#a6ffe0;box-shadow:inset 0 0 0 1px rgba(109,255,199,.22)}
+.lgAtlasScope p{margin:10px 2px 0;font-size:12px;line-height:1.5;color:var(--mut2)}
 </style>
 </head>
 <body>
@@ -714,6 +722,10 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="lbl"><span id="lgHead">🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>
     <div id="recBox"></div>
     <div class="lgTabs" id="lgTabs"><button data-t="k" class="on">Dnes</button><button data-t="w">Týždeň</button><button data-t="m">Mestá</button><button data-t="a">🃏 Atlasy</button><button data-t="f">👯 Kamaráti</button><button data-t="d" class="lgX">🏅 Divízia</button><button data-more="1" aria-expanded="false">⋯</button><button data-t="p" class="lgX">Na hráča</button><button data-t="o" class="lgX">Derby</button><button data-t="s" class="lgX">Menšie mestá</button><button data-t="t" class="lgX">Tímy</button></div>
+    <div id="lgAtlasScope" class="lgAtlasScope" hidden aria-label="Rozsah zberateľského rebríčka">
+      <div class="scopeBtns" role="group" aria-label="Rozsah zberateľského rebríčka"><button type="button" data-scope="region" class="on" aria-pressed="true">📍 Môj kraj</button><button type="button" data-scope="sk" aria-pressed="false">🇸🇰 Celé Slovensko</button></div>
+      <p>Tu sú len zberatelia s overenými kartičkami. V kraji sa započítajú typy prvýkrát overené v danom kraji; ostatných nájdeš v celoslovenskom rebríčku.</p>
+    </div>
     <div id="kraje" style="margin-top:8px"></div>
     <div id="lgNote" class="lookSub" style="margin-top:6px"></div>
     <details class="lgRules"><summary>ⓘ Ako sa to počíta?</summary><div id="lgRules"></div></details>
@@ -1000,25 +1012,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=62"></script>
-<script src="js/ui.js?v=62"></script>
-<script src="js/ar.js?v=62"></script>
-<script src="js/space.js?v=62"></script>
-<script src="js/weather.js?v=62"></script>
-<script src="js/extras.js?v=62"></script>
-<script src="js/social.js?v=62"></script>
-<script src="js/wrapped.js?v=62"></script>
-<script src="js/push.js?v=62"></script>
-<script src="js/track.js?v=62"></script>
-<script src="js/towns.js?v=62"></script>
-<script src="js/catalog.js?v=62"></script>
-<script src="js/cards.js?v=62"></script>
-<script src="js/mail.js?v=62"></script>
-<script src="js/golden.js?v=62"></script>
-<script src="js/teams.js?v=62"></script>
-<script src="js/duel.js?v=62"></script>
-<script src="js/sound.js?v=62"></script>
-<script src="js/santa.js?v=62"></script>
-<script src="js/main.js?v=62"></script>
+<script src="js/core.js?v=63"></script>
+<script src="js/ui.js?v=63"></script>
+<script src="js/ar.js?v=63"></script>
+<script src="js/space.js?v=63"></script>
+<script src="js/weather.js?v=63"></script>
+<script src="js/extras.js?v=63"></script>
+<script src="js/social.js?v=63"></script>
+<script src="js/wrapped.js?v=63"></script>
+<script src="js/push.js?v=63"></script>
+<script src="js/track.js?v=63"></script>
+<script src="js/towns.js?v=63"></script>
+<script src="js/catalog.js?v=63"></script>
+<script src="js/cards.js?v=63"></script>
+<script src="js/mail.js?v=63"></script>
+<script src="js/golden.js?v=63"></script>
+<script src="js/teams.js?v=63"></script>
+<script src="js/duel.js?v=63"></script>
+<script src="js/sound.js?v=63"></script>
+<script src="js/santa.js?v=63"></script>
+<script src="js/main.js?v=63"></script>
 </body>
 </html>
