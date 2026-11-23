@@ -684,7 +684,12 @@ let forgetArm=0;
 $("b-forget").onclick=async()=>{
   if(Date.now()-forgetArm>4000){forgetArm=Date.now();$("b-forget").textContent="Naozaj? Ťukni znova";return}
   if(!kidPinOk("zmazať údaje"))return;
-  try{if(typeof apiPost==="function")await apiPost("/api/forget",{})}catch(e){}
+  // Bez potvrdenia servera NEZMAZAŤ lokálnu identitu, aby sa údaje nestratili len napoly.
+  try{
+    if(typeof apiPost!=="function")throw Error("offline");
+    const r=await apiPost("/api/forget",{}),j=await r.json();
+    if(!r.ok||!j.ok)throw Error("reset");
+  }catch(e){forgetArm=0;$("b-forget").textContent="Zmazať";toast("⚠️ Zmazanie sa nepodarilo","Skontroluj internet a skús to znova. Dáta v mobile zostali zachované.");return}
   try{const r=await navigator.serviceWorker?.getRegistration();const sub=await r?.pushManager?.getSubscription();await sub?.unsubscribe()}catch(e){}
   try{await caches.delete("ctl-id")}catch(e){}
   LSP.clear();LS.set=()=>{};

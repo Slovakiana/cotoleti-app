@@ -232,6 +232,11 @@ await t("štatistiky len s kľúčom", async () => {
   assert.equal((await call("/api/export")).s, 404); // export celej databázy je zrušený
 });
 await t("moje údaje sa dajú stiahnuť", async () => { const r = await call("/api/mydata", {id: C, tok: hc.tok}); assert.equal(r.s, 200); assert.ok(Array.isArray(r.j.wavelog)); assert.ok(!JSON.stringify(r.j).includes(C)); });
+await t("cudzí účet nie je možné vymazať bez jeho platného tokenu", async () => {
+  assert.equal((await call("/api/forget", {id: A})).s, 401);
+  assert.equal((await call("/api/forget", {id: A, tok: hb.tok})).s, 401);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM ids WHERE id=?").get(A).c, 1);
+});
 await t("zmazanie údajov zruší aj token", async () => {
   await call("/api/forget", {id: A, tok: ha.tok});
   assert.equal(db.prepare("SELECT COUNT(*) c FROM wavelog WHERE id=?").get(A).c, 0);
