@@ -1,4 +1,4 @@
-# TESTOVANIE V66: skupina nových testerov
+# TESTOVANIE V67: skupina nových testerov
 
 ## Nemaž spoločnú produkčnú databázu
 Zbierky a nastavenia sú prevažne v localStorage zariadenia. Server však uchováva overené úlovky, identity, prvenstvá a ligové rebríčky. Vymazanie Safari dát nevynuluje rebríček.
@@ -7,7 +7,7 @@ Zbierky a nastavenia sú prevažne v localStorage zariadenia. Server však uchov
 Každý tester na novom zariadení začína s novou osobnou identitou a zbierkou. Nemusíme nič mazať. Ak testeri potrebujú úplne prázdne **spoločné rebríčky**, používajte samostatný Cloudflare Worker a vlastnú prázdnu Durable Object databázu; nestačí skopírovať iba GitHub Pages HTML.
 
 ## Existujúci tester chce začať odznovu
-Vo vlastnom účte je v aplikácii **Ja → Súkromie → Zmazať moje údaje**. Táto akcia sa týka jeho vlastných lokálnych a serverových údajov, môže byť nezvratná; neaktivujte ju bez predchádzajúceho exportu a vedomého súhlasu testera. Nevymazávajte Safari dáta všetkých webov. Pred zmazaním sa má overiť úspech odpovede servera, inak hrozí nekonzistentný reset.
+Vo vlastnom účte je v aplikácii **Ja → Súkromie → Zmazať moje údaje**. Táto akcia sa týka jeho vlastných lokálnych a serverových údajov, môže byť nezvratná; neaktivujte ju bez predchádzajúceho exportu a vedomého súhlasu testera. Nevymazávajte Safari dáta všetkých webov. V balíku v67 server vyžaduje token vlastníka a mobil nevymaže lokálne dáta, ak server zmazanie nepotvrdí.
 
 ## Scenáre
 - [ ] Nový hráč: prvé spustenie a prístup ku GPS
