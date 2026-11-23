@@ -377,7 +377,7 @@ await (async () => {
 
 
 const adminReset=async b=>{
-  const r=await W.fetch(new Request("https://x/api/admin/reset-all",{method:"POST",headers:{"x-admin-key":"tajne"},body:JSON.stringify(b)}),env);
+  const r=await W.fetch(new Request("https://x/api/admin",{method:"POST",headers:{"x-admin-key":"tajne"},body:JSON.stringify({...b,key:"tajne"})}),env);
   return {s:r.status,j:await r.json()};
 };
 await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {
