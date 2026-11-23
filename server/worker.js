@@ -952,11 +952,9 @@ export class Sky extends DurableObject {
       return json({code, ttl: 600});
     }
 
-    if (p === "/api/admin/reset-all" && req.method === "POST") {
-      // Vlastník aplikácie: dvoufázové potvrdenie. Samotné otvorenie /admin nič nemaže.
-      const b = await body();
-      if (!this.admin(u, req, b.key)) return json({error: "auth"}, 401);
-      if (b.action === "prepare") {
+    if (p === "/api/admin" && req.method === "POST") {
+      const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
+      if (b.resetAction === "prepare") {
         const nonce = crypto.randomUUID();
         this.setMeta("wipe_nonce", nonce);
         this.setMeta("wipe_until", now + 5 * 60e3);
@@ -964,7 +962,7 @@ export class Sky extends DurableObject {
         const cards = (this.row("SELECT COUNT(*) AS c FROM typeseq") || {}).c || 0;
         return json({ok:true,phase:"prepare",nonce,expires:now + 5 * 60e3,users,cards,epoch:Number(this.getMeta("player_reset_epoch")||0)});
       }
-      if (b.action !== "execute" || b.confirm !== "VYMAZAT VSETKY DATA"
+      if (b.resetAction !== "execute" || b.confirm !== "VYMAZAT VSETKY DATA"
         || typeof b.nonce !== "string"
         || !sameStr(b.nonce, this.getMeta("wipe_nonce") || "")
         || now > Number(this.getMeta("wipe_until") || 0)) return json({error:"confirm"}, 400);
@@ -984,9 +982,6 @@ export class Sky extends DurableObject {
       this._snap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
       this.atlC={};this.cstat=new Map();this._spec=null;
       return json({ok:true,phase:"complete",epoch:nextEpoch,clearedTables:wipe.length});
-    }
-    if (p === "/api/admin" && req.method === "POST") {
-      const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error: "auth"}, 401); }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
       if (typeof b.specials === "string") {
         // 🎨 špeciálne nátery a 🥇 prvé lety – riadky „OM-ABC = Retro náter“ alebo „2026-12-15 WZZ1234 = Prvý let do Dubaja“
@@ -1332,7 +1327,7 @@ $("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx"
 let wipeNonce="";
 $("wipePreview").onclick=async()=>{
   wipeNonce="";$("wipeExecute").disabled=true;$("wipeInfo").textContent="Kontrolujem…";
-  try{const r=await fetch("/api/admin/reset-all",{method:"POST",headers:H(),body:JSON.stringify({action:"prepare"})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
+  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"prepare"})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
     wipeNonce=j.nonce;$("wipeInfo").textContent="Pripravené na nezvratné zmazanie: "+j.users+" účtov, "+j.cards+" serverových kartičiek. Potvrdenie platí päť minút."; $("wipeExecute").disabled=false;
   }catch(e){$("wipeInfo").textContent="Chyba: "+e.message}
 };
@@ -1342,7 +1337,7 @@ $("wipeExecute").onclick=async()=>{
   if(text!=="VYMAZAT VSETKY DATA")return;
   if(!confirm("Naozaj navždy odstrániť údaje VŠETKÝCH hráčov?"))return;
   $("wipeExecute").disabled=true;
-  try{const r=await fetch("/api/admin/reset-all",{method:"POST",headers:H(),body:JSON.stringify({action:"execute",nonce:wipeNonce,confirm:text})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
+  try{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({resetAction:"execute",nonce:wipeNonce,confirm:text})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||r.status);
     $("wipeInfo").textContent="✅ Reset vykonaný. Nová sezóna: "+j.epoch+". Hráči sa po obnovení appky začnú od nuly.";
   }catch(e){$("wipeInfo").textContent="Reset zlyhal: "+e.message}finally{wipeNonce=""}
 };
