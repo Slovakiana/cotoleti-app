@@ -18,6 +18,8 @@ jobs:
         run: node tests/version.test.mjs
       - name: Testy servera (súťaže, bezpečnosť)
         run: node tests/worker.test.mjs
+      - name: Viditeľnosť rebríčkov a férové limity
+        run: node tests/league_visibility.test.mjs
       - name: Identita
         run: node tests/cid.test.mjs
       - name: Odznaky
