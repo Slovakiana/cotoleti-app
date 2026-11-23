@@ -186,7 +186,7 @@ function collectorVaultHTML(keys,owned){
   const special=all.filter(k=>collectorSpecial(k,owned[k]));
   return `<div class="collectorVault" style="grid-column:1/-1">
     <div class="vaultEyebrow">✦ TVOJ SÚKROMNÝ ATLAS</div>
-    <div class="vaultHeading"><div><strong>💎 Klenotnica</strong><small>Každý úlovok má svoj príbeh. Tie výnimočné vystav na obdiv.</small></div><span class="vaultCounter">${special.length} klenotov</span></div>
+    <div class="vaultHeading"><div><strong>💎 Klenotnica</strong><small>Každý úlovok má svoj príbeh. Tie výnimočné vystav na obdiv.</small></div><span class="vaultCounter">${special.length} ${pl(special.length,"klenot","klenoty","klenotov")}</span></div>
     <div class="vaultGoals">${goals.map(([got,target,label,sym])=>`<div class="vaultGoal ${got>=target?"done":""}"><span>${sym}</span><div><b>${esc(label)}</b><small>${got>=target?"✓ Splnené":got+"/"+target+" · zatiaľ neobjavené"}</small></div></div>`).join("")}</div>
   </div>`;
 }
