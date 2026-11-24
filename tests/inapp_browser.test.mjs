@@ -17,8 +17,8 @@ const cases=[
   ["Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 FBAN/FBIOS","aplikácia"],
 ];
 for(const [ua,want] of cases)assert.equal(fn(ua),want,ua);
-assert.equal(fn("Mozilla/5.0 (iPhone)","https://l.whatsapp.com/"),"referrer WhatsApp");
-assert.equal(fn("Mozilla/5.0 (iPhone)","https://example.com/"),"cudzí referrer");
+assert.equal(fn("Mozilla/5.0 (iPhone)","https://l.whatsapp.com/"),"WhatsApp","referrer WhatsApp");
+assert.equal(fn("Mozilla/5.0 (iPhone)","https://example.com/"),"","cudzí referrer");
 const bar=src.slice(src.indexOf("function inAppBar(){"),src.indexOf("// obrazovka nezhasne počas AR"));
 assert.ok(bar.includes("setTimeout(inAppBar,350)"),"banner pred prvým mávnutím");
 assert.ok(!bar.includes("ctl_waveN"),"banner nezávisí od prvého úlovku");
