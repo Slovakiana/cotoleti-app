@@ -734,14 +734,30 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}ca
 
 /* ============ 📱 iPhone a prehliadače v appkách ============ */
 const UA=navigator.userAgent,isIPad=/Macintosh/.test(UA)&&navigator.maxTouchPoints>1;
-const inApp=/FBAN|FBAV|Instagram|musical_ly|Bytedance|TikTok|Messenger|Snapchat|Line\//i.test(UA);
+// Niektoré iOS in-app prehliadače neuvádzajú názov hostiteľskej appky v User-Agent;
+// ak ho nevieme spoľahlivo určiť, neoznačujeme Safari/Chrome omylom ako WhatsApp.
+function embeddedBrowserName(ua,ref=""){
+  ua=String(ua||"");
+  if(/WhatsApp|WhatsApp\/|\bWAWebView\b/i.test(ua)||/^(https?:\/\/)?(l\.)?whatsapp\.com\//i.test(ref))return "WhatsApp";
+  if(/FBAN|FBAV|Messenger|Instagram|musical_ly|Bytedance|TikTok|Snapchat|Line\//i.test(ua))return "aplikácia";
+  return "";
+}
+const embeddedBrowser=embeddedBrowserName(UA,document.referrer);
 function inAppBar(){
-  if(!inApp||LS.get("ctl_inappX",false)||document.querySelector(".inappBar"))return;
-  const b=document.createElement("div");b.className="inappBar glass";
-  b.innerHTML=`<b>Uložiť si body?</b><span>Otvor appku v Safari alebo Chrome: ťukni na ⋯ → „Otvoriť v prehliadači“. Tu sa body môžu stratiť.</span><button aria-label="Zavrieť">✕</button>`;
-  b.querySelector("button").onclick=()=>{LS.set("ctl_inappX",true);b.remove()};document.body.appendChild(b);
-}// až po prvom mávnutí (nech to nepreruší prvý zážitok)
-if((LS.get("ctl_waveN",0)|0)>0)setTimeout(inAppBar,4000);
+  if(!embeddedBrowser||LS.get("ctl_inappX",false)||document.querySelector(".inappBar"))return;
+  const b=document.createElement("section");b.className="inappBar glass";b.setAttribute("role","region");
+  b.setAttribute("aria-label","Otvoriť v bežnom prehliadači");
+  b.innerHTML=`<b>🔐 Ochráň si zbierku</b><span>Odkaz si otvoril v ${embeddedBrowser==="WhatsApp"?"WhatsAppe":"inej aplikácii"}. V jej prehliadači môže vzniknúť iný hráčsky účet.</span><span><strong>Skopíruj odkaz, otvor Safari alebo Chrome a vlož ho do adresného riadka.</strong> Ďalej používaj stále ten istý prehliadač.</span><div class="inappActions"><button type="button" class="inappCopy">📋 Kopírovať odkaz</button><button type="button" class="inappClose" aria-label="Zavrieť upozornenie">✕</button></div>`;
+  b.querySelector(".inappCopy").onclick=async()=>{
+    const url="https://slovakiana.github.io/cotoleti-app/";
+    try{await navigator.clipboard.writeText(url);b.querySelector(".inappCopy").textContent="✅ Skopírované – otvor Safari/Chrome"}
+    catch(e){const c=b.querySelector(".inappCopy");c.textContent="Odkaz: "+url;c.style.overflowWrap="anywhere"}
+  };
+  b.querySelector(".inappClose").onclick=()=>{LS.set("ctl_inappX",true);b.remove()};
+  document.body.appendChild(b);
+}
+// Upozorniť už pri prvom otvorení, nie až po prvom mávnutí a vytvorení zbierky.
+setTimeout(inAppBar,350);
 
 // obrazovka nezhasne počas AR a spoločného momentu
 const WAKE={l:null,want:false};

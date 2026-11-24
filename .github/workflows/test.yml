@@ -32,6 +32,8 @@ jobs:
         run: node tests/collector_edition.test.mjs
       - name: Živý osobný lov
         run: node tests/hunt_home.test.mjs
+      - name: Bezpečné otvorenie cez WhatsApp
+        run: node tests/inapp_browser.test.mjs
       - name: Identita
         run: node tests/cid.test.mjs
       - name: Odznaky

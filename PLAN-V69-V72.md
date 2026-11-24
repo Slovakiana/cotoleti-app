@@ -9,14 +9,16 @@
 - [x] Analýza: starý podpis hráčskeho tokenu môže prežiť `/api/admin` globálny reset.
 - [x] Zmeniť podpis tokenu podľa `player_reset_epoch` s kompatibilitou generácie 0.
 - [x] Regresné testy: starý token neobnoví účet po resete; nový token funguje; opakovaný reset zneplatní tokeny.
-- [ ] Kompletné CI na vetve + pull request.
+- [x] Kompletné CI na vetve + pull request – PR #15 (časť A, pred pridaním B).
 - [ ] Kontrola a vedomé schválenie produkčného nasadenia.
 - [ ] Po nasadení overiť Cloudflare Worker samostatne.
 
 ### Časť B: vstup z WhatsAppu
-- [ ] Detekovať WhatsApp a ďalšie in-app prehliadače (s overením používateľského agenta).
-- [ ] Pred prvým úlovkom ukázať nenásilný, ale jednoznačný návod Safari/Chrome a jednu stabilnú inštaláciu.
-- [ ] Otestovať na iPhone a Androide, nevytvárať automaticky ďalšiu identitu.
+- [x] Detekovať WhatsApp a ďalšie identifikovateľné in-app prehliadače (UA/referrer; niektoré iOS prehliadače neidentifikovateľné).
+- [x] Pred prvým úlovkom upozorniť na riziko novej identity a ponúknuť skopírovanie odkazu do Safari/Chrome.
+- [x] Pridať automatizované testy pre iPhone/Android UA, bežný prehliadač a zobrazenie pred prvým mávnutím.
+- [ ] Ručný test na skutočnom iPhone a Androide s WhatsAppom.
+- [ ] Zelené CI po časti B, kontrola a schválenie nasadenia.
 
 ### Časť C: synchronizácia účtu a strata spojenia
 - [ ] Pri štarte a návrate online overiť `player_reset_epoch`, aj keď je token vo vyrovnávacej pamäti.
