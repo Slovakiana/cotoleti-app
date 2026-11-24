@@ -304,6 +304,11 @@ function skyTap(ev){
 }
 
 /* ============ hlavná karta ============ */
+function expandRadar(){
+  $("radius").value="50";
+  $("radius").dispatchEvent(new Event("change"));
+  toast("📡 Hľadám ďalej","Okruh 93 km");
+}
 function heroEmpty(){
   $("guess").classList.remove("on");
   $("h-lbl").textContent=t("now");$("h-rar").style.display="none";
@@ -317,8 +322,8 @@ function heroEmpty(){
   }
   $("h-quip").textContent="";["h-st3","h-dir","h-eta"].forEach(id=>$(id).style.display="none");
   $("b-wave").disabled=true;$("b-wave").style.opacity=.5;
-  if(S.pos&&(S.raw.length||S.loaded)&&$("h-call").textContent===t("empty")){$("h-quip").innerHTML='<span class="emptyActs"><button class="ghost" id="eRad">📡 Hľadať ďalej (93 km)</button></span>';
-    $("eRad").onclick=()=>{$("radius").value="50";$("radius").dispatchEvent(new Event("change"));fetchPlanes(true);toast("📡 Hľadám ďalej","Okruh 93 km")}}
+  if(S.pos&&(S.raw.length||S.loaded)&&$("h-call").textContent===t("empty")&&+$("radius").value<50){$("h-quip").innerHTML='<span class="emptyActs"><button class="ghost" id="eRad">📡 Hľadať ďalej (93 km)</button></span>';
+    $("eRad").onclick=expandRadar}
   $("h-route").classList.remove("on");$("h-photo").classList.remove("on");$("h-links").innerHTML="";$("hero").classList.remove("overhead","emerg");
 }
 function renderHeroStatic(a){
@@ -420,7 +425,10 @@ function firstWaveNext(a){
   if(S.lastKnown)return ["Zobrazuje sa posledná známa obloha. Počkaj na živé údaje."];
   if(!S.loaded)return ["Načítavam živú oblohu…"];
   if(S.manual)return ["Prezeráš oblohu nad vybraným mestom. Mávnutie bez GPS sa neoverí.", "Použiť GPS", ()=>$("placeGps").click()];
-  if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Zatiaľ tu nie je lietadlo vhodné na mávnutie."];
+  if(!a||a.emg||a.santa||a.el==null||a.el<10){
+    const message="Zatiaľ tu nie je lietadlo vhodné na mávnutie.";
+    return +$("radius").value<50?[message,"Hľadať ďalej",expandRadar]:[message];
+  }
   return ["Ťukni na „Mávni“. Počkaj, kým server overí úlovok."];
 }
 
@@ -431,7 +439,7 @@ function renderFirstWaveGuide(a){
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
   const existingLocationChoice=!S.pos&&($("heroCities")||$("posBtns").style.display==="flex");
-  button.hidden=!label||!!existingLocationChoice;
+  button.hidden=!label||!!existingLocationChoice||(action===expandRadar&&!!$("eRad"));
   $("waveHint").hidden=!!text;
 }
 

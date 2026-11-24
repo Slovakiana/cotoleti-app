@@ -55,7 +55,7 @@ def main():
                     S.pos = null;
                     if (firstWaveNext(live)[1] !== "Vybrať polohu") throw Error("Chýba voľba polohy");
                     Object.assign(S, {pos: {lat: 48.15, lon: 17.11}, loaded: true, lastKnown: false, failN: 0});
-                    if (firstWaveNext(null)[1] !== "Pozrieť ISS") throw Error("Chýba ďalší krok pri prázdnej oblohe");
+                    if (firstWaveNext(null)[1] !== "Hľadať ďalej") throw Error("Chýba ďalší krok pri prázdnej oblohe");
                     S.manual = true;
                     if (firstWaveNext(live)[1] !== "Použiť GPS") throw Error("Chýba prechod na GPS");
                     S.manual = false;
