@@ -62,8 +62,12 @@ def main():
                     if (!firstWaveNext(live)[0].includes("Mávni")) throw Error("Chýba pokyn na mávnutie");
                     reportFirstWave({ver: 0, why: "nízko nad obzorom"});
                     if (!$("firstWaveResult").textContent.includes("nízko nad obzorom")) throw Error("Chýba dôvod");
+                    S.top = live;
                     reportFirstWave({ver: 1});
                     if (!$("firstWaveHint").hidden || !$("firstWaveResult").textContent.includes("overený")) throw Error("Chýba potvrdenie");
+                    renderFirstWaveGuide(null);
+                    if ($("firstWaveHint").hidden || !$("firstWaveHint").textContent.includes("Zatiaľ tu nie je"))
+                        throw Error("Po úlovku chýba správa o prázdnej oblohe");
                 } finally {
                     Object.assign(S, before);
                 }
