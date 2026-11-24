@@ -239,7 +239,7 @@ function gotPlanes(query,{i,list,age,ms,via}){S.failN=0;S.nextTry=0;S.loaded=tru
   {const n=S.raw.filter(a=>!a.ground).length;setStatus(n+" "+(n===1?"lietadlo":n>=2&&n<=4?"lietadlá":"lietadiel")+" naživo",true);S.src=via==="adsb.lol"?"Čo to letí · adsb.lol":c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:"")}
   tick(true);
 }
-function fetchPlanes(force){
+async function fetchPlanes(force){
   if(!S.pos)return;
   const position=radarPositionKey(S.pos),[la,lo]=position.split("/"),radius=+$("radius").value;
   const query={position,la,lo,radius};

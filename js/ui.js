@@ -877,7 +877,7 @@ async function xferClaim(){
     try{
       for(const key of replace)localStorage.removeItem(key);
       for(const [key,value] of entries)restore(key,value);
-    }catch(e){for(const [key,value] of previous)restore(key,value);throw e}
+    }catch(e){for(const key of replace)localStorage.removeItem(key);for(const [key,value] of previous)restore(key,value);throw e}
     LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_onb",1);
     LSP.clear();LS.set=()=>{};
     toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);

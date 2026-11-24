@@ -56,7 +56,7 @@ async function ensureTok(force=false){
 async function apiPost(path,obj){
   const tok=await ensureTok();
   if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved)throw Error("auth_pending");
-  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})});
+  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})},path==="/api/xfer"?30000:11000);
   if(r.status===401){SOC.authVerified=false;SOC.authChecked=0;SOC.helloNext=0}
   return r;
 }
@@ -381,7 +381,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   const key=SKD.format(new Date(observation.time))+a.hex,already=!!SOC.waved[key];
   showFirstWaveResult("Spracúvam mávnutie…");
   // Trasa môže doplniť záznam úlovku, aj keď spätná väzba už beží.
-  if(!routeOf(a)||!a.type)loadMeta(a).catch(()=>{});
+  if(!routeOf(a)||!a.type)await Promise.race([loadMeta(a).catch(()=>{}),new Promise(r=>setTimeout(r,1200))]);
   a.type=planeType(a);
   const rt=routeOf(a);
   if(already){
