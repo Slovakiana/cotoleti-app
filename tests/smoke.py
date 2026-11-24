@@ -76,7 +76,7 @@ def main():
             pg.evaluate("localStorage.setItem('ctl_onb','1')")
             pg.reload()
             pg.wait_for_timeout(3000)
-            for v in ["space", "col", "now"]:
+            for v in ["journal", "col", "now"]:
                 pg.click(f'nav [data-v="{v}"]', timeout=5000)
                 pg.wait_for_timeout(1200)
             pg.evaluate("""() => {
@@ -256,21 +256,54 @@ def main():
                     ||albums.destinations.AT||Object.keys(albums.destinations).length!==2)
                     throw Error("Pas nerozlišuje cieľ letu alebo ráta objav dvakrát");
                 $("c-types").querySelector('[data-m="sets"]').click();
-                $("c-types").querySelector('[data-alb="al"]').click();
-                const airline=$("c-types").querySelector(".albumDiscovery");
+                if ($("c-types").querySelector('[data-alb="al"],[data-alb="ct"],.albumDiscovery'))
+                    throw Error("Denník sa duplikuje v zbierke");
+                setView("journal");
+                if (document.querySelector('[data-v="space"],#v-space')||
+                    document.querySelector('[data-journal="ct"]').getAttribute("aria-pressed")!=="true"||
+                    $("v-journal").querySelector("h1").textContent!=="Letecký denník")
+                    throw Error("Denník nenahradil Vesmír alebo sa neotvoril na pase");
+                document.querySelector('[data-journal="al"]').click();
+                const airline=$("journalAlbum").querySelector(".albumDiscovery");
                 if (!airline.textContent.includes("Ryanair")||!airline.textContent.includes("Wizz Air"))
                     throw Error("Chýbajú objavené aerolinky");
-                $("c-types").querySelector('[data-alb="ct"]').click();
-                const passport=$("c-types").querySelector(".albumDiscovery");
+                document.querySelector('[data-journal="ct"]').click();
+                const passport=$("journalAlbum").querySelector(".albumDiscovery");
                 if (!passport.textContent.includes("Taliansko")||!passport.textContent.includes("Francúzsko")
-                    ||passport.textContent.includes("Rakúsko")||$("c-types").querySelector(".albumExtras").open)
+                    ||passport.textContent.includes("Rakúsko")||$("journalAlbum").querySelector(".albumExtras").open)
                     throw Error("Pas alebo zbalené tematické sady vyzerajú nesprávne");
                 if (passport.getBoundingClientRect().right>document.documentElement.clientWidth)
                     throw Error("Pas preteká mimo obrazovku");
+                setView("col");
                 $("c-types").querySelector('[data-m="mine"]').click();
                 if ($("c-types").querySelector(".albumDiscovery")) throw Error("Album ostal viditeľný v Moje");
             }""")
             print("✓ aerolinky a letecký pas, starší úlovok a zbalené sady")
+            pg.evaluate("""() => {
+                const aircraft={hex:"abc149",type:"ZZZZ",el:28};
+                S.meta.set(aircraft.hex,{ac:{mode_s:"abc148",icao_type:"M600"}});
+                if(planeType(aircraft)||planeType({...aircraft,priv:true})||normalizeType("UNKN"))
+                    throw Error("Typ sa nesmie doplniť z iného lietadla alebo z náhradného kódu");
+                waveBatchStart(aircraft.hex);
+                tryCatch({...aircraft,type:""});
+                WB.result="Overený úlovok";
+                waveBatchEnd();
+                if (!$("firstWaveResult").textContent.includes("typ lietadla sa nepodarilo určiť"))
+                    throw Error("Chýba vysvetlenie neznámeho typu");
+                const n=COL.n,pts=COL.pts;
+                S.meta.set(aircraft.hex,{ac:{mode_s:"ABC149",icao_type:" m600 "}});
+                const type=planeType(aircraft);
+                if(type!=="M600"||planeType({...aircraft,priv:true})||planeType({...aircraft,type:"at45"})!=="AT43")
+                    throw Error("Chybné poradie zdrojov typu");
+                waveBatchStart(aircraft.hex);
+                tryCatch({...aircraft,type});
+                tryCatch({...aircraft,type});
+                waveBatchEnd();
+                if(COL.cx[aircraft.hex].ty!==type||COL.types[type].name!=="Piper M600"
+                    ||COL.types[type].n!==1||COL.n!==n||COL.pts!==pts)
+                    throw Error("Doplnenie typu zmenilo počet úlovkov alebo body");
+            }""")
+            print("✓ dohľadanie typu podľa transpondéra a doplnenie zaznamenaného úlovku")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)

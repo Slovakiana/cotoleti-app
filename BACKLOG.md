@@ -12,7 +12,6 @@ Majiteľ – zostáva: Workers Paid, UptimeRobot, notifikácie, TG_TOKEN · pass
 
 ## Otvorené po v80
 
-- **Neznáme typy lietadiel.** V radare a pri úlovku použiť dôveryhodný kód dohľadaný v metadátach, keď ho živý zdroj neposlal. Overiť rovnaký výsledok na klientovi aj serveri bez hádania podľa volacieho znaku. Doplniť názvy kódov C140, D328 a M600. Ak typ nenájdeme, zobraziť stav „Mávnutie uložené · typ lietadla sa nepodarilo určiť“.
 - Pri úprave preveriť aj výpadok zdieľanej snímky `/api/planes` a návrat zo záložného zdroja. Chýbajúce dáta a chýbajúci názov v Atlase sú samostatné prípady.
 
 ## Majiteľ

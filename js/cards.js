@@ -552,7 +552,7 @@ const HID_SETS=[
   {id:"h_quad",i:"✉️",n:"Štvorlístok",d:"Štyri motory, štyri typy.",alb:"hid",b:50,t:["A388","B744","B748","A343","A346"].slice(0,4)},
 ];
 const SETS=[...SETS_T,...AL_SETS,...CT_SETS,...REC_SETS,...HID_SETS];
-const ALBUMS=[["typ","Typy"],["al","Aerolinky"],["ct","Letecký pas"],["rec","Rekordy"],["hid","Skryté"]];
+const ALBUMS=[["typ","Typy"],["rec","Rekordy"],["hid","Skryté"]];
 let albumSel="typ";
 // koľko slotov sady je splnených
 function setProg(s){
@@ -600,15 +600,46 @@ function albumDiscoveries(mode){
     ${tiles?`<ul>${tiles}</ul>`:'<p class="lookSub">Prvý objav ešte len čaká.</p>'}
   </section>`;
 }
+let journalMode="ct";
+function renderJournal(){
+  document.querySelectorAll("[data-journal]").forEach(button=>{
+    const selected=button.dataset.journal===journalMode;
+    button.classList.toggle("on",selected);
+    button.setAttribute("aria-pressed",String(selected));
+  });
+  $("journalAlbum").innerHTML=albumDiscoveries(journalMode)
+    +`<details class="albumExtras"><summary>Tematické sady</summary>${setRows(journalMode)}</details>`;
+}
+document.querySelectorAll("[data-journal]").forEach(button=>button.onclick=()=>{
+  if(button.dataset.journal===journalMode)return;
+  journalMode=button.dataset.journal;
+  renderJournal();
+});
+
+$("journalAlbum").addEventListener("click",e=>{
+  const row=e.target.closest(".setRow");
+  if(row)row.classList.toggle("open");
+});
+$("journalAlbum").addEventListener("keydown",e=>{
+  if(e.target.matches(".setRow")&&(e.key==="Enter"||e.key===" ")){
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
 function setsHTML(){
-  COL.sets=COL.sets||{};
-  const list=SETS.filter(s=>s.alb===albumSel);
-  const discovery=albumSel==="al"||albumSel==="ct";
-  const tabs=`<div class="albums" style="grid-column:1/-1">${ALBUMS.map(([a,l])=>{const L=SETS.filter(s=>s.alb===a),d=L.filter(s=>COL.sets[s.id]).length;return `<button class="${albumSel===a?"on":""}" data-alb="${a}" aria-pressed="${albumSel===a}">${l}${a==="al"||a==="ct"?"":`<small>${d}/${L.length}</small>`}</button>`}).join("")}</div>`;
-  const sets=`<div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets[s.id],hid=s.alb==="hid"&&!dn&&h===0;
+  const tabs=`<div class="albums" style="grid-column:1/-1">${ALBUMS.map(([a,l])=>{
+    const list=SETS.filter(s=>s.alb===a),done=list.filter(s=>COL.sets?.[s.id]).length;
+    return `<button class="${albumSel===a?"on":""}" data-alb="${a}" aria-pressed="${albumSel===a}">${l}<small>${done}/${list.length}</small></button>`;
+  }).join("")}</div>`;
+  return tabs+setRows(albumSel);
+}
+function setRows(mode){
+  const list=SETS.filter(s=>s.alb===mode);
+  return `<div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets?.[s.id],hid=s.alb==="hid"&&!dn&&h===0;
     const lab=(x,i)=>s.t?(CAT[s.t[i]]?CAT[s.t[i]].name:s.t[i]):s.slots[i].l;
     return `<div class="setRow ${dn?"done":""}" role="button" tabindex="0"><span class="si" aria-hidden="true">${hid?"✉️":s.i}</span><span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+"\u00a0b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} ›</span>
-      <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></div>`}).join("")}</div>`;  return tabs+(discovery?albumDiscoveries(albumSel)+`<details class="albumExtras"><summary>Tematické sady</summary>${sets}</details>`:sets);
+      <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></div>`}).join("")}</div>`;
 }
 function setsCheck(a){
   COL.sets=COL.sets||{};let msg=null;

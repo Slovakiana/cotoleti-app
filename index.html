@@ -217,12 +217,6 @@ nav button.on{background:rgba(255,255,255,.14);color:#fff}
 .pageHead p{color:var(--mut);margin:6px 0 0}
 
 /* vesmír */
-#v-space .hero2{padding:18px}
-.etaBox{margin-top:12px;padding:12px 14px;border-radius:18px;background:rgba(109,255,199,.1);border:1px solid rgba(109,255,199,.3);font-weight:600}
-.etaBox b{font-family:var(--disp);font-size:calc(20px*var(--fs,1));color:var(--mint)}
-.pass{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid rgba(255,255,255,.08)}
-.pass:first-child{border-top:0}
-.pass .vis{color:var(--gold);font-weight:700;flex:none}
 .lookSub{font-size:calc(13px*var(--fs,1));color:var(--mut)}
 .qbox{margin-top:12px;font-size:calc(14.5px*var(--fs,1));padding:12px 14px;border-radius:18px;background:linear-gradient(135deg,rgba(255,79,216,.16),rgba(79,195,255,.12));border:1px solid rgba(255,79,216,.25)}
 .qbox:empty{display:none}
@@ -503,7 +497,7 @@ details summary{cursor:pointer}
 .repOpts{display:flex;flex-direction:column;gap:8px}.repOpts button{text-align:left;padding:14px;border-radius:16px;background:var(--fill-1);border:1px solid var(--gline);color:var(--txt);font-size:calc(15px*var(--fs,1));min-height:48px}
 /* zberateľské sady */
 .sets{grid-column:1/-1;display:grid;gap:8px;margin:4px 0 8px}
-.albumDiscovery,.albumExtras{grid-column:1/-1;min-width:0}
+.albums.journalTabs button{flex:1;min-height:44px}.albumDiscovery,.albumExtras{min-width:0}
 .albumDiscovery{padding:14px 0;color:var(--txt)}
 .albumDiscovery h3{display:flex;justify-content:space-between;gap:8px;margin:0 0 8px;font:750 17px var(--disp)}
 .albumDiscovery h3 span{color:var(--mint)}
@@ -539,7 +533,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 #momentBar{white-space:nowrap!important;padding:7px 14px;font-size:calc(12.5px*var(--fs,1));font-variant-numeric:tabular-nums;animation:none}
 #momentBar::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#fff;margin-right:6px;vertical-align:middle;animation:pulse 1.2s infinite}
 body:has(#onb:not(.hide)) #toast{visibility:hidden}
-.etaBox b,.btn .n,.kr .v,.st3 b,.yBig,.grid2 b{font-variant-numeric:tabular-nums}
+.btn .n,.kr .v,.st3 b,.yBig,.grid2 b{font-variant-numeric:tabular-nums}
 .modal{-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .setSlots{display:none;grid-column:1/-1;width:100%;flex-wrap:wrap;gap:6px;margin-top:8px}.setRow{flex-wrap:wrap;cursor:pointer}.setRow.open .setSlots{display:flex}
 .setSlots button{font:inherit;font-size:calc(12px*var(--fs,1));padding:7px 10px;border-radius:12px;border:1px solid var(--gline);background:rgba(255,255,255,.06);color:inherit}.setSlots button.got{background:rgba(109,255,199,.12)}
@@ -556,7 +550,6 @@ body.moment #toast{top:calc(var(--top) + 50px)!important}
 .gOpts{flex-direction:row!important;flex-wrap:wrap}.gOpts button{flex:1 1 30%;padding:10px 8px!important;font-size:calc(14px*var(--fs,1))!important;text-align:center!important;min-height:44px}
 body[data-sky=d] .glass,body[data-sky=g] .glass{background:linear-gradient(180deg,rgba(8,16,48,.42),rgba(8,16,48,.28))}
 body[data-sky=d] .pageHead p,body[data-sky=d] .kick,body[data-sky=d] .lbl,body[data-sky=d] .lookSub,body[data-sky=g] .lookSub,body[data-sky=d] .sub{color:rgba(255,255,255,.94);text-shadow:0 1px 2px rgba(0,0,0,.35)}
-body[data-sky=d] .etaBox,body[data-sky=g] .etaBox{background:rgba(4,20,14,.45);border-color:rgba(109,255,199,.45)}
 .newTag{display:inline-block;font:800 10px/1 var(--body);letter-spacing:.06em;padding:3px 6px;border-radius:6px;background:#ff4fd8;color:#fff;vertical-align:2px}
 .lgTabs{flex-wrap:wrap!important;overflow:visible!important}body.kid .lgTabs [data-t=f],body.kid .lgTabs [data-t=d],body.kid .lgTabs [data-t=t],body.kid .sr:has(#nick){display:none!important}
 #b-cduel{background:rgba(255,255,255,.1)!important;color:#fff!important;border:1px solid var(--gline)!important}
@@ -797,7 +790,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <button class="chip glass gold" id="santaChip" style="display:none"></button>
       <button class="chip glass" id="b-track">✈️ Sleduj let</button>
       <button class="chip glass" id="dailyStrip"><span id="dailyTxt">🎯 Výzvy 0/3</span></button>
-      <button class="chip glass gold" id="issStrip" style="display:none"><span id="issTxt"></span></button>
       <button class="chip glass" id="installBar" style="display:none"><span id="installTxt">📲 Na plochu</span><span class="x" id="b-installX">✕</span></button>
     </div>
 
@@ -845,33 +837,15 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <footer>Dáta: adsb.lol (ODbL), airplanes.live, <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>, adsbdb.com, CelesTrak, Open-Meteo (CC BY 4.0).<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie a zdroje</a></footer>
 </main>
 
-<!-- VESMÍR -->
-<main id="v-space" class="view">
-  <div class="pageHead"><h1>Vesmír nad tebou</h1><p>ISS, Tiangong a vláčiky Starlink</p></div>
-  <section class="card glass hero2" id="sp-next">
-    <div class="lbl"><span>Najbližší viditeľný prelet</span><span id="sp-sun"></span></div>
-    <div class="big" id="sp-name" style="font-size:calc(28px*var(--fs,1))">Počítam dráhy…</div>
-    <div class="sub" id="sp-when"></div>
-    <div class="etaBox" id="sp-count" style="display:none"></div>
-    <div class="grid2" id="sp-grid" style="display:none;margin-top:10px">
-      <div><b id="sp-max">—</b><span>najvyššie nad obzorom</span></div>
-      <div><b id="sp-dur">—</b><span>dĺžka preletu</span></div>
-      <div><b id="sp-from">—</b><span>objaví sa na</span></div>
-      <div><b id="sp-to">—</b><span>zmizne na</span></div>
+<main id="v-journal" class="view">
+  <div class="pageHead"><h1>Letecký denník</h1><p>Krajiny a aerolinky z tvojich úlovkov.</p></div>
+  <section class="card glass">
+    <div class="albums journalTabs" role="group" aria-label="Albumy leteckého denníka">
+      <button type="button" class="on" data-journal="ct" aria-pressed="true" aria-controls="journalAlbum">Letecký pas</button>
+      <button type="button" data-journal="al" aria-pressed="false" aria-controls="journalAlbum">Aerolinky</button>
     </div>
-    <button class="btn" id="sp-remind" hidden style="margin-top:10px;width:100%">🔔 Pripomeň mi 5 minút vopred</button>
-    <div class="qbox" id="sp-tip"></div>
-    <div class="msg" id="sp-err"></div>
+    <div id="journalAlbum"></div>
   </section>
-  <section class="card glass">
-    <div class="lbl" style="margin-bottom:6px"><span>Teraz nad obzorom</span><span id="sp-nowN"></span></div>
-    <div id="sp-now"><div class="lookSub">—</div></div>
-  </section>
-  <section class="card glass">
-    <div class="lbl" style="margin-bottom:6px"><span>Prelety staníc (36 h)</span></div>
-    <div id="sp-passes"><div class="lookSub">—</div></div>
-  </section>
-  <footer>Dráhy: CelesTrak · výpočet: satellite.js. ISS je najlepšie vidieť 1–2 h po západe alebo pred východom slnka.</footer>
 </main>
 
 <!-- JA -->
@@ -1014,7 +988,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 
 <nav class="glass" aria-label="Hlavná navigácia">
   <button data-v="now" class="on" aria-current="page"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></i>Lov</button>
-  <button data-v="space"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M3.5 15.5c-1.5 2.6 3.5 2.3 9.5-1.2s9.5-7.4 8-10-5.4.1-5.4.1"/></svg></i>Vesmír</button>
+  <button data-v="journal"><i aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M9 11h6m-6 6h6"/></svg></i>Denník</button>
   <button data-v="col"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></i>Zbierka</button>
 </nav>
 
