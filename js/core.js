@@ -58,6 +58,17 @@ IBE:"Iberia",VLG:"Vueling",SAS:"SAS",FIN:"Finnair",AEE:"Aegean",ROT:"TAROM",BTI:
 TUI:"TUI",TOM:"TUI",TFL:"TUI",ENT:"Enter Air",AIC:"Air India",SIA:"Singapore Airlines",CPA:"Cathay Pacific",CCA:"Air China",CES:"China Eastern",CSN:"China Southern",KAL:"Korean Air",AAL:"American Airlines",UAL:"United",DAL:"Delta",ACA:"Air Canada",
 DHK:"DHL",BCS:"DHL",DHX:"DHL",UPS:"UPS",FDX:"FedEx",CLX:"Cargolux",GEC:"Lufthansa Cargo",ABR:"ASL Airlines",CKS:"Kalitta Air",GTI:"Atlas Air",BOX:"AeroLogic (DHL Cargo)",TAY:"ASL Airlines Belgium",ICV:"Cargolux Italia",CAO:"Air China Cargo",CKK:"China Cargo Airlines",MPH:"Martinair Cargo",SWN:"West Atlantic Cargo",NCA:"Nippon Cargo",SWT:"Swiftair",QAC:"Qatar Cargo",SWW:"Silk Way West",NJE:"NetJets",VJT:"VistaJet",OCN:"Discover Airlines",CLH:"Lufthansa CityLine",DLA:"Air Dolomiti",AXE:"AirExplore",JAF:"TUI fly Belgium",CAI:"Corendon Airlines",
 RCH:"US Air Force",GAF:"Nemecké letectvo",IAM:"Talianske letectvo",CEF:"České letectvo",PLF:"Poľské letectvo",BAF:"Belgické letectvo",NATO:"NATO",HUF:"Maďarské letectvo",AME:"Španielske letectvo",FAF:"Francúzske letectvo",RRR:"Kráľovské letectvo (RAF)"};
+Object.assign(AIRLINES,{MSC:"Air Cairo",MNE:"Air Montenegro",TVQ:"Smartwings Slovakia",TVP:"Smartwings Poland",TVL:"Smartwings Hungary",
+RLX:"Go2Sky",ABP:"ABS Jets",ELJ:"Elite Jet",TTJ:"Tatra Jet",ABY:"Air Arabia",FIA:"FlyOne",FIE:"FlyOne Armenia",JBU:"JetBlue",SWA:"Southwest Airlines",
+JAL:"Japan Airlines",ANA:"ANA",EVA:"EVA Air",THA:"Thai Airways",HVN:"Vietnam Airlines",MAS:"Malaysia Airlines",QFA:"Qantas",
+AAR:"Asiana Airlines",KQA:"Kenya Airways",ETH:"Ethiopian Airlines",RAM:"Royal Air Maroc",RJA:"Royal Jordanian",OMA:"Oman Air",
+TKJ:"AJet",FHY:"Freebird Airlines",FHM:"Freebird Airlines Europe",BUC:"European Air Charter",SEH:"SKY express",GWI:"Germanwings",
+BEE:"Flybe",ICE:"Icelandair",NAX:"Norwegian",EDW:"Edelweiss Air",ANE:"Air Nostrum",
+TJT:"Twin Jet",VOE:"Volotea",AEA:"Air Europa",EXS:"Jet2.com",DAH:"Air Algérie",TAR:"Tunisair",AUI:"Ukraine International Airlines"});
+const AIRLINE_BRANDS={RUK:"RYR",WMT:"WZZ",WUK:"WZZ",WAZ:"WZZ",EJU:"EZY",EZS:"EZY",NSZ:"NOZ",NAX:"NOZ",
+  TOM:"TUI",TFL:"TUI",JAF:"TUI",BCS:"DHK",DHX:"DHK",TVQ:"TVS",TVP:"TVS",TVL:"TVS",FHM:"FHY",QAC:"QTR",FIE:"FIA"};
+const airlineBrand=code=>Object.hasOwn(AIRLINE_BRANDS,code)?AIRLINE_BRANDS[code]:code;
+const NON_AIRLINE_CODES=new Set(["RCH","GAF","IAM","CEF","PLF","BAF","NATO","HUF","AME","FAF","RRR"]);
 /* 🃏 5 stupňov vzácnosti (zhodné so serverom): ● Bežná · ◆ Nezvyčajná · ▲ Vzácna · ⬟ Epická · ♛ Legendárna */
 const LEG=new Set(["B779","AN30","DC6","A124","A225","BLCF","A3ST","A337","C5M","B52","U2","AN22","B2","VC25","F35","MD11","A346","IL76"]);
 const EPIC=new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","E390","L159","MI24","UH1Y","H47"]);
@@ -258,15 +269,17 @@ async function adsbdb(path){
 }
 function loadMeta(a){
   if(a.priv||!/^[0-9a-f]{6}$/i.test(a.hex))return Promise.resolve();
+  const call=String(a.call||"").trim().toUpperCase();
   const previous=S.meta.get(a.hex);
-  if(previous?.pending)return previous.pending;
-  if(previous&&(!previous.retryAt||Date.now()<previous.retryAt))return Promise.resolve();
-  const pending=fetchMeta(a);
-  S.meta.set(a.hex,{pending});
+  const changedCall=call&&previous?.call!==undefined&&previous.call!==call;
+  if(previous?.pending)return changedCall?previous.pending.then(()=>loadMeta(a)):previous.pending;
+  if(previous&&!changedCall&&(!previous.retryAt||Date.now()<previous.retryAt))return Promise.resolve();
+  const pending=fetchMeta({...a,call});
+  S.meta.set(a.hex,{pending,call,ac:previous?.ac});
   return pending;
 }
 async function fetchMeta(a){
-  const m={ac:null,route:null};
+  const m={ac:S.meta.get(a.hex)?.ac||null,route:null,call:a.call};
   const r1=await adsbdb("aircraft/"+a.hex+(a.call?"?callsign="+encodeURIComponent(a.call):""));
   if(r1&&typeof r1==="object"){
     if(String(r1.aircraft?.mode_s||"").toLowerCase()===a.hex.toLowerCase()){
@@ -333,7 +346,7 @@ try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o]
   if(t){if(!v.srv)t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny;if(v.ver){t.ver=1;if(v.seq&&(!t.seq||v.seq<t.seq))t.seq=v.seq}}else COL.types[nw]=v;
   delete COL.types[o]}}catch(e){}
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
-addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","mi","ed","lvlB","lvlFloor","lvlSeen"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol()}catch(x){}}});
+addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","albums","mi","ed","lvlB","lvlFloor","lvlSeen"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol();if(S.view==="journal"&&typeof renderJournal==="function")renderJournal()}catch(x){}}});
 const ACH=[
   {id:"first",i:"🐣",n:"Prvý úlovok",h:"Zamávaj prvému lietadlu (aspoň 10° nad obzorom)",c:()=>COL.n>=1,pr:()=>[COL.n,1]},
   {id:"ten",i:"🔟",n:"Desiatka",h:"Ulov 10 lietadiel",c:()=>COL.n>=10,pr:()=>[COL.n,10]},
@@ -371,10 +384,60 @@ function lvlWatch(B){const l=lvlOf(COL.pts);if(COL.lvlSeen==null||l<=COL.lvlSeen
 HOOKS.live.push(()=>{if(!(typeof WB!=="undefined"&&WB))lvlWatch()});
 const ownTypes=()=>Object.entries(COL.types).filter(([k,v])=>v.n>0&&k!=="?").length;
 // Objavy patria ku zbierke, takže sa prenesú spolu s profilom aj po orezaní histórie.
-function rememberAlbumCatch(c,albums){
-  if(Object.hasOwn(AIRLINES,c.al))albums.airlines[c.al]=true;
+function rememberAlbumCatch(c,albums,fresh=false){
+  const unlocked=[];
+  const record=(which,code,name="")=>{
+    const ledger=which==="al"?albums.airlines:albums.destinations;
+    if(Object.hasOwn(ledger,code)||(which==="al"&&Object.keys(ledger).some(key=>airlineBrand(key)===code)))return;
+    ledger[code]={t:c.t||0,call:c.call||"",dest:c.dest||"",ap:c.ap||"",...(name?{name}:{}),...(fresh?{fresh:true}:{})};
+    if(fresh)unlocked.push({which,code});
+  };
+  if(/^[A-Z]{3}$/.test(c.al)&&!NON_AIRLINE_CODES.has(c.al)&&(Object.hasOwn(AIRLINES,c.al)||c.an))
+    record("al",airlineBrand(c.al),c.an||"");
   const code=String(c.dc||"").trim().toUpperCase();
-  if(/^[A-Z]{2}$/.test(code)&&code!=="ZZ")albums.destinations[code]=true;
+  if(/^[A-Z]{2}$/.test(code)&&!["ZZ","XX","EU","UN"].includes(code))record("ct",code);
+  return unlocked;
+}
+function catchAirline(a,route){
+  if(a.priv||a.mil)return {al:"",an:""};
+  const call=String(a.call||"").trim().toUpperCase(),code=call.slice(0,3);
+  if(!/^[A-Z]{3}[A-Z0-9]+$/.test(call)||NON_AIRLINE_CODES.has(code))return {al:"",an:""};
+  if(Object.hasOwn(AIRLINES,code))return {al:code,an:""};
+  const airline=route?.airline;
+  const name=String(airline?.name||"").trim().slice(0,100);
+  return route?.callsign_icao===call&&airline?.icao===code&&name?{al:code,an:name}:{al:"",an:""};
+}
+function catchRoute(a){
+  const route=a.priv?null:routeOf(a);
+  if(route?.callsign_icao&&route.callsign_icao!==String(a.call||"").trim().toUpperCase())return null;
+  return route;
+}
+function journalRouteFields(route){
+  return {
+    dest:citySk(route?.destination.municipality||route?.destination.name),
+    ap:route?.destination.iata_code||"",
+    dc:route?.destination.country_iso_name||route?.destination.iso_country||"",
+    oc:route?.origin.country_iso_name||route?.origin.iso_country||""
+  };
+}
+async function completeJournalCatch(a,collection,t){
+  await loadMeta(a);
+  const item=collection.cx?.[a.hex];
+  if(COL!==collection||item?.t!==t)return;
+  const route=catchRoute(a);
+  if(!route)return;
+  if(!item.dc)Object.assign(item,journalRouteFields(route));
+  if(!item.al){
+    Object.assign(item,catchAirline(a,route));
+    const type=COL.types[item.ty];
+    if(item.al&&type){type.al=type.al||{};type.al[item.al]=(type.al[item.al]||0)+1}
+  }
+  const added=rememberAlbumCatch(item,collectionAlbums(),true);
+  LS.set("ctl_col",COL);
+  if(!added.length)return;
+  if(S.view==="journal")renderJournal();
+  if(typeof WB!=="undefined"&&WB?.hex===a.hex)WB.albums=[...(WB.albums||[]),...added];
+  else if(S.view==="now"&&typeof SOC!=="undefined"&&SOC.waveHex===a.hex)journalWaveReward(added,true);
 }
 function collectionAlbums(){
   if(COL.albums)return COL.albums;
@@ -405,10 +468,12 @@ function tryCatch(a){
   COL.types[ty]=COL.types[ty]||{n:0,r:typeTier(ty),name:typeName(a,S.meta.get(a.hex)),first:at};COL.types[ty].n++;
   const v=COL.types[ty];v.r=typeTier(ty);
   // 🧾 pamäť úlovku: kde, kto, kam – pre albumy (aerolinky, krajiny, OM-) a „Prvá: nad Petržalkou“
-  try{const rt=routeOf(a),al=(a.call||"").slice(0,3).toUpperCase();COL.cx=COL.cx||{};
-    const c=upgrading?{...COL.cx[a.hex],ty}:{t:at,ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&(rt.destination.country_iso_name||rt.destination.iso_country)||"",oc:rt&&rt.origin&&(rt.origin.country_iso_name||rt.origin.iso_country)||"",alt:a.alt!=null?Math.round(a.alt):null,el:Math.round(a.el),spd:a.spd!=null?Math.round(a.spd):null,mil:a.mil?1:0};
-    rememberAlbumCatch(c,collectionAlbums());
+  try{const rt=catchRoute(a);COL.cx=COL.cx||{};
+    const c=upgrading?{...COL.cx[a.hex],ty}:{t:at,ty,...catchAirline(a,rt),call:a.priv?"":String(a.call||"").slice(0,10),...journalRouteFields(rt),reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",alt:a.alt!=null?Math.round(a.alt):null,el:Math.round(a.el),spd:a.spd!=null?Math.round(a.spd):null,mil:a.mil?1:0};
+    const discoveries=rememberAlbumCatch(c,collectionAlbums(),!upgrading);
+    if(typeof WB!=="undefined"&&WB)WB.albums=discoveries;
     COL.cx[a.hex]=c;if(!v.fp)v.fp=c;
+    if(!upgrading&&!a.priv&&a.call&&!rt)completeJournalCatch(a,COL,at).catch(()=>{});
     // 🧹 pamäť: veľmi stará história úlovkov (> 20 000) sa skráti, zbierka a kartičky ostávajú
     {const ks=Object.keys(COL.hex);if(ks.length>20000){const old=Date.now()-365*864e5;for(const k of ks)if(COL.hex[k]<old){delete COL.hex[k];if(COL.cx)delete COL.cx[k]}}}
     if(c.al){v.al=v.al||{};v.al[c.al]=(v.al[c.al]||0)+1}

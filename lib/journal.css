@@ -1,0 +1,79 @@
+#v-journal{--j-ink:#eef6ff;--j-muted:#aebed4;--j-line:#294260;--j-card:#0d1c31;--j-gold:#ffd681;color:var(--j-ink)}
+#v-journal .pageHead{padding-bottom:6px}
+#v-journal .pageHead h1{font-size:clamp(26px,7vw,38px)}
+.journalTabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:5px 0 15px;background:#09182a;border:1px solid #294260;border-radius:15px}
+.journalTabs button,.journalToggle button{font:700 calc(13px * var(--fs,1)) var(--body);min-height:44px;min-width:0;padding:6px 10px;color:#b9c9de;border:1px solid transparent;border-radius:11px;background:transparent}
+.journalTabs button[aria-pressed=true],.journalToggle button[aria-pressed=true]{color:#f2f7ff;background:#213a57;border-color:#385775}
+.journalTabs button span{display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:3px;padding:0 4px;border-radius:99px;background:#ffd681;color:#232130;font-size:11px}
+.journalTabs button span[hidden]{display:none}
+.journalMapCard,.journalAirlines{border:1px solid var(--j-line);border-radius:19px;background:var(--j-card);overflow:hidden}
+.journalMapHead,.journalAirHead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:11px 12px;color:var(--j-muted);font-size:calc(13px * var(--fs,1))}
+.journalMapHead strong,.journalAirHead strong{color:var(--j-ink);font:800 calc(23px * var(--fs,1)) var(--disp)}
+.journalToggle{display:flex;gap:3px;background:#091627;border-radius:12px;padding:2px;max-width:100%}
+.journalToggle button{font-size:calc(12px * var(--fs,1))}
+.journalMapStage{display:grid;place-items:center;aspect-ratio:1.68;min-height:166px;background:radial-gradient(ellipse at 54% 46%,#1a3852,#0a192c 82%);overflow:hidden;border-block:1px solid #243c58}
+.journalMapStage svg{display:block;width:100%;height:100%;max-height:420px;overflow:hidden}
+.journalMapStage path{fill:#24405a;fill-rule:evenodd;stroke:#64829d;stroke-width:.85;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.journalMapStage .journalLand{cursor:pointer}
+.journalMapStage .journalLand path{fill:#dca853;stroke:#fff0b4;stroke-width:1.15}
+.journalMapStage .journalPoint{fill:#fff0b4;stroke:#362613;stroke-width:.65;vector-effect:non-scaling-stroke}
+.journalMapStage .journalPulse{fill:none;stroke:#ffe8a5;stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:0}
+.journalMapStage .journalLand.fresh path{animation:journalFill 1.35s ease-out}
+.journalMapStage .journalLand.fresh .journalPulse{transform-box:fill-box;transform-origin:center;animation:journalRing 1.35s ease-out}
+.journalMapLoading{color:var(--j-muted);font-size:14px;text-align:center;padding:12px}
+.journalMapLegend{display:flex;align-items:center;gap:7px;color:var(--j-muted);margin:0;padding:10px 12px;font-size:calc(12px * var(--fs,1))}
+.journalMapLegend span{width:10px;height:10px;border-radius:50%;background:var(--j-gold);border:1px solid #ffeacc}
+.journalEmpty{margin:12px 0;color:var(--j-muted);font-size:calc(14px * var(--fs,1));line-height:1.45}
+.journalEmpty p{margin:0 0 10px}
+.journalAirlines .journalEmpty{padding:8px 12px 12px;margin:0}
+.journalStampList h2{font:750 calc(17px * var(--fs,1)) var(--disp);margin:18px 0 9px}
+.journalStampList ul,.journalBrandGrid{list-style:none;padding:0;margin:0}
+.journalStampList ul{display:grid;gap:7px}
+.journalStamp{display:grid;grid-template-columns:37px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;min-height:56px;border:1px solid var(--j-line);border-radius:12px;padding:7px 10px;background:var(--j-card);color:var(--j-ink);text-align:left}
+.journalStamp b,.journalStamp small{display:block;overflow-wrap:anywhere}
+.journalStamp small{color:var(--j-muted);margin:2px 0 0}
+.journalFlag{display:grid;place-items:center;min-height:36px;border-radius:8px;background:#243752;font-size:22px}
+.journalArrow{font-size:22px;color:var(--j-gold)}
+.journalFold{margin-top:14px;color:var(--j-muted)}
+.journalFold summary{min-height:44px;padding:12px 3px;cursor:pointer;font-size:calc(13px * var(--fs,1));font-weight:700}
+.journalBrandGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,142px),1fr));gap:10px;padding:4px 12px 12px}
+.journalBrandGrid li{min-width:0}
+.journalBrand{width:100%;height:100%;min-height:146px;display:flex;flex-direction:column;text-align:left;border:1px solid #395673;border-radius:13px;padding:0;overflow:hidden;background:#142941;color:var(--j-ink)}
+.journalBrand.owned{border-color:#8b754d}
+.journalBrandLogo{position:relative;overflow:hidden;display:grid;place-items:center;min-height:83px;padding:7px;width:100%;background:linear-gradient(145deg,#fff,#e6ecf5);border-bottom:1px dashed #7687a1}
+.journalBrand:not(.owned) .journalBrandLogo{background:#243952}
+.journalBrand:not(.owned) img{filter:grayscale(1);opacity:.55}
+.journalBrandLogo img,.journalDetailMark img{width:100%;height:66px;object-fit:contain}
+.journalMonogram{font:800 23px var(--disp);color:#203b61;letter-spacing:.08em}
+.journalBrand:not(.owned) .journalMonogram{color:#aebed4}
+.journalBrandCaption{display:grid;gap:5px;padding:9px;overflow-wrap:anywhere;width:100%}
+.journalBrandCaption b{font-size:calc(13px * var(--fs,1))}
+.journalBrandCaption small{font:700 11px var(--body);color:#b9c9de}
+.journalBrand.owned .journalBrandCaption small{color:var(--j-gold)}
+.journalStamp.fresh,.journalBrand.fresh{animation:journalCard 1s ease-out}
+.journalBrand.fresh .journalBrandLogo::after{content:"";position:absolute;inset:0;background:linear-gradient(112deg,transparent 20%,#fffbd8b0 50%,transparent 75%);transform:translateX(120%);pointer-events:none;animation:journalShine .85s .08s ease-out}
+#waveJournalResult{color:#ffe29d;border-color:#9e7e4e}
+#journalDetail{width:min(94%,440px);max-height:85dvh;border:1px solid #48617b;border-radius:19px;background:#0e2037;color:#f0f6ff;padding:0;box-shadow:0 20px 70px #030b17b0}
+#journalDetail::backdrop{background:#040d1bc4}
+.journalDialog{position:relative;padding:18px;overflow-wrap:anywhere}
+.journalClose{position:absolute;right:10px;top:10px;width:44px;height:44px;border-radius:50%;border:1px solid #7a91aa;background:#132c48;color:#fff;font-size:23px}
+.journalDetailMark{display:grid;place-items:center;width:min(80%,240px);height:92px;margin:0 auto 16px;padding:12px;border-radius:13px;background:#f3f7fc}
+.journalDetailMark.passport{width:92px;border:2px dashed #a67b37;border-radius:50%;background:#ffe8bd;font-size:43px;animation:journalStampIn .46s ease-out}
+.journalDetailStatus{color:#ffdb8c;font-weight:700;font-size:12px;margin:0 0 5px}
+.journalDialog h2{font:800 calc(25px * var(--fs,1)) var(--disp);margin:0 0 12px}
+.journalDialog h3{font:750 calc(15px * var(--fs,1)) var(--disp);margin:16px 0 8px}
+.journalDialog p:not(.journalDetailStatus){line-height:1.5;color:#d3e2f3}
+.journalSource{color:#ffe19b;display:inline-block;min-height:44px;padding:11px 0;font-size:13px}
+.journalFacts{display:grid;gap:0;margin:0}
+.journalFacts div{display:grid;grid-template-columns:1fr 1.25fr;gap:7px;padding:8px 0;border-top:1px solid #324b66}
+.journalFacts dt{color:#b7c9df}
+.journalFacts dd{margin:0;font-weight:700}
+#v-journal button:focus-visible,#journalDetail button:focus-visible{outline:2px solid #ffd681;outline-offset:2px}
+@keyframes journalFill{0%{fill:#24405a}38%{fill:#fff1a8}100%{fill:#dca853}}
+@keyframes journalRing{0%{opacity:.9;transform:scale(.5)}100%{opacity:0;transform:scale(2.6)}}
+@keyframes journalCard{0%{box-shadow:inset 0 0 0 2px #ffe29d;transform:translateY(4px)}100%{box-shadow:inset 0 0 0 0 transparent;transform:none}}
+@keyframes journalShine{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
+@keyframes journalStampIn{from{transform:scale(1.16) rotate(-8deg);opacity:.4}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){
+  #v-journal,#v-journal *,#v-journal *::after,.journalDetailMark.passport{animation:none!important}
+}

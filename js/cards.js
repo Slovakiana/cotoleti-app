@@ -583,50 +583,6 @@ function monthHTML(){
   const mname=new Date().toLocaleDateString("sk-SK",{month:"long"});
   return `<div class="monthly" style="grid-column:1/-1">🗓️ <b>Mesačná výzva (${mname}):</b> ${MONTH_GOAL} nové objavy – typ, aerolinka, krajina alebo slovenské lietadlo (OM-) · ${Math.min(mn,MONTH_GOAL)}/${MONTH_GOAL}${mdone?" ✅ +"+MONTH_BONUS+" b":" · odmena +"+MONTH_BONUS+" b"}</div>`;
 }
-function albumDiscoveries(mode){
-  const {airlines,destinations}=collectionAlbums(),isPassport=mode==="ct";
-  const regions=isPassport?new Intl.DisplayNames(["sk"],{type:"region",fallback:"none"}):null;
-  const codes=Object.keys(isPassport?destinations:airlines);
-  const entries=codes.map(code=>({code,name:isPassport?regions.of(code):AIRLINES[code]}))
-    .filter(entry=>entry.name).sort((a,b)=>a.name.localeCompare(b.name,"sk"));
-  const label=isPassport?"Letecký pas":"Aerolinky";
-  const description=isPassport
-    ?"Pečiatku získaš za cieľovú krajinu letu, ktorému si zamával. Trasa musí byť známa."
-    :"Značku získaš, keď zamávaš lietadlu rozpoznanej aerolinky.";
-  const mark=code=>isPassport?String.fromCodePoint(...Array.from(code,ch=>127397+ch.charCodeAt(0))):code;
-  const tiles=entries.map(({code,name})=>`<li><b aria-hidden="true">${mark(code)}</b><span>${esc(name)}</span></li>`).join("");
-  return `<section class="albumDiscovery" aria-label="${label}">
-    <h3>${label} <span>${entries.length}</span></h3><p>${description}</p>
-    ${tiles?`<ul>${tiles}</ul>`:'<p class="lookSub">Prvý objav ešte len čaká.</p>'}
-  </section>`;
-}
-let journalMode="ct";
-function renderJournal(){
-  document.querySelectorAll("[data-journal]").forEach(button=>{
-    const selected=button.dataset.journal===journalMode;
-    button.classList.toggle("on",selected);
-    button.setAttribute("aria-pressed",String(selected));
-  });
-  $("journalAlbum").innerHTML=albumDiscoveries(journalMode)
-    +`<details class="albumExtras"><summary>Tematické sady</summary>${setRows(journalMode)}</details>`;
-}
-document.querySelectorAll("[data-journal]").forEach(button=>button.onclick=()=>{
-  if(button.dataset.journal===journalMode)return;
-  journalMode=button.dataset.journal;
-  renderJournal();
-});
-
-$("journalAlbum").addEventListener("click",e=>{
-  const row=e.target.closest(".setRow");
-  if(row)row.classList.toggle("open");
-});
-$("journalAlbum").addEventListener("keydown",e=>{
-  if(e.target.matches(".setRow")&&(e.key==="Enter"||e.key===" ")){
-    e.preventDefault();
-    e.target.click();
-  }
-});
-
 function setsHTML(){
   const tabs=`<div class="albums" style="grid-column:1/-1">${ALBUMS.map(([a,l])=>{
     const list=SETS.filter(s=>s.alb===a),done=list.filter(s=>COL.sets?.[s.id]).length;
