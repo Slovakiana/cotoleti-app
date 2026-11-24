@@ -366,6 +366,7 @@ async function doWave(e){
   const observation={time:Date.now(),pos:posR(),gps:!S.manual};
   SOC.inflight=a.hex;SOC.waveHex=a.hex;
   $("waveResultCard").hidden=true;
+  journalWaveReward();
   try{return await doWave1(e,{...a},observation)}finally{SOC.inflight=null}
 }
 async function doWave1(e,a,observation){LASTWAVE=null;

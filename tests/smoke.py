@@ -242,43 +242,93 @@ def main():
                 }finally{apiPost=realPost;LS.set("ctl_wq",[]);}
             }""")
             print("✓ spoločný rám aj stavy odloženého mávnutia")
-            pg.evaluate("""() => {
+            pg.evaluate("""async () => {
                 setView("col");
-                if ($("c-types").querySelector(".albumDiscovery")) throw Error("Album prekrýva kartičky");
                 delete COL.albums;
-                COL.cx.legacy={al:"RYR",dc:"it",oc:"AT"};
+                const t=Date.now();
+                COL.cx.legacy={t,al:"RYR",dc:"it",oc:"AT",dest:"Rím",call:"RYR12"};
                 const albums=collectionAlbums();
-                rememberAlbumCatch({al:"RYR",dc:"IT"},albums);
-                rememberAlbumCatch({al:"WZZ",dc:"FR"},albums);
-                rememberAlbumCatch({al:"UNKNOWN",dc:""},albums);
+                const duplicate=rememberAlbumCatch({al:"RUK",dc:"IT"},albums,true);
+                const fresh=rememberAlbumCatch({t,al:"WMT",dc:"FR",oc:"AT",dest:"Paríž",call:"WMT123"},albums,true);
+                rememberAlbumCatch({al:"UNKNOWN",dc:""},albums,true);
                 delete COL.cx.legacy;
-                if (Object.keys(albums.airlines).length!==2||!albums.destinations.IT||!albums.destinations.FR
-                    ||albums.destinations.AT||Object.keys(albums.destinations).length!==2)
-                    throw Error("Pas nerozlišuje cieľ letu alebo ráta objav dvakrát");
+                if (duplicate.length||fresh.length!==2||Object.keys(albums.airlines).length!==2||
+                    !albums.destinations.IT||!albums.destinations.FR||albums.destinations.AT)
+                    throw Error("Pas alebo alias aerolinky ráta objav dvakrát");
                 $("c-types").querySelector('[data-m="sets"]').click();
-                if ($("c-types").querySelector('[data-alb="al"],[data-alb="ct"],.albumDiscovery'))
+                if ($("c-types").querySelector('[data-alb="al"],[data-alb="ct"],.journalMapCard'))
                     throw Error("Denník sa duplikuje v zbierke");
-                setView("journal");
-                if (document.querySelector('[data-v="space"],#v-space')||
-                    document.querySelector('[data-journal="ct"]').getAttribute("aria-pressed")!=="true"||
-                    $("v-journal").querySelector("h1").textContent!=="Letecký denník")
-                    throw Error("Denník nenahradil Vesmír alebo sa neotvoril na pase");
+                journalWaveReward(fresh);
+                if ($("waveJournalResult").hidden||!$("waveJournalResult").textContent.includes("2 nové objavy"))
+                    throw Error("Na mávnutí chýba vstup do Denníka");
+                $("waveJournalResult").click();
+                await journalAssets.world.pending;
+                const host=$("journalAlbum");
+                const map=host.querySelector(".journalMapStage svg");
+                if (S.view!=="journal"||!map?.querySelector('[data-journal-entry="FR"].fresh .journalPulse')||
+                    !map.querySelector('[data-journal-entry="IT"]')||map.querySelector('[data-journal-entry="AT"]')||
+                    !host.textContent.includes("Taliansko")||!host.textContent.includes("Francúzsko")||
+                    host.querySelector(".albumExtras").open||albums.destinations.FR.fresh)
+                    throw Error("Mapa, jednorazové odhalenie alebo historické pečiatky vyzerajú nesprávne");
+                host.querySelector('[data-journal-map="europe"]').click();
+                if (!(host.querySelector(".journalMapStage svg").viewBox.baseVal.width<500))
+                    throw Error("Mapa sa nepriblížila na Európu");
+                const stamp=host.querySelector('button[data-journal-entry="FR"]');
+                stamp.click();
+                if (!$("journalDetail").open||$("journalDetailTitle").textContent!=="Francúzsko"||
+                    !$("journalDetailBody").textContent.includes("WMT123"))
+                    throw Error("Pečiatka stratila detail prvého letu");
+                $("journalDetail").close();
                 document.querySelector('[data-journal="al"]').click();
-                const airline=$("journalAlbum").querySelector(".albumDiscovery");
-                if (!airline.textContent.includes("Ryanair")||!airline.textContent.includes("Wizz Air"))
-                    throw Error("Chýbajú objavené aerolinky");
-                document.querySelector('[data-journal="ct"]').click();
-                const passport=$("journalAlbum").querySelector(".albumDiscovery");
-                if (!passport.textContent.includes("Taliansko")||!passport.textContent.includes("Francúzsko")
-                    ||passport.textContent.includes("Rakúsko")||$("journalAlbum").querySelector(".albumExtras").open)
-                    throw Error("Pas alebo zbalené tematické sady vyzerajú nesprávne");
-                if (passport.getBoundingClientRect().right>document.documentElement.clientWidth)
-                    throw Error("Pas preteká mimo obrazovku");
+                await journalAssets.brands.pending;
+                if (!host.querySelector('.journalBrand.owned[data-journal-entry="RYR"] img')||
+                    !host.querySelector('.journalBrand.fresh[data-journal-entry="WZZ"] img')||
+                    !host.textContent.includes("Wizz Air"))
+                    throw Error("Album neukázal skutočné logá a nové odhalenia");
+                host.querySelector('button[data-journal-entry="RYR"]').click();
+                if (!$("journalDetailBody").textContent.includes("Waterford")||
+                    !$("journalDetailBody").querySelector(".journalSource"))
+                    throw Error("Kartička aerolinky nemá zaujímavosť");
+                $("journalDetail").close();
+                host.querySelector('[data-journal-filter="all"]').click();
+                for(const code of ["MSC","MNE","AXE","TVS","PGT"]){
+                    if(!host.querySelector('[data-journal-entry="'+code+'"] img'))
+                        throw Error("V katalógu chýba logo dopravcu "+code);
+                }
+                if (host.querySelector(".journalAirlines").getBoundingClientRect().right>document.documentElement.clientWidth)
+                    throw Error("Album preteká mimo obrazovku");
+                journalFilter="mine";
                 setView("col");
                 $("c-types").querySelector('[data-m="mine"]').click();
-                if ($("c-types").querySelector(".albumDiscovery")) throw Error("Album ostal viditeľný v Moje");
             }""")
-            print("✓ aerolinky a letecký pas, starší úlovok a zbalené sady")
+            pg.emulate_media(reduced_motion="reduce")
+            pg.evaluate("""async () => {
+                const aircraft={hex:"aa123b",call:"QFA123",el:25,type:"B789"};
+                let complete;
+                S.meta.set(aircraft.hex,{call:aircraft.call,pending:new Promise(resolve=>{complete=resolve;})});
+                waveBatchStart(aircraft.hex);
+                SOC.waveHex=aircraft.hex;
+                tryCatch(aircraft);
+                waveBatchEnd();
+                S.meta.set(aircraft.hex,{call:aircraft.call,route:{callsign_icao:aircraft.call,
+                  origin:{country_iso_name:"AT"},destination:{country_iso_name:"AU",municipality:"Sydney",iata_code:"SYD"}}});
+                complete();
+                await Promise.resolve();
+                await Promise.resolve();
+                if (COL.cx[aircraft.hex].dc!=="AU"||!COL.albums.destinations.AU)
+                    throw Error("Neskorá trasa nedoplnila pas");
+                journalMode="ct";
+                setView("journal");
+                const glow=$("journalAlbum").querySelector('[data-journal-entry="AU"].fresh .journalPulse');
+                if(!glow||getComputedStyle(glow).animationName!=="none")
+                    throw Error("Mapa nerešpektuje obmedzenie pohybu");
+                if(catchAirline({call:"SAF123"},{callsign_icao:"SAF123",airline:{icao:"SAF",name:"Test Airways"}}).an!=="Test Airways"||
+                    catchAirline({call:"SAF123"},{callsign_icao:"SAF124",airline:{icao:"SAF",name:"Test Airways"}}).an)
+                    throw Error("Katalóg nerozlišuje overený ICAO kód a cudziu trasu");
+                setView("col");
+            }""")
+            pg.emulate_media(reduced_motion="no-preference")
+            print("✓ mapa, logá, prvý úlovok, oneskorená trasa a obmedzenie pohybu")
             pg.evaluate("""() => {
                 const aircraft={hex:"abc149",type:"ZZZZ",el:28};
                 S.meta.set(aircraft.hex,{ac:{mode_s:"abc148",icao_type:"M600"}});

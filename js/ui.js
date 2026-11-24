@@ -11,6 +11,7 @@ function waveBatchEnd(){
   const batch=WB;WB=null;
   if(!batch)return;
   if(typeof lvlWatch==="function")lvlWatch(batch);
+  journalWaveReward(batch.albums);
   const caught=batch.caught;
   const special=batch.special;
   if(caught&&caught.type!=="?"){
