@@ -79,6 +79,43 @@ def main():
             for v in ["journal", "col", "now"]:
                 pg.click(f'nav [data-v="{v}"]', timeout=5000)
                 pg.wait_for_timeout(1200)
+            pg.evaluate("""async () => {
+                if(radarRequest)await radarRequest.promise;
+                const saved={...S},fetchSource=tryCombo;
+                const position={lat:48.15,lon:17.11,alt:0};
+                const next={lat:48.73,lon:19.14,alt:0};
+                const first=radarPositionKey(position);
+                const live=saved.raw.find(item=>item.hex==="4ca123");
+                let resolveOld;
+                const delayed=new Promise(resolve=>{resolveOld=resolve});
+                try{
+                    tryCombo=async (i,q)=>{
+                        if(i!==0)throw Error("fixture");
+                        if(q.position===first)await delayed;
+                        return {i,list:[{...live,hex:q.position===first?"abc123":"abc456"}],age:0,ms:0};
+                    };
+                    S.pos=position;
+                    const old=fetchPlanes(true);
+                    S.pos=next;
+                    await fetchPlanes(true);
+                    resolveOld();
+                    await old;
+                    if(S.raw[0]?.hex!=="abc456"||S.skyPosition!==radarPositionKey(next))
+                        throw Error("Staršia odpoveď prepísala nový radar");
+                    S.rawT=Date.now()-46e3;
+                    tick(false);
+                    if(!$("b-wave").disabled||!$("status").textContent.includes("Posledná známa"))
+                        throw Error("Radar dovoľuje mávať zastaranému záznamu");
+                    const hidden=normReadsb({ac:[{hex:"aa123b",lat:48,lon:17,dbFlags:4,flight:"ABC1",r:"OM-AAA",ownOp:"Ukážka"}]})[0];
+                    if(hidden.call||hidden.reg||hidden.op)throw Error("Záložný zdroj ukazuje súkromné údaje");
+                }finally{
+                    tryCombo=fetchSource;
+                    Object.assign(S,saved);
+                    tick(true);
+                    await fetchPlanes(true);
+                }
+            }""")
+            print("✓ zmena polohy počas načítavania, starý radar a súkromie záložného zdroja")
             pg.evaluate("""() => {
                 renderWeeklyMission({total: 3, goal: 3, mine: 1});
                 if ($("weeklyMission").hidden || $("weeklyMissionDone").hidden

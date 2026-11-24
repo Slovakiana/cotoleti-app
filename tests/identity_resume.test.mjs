@@ -19,7 +19,7 @@ const navigator={get onLine(){return internet},sendBeacon:()=>true};
 const localStorage=Object.fromEntries([...store].map(([k,v])=>[k,String(v)]));
 localStorage.removeItem=function(k){delete this[k];store.delete(k);deleted++};
 localStorage.getItem=k=>store.get(k)||null;
-const env={SOC,LS,LSP:new Map(),navigator,localStorage,document:{get hidden(){return hidden}},location:{reload:()=>{reloaded++}},toast:()=>{},setTimeout:()=>0,fetch:async(url,opts)=>{calls.push([url,opts]);const j=queue.shift();if(j instanceof Error)throw j;if(!j)throw Error("unexpected request");return {status:j.s,ok:j.s>=200&&j.s<300,json:async()=>j.j}} ,DEFAULT_PROXY:"https://example.test",FK:"old-fk",TOK:"existing-token",PID:"old-pid",KID:()=>false,addEventListener:()=>{},};
+const env={SOC,LS,LSP:new Map(),navigator,localStorage,document:{get hidden(){return hidden}},location:{reload:()=>{reloaded++}},toast:()=>{},AbortController,clearTimeout,setTimeout:()=>0,fetch:async(url,opts)=>{calls.push([url,opts]);const j=queue.shift();if(j instanceof Error)throw j;if(!j)throw Error("unexpected request");return {status:j.s,ok:j.s>=200&&j.s<300,json:async()=>j.j}} ,DEFAULT_PROXY:"https://example.test",FK:"old-fk",TOK:"existing-token",PID:"old-pid",KID:()=>false,addEventListener:()=>{},};
 vm.createContext(env);
 vm.runInContext(fragment+"\nthis.testAuth={ensureTok,apiPost};",env);
 const {ensureTok,apiPost}=env.testAuth;

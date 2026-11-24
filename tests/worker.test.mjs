@@ -31,7 +31,7 @@ globalThis.fetch = async u => { u = String(u);
   return new Response("{}"); };
 
 const call = async (p, b, ip = "1.2.3.4", cc = "SK") => {
-  sky._snap = null; // testy menia polohu lietadla – bez medzipamäte oblohy
+  sky._snap = null; sky._snapRetryAt = 0; // testy menia polohu lietadla – bez medzipamäte oblohy
   if (p === "/api/wave" && b && b.gps === undefined) b = {...b, gps: true};
   const r = new Request("https://x" + p, b ? {method: "POST", body: JSON.stringify(b), headers: {"cf-connecting-ip": ip, "x-cc-country": "US"}} : {headers: {"cf-connecting-ip": ip}});
   Object.defineProperty(r, "cf", {value: {country: cc, latitude: "48.15", longitude: "17.1"}});
@@ -121,6 +121,23 @@ await t("dohľadanie typu podľa hexu a doplnenie staršieho úlovku", async () 
     plane=oldPlane;
     sky._snap=null;
   }
+});
+await t("radar vráti čerstvú záložnú odpoveď a zachová súkromné údaje skryté", async () => {
+  const before=globalThis.fetch, oldPlane=plane;
+  plane={...plane,dbFlags:4,r:"OM-TEST",ownOp:"Privátna letka",squawk:"1200"};
+  globalThis.fetch=async u=>{
+    if(String(u).endsWith("/250"))return Response.json({ac:[],now:Date.now()-60e3});
+    return Response.json({ac:[plane],now:Date.now()});
+  };
+  try{
+    const r=await call("/api/planes?lat=48.15&lon=17.11&r=25");
+    assert.equal(r.s,200);assert.equal(r.j.src,"adsb.lol");
+    assert.equal(r.j.ac[0].r,"");assert.equal(r.j.ac[0].flight,"");
+    assert.equal(r.j.ac[0].squawk,undefined);
+    assert.equal((await call("/api/planes?lat=48.15")).s,404);
+    const verified=await sky.verifyPlane(plane.hex,48.15,17.11);
+    assert.equal(verified.found,true);assert.equal(verified.reg,"");
+  }finally{globalThis.fetch=before;plane=oldPlane;sky._snap=null;sky._snapRetryAt=0;}
 });
 await t("nízko zamávané lietadlo sa overí, keď je neskôr vysoko", async () => {
   const id = "v2lowhighlowhighlowhighlo01", tok = (await call("/api/hello", {id}, "4.4.4.4")).j.tok;
@@ -306,13 +323,26 @@ await t("zmazanie údajov zruší aj token", async () => {
   assert.equal((await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11})).s, 401);
 });
 await t("prenos zbierky: jednorazový kód, starý mobil stratí prístup", async () => {
-  const x = await call("/api/xfer", {id: B, tok: hb.tok, data: "{\"ctl_col\":\"{}\"}"}, "5.6.7.8");
+  const history=Array.from({length:2400},(_,i)=>({t:i,ty:"A21N",dest:"Košice",al:"WZZ",dc:"SK"}));
+  const data=JSON.stringify({ctl_col:JSON.stringify({history})});
+  assert.ok(Buffer.byteLength(data)>4096);
+  assert.equal((await call("/api/sub",{id:B,tok:hb.tok,sub:{endpoint:"https://fcm.googleapis.com/fcm/send/test-sub"}}, "5.6.7.8")).s,200);
+  assert.ok(db.prepare("SELECT id FROM subs WHERE id=?").get(B));
+  const x = await call("/api/xfer", {id: B, tok: hb.tok, data}, "5.6.7.8");
+  assert.equal(x.s,200);
   assert.equal(x.j.code.length, 8);
   const c1 = await call("/api/xclaim", {code: x.j.code}, "8.8.8.8"); assert.equal(c1.j.id, B); assert.ok(c1.j.tok !== hb.tok); assert.equal(c1.j.epoch,0,"prenos musí obsahovať generáciu servera");
+  assert.equal(c1.j.data,data);assert.equal(db.prepare("SELECT id FROM subs WHERE id=?").get(B),undefined);
   assert.equal((await call("/api/xclaim", {code: x.j.code}, "8.8.8.8")).s, 404); // druhýkrát nie
   assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11}, "5.6.7.8")).s, 401);
   assert.equal((await call("/api/hello", {id: B}, "5.6.7.8")).s, 401); // starý mobil si nový token nevypýta
   assert.equal((await call("/api/sky", {id: B, tok: c1.j.tok, lat: 48.15, lon: 17.11, hexes: "aabbcc"})).s, 200);
+});
+await t("bežné API má oddelený limit a súkromné odpovede sa neukladajú", async () => {
+  assert.equal((await call("/api/ev",{step:"open",note:"a".repeat(5000)})).s,413);
+  const r=await W.fetch(new Request("https://x/api/mycards",{method:"POST",body:JSON.stringify({id:B})}),env);
+  assert.equal(r.status,401);
+  assert.match(r.headers.get("Cache-Control"),/no-store/);
 });
 await t("poloha zamknutá na deň (bez teleportu)", async () => {
   const D = "v2dddddddddddddddddddddd4", hd = (await call("/api/hello", {id: D}, "4.4.4.4")).j;

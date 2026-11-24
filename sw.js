@@ -1,21 +1,34 @@
 // Offline obal appky + upozornenia. Vždy najprv skúša sieť, aby si mal najnovšiu verziu.
-const V="cotoleti-v84";
+const V="cotoleti-v85";
 const SHELL=["./","index.html","fonts/inter.woff","fonts/unbounded.woff","js/core.js","js/ui.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/social.js","js/wrapped.js","js/push.js","js/track.js","js/towns.js","js/catalog.js","js/cards.js","js/journal.js","lib/journal.css","lib/journal-world.json","lib/journal-brands.json","js/mail.js","js/golden.js","js/teams.js","js/duel.js","js/sound.js","js/santa.js","js/main.js","og/default.jpg","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(f=>c.add(f).catch(()=>{})))));self.skipWaiting()});
-self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k!=="ctl-id").map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener("activate",e=>{e.waitUntil(caches.keys()
+  .then(keys=>Promise.all(keys.filter(key=>/^cotoleti-v\d+$/.test(key)&&key!==V).map(key=>caches.delete(key))))
+  .then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{
-  const u=new URL(e.request.url);
-  if(e.request.method!=="GET"||u.origin!==location.origin)return; // dáta o lietadlách nikdy necachujeme
-  if(/^\/(api|s|admin)(\/|$)/.test(u.pathname))return; // osobné odpovede servera do pamäte neukladáme
-  const versioned=/\?v=\d+/.test(u.search);
-  const nav=e.request.mode==="navigate";
-  // sieť s limitom (vonku je často slabý signál) -> inak posledná uložená verzia
-  const net=new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error("timeout")),nav?3500:6000);
-    fetch(e.request,{cache:"no-cache"}).then(r=>{clearTimeout(t);res(r)},err=>{clearTimeout(t);rej(err)})});
-  // súbory s verziou (?v=) sa nemenia -> najprv z pamäte (rýchly štart aj pri slabom signáli)
-  if(versioned){e.respondWith(caches.match(e.request).then(c=>c||net.catch(err=>caches.match(e.request,{ignoreSearch:true}).then(x=>x||Promise.reject(err))).then(r=>{if(r.ok&&r.type==="basic"){const cp=r.clone();caches.open(V).then(x=>x.put(e.request,cp))}return r})));return}
-  e.respondWith(net.then(r=>{if(r.ok&&r.type==="basic"){const cp=r.clone();caches.open(V).then(c=>c.put(e.request,cp))}return r})
-    .catch(()=>caches.match(e.request,{ignoreSearch:true}).then(r=>r||(nav?caches.match("index.html"):Response.error()))));
+  const u=new URL(e.request.url),scope=new URL(self.registration.scope);
+  if(e.request.method!=="GET"||u.origin!==scope.origin||!u.pathname.startsWith(scope.pathname))return;
+  const path=u.pathname.slice(scope.pathname.length);
+  if(/^(api|s|admin)(\/|$)/.test(path)||u.searchParams.has("url"))return;
+  const nav=e.request.mode==="navigate",rev=u.searchParams.get("v");
+  e.respondWith((async()=>{
+    const cache=await caches.open(V);
+    if(!nav&&/^\d+$/.test(rev||"")){
+      const saved=await cache.match(e.request)||
+        (V==="cotoleti-v"+rev&&await cache.match(e.request,{ignoreSearch:true}));
+      if(saved)return saved;
+    }
+    const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),nav?3500:6000);
+    try{
+      const response=await fetch(e.request,{cache:"no-cache",signal:ctl.signal});
+      if(response.ok&&response.type==="basic"&&!/\bno-store\b/i.test(response.headers.get("Cache-Control")||""))
+        e.waitUntil(cache.put(e.request,response.clone()).catch(()=>{}));
+      return response;
+    }catch(e){
+      const saved=await cache.match(e.request)||(!rev&&await cache.match(e.request,{ignoreSearch:true}));
+      return saved||(nav&&await cache.match(new URL("index.html",scope)))||Response.error();
+    }finally{clearTimeout(timer)}
+  })());
 });
 self.addEventListener("pushsubscriptionchange",e=>{
   e.waitUntil((async()=>{try{const sub=await self.registration.pushManager.subscribe(e.oldSubscription&&e.oldSubscription.options||{userVisibleOnly:true});
@@ -44,7 +57,12 @@ self.addEventListener("push",e=>{
 });
 self.addEventListener("notificationclick",e=>{
   e.notification.close();
-  const url=new URL((e.notification.data&&e.notification.data.url)||"./",self.registration.scope).href;
+  const scope=new URL(self.registration.scope);
+  let url=scope.href;
+  try{
+    const target=new URL(e.notification.data?.url||"./",scope);
+    if(target.origin===scope.origin&&target.pathname.startsWith(scope.pathname))url=target.href;
+  }catch(err){}
   e.waitUntil((async()=>{
     const all=await clients.matchAll({type:"window",includeUncontrolled:true});
     for(const w of all){if(w.url.startsWith(self.registration.scope)){await w.focus();try{await w.navigate(url)}catch(err){}return}}
