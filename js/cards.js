@@ -75,19 +75,16 @@ function svgDefs(id,col,sh,acc){
   <linearGradient id="bg${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${sh}"/><stop offset=".45" stop-color="${col}"/><stop offset="1" stop-color="${sh}"/></linearGradient>
   <linearGradient id="wg${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}"/><stop offset="1" stop-color="${sh}"/></linearGradient>`;
 }
-const RAR_SYM={c:"●",u:"◆",r:"▲",e:"⬟",l:"♛"};
 const FRAME={c:["#e3e9f5","#8d9bb8"],u:["#a8f5c6","#1f9e5a"],r:["#a9d4ff","#2f6fd6"],e:["#e3a8ff","#7b3fe4"],l:["#fff1a8","#d9a000"]};
 // 🌙🌅🎯🏠❄️ formy kartičky – odomknú sa podmienkou pri úlovku (vedomosti o oblohe, nie náhoda)
 const FORMS=[["n","🌙","Noc","po zotmení"],["g","🌅","Zlatá hodinka","pri západe/východe slnka"],["z","🎯","Zenit","priamo nad hlavou (80°+)"],["h","🏠","Domov","let na Slovensko"],["f","❄️","Mráz","pri mraze"]];
 const SEATSX={A306:48,E390:26,R135:0,AN30:0,A124:150,IL76:50,BLCF:113,A3ST:47,A337:51,K35R:90,E3TF:0,C17:77,A400:37,C130:20,C30J:20,AN12:20,MD11:90,B748:137,B744:120};
 const SVGE=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function wrapLines(s,n){const out=[];let l="";for(const w of String(s).replace(/(\d) (?=\d{3}\b)/g,"$1\u00a0").replace(/ (\d{1,4}[.,]?)$/,"\u00a0$1").split(" ")){if((l+" "+w).trim().length>n&&l){out.push(l);l=w}else l=(l+" "+w).trim()}if(l)out.push(l);return out}
-const MAXS={spd:2400,range:16100,span:79.8,len:76.3};
 /* celá kartička ako SVG (rovnaká v appke aj pri zdieľaní) */
 // kúpené rámy z obchodu (vonkajší okraj kartičky)
 const FRAMES_SHOP={fr_tatry:["#eef4ff","#5b7da8"],fr_dunaj:["#5fd3f0","#0a4a7a"],fr_noc:["#ffcf4f","#1b1f4a"]};
 // skráti text po slove (nie uprostred slova)
-const cutW=(t,n)=>{t=String(t||"");if(t.length<=n)return t;const c=t.slice(0,n);const i=Math.max(c.lastIndexOf(" "),c.lastIndexOf("-"));return (i>n/2?c.slice(0,i):c).replace(/[-\s]+$/,"")+"…"};
 
 /* Collector Edition: rozdielne výtvarné motívy podľa rarity, žiadne vymyslené drop rate. */
 const COLLECTOR_TIER={
@@ -97,12 +94,6 @@ const COLLECTOR_TIER={
   e:{label:"EPIC FLIGHT",sign:"✧",hue:"#d6a6ff",low:"#40216b"},
   l:{label:"SKY LEGEND",sign:"♛",hue:"#ffe5a3",low:"#5b3512"}
 };
-function collectorEditionName(k,v){
-  if(v&&v.shiny)return "PRIZMATICKÁ ✨";
-  if(v&&v.seq===1)return "PRVÝ OBJAVITEĽ ♛";
-  if(v&&v.seq>1&&v.seq<=10)return "PRVÁ DESIATKA ★";
-  return COLLECTOR_TIER[typeTier(k)].label;
-}
 function collectorEditionArt(k,v,mini=false){
   const r=typeTier(k),t=COLLECTOR_TIER[r],sh=!!(v&&v.shiny);
   const w=mini?200:528,h=mini?170:330,x=mini?0:36,y=mini?0:104;
@@ -116,12 +107,6 @@ function collectorEditionArt(k,v,mini=false){
   if(r==="l"){for(let i=0;i<14;i++){let ang=i*Math.PI*2/14;let x1=cx+Math.cos(ang)*w*.21,y1=cy+Math.sin(ang)*h*.33,x2=cx+Math.cos(ang)*w*.63,y2=cy+Math.sin(ang)*h*.78;a+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${t.hue}" stroke-opacity=".24" stroke-width="${mini?2:4}"/>`}a+=`<circle cx="${cx}" cy="${cy}" r="${mini?67:147}" fill="none" stroke="${t.hue}" stroke-opacity=".3" stroke-width="${mini?3:7}"/>`;}
   if(sh){for(let i=0;i<9;i++){const h0=hash(k+"foil"+i),xx=x+(h0%w),yy=y+((h0>>>7)%h),z=mini?3:8;a+=`<path d="M${xx} ${yy-z}L${xx+z} ${yy}L${xx} ${yy+z}L${xx-z} ${yy}Z" fill="#fff" opacity=".65"/>`;}}
   return a;
-}
-function collectorRarityRibbon(k,v,mini=false){
-  if(!v)return "";
-  const t=COLLECTOR_TIER[typeTier(k)],name=collectorEditionName(k,v);
-  if(mini)return `<path d="M9 53H191L179 72H21Z" fill="${t.low}" fill-opacity=".95" stroke="${t.hue}" stroke-opacity=".7"/><text x="100" y="66" text-anchor="middle" font-size="10" font-weight="900" letter-spacing="1.2" fill="${t.hue}">${SVGE(name)}</text>`;
-  return `<path d="M50 382H338L323 416H65Z" fill="${t.low}" fill-opacity=".95" stroke="${t.hue}" stroke-width="2" stroke-opacity=".72"/><text x="193" y="405" text-anchor="middle" font-size="16" font-weight="900" letter-spacing="1.5" fill="${t.hue}">${SVGE(name)}</text>`;
 }
 function collectorRevealTitle(k,v){
   if(v.shiny)return "✨ PRIZMATICKÝ ÚLOVOK!";
@@ -169,11 +154,16 @@ function pilotArt(c,v,id){
     <g transform="translate(${a.x} ${a.y}) scale(${a.scale}) rotate(${a.angle} 100 100)">${renderPlane}</g>
     ${shiny?'<path d="M336 35v36m-18-18h36M64 108v24m-12-12h24" stroke="#fff5fc" stroke-width="2" opacity=".85"/>':""}`;
 }
-function pilotCard(c,v,id,mini=false){
-  const key=c.code,r=typeTier(key),title=SVGE(c.name);
+function cardSVG(code,v,opt={}){
+  const c=catGuess(code),id=(opt.id||"c")+code.replace(/\W/g,"");
+  const mini=!!opt.mini;
+  v=v||{};
+  const key=c.code,r=typeTier(key);
   const custom=!mini&&FRAMES_SHOP[COL.frame];
   const frame=v.shiny?"#f9c8ed":v.gold?"#ffcf4f":(custom||FRAME[r])[0];
-  const titleSize=c.name.length>16?36:42;
+  const names=wrapLines(c.name,17).slice(0,2);
+  const state=v.n?(v.shiny?"Lesklá":RAR[r].n):v.gift?"Darovaná kópia":"Neulovená";
+  const scene=PILOT_ART[key]?pilotArt(c,v,id):`<rect width="420" height="280" fill="${COLLECTOR_TIER[r].low}"/><g transform="scale(2.10 1.60)">${collectorEditionArt(key,{n:1,shiny:v.shiny},true)}</g>${svgDefs(id,"#f5f8ff","#98aac0",frame)}<g transform="translate(110 32)">${planeSVG(c,{box:200,id,acc:frame})}</g>`;
   const level=v.n?cardLvl(v.n,key):0;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" font-family="Inter,system-ui,sans-serif">
   <defs><clipPath id="scene${id}"><rect x="18" y="72" width="384" height="352" rx="13"/></clipPath></defs>
@@ -181,83 +171,17 @@ function pilotCard(c,v,id,mini=false){
   <rect x="13" y="13" width="394" height="562" rx="20" fill="none" stroke="${frame}" stroke-opacity=".38"/>
   <text x="30" y="53" fill="${frame}" font-size="20" font-weight="750" letter-spacing="2">ATLAS OBLOHY</text>
   <text x="388" y="53" text-anchor="end" fill="${frame}" font-size="22" font-weight="800">${key}</text>
-  <g clip-path="url(#scene${id})"><svg x="18" y="72" width="384" height="352" viewBox="0 0 420 280" preserveAspectRatio="xMidYMid slice">${pilotArt(c,v,id)}</svg></g>
+  <g clip-path="url(#scene${id})"><svg x="18" y="72" width="384" height="352" viewBox="0 0 420 280" preserveAspectRatio="xMidYMid slice">${scene}</svg></g>
   <path d="M30 443H390" stroke="${frame}" stroke-opacity=".55"/>
-  <text x="30" y="493" fill="#fff" font-size="${titleSize}" font-weight="800" letter-spacing="-1">${title}</text>
-  <text x="30" y="545" fill="${frame}" font-size="25" font-weight="700">${v.shiny?"Lesklá":RAR[r].n}</text>
-  ${level?Array.from({length:4},(_,i)=>`<circle cx="${322+i*21}" cy="536" r="6" fill="${frame}" opacity="${i<level?1:.28}"/>`).join(""):`<text x="388" y="545" fill="${frame}" text-anchor="end" font-size="21">№ ${String(c.no).padStart(3,"0")}</text>`}</svg>`;
+  ${names.map((line,i)=>`<text x="30" y="${names.length===1?491:473+i*34}" fill="#fff" font-size="${names.length===1?40:32}" font-weight="800" letter-spacing="-1">${SVGE(line)}</text>`).join("")}
+  <text x="30" y="546" fill="${frame}" font-size="25" font-weight="700">${state}</text>
+  ${level?Array.from({length:4},(_,i)=>`<circle cx="${322+i*21}" cy="536" r="6" fill="${frame}" opacity="${i<level?1:.28}"/>`).join(""):`<text x="388" y="545" fill="${frame}" text-anchor="end" font-size="21">${c.no?"№ "+String(c.no).padStart(3,"0"):key}</text>`}</svg>`;
 }
 
-function cardSVG(code,v,opt={}){
-  const c=catGuess(code),r=typeTier(code);
-  if(v?.n&&PILOT_ART[code]&&!opt.stats)return pilotCard(c,v,(opt.id||"c")+code);
-  const owned=!!v,shiny=owned&&v.shiny,night=owned&&v.night&&!shiny,gold=owned&&v.gold,id=(opt.id||"c")+code.replace(/\W/g,"");
-  const fr=owned&&COL.frame&&FRAMES_SHOP[COL.frame]?FRAMES_SHOP[COL.frame]:FRAME[r],acc=!owned?"#151b36":shiny?"#ff4fd8":(MAKER_COL[c.maker]||"#3d7bff");
-  const body=!owned?"#28305a":shiny?"#ffe9a8":"#f4f7ff",shade=!owned?"#1a2042":shiny?"#e0a800":"#c3cde6";
-  const sky=night?["#050816","#1a1f4a"]:shiny?["#3a0647","#ff8a4f"]:r==="l"?["#3b2a00","#ffcf4f"]:r==="e"?["#21104a","#8e5cff"]:r==="r"?["#0a2a66","#4fa3ff"]:r==="u"?["#0b4a33","#5ee0a0"]:["#1e3a73","#8fb8ff"];
-  const tot=CATALOG.filter(x=>!(typeof TROPHY!=="undefined"&&TROPHY.has(x[0]))).length,isTr=typeof TROPHY!=="undefined"&&TROPHY.has(code),no=isTr?"🏆 trofej":c.no?"č. "+String(c.no).padStart(3,"0")+"/"+tot:"mimo série";
-  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 840" font-family="Inter, system-ui, -apple-system, sans-serif"><defs>${svgDefs(id,body,shade,acc)}
-    <linearGradient id="fr${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${fr[0]}"/><stop offset="1" stop-color="${fr[1]}"/></linearGradient>
-    <linearGradient id="sk${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient>
-    <linearGradient id="pn${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141a33"/><stop offset="1" stop-color="#0a0e1f"/></linearGradient>
-    <clipPath id="ar${id}"><rect x="36" y="104" width="528" height="330" rx="18"/></clipPath></defs>
-    <linearGradient id="pr${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4fd8"/><stop offset=".33" stop-color="#4fc3ff"/><stop offset=".66" stop-color="#6dffc7"/><stop offset="1" stop-color="#ffcf4f"/></linearGradient>
-    <rect x="4" y="4" width="592" height="832" rx="34" fill="${shiny?`url(#pr${id})`:gold?"#ffcf4f":`url(#fr${id})`}"/>
-    <rect x="18" y="18" width="564" height="804" rx="24" fill="url(#pn${id})"/>`+(owned&&(r==="l"||r==="e")?Array.from({length:12},(_,i)=>`<circle cx="300" cy="640" r="${40+i*22}" fill="none" stroke="${fr[0]}" stroke-opacity=".06"/>`).join(""):"")+(owned&&cardLvl(v.n,code)>=3?`<path d="M30 60V30H60M540 30H570V60M570 780V810H540M60 810H30V780" fill="none" stroke="${fr[0]}" stroke-width="4"/>`:"")+(owned&&cardLvl(v.n,code)>=4?`<rect x="12" y="12" width="576" height="816" rx="28" fill="none" stroke="#ffcf4f" stroke-width="3"/>`:"");
-  if(!owned){
-    s+=`<rect x="36" y="104" width="528" height="330" rx="18" fill="#0d1226"/><g transform="translate(150 119) scale(1.5)">${planeSVG(c,{box:200,body,acc,shade,id})}</g>
-      <text x="300" y="72" text-anchor="middle" font-size="${c.name.length>18?30:36}" font-weight="900" fill="#6b7699">${SVGE(c.name)}</text>
-      <text x="300" y="500" text-anchor="middle" font-size="22" fill="#6b7699">${SVGE(FAM_SK[c.fam]||"")}</text>
-      <text x="300" y="560" text-anchor="middle" font-size="64" fill="${fr[0]}">${RAR_SYM[r]}</text>
-      <text x="300" y="610" text-anchor="middle" font-size="24" font-weight="800" fill="${fr[0]}">${RAR[r].n}</text>
-      <text x="300" y="660" text-anchor="middle" font-size="22" fill="#8a94b8">Zamávaj mu a je tvoja</text>
-      <text x="300" y="800" text-anchor="middle" font-size="18" fill="#59648a">Atlas oblohy · S1 · ${no}</text></svg>`;
-    return s;
-  }
-  // hlavička
-  const nm=c.name.length>20?28:c.name.length>15?32:36;
-  s+=`<text x="40" y="74" font-size="${nm}" font-weight="900" fill="#fff" letter-spacing="-1">${SVGE(c.name)}</text>
-    <text x="560" y="62" text-anchor="end" font-size="34" font-weight="900" fill="#fff">${c.seats?c.seats:SEATSX[code]?SEATSX[code]+" t":"📦"}</text>
-    <text x="560" y="84" text-anchor="end" font-size="13" font-weight="700" fill="#9aa6cc" letter-spacing="1.5">${c.seats?pl(c.seats,"MIESTO","MIESTA","MIEST"):"NÁKLAD"}</text>`;
-  // ilustrácia
-  s+=`<g clip-path="url(#ar${id})"><rect x="36" y="104" width="528" height="330" fill="url(#sk${id})"/>`;
-  if(night||shiny)for(let i=0;i<46;i++){const h=hash(code+i);s+=`<circle cx="${36+h%528}" cy="${104+(h>>>9)%330}" r="${(h>>>18)%3*0.6+.5}" fill="#fff" opacity="${.3+((h>>>4)%7)/10}"/>`}
-  else for(let i=0;i<4;i++){const h=hash(code+"c"+i);s+=`<ellipse cx="${36+h%528}" cy="${130+(h>>>9)%260}" rx="${60+(h>>>3)%70}" ry="${14+(h>>>7)%12}" fill="#fff" opacity=".13"/>`}
-  s+=collectorEditionArt(code,v,false);
-  if(shiny)for(let i=0;i<10;i++){const h=hash(code+"s"+i),x=60+h%480,y=120+(h>>>8)%290,z=6+(h>>>14)%8;s+=`<path d="M${x} ${y-z}L${x+z*.25} ${y-z*.25}L${x+z} ${y}L${x+z*.25} ${y+z*.25}L${x} ${y+z}L${x-z*.25} ${y+z*.25}L${x-z} ${y}L${x-z*.25} ${y-z*.25}Z" fill="#fff6c2" opacity=".9"/>`}
-  s+=`<g transform="translate(150 119) scale(1.5)">${planeSVG(c,{box:200,body,acc,shade,id})}</g></g>
-    <rect x="36" y="104" width="528" height="330" rx="18" fill="none" stroke="${fr[0]}" stroke-opacity=".6" stroke-width="2"/>`;
-  s+=collectorRarityRibbon(code,v,false);
-  if(shiny)s+=`<rect x="50" y="118" width="128" height="34" rx="17" fill="#ff4fd8"/><text x="114" y="141" text-anchor="middle" font-size="16" font-weight="900" fill="#fff">✨ LESKLÁ</text>`;
-  else if(gold)s+=`<rect x="50" y="118" width="196" height="34" rx="17" fill="#ffcf4f"/><text x="148" y="141" text-anchor="middle" font-size="15" font-weight="900" fill="#3b2a00">🏆 ZLATÁ POSÁDKA</text>`;
-  else if(night)s+=`<rect x="50" y="118" width="168" height="34" rx="17" fill="#1a1f4a" stroke="#8fa2ff"/><text x="134" y="141" text-anchor="middle" font-size="15" font-weight="800" fill="#cfd8ff">🌙 NOČNÁ FORMA</text>`;
-  // 🇸🇰 poradové číslo na Slovensku (server)
-  if(v.seq)s+=`<rect x="${v.seq===1?334:404}" y="118" width="${v.seq===1?216:146}" height="34" rx="17" fill="${v.seq===1?"#ffcf4f":v.seq<=10?"#e3c46a":"#000"}" fill-opacity="${v.seq<=10?1:.82}"/><text x="${v.seq===1?442:477}" y="141" text-anchor="middle" font-size="15" font-weight="900" fill="${v.seq<=10?"#3b2a00":"#fff"}">${v.seq===1?"PRVÝ NA SLOVENSKU":"č. "+v.seq+" v SR"}</text>`;
-  if(v.gift&&!v.n)s+=`<rect x="36" y="388" width="528" height="56" fill="#c0c8dc" fill-opacity=".9"/><text x="300" y="410" text-anchor="middle" font-size="17" font-weight="800" fill="#1b2340">🤝 DAR · posiela: ${SVGE(cutW(v.gift.from||"kamarát",14))}</text><text x="300" y="434" text-anchor="middle" font-size="15" font-weight="600" fill="#1b2340">zamávaj mu a bude celá tvoja</text>`;
-  // typový pás
-  s+=`<rect x="36" y="446" width="528" height="40" rx="12" fill="#ffffff" fill-opacity=".06"/>
-    <text x="52" y="472" font-size="16" font-weight="700" fill="${acc==="#ff4fd8"?"#ff9fe8":"#cfd8ff"}">${SVGE(c.maker)} · ${SVGE(FAM_SK[c.fam]||"")}${c.year?" · od "+c.year:""}</text>`;
-  // štatistiky (Top Trumps)
-  const st=[["Rýchlosť",c.spd,MAXS.spd,nf(c.spd)+" km/h"],["Dolet",c.range,MAXS.range,nf(c.range)+" km"],["Rozpätie",c.span,MAXS.span,nf(c.span,1)+" m"],["Dĺžka",c.len,MAXS.len,nf(c.len,1)+" m"]];
-  st.forEach((q,i)=>{const y=512+i*38,bw=Math.max(6,Math.min(1,q[1]/q[2])*250);
-    s+=`<text x="52" y="${y+14}" font-size="16" font-weight="600" fill="#9aa6cc">${q[0]}</text>
-      <rect x="160" y="${y+2}" width="250" height="14" rx="7" fill="#fff" fill-opacity=".08"/><rect x="160" y="${y+2}" width="${bw}" height="14" rx="7" fill="${fr[0]}"/>
-      <text x="548" y="${y+15}" text-anchor="end" font-size="17" font-weight="800" fill="#fff">${q[3]}</text>`});
-  // zaujímavosť
-  wrapLines(c.fact,46).slice(0,2).forEach((l,i)=>s+=`<text x="52" y="${680+i*24}" font-size="17" font-style="italic" fill="#dfe6ff">${SVGE(l)}</text>`);
-  // formy (5 slotov)
-  const fm=v.forms||{};s+=`<text x="52" y="${742}" font-size="20">${FORMS.map(f=>fm[f[0]]?f[1]:"·").join("  ")}</text><text x="548" y="742" text-anchor="end" font-size="14" font-weight="700" fill="#9aa6cc">FORMY ${FORMS.filter(f=>fm[f[0]]).length}/5${v.al?" · "+Object.keys(v.al).length+(Object.keys(v.al).length===1?" aerolinka":Object.keys(v.al).length<5?" aerolinky":" aeroliniek"):""}</text>`;
-  // päta
-  s+=`<line x1="40" x2="560" y1="766" y2="766" stroke="#fff" stroke-opacity=".1"/>
-    <text x="40" y="800" font-size="22" fill="${fr[0]}">${RAR_SYM[r]}</text>
-    <text x="70" y="798" font-size="15" font-weight="700" fill="#cfd8ff">${RAR[r].n}${v.ver?' <tspan fill="#6dffc7">✓</tspan>':""}</text>
-    <text x="300" y="798" text-anchor="middle" font-size="13" fill="#8a94b8">${SVGE(!opt.public&&v.fp&&v.fp.town&&!(typeof KID==="function"&&KID())?"1. úlovok: "+cutW(v.fp.town,16)+(v.fp.al&&AIRLINES[v.fp.al]?" · "+AIRLINES[v.fp.al].slice(0,12):""):v.n?(!opt.public&&v.first&&!v.srv?"Prvý úlovok · "+new Date(v.first).toLocaleDateString("sk-SK"):"Atlas oblohy"):"darovaná")}</text>
-    <text x="560" y="798" text-anchor="end" font-size="14" font-weight="700" fill="#8a94b8">S1 · ${no}</text></svg>`;
-  return s;
-}
+if(!LS.get("ctl_onb",0))document.addEventListener("DOMContentLoaded",()=>{
+  $("onbCard").innerHTML=cardSVG("B738",{n:1},{id:"intro",mini:true});
+},{once:true});
 
-
-/* 💎 Klenotnica: status vzniká len z reálnych dát kartičky, nikdy nie z náhodnej nálepky. */
 const collectorFormCount=v=>Object.values((v&&v.forms)||{}).filter(Boolean).length;
 const collectorEditions=k=>Object.values(COL.ed||{}).filter(ed=>ed.ty===k);
 const collectorSpecial=(k,v)=>!!(v&&(v.shiny||(v.seq>0&&v.seq<=10)||RORD[typeTier(k)]>=2||collectorEditions(k).length||collectorFormCount(v)>=3));
@@ -356,24 +280,7 @@ let atlasOpen=false;let atlasMode="mine";let atlasRare=false;
 const cardRar=k=>typeTier(k);
 const inSeries=k=>CAT[k]&&!TROPHY.has(k);
 // 🃏 malá kartička do mriežky: čitateľná silueta, názov, stupeň, úroveň ako bodky
-function cardMini(k,v){
-  const c=catGuess(k),r=typeTier(k),fr=FRAME[r],own=!!v,id="n"+k.replace(/\W/g,""),lv=own?cardLvl(v.n,k):0;
-  if(v?.n&&PILOT_ART[k])return pilotCard(c,v,id,true);
-  const sh=own&&v.shiny,body=!own?"#28305a":sh?"#ffe9a8":"#f4f7ff",shade=!own?"#1a2042":sh?"#e0a800":"#c3cde6",acc=!own?"#151b36":(MAKER_COL[c.maker]||"#3d7bff");
-  const sky=!own?["#0d1226","#0d1226"]:r==="l"?["#3b2a00","#ffcf4f"]:r==="e"?["#21104a","#8e5cff"]:r==="r"?["#0a2a66","#4fa3ff"]:r==="u"?["#0b4a33","#5ee0a0"]:["#1e3a73","#8fb8ff"];
-  const nm=wrapLines(c.name,14).slice(0,2);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280"><defs><linearGradient id="k${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="1" stop-color="${sky[1]}"/></linearGradient>
-    <linearGradient id="f${id}" x1="0" y1="0" x2="1" y2="1">${sh?'<stop offset="0" stop-color="#ff4fd8"/><stop offset=".5" stop-color="#4fc3ff"/><stop offset="1" stop-color="#ffcf4f"/>':`<stop offset="0" stop-color="${fr[0]}"/><stop offset="1" stop-color="${fr[1]}"/>`}</linearGradient>${svgDefs(id,body,shade,acc)}</defs>
-    <rect x="2" y="2" width="196" height="276" rx="18" fill="url(#f${id})" ${own?"":'fill-opacity=".45"'}/><rect x="8" y="8" width="184" height="264" rx="13" fill="url(#k${id})"/>
-    ${collectorEditionArt(k,v,true)}
-    <g transform="translate(20 36) scale(.8)">${planeSVG(c,{box:200,body,acc,shade,id})}</g>
-    ${collectorRarityRibbon(k,v,true)}
-    <rect x="8" y="${nm.length>1?196:214}" width="184" height="${nm.length>1?76:58}" fill="#060a1a" fill-opacity=".72"/>
-    ${nm.map((l,i)=>`<text x="100" y="${(nm.length>1?222:248)+i*24}" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" font-weight="900" fill="${own?"#fff":"#8a94b8"}">${SVGE(l)}</text>`).join("")}
-    <text x="20" y="34" font-size="20" fill="${fr[0]}">${RAR_SYM[r]}</text>
-    ${own?[0,1,2,3].map(i=>`<circle cx="${132+i*14}" cy="27" r="5" fill="${i<lv?"#ffcf4f":"#fff"}" fill-opacity="${i<lv?1:.25}"/>`).join(""):""}
-    ${own&&v.night?'<text x="178" y="56" text-anchor="end" font-size="16">🌙</text>':""}${own&&v.seq&&v.seq<=10?'<text x="20" y="58" font-size="15">🥇</text>':""}${own&&v.gift&&!v.n?'<text x="178" y="56" text-anchor="end" font-size="16">🤝</text>':""}</svg>`;
-}
+function cardMini(k,v){return cardSVG(k,v,{id:"mini",mini:true})}
 function renderCards(){
   const owned=COL.types,ownedKeys=Object.keys(owned).filter(k=>k!=="?"),inCat=ownedKeys.filter(k=>inSeries(k)&&owned[k].n).length,tot=CATALOG.filter(c=>!TROPHY.has(c[0])).length;
   const shinyN=ownedKeys.filter(k=>owned[k].shiny).length,trN=ownedKeys.filter(k=>TROPHY.has(k)).length,edN=Object.keys(COL.ed||{}).length;
@@ -390,20 +297,21 @@ function renderCards(){
   const more=!atlasOpen&&list.length>6&&atlasMode!=="trophy"?list.length-6:0;if(more)list=list.slice(0,6);
   const tab=(m,l)=>`<button class="${atlasMode===m?"on":""}" data-m="${m}" aria-pressed="${atlasMode===m}">${l}</button>`;
   $("c-types").innerHTML=`<div class="atlasTop" style="grid-column:1/-1"><div class="xp"><i style="width:${inCat/tot*100}%"></i></div>
-    <div class="lookSub">Séria 1: ${inCat} z ${tot}${trN?" · 🏆 "+trN+" "+pl(trN,"trofej","trofeje","trofejí"):""}${shinyN?" · ✨ "+shinyN+" "+pl(shinyN,"lesklá","lesklé","lesklých"):""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
+    <div class="lookSub"${trN||shinyN||edN?"":" hidden"}>${trN?" · 🏆 "+trN+" "+pl(trN,"trofej","trofeje","trofejí"):""}${shinyN?" · ✨ "+shinyN+" "+pl(shinyN,"lesklá","lesklé","lesklých"):""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
     <div class="atTabs">${tab("mine","Moje ("+ownedKeys.filter(k=>owned[k].n).length+(ownedKeys.some(k=>!owned[k].n)?" + 🤝":"")+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}</div>
     <details class="atlasMore" ${["vault","ed","trophy"].includes(atlasMode)?"open":""}><summary>Klenoty, edície a trofeje</summary><div class="atTabs">${tab("vault","Klenoty ("+vault.length+")")}${tab("ed","Edície")}${tab("trophy","Trofeje")}</div></details></div>`+
     (atlasMode==="sets"?setsHTML():atlasMode==="ed"?edHTML():"")+
     (atlasMode==="vault"?collectorVaultHTML(ownedKeys,owned):"")+
-    (atlasMode==="mine"?collectorHuntHTML():"")+
+    (atlasMode==="mine"&&mine.some(k=>owned[k].n)?collectorHuntHTML():"")+
     (atlasMode==="miss"?wantedHTML():"")+
     (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
-    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"owned":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?" · úroveň "+cardLvl(owned[k].n||1,k)+" zo 4":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="vault"?`<b class="vaultCardBadge">${esc(collectorTitle(k,owned[k]))}</b>`:""}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?"Zatiaľ prázdne. Zamávaj lietadlu nad tebou (aspoň 10° nad obzorom) a získaš prvú kartičku.":atlasMode==="vault"?"Tvoja prvá výnimočná kartička ešte len čaká. Ulov vzácny typ alebo objav špeciálnu formu.":"Máš celú sériu! 🏆"}</div>`);
+    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"owned":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?.n?" · úroveň "+cardLvl(owned[k].n,k)+" zo 4":owned[k]?.gift?" · darovaná kópia":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="vault"?`<b class="vaultCardBadge">${esc(collectorTitle(k,owned[k]))}</b>`:""}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?'Zbierka čaká na tvoj prvý úlovok. <button class="ghost" type="button" data-first-hunt>Prejsť do Lovu</button>' :atlasMode==="vault"?"Tvoja prvá výnimočná kartička ešte len čaká. Ulov vzácny typ alebo objav špeciálnu formu.":"Máš celú sériu! 🏆"}</div>`);
   if(more)$("c-types").insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ${pl(more,"ďalšia","ďalšie","ďalších")} ${more} ›</button>`);
 }
 HOOKS.view.push(v=>{if(v==="col")renderCards()});
 let cardK=null;
 $("c-types").onclick=e=>{
+  if(e.target.closest("[data-first-hunt]")){setView("now");return}
   const choose=e.target.closest("[data-hunt-open]");if(choose){const k=choose.dataset.huntOpen;if(COL.types[k]&&COL.types[k].n)openCard(k);else openLocked(k);return}
   if(e.target.closest("[data-hunt-clear]")){LS.set("ctl_collectorHunt","");renderCards();renderCollectorHuntHome();return}
   const tb=e.target.closest("button[data-m]");if(tb){atlasMode=tb.dataset.m;atlasRare=false;renderCards();$("c-types").querySelector('.atTabs [data-m="'+atlasMode+'"]')?.focus({preventScroll:true});return}
@@ -489,14 +397,14 @@ function openCard(k,reveal){
 }
 function cardExtras(k,v){
   const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
-  const aircraft=PILOT_ART[k]?CAT[k]:null;
+  const aircraft=CAT[k];
   const verL=v.ver?`<div class="verOk">✓ Overená${v.seq?" · č. "+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená · <button data-why="1" style="display:inline;margin:0">🔎 Prečo?</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · ${esc(cardProgress(k,v))}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
   // tlačidlá hneď pod kartičkou (na malom displeji nie sú schované pod lištou)
   if(v.n){h+=`<div class="cardBtns"><button class="btn sec" data-card-link="${esc(k)}">Zdieľať odkaz</button>`;const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
     if(["c","u"].includes(r)&&(v.n|0)>=2&&!(typeof KID==="function"&&KID()))h+=v.ver?`<button class="btn sec" data-gift="${esc(k)}">🎁 Daruj kópiu</button>`:`<button class="btn sec" disabled title="Darovať sa dá len overená kartička">🎁 Daruj (po overení)</button>`;
     h+=`</div>`}
-  if(aircraft)h+=`<dl class="cardAircraft"><div><dt>Rozpätie</dt><dd>${nf(aircraft.span,1)} m</dd></div><div><dt>Dĺžka</dt><dd>${nf(aircraft.len,1)} m</dd></div><div><dt>Dolet</dt><dd>${nf(aircraft.range)} km</dd></div><div><dt>Typická kapacita</dt><dd>${nf(aircraft.seats)} miest</dd></div></dl>`;
+  if(aircraft)h+=`<dl class="cardAircraft"><div><dt>Rozpätie</dt><dd>${nf(aircraft.span,1)} m</dd></div><div><dt>Dĺžka</dt><dd>${nf(aircraft.len,1)} m</dd></div><div><dt>Dolet</dt><dd>${nf(aircraft.range)} km</dd></div><div><dt>Typická kapacita</dt><dd>${aircraft.seats?nf(aircraft.seats)+" miest":"—"}</dd></div></dl>`;
   // formy: podmienka priamo pod ikonou (title na iPhone nevidieť)
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:f[3]}</small></span>`).join("")}</div>`;
   // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
@@ -713,17 +621,17 @@ HOOKS.caught.push(a=>{
 });
 // do atlasu: sady nad kartičkami, hviezdy na kartičkách
 {const base=renderCards;renderCards=function(){setsCheck();base();
-  const top=$("c-types").querySelector(".atlasTop");if(top&&(atlasMode==="mine"||atlasMode==="sets"))top.insertAdjacentHTML("afterend",monthHTML());}}
+  $("monthlyChallenge").innerHTML=monthHTML();}}
 
 /* 📖 Encyklopédia: aj neulovené lietadlo má svoju stránku – vieš, čo hľadať */
-function openLocked(k,shared=false){
+function openLocked(k){
   $("cardCollection").hidden=true;
   const c=CAT[k];if(!c){toast("🔒 "+k,"Toto lietadlo ešte v zbierke nemáš. Pozeraj hore!");return}
   const r=cardRar(k),nf2=n=>n==null?"–":Number(n).toLocaleString("sk-SK");
   const hint=r==="l"?"Legendárne – nad Slovenskom ho uvidíš len párkrát do roka. Keď poletí pri tebe, appka ti dá vedieť (ak máš zapnuté upozornenia).":r==="e"?"Epické – vojenské a špeciálne lietadlá, nad Slovenskom len občas. Sleduj oblohu pri cvičeniach a leteckých dňoch.":r==="r"?"Vzácne – občas preletí, najčastejšie na diaľkových linkách vysoko nad nami.":r==="u"?"Menej bežné – oplatí sa pozerať hore ráno a podvečer.":"Bežné – nad Slovenskom lieta denne. Stačí pozrieť hore a zamávať.";
   $("cardBig").innerHTML=`<div class="mcard lockedCard" style="text-align:left">
     <div class="lbl"><span>📖 Atlas · č. ${c.no}</span><span>🔒 neulovené</span></div>
-    <div class="lockSil">${shared&&PILOT_ART[k]?pilotCard(c,{n:0},"shared"+k,true):cardMini(k,undefined)}</div>
+    <div class="lockSil">${cardSVG(k,null,{id:"locked"})}</div>
     <div style="font-size:26px;font-weight:900;margin:6px 0 2px">${esc(c.name)}</div>
     <div class="lookSub">${esc(c.maker)} · ${RAR[r].n}</div>
     <div class="lockStats">
@@ -735,13 +643,14 @@ function openLocked(k,shared=false){
     <p class="lookSub" style="margin:0">🔭 ${hint}</p>
     ${(()=>{const ls=lastSeenType(k);return ls?`<p class="lookSub" style="margin:8px 0 0">👀 Naposledy nad tebou: ${ls}</p>`:""})()}
     <div class="acts" style="margin-top:8px"><button class="btn ${collectorHuntKey()===k?"sec":"pri"}" data-hunt-pick="${esc(k)}">${collectorHuntKey()===k?"🎯 Toto je môj cieľ":"🎯 Chcem uloviť túto kartičku"}</button></div>
+    <details class="cardDetails"><summary>Ďalšie možnosti</summary>
     ${["c","u"].includes(r)&&!(typeof KID==="function"&&KID())?`<div class="acts" style="margin-top:8px"><button class="btn sec" data-ask="${esc(k)}">🤝 Popros kamaráta o kópiu</button></div>`:""}
-    <div class="acts" style="margin-top:8px"><button class="btn ${typeWatched(k)?"sec":"pri"}" data-watch="${esc(k)}">${typeWatched(k)?"🔔 Upozorním ťa – zrušiť":"🔔 Upozorni ma, keď poletí nado mnou"}</button></div>
+    <div class="acts" style="margin-top:8px"><button class="btn ${typeWatched(k)?"sec":"pri"}" data-watch="${esc(k)}">${typeWatched(k)?"🔔 Upozorním ťa – zrušiť":"🔔 Upozorni ma, keď poletí nado mnou"}</button></div></details>
   </div>`;
   $("cardShare").style.display="none";$("cardM").classList.add("on","locked");
 }
 {const cl=$("cardClose").onclick;$("cardClose").onclick=()=>{$("cardShare").style.display="";$("cardM").classList.remove("locked");cl()}}
-const _ol=openLocked;openLocked=(k,shared)=>{_ol(k,shared);if($("cardVideo"))$("cardVideo").hidden=true};
+const _ol=openLocked;openLocked=k=>{_ol(k);if($("cardVideo"))$("cardVideo").hidden=true};
 
 function openSharedCard(){
   const match=location.hash.match(/^#karta=([A-Z0-9]{2,5})$/);
@@ -750,7 +659,7 @@ function openSharedCard(){
   history.replaceState(null,"",location.pathname+location.search);
   const k=match[1],owned=COL.types[k]?.n;
   atlasMode=owned?"mine":"miss";setView("col");
-  if(owned)openCard(k);else openLocked(k,true);
+  if(owned)openCard(k);else openLocked(k);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",openSharedCard,{once:true});
 else openSharedCard();

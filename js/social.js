@@ -158,7 +158,7 @@ function socRender(){
   renderWeeklyMission(D?.mission);
   if(D){
     const a=D.active||0,w=D.wavesToday||0;
-    $("liveLine").innerHTML=(a?`🟢 ${nf(a)} ${ludia(a)} na Slovensku práve ${a===1?"pozerá":a<5?"pozerajú":"pozerá"} hore`:"🟢 Buď prvý, kto sa dnes pozrie hore")+(w?` · 👋 ${nf(w)} dnes`:"");
+    $("liveLine").innerHTML=(a?`🟢 ${nf(a)} ${ludia(a)} na Slovensku práve ${a===1?"pozerá":a<5?"pozerajú":"pozerá"} hore`:"🟢 Práve sa nikto nepozerá hore")+(w?` · 👋 ${nf(w)} dnes`:"");
     const kr=(D.kraje||[]).filter(x=>x.n>0);
     $("krajeCard").style.display=kr.length||D.allTime?"":"none";
     const rec=D.record;
@@ -306,46 +306,25 @@ HOOKS.heroStatic.push(a=>{waveInfo(a);cardHint(a)});
 HOOKS.live.push(()=>{const w=SOC.lowWatch;if(!w)return;if(Date.now()-w.t>20*60e3){SOC.lowWatch=null;return}
   const p=S.list&&S.list.find(x=>x.hex===w.hex);if(!p)return;
   if(p.el>=10&&!COL.hex[p.hex]){SOC.lowWatch=null;S.pick=p.hex;try{tick(true)}catch(e){}toast("📈 "+(p.call||titleOf(p))+" je teraz "+Math.round(p.el)+"° nad tebou","Zamávaj – teraz už pôjde do zbierky 👋");haptic([40,40,40])}});
-$("cardHint")&&$("cardHint").addEventListener("click",e=>{if(e.target.closest("[data-gps]")&&$("placeGps"))$("placeGps").click()});
 // kam lietadlo doletí v najbližších 20 minútach (podľa kurzu a rýchlosti) → prvé veľké mesto pod ním
 // 🌙☁️ hlavné tlačidlo podľa podmienok: v noci svetlám, pri zamračenej oblohe tomu, čo počuješ (mávnutie platí rovnako)
 function waveMood(a){const c=typeof WX!=="undefined"&&WX.data&&WX.data.current,dark=typeof SPACE!=="undefined"?SPACE.sunAlt()<-6:c&&!c.is_day;
   if(dark)return "👋 Mávni svetlám";
   if(c&&a&&((c.cloud_cover_low>80&&(a.alt||0)>1500)||(c.cloud_cover_mid>80&&(a.alt||0)>5000)))return "👋 Mávni – počuješ ho?";
   return "👋 Mávni"}
-function relayOf(a){if(!a||a.lat==null||a.trk==null||!a.spd||a.spd<250||typeof CITIES==="undefined"||!S.pos)return null;
-  const me=typeof townOf==="function"?townOf(S.pos):"",br=rad(a.trk),kmPerMin=a.spd/60;
-  for(let m=3;m<=20;m++){const d=kmPerMin*m,la=a.lat+d/111.2*Math.cos(br),lo=a.lon+d/(111.2*Math.cos(rad(a.lat)))*Math.sin(br);
-    for(const c of CITIES.slice(0,12)){if(c[0]===me)continue;if(distBear(la,lo,c[1],c[2]).d<9000&&distBear(S.pos.lat,S.pos.lon,c[1],c[2]).d>30000)return {town:c[0],min:m}}}
-  return null}
-$("cardHint")&&$("cardHint").addEventListener("click",async e=>{const r=e.target.closest("[data-relay]");if(!r||!S.top)return;const a=S.top,town=r.dataset.relay,eta=r.dataset.eta;
-  const url=shareUrl("p",a.hex,["c="+encodeURIComponent(a.call||""),"m="+encodeURIComponent(town)].join("&")),text=`✈️ ${a.call||titleOf(a)} bude o ~${eta} min nad mestom ${town}! Vyjdi von a zamávaj mu 👋`;
-  try{if(navigator.share){await navigator.share({text,url});return}}catch(er){if(er.name==="AbortError")return}
-  try{await navigator.clipboard.writeText(text+" "+url);toast("📋 Skopírované","Pošli to niekomu v meste "+town)}catch(er){prompt("Skopíruj:",url)}});
 function cardHint(a){
-  const el=$("cardHint");if(!el)return;if(!a||a.santa){el.innerHTML="";return}
-  const ty=a.type,v=ty&&COL.types[ty]&&COL.types[ty].n?COL.types[ty]:null,c=ty&&CAT[ty],out=[];
-  if(a.el!=null&&a.el<10)out.push(`<span class="low">📉 Je nízko (${Math.max(0,Math.round(a.el))}°) – do zbierky až nad 10°</span>`);
-  else if(COL.hex[a.hex])out.push(`<span>✓ Toto lietadlo už máš v zbierke</span>`);
-  else if(!v&&c)out.push(`<span class="new">🃏 Nová ${(RAR[typeTier(a.type)]||RAR.c).n} kartička!${TROPHY.has(a.type)?" 🏆 trofej":" č. "+String(c.no).padStart(3,"0")}</span>`);
-  else if(!v)out.push(`<span class="new">🃏 Nové lietadlo do zbierky</span>`);
-  else{const nx=nextLv(v.n,ty);out.push(`<span>${stars(cardLvl(v.n,ty))}${nx?" · ešte "+(nx-v.n)+"× do ďalšej ★":" · max. úroveň"}</span>`)}
-  // ⏳ neoverený typ nad tebou – šanca overiť ho
-  if(v&&!v.ver&&!COL.hex[a.hex]&&!(a.el!=null&&a.el<10))out.unshift(`<span class="new">⏳ Tvoj ${esc(catGuess(ty).name||ty)} ešte nie je overený – zamávaj a overí sa</span>`);
-  // ✈️ štafeta: lietadlo onedlho preletí nad iným mestom – pošli ho tam niekomu
-  {const rl=relayOf(a);if(rl&&!(typeof KID==="function"&&KID()))out.push(`<span class="new" data-relay="${esc(rl.town)}" data-eta="${rl.min}" role="button">📲 O ~${rl.min} min bude nad mestom ${esc(rl.town)} – pošli to tam niekomu</span>`)}
-  // 📍 ručne vybrané mesto = bez overenia
-  if(S.manual)out.push(`<span class="low" data-gps="1" role="button">📍 Bez GPS sa kartička neoverí · Zapnúť</span>`);
-  try{const r=rarity(a);if(RORD[r]>=2&&!COL.hex[a.hex])out.push(`<span class="new">${RAR[r].s} ${RAR[r].n} +${RAR[r].p} b</span>`);
-    // 🌅/🎯 chýbajúca forma, ktorá sa dá získať práve teraz
-    if(v&&!COL.hex[a.hex]){const fm=v.forms||{},sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null;
-      if(!fm.g&&sa!=null&&sa>-4&&sa<6)out.push('<span class="new">🌅 Zlatá hodinka – chýba ti táto forma</span>');
-      else if(!fm.z&&a.el>=80)out.push('<span class="new">🎯 Je priamo nad hlavou – zamávaj a máš novú formu!</span>')}
-    // 📚 dokončí sadu?
-    if(!v&&typeof SETS!=="undefined"){const st=SETS.find(s=>!(COL.sets||{})[s.id]&&s.t&&s.t.includes(ty)&&s.t.filter(k=>k!==ty).every(k=>COL.types[k]));if(st)out.push(`<span class="new">📚 Dokončí sadu ${esc(st.n)}</span>`)}
-  }catch(e){}
-  try{const D=dailyEnsure();if(!COL.hex[a.hex]&&(a.el??0)>=10&&D.ids.some(id=>{const x=DAILY_POOL.find(q=>q.id===id);return x&&!D.done[id]&&!x.ev&&!x.need&&!x.key&&x.t&&x.t(a)}))out.push(`<span class="new">🎯 Splní výzvu +10</span>`)}catch(e){}
-  const h=out.join("");if(el.innerHTML!==h)el.innerHTML=h;
+  const el=$("cardHint");
+  let text="";
+  if(a&&!a.santa&&!a.emg&&!S.manual&&!S.lastKnown&&!S.failN&&navigator.onLine){
+    const v=COL.types[a.type];
+    if(SOC.waved[dayKey()+a.hex]&&(COL.hex[a.hex]||(a.el??0)<10))text="✓ Dnes zamávané";
+    else if((a.el??0)<10)text="Lietadlo je zatiaľ nízko. Na kartičku počkaj, kým vystúpi vyššie.";
+    else if(COL.hex[a.hex])text="Tento stroj už máš. Mávnutie sa započíta pre dnešok.";
+    else if(v?.n)text="Ďalší stroj · "+cardProgress(a.type,v);
+    else if(CAT[a.type])text="Nová kartička · "+CAT[a.type].name;
+    else text="Typ lietadla sa ešte zisťuje.";
+  }
+  if(el.textContent!==text)el.textContent=text;
 }
 HOOKS.live.push(()=>cardHint(S.top));
 
@@ -385,7 +364,7 @@ async function doWave(e){
   if(SOC.inflight||a.emg)return;
   if(!a.santa&&!a.emg)betaStep("wave");
   const observation={time:Date.now(),pos:posR(),gps:!S.manual};
-  SOC.inflight=a.hex;
+  SOC.inflight=a.hex;SOC.waveHex=a.hex;
   $("waveResultCard").hidden=true;
   try{return await doWave1(e,{...a},observation)}finally{SOC.inflight=null}
 }
@@ -508,34 +487,85 @@ function wqPush(b){
   q.push({d:dayKey(),b});
   return lsWrite("ctl_wq",JSON.stringify(q));
 }
+function queuedWaveResult(j){
+  if(j.ver)return "Overený úlovok";
+  if(j.why)return "Neoverený úlovok: "+j.why;
+  if(j.error==="far")return "Neoverené: lietadlo už bolo ďaleko";
+  return "Neoverené · mávnutie ostalo v zariadení";
+}
+
 async function flushWq(){
-  if(SOC.flushing)return;
-  const q=LS.get("ctl_wq",[]).filter(wqFresh);if(!q.length||!SOC.api||!navigator.onLine)return;
-  SOC.flushing=1;LS.set("ctl_wq",[]);
-  let ok=0,ver=0,back=0;const bad=[],res=[];
-  try{for(const x of q){try{x.b.try=(x.b.try|0)+1;let r=await apiPost("/api/wave",x.b);if(r.status===401)r=await apiPost("/api/wave",x.b);
-      const j=await r.json().catch(()=>({}));
-      if(r.ok&&j.ok){ok++;reportFirstWave(j);
-        // rovnaké zjednotenie typu ako pri živom mávnutí
-        let k=x.b.type||"?";if(j.type&&j.type!==k&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[k])){if(COL.types[k]&&!COL.types[j.type]){COL.types[j.type]=COL.types[k];delete COL.types[k]}k=j.type}
-        const v=COL.types[k];
-        const newShiny=!!(v?.n&&j.shiny&&!v.shiny);
-        if(v){if(j.ver){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;ver++}if(j.shiny&&!v.shiny)v.shiny=Date.now()}
-        const newEdition=j.ed&&edAdd(k,j.ed);
-        if(!SOC.inflight&&v?.n&&(newShiny||newEdition))showWaveCard(k,newShiny?"Lesklá kartička":j.ed.n,true,x.b.hex,j.ver?"Overený úlovok":"");
-        try{waveRewards(j,{hex:x.b.hex,type:k})}catch(er){}
-        res.push((j.shiny?"✨ ":"")+(j.ver?"✓ "+(catGuess(k).name||k)+(j.seq?" · č. "+j.seq+" na Slovensku":""):"⏳ "+(catGuess(k).name||k)+(j.why?": "+j.why:""))+(j.ed?" · 📅 "+j.ed.n+" č. "+j.ed.no:""))}
-      else if((r.status===401||r.status>=500||(r.status===429&&j.error!=="rate"))&&x.b.try<6){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
-      else if(r.status===429){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}
-      else bad.push(j.error==="far"?"lietadlo už bolo ďaleko":j.error||("kód "+r.status))
-    }catch(e){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}}
-  }finally{SOC.flushing=0}
-  if(ok||ver)LS.set("ctl_col",COL);
-  if(ok&&SOC.data?.mission)setTimeout(socPoll,800);
-  if(back)setTimeout(flushWq,30000);
-  if(ok){toast("✅ Odložené mávnutia odoslané",res.slice(0,3).join(" · ")+(res.length>3?" · …":""));if(S.view==="col"&&typeof renderCol==="function")renderCol()}
-  if(bad.length&&!back&&!ok)showFirstWaveResult("Odložené mávnutie sa nepodarilo overiť. Skús znova.");
-  if(bad.length)setTimeout(()=>toast("⚠️ "+bad.length+" "+pl(bad.length,"mávnutie sa nepodarilo","mávnutia sa nepodarili","mávnutí sa nepodarilo")+" overiť",bad[0]),ok?4200:0);
+  if(SOC.flushing||SOC.resetting||SOC.moved||!SOC.api||!navigator.onLine)return;
+  const queue=LS.get("ctl_wq",[]);
+  if(!queue.length)return;
+  SOC.flushing=true;
+  const results=[];
+  let retry=false;
+  const update=(entry,replacement)=>{
+    const items=LS.get("ctl_wq",[]);
+    const index=items.findIndex(item=>item.b?.hex===entry.b?.hex&&item.b?.t===entry.b?.t);
+    if(index<0)return;
+    items.splice(index,1,...(replacement?[replacement]:[]));
+    LS.set("ctl_wq",items);
+  };
+  try{
+    for(const entry of queue){
+      if(SOC.resetting||SOC.moved)break;
+      if(!wqFresh(entry)||!entry.b){
+        update(entry);
+        results.push({hex:entry.b?.hex,text:"Čas na overenie vypršal · mávnutie ostalo v zariadení"});
+        continue;
+      }
+      const b={...entry.b,try:(entry.b.try|0)+1};
+      let response,j={};
+      try{
+        response=await apiPost("/api/wave",b);
+        if(response.status===401)response=await apiPost("/api/wave",b);
+        j=await response.json().catch(()=>({}));
+      }catch(e){}
+      if(SOC.resetting||SOC.moved)break;
+      const temporary=!response||response.status===401||response.status===429||response.status>=500;
+      if(temporary&&b.try<6){
+        update(entry,{...entry,b});retry=true;continue;
+      }
+
+      let type=b.type||"?",special="";
+      if(response?.ok&&j.ok){
+        if(j.type&&j.type!==type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[type])){
+          if(COL.types[type]&&!COL.types[j.type]){COL.types[j.type]=COL.types[type];delete COL.types[type]}
+          type=j.type;
+        }
+        const card=COL.types[type];
+        if(j.ver){
+          betaStep("verified");
+          if(card){card.ver=1;if(j.seq&&!card.seq)card.seq=j.seq}
+        }
+        if(card&&j.shiny&&!card.shiny){
+          card.shiny=Date.now();
+          if(card.n)special="Lesklá kartička";
+        }
+        if(j.ed&&edAdd(type,j.ed)&&card?.n)special=special||j.ed.n;
+        if(!j.dup)try{waveRewards(j,{hex:b.hex,type})}catch(e){}
+        LS.set("ctl_col",COL);
+        lsFlush();
+      }
+      update(entry);
+      results.push({hex:b.hex,type,text:queuedWaveResult(j),special,verified:!!j.ver});
+    }
+  }finally{SOC.flushing=false}
+
+  if(retry)setTimeout(flushWq,30000);
+  if(!results.length)return;
+  if(SOC.data?.mission)setTimeout(socPoll,800);
+  if(S.view==="col")renderCol();
+  const current=!SOC.inflight&&results.find(item=>item.hex&&item.hex===SOC.waveHex);
+  if(current){
+    showFirstWaveResult(current.text,current.verified);
+    if(current.special)showWaveCard(current.type,current.special,true,current.hex,current.text);
+  }
+  const others=results.filter(item=>item!==current);
+  if(others.length)toast("Výsledky odložených mávnutí",others.slice(0,3).map(item=>
+    (item.type&&item.type!=="?"?catGuess(item.type).name+" · ":"")+item.text).join(" / ")+(others.length>3?" …":""));
 }
 addEventListener("online",()=>setTimeout(flushWq,1500));setTimeout(flushWq,5000);
 

@@ -62,8 +62,12 @@ def main():
                     if (!firstWaveNext(live)[0].includes("Mávni")) throw Error("Chýba pokyn na mávnutie");
                     reportFirstWave({ver: 0, why: "nízko nad obzorom"});
                     if (!$("firstWaveResult").textContent.includes("nízko nad obzorom")) throw Error("Chýba dôvod");
+                    S.top = live;
                     reportFirstWave({ver: 1});
                     if (!$("firstWaveHint").hidden || !$("firstWaveResult").textContent.includes("overený")) throw Error("Chýba potvrdenie");
+                    renderFirstWaveGuide(null);
+                    if ($("firstWaveHint").hidden || !$("firstWaveHint").textContent.includes("Zatiaľ tu nie je"))
+                        throw Error("Po úlovku chýba správa o prázdnej oblohe");
                 } finally {
                     Object.assign(S, before);
                 }
@@ -211,6 +215,33 @@ def main():
                 $("cardClose").click();
             }""")
             print("✓ druhý stroj, opakované mávnutie, hviezdy a otvorenie zdieľanej kartičky")
+            pg.evaluate("""async () => {
+                const cases=[cardSVG("B738",{n:1,ver:1}),cardSVG("B738",null),cardSVG("A321",{n:1}),cardMini("A321",{n:0,gift:{from:"Spotter"}})];
+                if (!cases.every(svg=>svg.includes('viewBox="0 0 420 588"')&&svg.includes("ATLAS OBLOHY"))
+                    || !cases[1].includes("Neulovená") || !cases[3].includes("Darovaná kópia"))
+                    throw Error("Karty nepoužívajú jednotný rám alebo správny stav");
+                const realPost=apiPost;
+                const stamp=Date.now();
+                const body={hex:"def123",type:"B738",t:stamp};
+                SOC.waveHex=body.hex;
+                LS.set("ctl_wq",[{d:dayKey(),b:body}]);
+                try{
+                    apiPost=async (path)=> {
+                        if(path!=="/api/wave")return realPost(path);
+                        if(!LS.get("ctl_wq",[]).some(x=>x.b.hex===body.hex))
+                            throw Error("Fronta zmizla ešte pred odpoveďou");
+                        return new Response(JSON.stringify({ok:true,ver:0,why:"bez GPS"}));
+                    };
+                    await flushWq();
+                    if(LS.get("ctl_wq",[]).length||!$("firstWaveResult").textContent.includes("Neoverený úlovok: bez GPS"))
+                        throw Error("Ukončené overenie stále čaká");
+                    LS.set("ctl_wq",[{d:"2000-01-01",b:{...body,t:946684800000}}]);
+                    await flushWq();
+                    if(LS.get("ctl_wq",[]).length||!$("firstWaveResult").textContent.includes("vypršal"))
+                        throw Error("Vypršaná fronta nemá konečný stav");
+                }finally{apiPost=realPost;LS.set("ctl_wq",[]);}
+            }""")
+            print("✓ spoločný rám aj stavy odloženého mávnutia")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)

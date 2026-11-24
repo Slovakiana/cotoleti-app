@@ -668,6 +668,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 .atlasMore{grid-column:1/-1;margin:8px 0}
 .atlasMore>summary{min-height:44px;cursor:pointer;padding:12px 0}
 .atlasMore .atTabs{margin-bottom:8px}
+.onbSample{width:min(112px,24vw);margin:6px auto}.onbSample svg{display:block;width:100%;height:auto}
 .cardHeadline{font:750 18px var(--disp);text-align:center;margin:0 0 10px}
 .cardIdentity{text-align:center;font-size:13px;margin:10px 0}
 .cardFirstCatch{text-align:center;font-size:12px;color:var(--mut2);margin:6px 10px 0;line-height:1.35}
@@ -714,6 +715,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="sky"><div class="pl">✈️</div></div>
   <h1 id="onbTitle"><span>Zamávaj skutočnému lietadlu. Získaj jeho kartičku.</span></h1>
   <p>Pri lietadle na radare ťukni na Mávni. Úlovky nájdeš vo svojej zbierke.</p>
+  <div class="onbSample" id="onbCard" aria-hidden="true"></div>
   <div class="onbLive" id="onbLive"></div>
   <button class="cta" id="go">Nájsť lietadlá v okolí</button>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
@@ -741,7 +743,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <canvas id="sky" role="img" aria-label="Obloha nad tebou"></canvas>
     <button id="momentBar"></button>
     <div class="stageTxt">
-      <div class="pax" id="paxLine"></div>
       <div class="live" id="liveLine"></div>
     </div>
   </section>
@@ -755,7 +756,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="acts">
       <button class="btn pri" id="b-wave" aria-label="Mávni lietadlu (podrž pre výber reakcie)"><span id="waveLbl">👋 Mávni</span> <span class="n" id="waveN" style="display:none">0</span></button>
       <button class="btn sec" id="b-ar">🔭 Nájdi</button>
-      <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
     </div>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
     <p class="firstWaveHint" id="firstWaveHint" hidden></p>
@@ -773,9 +773,8 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <div class="dirT"><b id="h-look">—</b><span id="h-lookSub"></span><div class="gauge"><i id="h-gauge"></i></div></div>
     </div>
     <div class="eta" id="h-eta"></div>
-    <div class="st3" id="h-st3">
+    <div class="st3" id="h-st3" style="grid-template-columns:1fr 1fr">
       <div><b id="g-alt">—</b><span id="g-altC">výška</span></div>
-      <div><b id="g-pax">—</b><span>ľudí na palube</span></div>
       <div><b id="g-dist">—</b><span>od teba</span></div>
     </div>
 
@@ -819,6 +818,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
         <button class="btn" id="b-voice"><i>🔇</i>Hlas</button>
       </div>
       <button class="btn wideB" id="b-sound">🎵 Počúvaj oblohu</button>
+      <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
       <div class="spotLine" id="spotLine"></div>
       <div class="links" id="h-links"></div>
     </div>
@@ -892,6 +892,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   </details>
   <details class="more glass collectionGroup" id="dailyBox">
     <summary>Dnešné výzvy <small id="d-streak"></small></summary>
+    <div id="monthlyChallenge"></div>
     <div id="stampBox"></div>
     <div id="d-list" style="margin-top:6px"></div>
   </details>
@@ -1148,25 +1149,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=79"></script>
-<script src="js/ui.js?v=79"></script>
-<script src="js/ar.js?v=79"></script>
-<script src="js/space.js?v=79"></script>
-<script src="js/weather.js?v=79"></script>
-<script src="js/extras.js?v=79"></script>
-<script src="js/social.js?v=79"></script>
-<script src="js/wrapped.js?v=79"></script>
-<script src="js/push.js?v=79"></script>
-<script src="js/track.js?v=79"></script>
-<script src="js/towns.js?v=79"></script>
-<script src="js/catalog.js?v=79"></script>
-<script src="js/cards.js?v=79"></script>
-<script src="js/mail.js?v=79"></script>
-<script src="js/golden.js?v=79"></script>
-<script src="js/teams.js?v=79"></script>
-<script src="js/duel.js?v=79"></script>
-<script src="js/sound.js?v=79"></script>
-<script src="js/santa.js?v=79"></script>
-<script src="js/main.js?v=79"></script>
+<script src="js/core.js?v=80"></script>
+<script src="js/ui.js?v=80"></script>
+<script src="js/ar.js?v=80"></script>
+<script src="js/space.js?v=80"></script>
+<script src="js/weather.js?v=80"></script>
+<script src="js/extras.js?v=80"></script>
+<script src="js/social.js?v=80"></script>
+<script src="js/wrapped.js?v=80"></script>
+<script src="js/push.js?v=80"></script>
+<script src="js/track.js?v=80"></script>
+<script src="js/towns.js?v=80"></script>
+<script src="js/catalog.js?v=80"></script>
+<script src="js/cards.js?v=80"></script>
+<script src="js/mail.js?v=80"></script>
+<script src="js/golden.js?v=80"></script>
+<script src="js/teams.js?v=80"></script>
+<script src="js/duel.js?v=80"></script>
+<script src="js/sound.js?v=80"></script>
+<script src="js/santa.js?v=80"></script>
+<script src="js/main.js?v=80"></script>
 </body>
 </html>
