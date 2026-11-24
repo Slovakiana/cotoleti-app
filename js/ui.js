@@ -384,7 +384,11 @@ function renderPax(){
 function renderList(list){
   const rest=list.filter(a=>!S.top||a.hex!==S.top.hex).slice(0,12);
   $("radarCnt").textContent=list.filter(a=>a.el>0).length+" nad obzorom";
-  $("list").innerHTML=rest.length?rest.map(a=>{const m=S.meta.get(a.hex),rt=routeOf(a);return `<div class="row" role="button" tabindex="0" aria-label="${esc([rt?"letí do "+citySk(rt.destination.municipality):"",titleOf(a),airlineOf(a),typeName(a,m),a.alt!=null?"výška "+nf(a.alt/1000,1)+" km":"",dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov nad obzorom",RAR[rarity(a)].n].filter(Boolean).join(", "))}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div></div>
+  const today=dayKey();
+  const wavedLabel="Dnes zamávané";
+  $("list").innerHTML=rest.length?rest.map(a=>{
+    const m=S.meta.get(a.hex),rt=routeOf(a),waved=!!SOC.waved[today+a.hex];
+    return `<div class="row" role="button" tabindex="0" aria-label="${esc([rt?"letí do "+citySk(rt.destination.municipality):"",titleOf(a),airlineOf(a),typeName(a,m),a.alt!=null?"výška "+nf(a.alt/1000,1)+" km":"",dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov nad obzorom",RAR[rarity(a)].n,waved?wavedLabel:""].filter(Boolean).join(", "))}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div>${waved?'<span class="nearWaved"><span aria-hidden="true">✓</span> '+wavedLabel+'</span>':""}</div>
     <div class="r">${a.type&&!COL.types[a.type]&&!a.santa?'<span class="newTag">NOVÁ</span> ':""}${a.alt!=null?"výška <b>"+nf(a.alt/1000,1)+" km</b>":"—"}<br>${dirS(a.bear)} · ${nf(Math.max(0,a.el??0))}°</div></div>`}).join(""):'<div class="lookSub">Nič ďalšie v okolí.</div>';
 }
 $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pick=r.dataset.hex;haptic(10);tick(true);window.scrollTo({top:0,behavior:"smooth"})}};
@@ -414,6 +418,39 @@ function renderCol(){
 }
 
 /* ============ hlavná slučka ============ */
+const firstWaveGuide = !Object.values(COL.types).some(card=>card.ver);
+let firstWaveVerified = false;
+
+function firstWaveNext(a){
+  if(!S.pos)return ["Povoľ polohu alebo vyber mesto, aby sa ti zobrazil radar.", "Vybrať polohu", ()=>$("statusPill").click()];
+  if(!navigator.onLine)return ["Si bez internetu. Po pripojení obnov radar."];
+  if(S.failN)return ["Dáta o letoch sú dočasne nedostupné.", "Obnoviť radar", ()=>fetchPlanes(true)];
+  if(S.lastKnown||!S.loaded)return ["Načítavam aktuálnu oblohu…"];
+  if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Zatiaľ tu nie je lietadlo vhodné na mávnutie.", "Pozrieť ISS", ()=>setView("space")];
+  if(S.manual)return ["Radar ukazuje oblohu nad vybraným mestom. Na overený úlovok použi GPS.", "Použiť GPS", ()=>$("placeGps").click()];
+  return ["Ťukni na „Mávni“. Počkaj, kým server overí úlovok."];
+}
+
+function renderFirstWaveGuide(a){
+  if(!firstWaveGuide)return;
+  const hint=$("firstWaveHint"),button=$("firstWaveAction");
+  const [text,label,action]=firstWaveVerified?[]:firstWaveNext(a);
+  if(hint.textContent!==(text||""))hint.textContent=text||"";
+  hint.hidden=!text;
+  if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
+  const existingLocationChoice=!S.pos&&($("heroCities")||$("posBtns").style.display==="flex");
+  const existingSpaceAction=label==="Pozrieť ISS"&&$("eSpace");
+  button.hidden=!label||!!existingLocationChoice||!!existingSpaceAction;
+  $("waveHint").hidden=!!text;
+}
+
+function showFirstWaveResult(text, verified=false){
+  if(!firstWaveGuide||firstWaveVerified)return;
+  firstWaveVerified=verified;
+  $("firstWaveResult").textContent=text;
+  if(verified)renderFirstWaveGuide(S.top);
+}
+
 function tick(fresh){
   const now=Date.now();
   S.list=enrich(now);
@@ -425,6 +462,7 @@ function tick(fresh){
   S.top=best;
   if(changed||fresh){renderHeroStatic(best);if(best){loadMeta(best);if(changed)announce(best,false)}}
   renderHeroLive(best);
+  renderFirstWaveGuide(best);
   if(fresh||now%5000<1000){const up=S.list.filter(a=>a.el>0),hi=up.filter(a=>a.el>=10).length,lab=up.length?`Radar oblohy: ${up.length} ${pl(up.length,"lietadlo","lietadlá","lietadiel")} nad obzorom, ${hi} z nich vyššie ako 10 stupňov${best&&best.el!=null?`. ${S.pick===best.hex?"Vybrané":"Najvyššie"}: ${titleOf(best)}, ${RAR[rarity(best)].n.toLowerCase()}, na ${dirL(best.bear)}, ${Math.round(best.el)} stupňov nad obzorom${best.trk!=null?", letí na "+dirL(best.trk):""}${best.el>=10?", dá sa mu zamávať":""}`:""}. Ťuknutím na lietadlo v radare ho vyberieš.`:"Radar oblohy: nad tebou je teraz prázdno";if($("sky").getAttribute("aria-label")!==lab)$("sky").setAttribute("aria-label",lab)}
   HOOKS.live.forEach(f=>{try{f(best,fresh)}catch(e){console.error(e)}});
   if(HOOKS.list)HOOKS.list.forEach(f=>{try{f(S.list)}catch(e){console.error(e)}});
@@ -554,6 +592,7 @@ function startGps(){
 }
 function gotPos(p,first){
   ev("gps_ok");
+  betaStep("gps");
   S.pos={lat:p.coords.latitude,lon:p.coords.longitude,alt:p.coords.altitude||0};LS.set("ctl_pos",S.pos);showPos();
   $("posBtns").style.display="none";err("");
   if(!S.raw.length){$("h-type").textContent="Poloha OK ✓ Hľadám lietadlá…";setStatus("Načítavam lietadlá…",false)}
@@ -714,9 +753,20 @@ openFriends();addEventListener("hashchange",openFriends);
 const ABV=(()=>{let v=LS.get("ctl_ab","");if(!/^[AB]$/.test(v)){v=Math.random()<.5?"A":"B";LS.set("ctl_ab",v)}return v})();
 // aktuálny pokus: text hlavného tlačidla v úvode
 if(ABV==="B"&&$("go"))$("go").textContent="📍 Ukáž mi, čo letí nado mnou";
+const betaFirstDay=(()=>{
+  const stored=LS.get("ctl_beta_day","");
+  if(stored)return stored;
+  if(LS.get("ctl_onb",0)||LS.get("ctl_ev",{}).open)return "";
+  const today=new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"});
+  LS.set("ctl_beta_day",today);
+  return today;
+})();
+function betaStep(step){
+  if(betaFirstDay)ev("beta_"+step);
+}
 function ev(step){
   try{const done=LS.get("ctl_ev",{});if(done[step])return;done[step]=1;LS.set("ctl_ev",done);
-    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({step,r:LS.get("ctl_ref",""),v:ABV}),keepalive:true}).catch(()=>{})}catch(e){}
+    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(step.startsWith("beta_")?{step}:{step,r:LS.get("ctl_ref",""),v:ABV}),keepalive:true}).catch(()=>{})}catch(e){}
 }
 {let errN=0;const rep=m=>{if(errN++>5)return;try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:String(m).slice(0,200)}))}catch(e){}};
   addEventListener("error",e=>rep((e.message||"err")+" @"+String(e.filename||"").split("/").pop()+":"+e.lineno));
@@ -726,6 +776,8 @@ function ev(step){
   if(r&&/^[A-Za-z0-9]{16}$/.test(r)&&!LS.get("ctl_ref","")&&!LS.get("ctl_onb",0)){LS.set("ctl_ref",r);ev("ref_join")}
   if(r)try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}}
 ev("open");
+betaStep("open");
+if(betaFirstDay&&new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"})>betaFirstDay)betaStep("return");
 {const last=LS.get("ctl_lastDay",""),td=new Date().toLocaleDateString("sv-SE");if(last&&last!==td){ev("day2");const gs=Object.values(COL.types).filter(v=>v.gift&&!v.n),g=gs.find(v=>!/uvítanie/.test(v.gift.from))||gs[0];if(g)setTimeout(()=>toast("🤝 Čaká na teba "+g.name,"Od: "+g.gift.from+" – zamávaj takému lietadlu a kartička bude celá tvoja"),7000)}LS.set("ctl_lastDay",td)}
 if(matchMedia("(display-mode: standalone)").matches||navigator.standalone)ev("install");
 HOOKS.caught.push(()=>{ev("catch1");if(COL.n>=5)ev("catch5")});

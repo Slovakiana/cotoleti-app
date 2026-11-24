@@ -43,6 +43,26 @@ def main():
             # 1) prvé spustenie (úvod)
             pg.goto("http://localhost:8799/index.html")
             pg.wait_for_timeout(2500)
+            pg.evaluate("""() => {
+                const live = {el: 30};
+                const before = {...S};
+                try {
+                    S.pos = null;
+                    if (firstWaveNext(live)[1] !== "Vybrať polohu") throw Error("Chýba voľba polohy");
+                    Object.assign(S, {pos: {lat: 48.15, lon: 17.11}, loaded: true, lastKnown: false, failN: 0});
+                    if (firstWaveNext(null)[1] !== "Pozrieť ISS") throw Error("Chýba ďalší krok pri prázdnej oblohe");
+                    S.manual = true;
+                    if (firstWaveNext(live)[1] !== "Použiť GPS") throw Error("Chýba prechod na GPS");
+                    S.manual = false;
+                    if (!firstWaveNext(live)[0].includes("Mávni")) throw Error("Chýba pokyn na mávnutie");
+                    reportFirstWave({ver: 0, why: "nízko nad obzorom"});
+                    if (!$("firstWaveResult").textContent.includes("nízko nad obzorom")) throw Error("Chýba dôvod");
+                    reportFirstWave({ver: 1});
+                    if (!$("firstWaveHint").hidden || !$("firstWaveResult").textContent.includes("overený")) throw Error("Chýba potvrdenie");
+                } finally {
+                    Object.assign(S, before);
+                }
+            }""")
             # 2) appka po úvode
             pg.evaluate("localStorage.setItem('ctl_onb','1')")
             pg.reload()
@@ -50,6 +70,61 @@ def main():
             for v in ["space", "col", "now"]:
                 pg.click(f'nav [data-v="{v}"]', timeout=5000)
                 pg.wait_for_timeout(1200)
+            pg.evaluate("""() => {
+                renderWeeklyMission({total: 3, goal: 3, mine: 1});
+                if ($("weeklyMission").hidden || $("weeklyMissionDone").hidden
+                    || $("weeklyMissionProgress").value !== 3 || !$("weeklyMissionMine").textContent.endsWith("1"))
+                    throw Error("Chybný stav dokončenej misie");
+                renderWeeklyMission({total: 1, goal: 3, mine: null});
+                if (!$("weeklyMissionDone").hidden || !$("weeklyMissionMine").hidden)
+                    throw Error("Neoverený hráč vidí osobný postup alebo predčasnú odmenu");
+                renderWeeklyMission(null);
+                if (!$("weeklyMission").hidden) throw Error("Vypnutá misia je viditeľná");
+            }""")
+            for width in (320, 390, 768):
+                pg.set_viewport_size({"width": width, "height": 844})
+                pg.evaluate("""() => {
+                    const ids = ["hero", "nearCard", "huntHome", "compPulse", "weeklyMission"];
+                    const bounds = id => $(id).getBoundingClientRect();
+                    if (!ids.slice(1).every((id, i) => $(ids[i]).compareDocumentPosition($(id)) & Node.DOCUMENT_POSITION_FOLLOWING))
+                        throw Error("Herné karty odsunuli zoznam lietadiel");
+                    renderWeeklyMission({goal: 100, total: 28, mine: 2, previous: {goal: 100, total: 104, mine: 4}});
+                    const past = $("weeklyMissionPrevious");
+                    if (past.hidden || past.open || !past.textContent.includes("Cieľ splnený"))
+                        throw Error("Výsledok minulého týždňa má byť dostupný a zbalený");
+                    past.querySelector("summary").click();
+                    if (!past.open || bounds("weeklyMissionRecap").height === 0)
+                        throw Error("Výsledok minulého týždňa sa nedá rozbaliť");
+                    if (bounds("weeklyMission").right > document.documentElement.clientWidth
+                        || bounds("weeklyMissionProgress").right > bounds("weeklyMission").right
+                        || past.querySelector("summary").getBoundingClientRect().height < 44)
+                        throw Error("Misia sa nezmestí do šírky alebo má malý dotykový cieľ");
+                    past.open = false;
+                    renderWeeklyMission(null);
+                }""")
+                print(f"✓ poradie kariet, šírka misie a dotykové ovládanie pri {width} px")
+            pg.evaluate("""() => {
+                const [selected, waved, untouched] = ["4ca123", "49d3c1", "abc123"].map(hex=>({hex, el: 30, bear: 90, alt: 10000, type: "B738"}));
+                const oldTop = S.top;
+                try {
+                    S.top = selected;
+                    SOC.waved["2000-01-01"+untouched.hex] = "👋";
+                    renderList([selected, waved, untouched]);
+                    const row = hex => $("list").querySelector('[data-hex="'+hex+'"]');
+                    if ($("list").querySelector(".nearWaved")) throw Error("Stará história sa zobrazuje ako dnešná");
+                    SOC.waved[dayKey()+waved.hex] = "👋";
+                    renderList([selected, waved, untouched]);
+                    const marked = row(waved.hex);
+                    if (!marked.querySelector(".nearWaved") || !marked.getAttribute("aria-label").includes("Dnes zamávané")
+                        || row(untouched.hex).querySelector(".nearWaved"))
+                        throw Error("Zoznam nerozlišuje dnešné mávnutie");
+                } finally {
+                    delete SOC.waved[dayKey()+waved.hex];
+                    delete SOC.waved["2000-01-01"+untouched.hex];
+                    S.top = oldTop;
+                    renderList(S.list);
+                }
+            }""")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)

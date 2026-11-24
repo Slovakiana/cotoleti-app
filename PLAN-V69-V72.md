@@ -27,21 +27,32 @@
 - [x] Vysvetliť rozdiel medzi lokálnym resetom a serverovým zmazaním účtu priamo v nastaveniach.
 
 ## v70 – Prvých 5 minút hráča
-- [ ] Skrátiť onboarding a vysvetliť prvé zamávanie.
-- [ ] Jasne odlíšiť lokálne mávnutie od serverom overeného úlovku.
-- [ ] Zrozumiteľné stavy prázdnej oblohy, nepovolenej GPS a slabého signálu.
-- [ ] Používateľský test prvého úlovku a zrozumiteľnosti odmeny.
+- [x] Skrátiť onboarding a vysvetliť prvé zamávanie.
+- [x] Jasne odlíšiť lokálne mávnutie od serverom overeného úlovku.
+- [x] Zrozumiteľné stavy prázdnej oblohy, nepovolenej GPS a slabého signálu.
+- [x] Cesta z WhatsAppu po prvý úlovok ručne overená podľa potvrdenia majiteľa.
+- [ ] Poslať odkaz 3–5 beta testerom bez návodu. Overiť, či vedia spustiť radar, vysvetliť výsledok prvého mávnutia a nájsť ďalší krok pri prázdnej oblohe.
+- [ ] Skúsiť aj zamietnutú polohu, ručné mesto, výpadok siete počas mávnutia a opätovné pripojenie.
 
 ## v71 – Pozorovateľnosť beta testovania
-- [ ] Bez osobných identifikátorov merať prvé spustenie → GPS → mávnutie → overená karta → návrat.
-- [ ] Doplniť agregovaný dashboard do administrácie.
-- [ ] Overiť retenciu D1/D7, kontrolu počtov a súkromie údajov.
+- [x] Počítať prvé otvorenie, GPS, prvý pokus o mávnutie, prvé serverové overenie a prvý návrat v ďalší deň. Každá nová udalosť posiela len názov kroku.
+- [x] V administrácii zobraziť agregované počty krokov za posledných sedem kalendárnych dní.
+- [ ] Po beta teste skontrolovať počty. Ide o samostatné počty krokov podľa dňa udalosti. Kohortovú retenciu D1/D7 posúdiť samostatne.
 
 ## v72 – Nová herná mechanika (podľa výsledkov bety)
 - [ ] Vyhodnotiť testerov a najväčšiu prekážku návratu do aplikácie.
-- [ ] Návrh „Spoločná týždenná misia Slovenska“ len so skutočnými overenými mávnutiami.
-- [ ] Ekonomika odmien, ochrana pred podvádzaním, serverové testy.
-- [ ] Až potom implementácia a samostatné schválenie nasadenia.
+- [ ] Otestovať pripravený pilot po vyhodnotení návratov beta testerov.
+  - Cieľ je spoločný počet serverom overených mávnutí. Týždeň sa začína v pondelok podľa času v Bratislave.
+  - Jedno lietadlo sa jednému hráčovi započíta najviac raz za deň. Odložené mávnutie patrí do týždňa, v ktorom vzniklo, ak ho server ešte dokáže overiť.
+  - Na radare zobraziť spoločný postup a vlastné započítané príspevky. Pre prvý pilot stačí spoločný odznak pri splnení cieľa, bez zásahu do ligových bodov.
+  - Výšku cieľa zvoliť podľa skutočného týždenného objemu overených mávnutí. Úspech posúdiť podľa návratov a spätnej väzby testerov.
+- [x] Pilot je pripravený s vlastným počítadlom, overením na serveri a vypínačom v administrácii. Cieľ 0 znamená vypnuté. Pri prechode na nový týždeň sa radar prepne na jeho výsledky.
+- [ ] Pred zapnutím vybrať cieľ podľa objemu overených mávnutí. Správca ho zadá v administrácii samostatne. Počas pilotného týždňa ho ponechať stabilný.
+
+## v73 – Výsledok misie a prehľadnejší radar
+- [x] Na radare sprístupniť výsledok uplynulého týždňa a vlastný príspevok v rozbaliteľnom súhrne.
+- [x] Zachovať cieľ rozbehnutého týždňa. Nastavený nový cieľ platí od ďalšieho týždňa, nula pilot hneď pozastaví.
+- [x] Presunúť zoznam lietadiel pred herné karty. Pri prvom úlovku dať pokyn k tlačidlu Mávni a skryť opakované akcie na polohu a ISS.
 
 ## Pravidlá vydania
 1. Každá časť samostatná vetva/PR; pred zlúčením úspešné serverové aj prehliadačové testy.
