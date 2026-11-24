@@ -414,6 +414,36 @@ function renderCol(){
 }
 
 /* ============ hlavná slučka ============ */
+const firstWaveGuide = !Object.values(COL.types).some(card=>card.ver);
+let firstWaveVerified = false;
+
+function firstWaveNext(a){
+  if(!S.pos)return ["Povoľ polohu alebo vyber mesto, aby sa ti zobrazil radar.", "Vybrať polohu", ()=>$("statusPill").click()];
+  if(!navigator.onLine)return ["Si bez internetu. Po pripojení obnov radar."];
+  if(S.failN)return ["Dáta o letoch sú dočasne nedostupné.", "Obnoviť radar", ()=>fetchPlanes(true)];
+  if(S.lastKnown||!S.loaded)return ["Načítavam aktuálnu oblohu…"];
+  if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Počkaj, kým bude lietadlo vyššie nad obzorom. Medzitým si môžeš pozrieť prelety ISS.", "Pozrieť ISS", ()=>setView("space")];
+  if(S.manual)return ["Radar ukazuje oblohu nad vybraným mestom. Na overený úlovok použi GPS.", "Použiť GPS", ()=>$("placeGps").click()];
+  return ["Ťukni na „Mávni“. Počkaj, kým server overí úlovok."];
+}
+
+function renderFirstWaveGuide(a){
+  if(!firstWaveGuide)return;
+  const hint=$("firstWaveHint"),button=$("firstWaveAction");
+  const [text,label,action]=firstWaveVerified?[]:firstWaveNext(a);
+  if(hint.textContent!==(text||""))hint.textContent=text||"";
+  hint.hidden=!text;
+  if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
+  button.hidden=!label;
+}
+
+function showFirstWaveResult(text, verified=false){
+  if(!firstWaveGuide||firstWaveVerified)return;
+  firstWaveVerified=verified;
+  $("firstWaveResult").textContent=text;
+  if(verified)renderFirstWaveGuide(S.top);
+}
+
 function tick(fresh){
   const now=Date.now();
   S.list=enrich(now);
@@ -425,6 +455,7 @@ function tick(fresh){
   S.top=best;
   if(changed||fresh){renderHeroStatic(best);if(best){loadMeta(best);if(changed)announce(best,false)}}
   renderHeroLive(best);
+  renderFirstWaveGuide(best);
   if(fresh||now%5000<1000){const up=S.list.filter(a=>a.el>0),hi=up.filter(a=>a.el>=10).length,lab=up.length?`Radar oblohy: ${up.length} ${pl(up.length,"lietadlo","lietadlá","lietadiel")} nad obzorom, ${hi} z nich vyššie ako 10 stupňov${best&&best.el!=null?`. ${S.pick===best.hex?"Vybrané":"Najvyššie"}: ${titleOf(best)}, ${RAR[rarity(best)].n.toLowerCase()}, na ${dirL(best.bear)}, ${Math.round(best.el)} stupňov nad obzorom${best.trk!=null?", letí na "+dirL(best.trk):""}${best.el>=10?", dá sa mu zamávať":""}`:""}. Ťuknutím na lietadlo v radare ho vyberieš.`:"Radar oblohy: nad tebou je teraz prázdno";if($("sky").getAttribute("aria-label")!==lab)$("sky").setAttribute("aria-label",lab)}
   HOOKS.live.forEach(f=>{try{f(best,fresh)}catch(e){console.error(e)}});
   if(HOOKS.list)HOOKS.list.forEach(f=>{try{f(S.list)}catch(e){console.error(e)}});

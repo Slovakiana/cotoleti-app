@@ -27,10 +27,12 @@
 - [x] Vysvetliť rozdiel medzi lokálnym resetom a serverovým zmazaním účtu priamo v nastaveniach.
 
 ## v70 – Prvých 5 minút hráča
-- [ ] Skrátiť onboarding a vysvetliť prvé zamávanie.
-- [ ] Jasne odlíšiť lokálne mávnutie od serverom overeného úlovku.
-- [ ] Zrozumiteľné stavy prázdnej oblohy, nepovolenej GPS a slabého signálu.
-- [ ] Používateľský test prvého úlovku a zrozumiteľnosti odmeny.
+- [x] Skrátiť onboarding a vysvetliť prvé zamávanie.
+- [x] Jasne odlíšiť lokálne mávnutie od serverom overeného úlovku.
+- [x] Zrozumiteľné stavy prázdnej oblohy, nepovolenej GPS a slabého signálu.
+- [ ] Na iPhone a Androide otvoriť odkaz z WhatsAppu, prejsť do Safari/Chrome, zamávať a po návrate overiť rovnakú zbierku.
+- [ ] Poslať odkaz 3–5 beta testerom bez návodu. Overiť, či vedia spustiť radar, vysvetliť výsledok prvého mávnutia a nájsť ďalší krok pri prázdnej oblohe.
+- [ ] Skúsiť aj zamietnutú polohu, ručné mesto, výpadok siete počas mávnutia a opätovné pripojenie.
 
 ## v71 – Pozorovateľnosť beta testovania
 - [ ] Bez osobných identifikátorov merať prvé spustenie → GPS → mávnutie → overená karta → návrat.

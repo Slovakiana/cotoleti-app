@@ -43,6 +43,26 @@ def main():
             # 1) prvé spustenie (úvod)
             pg.goto("http://localhost:8799/index.html")
             pg.wait_for_timeout(2500)
+            pg.evaluate("""() => {
+                const live = {el: 30};
+                const before = {...S};
+                try {
+                    S.pos = null;
+                    if (firstWaveNext(live)[1] !== "Vybrať polohu") throw Error("Chýba voľba polohy");
+                    Object.assign(S, {pos: {lat: 48.15, lon: 17.11}, loaded: true, lastKnown: false, failN: 0});
+                    if (firstWaveNext(null)[1] !== "Pozrieť ISS") throw Error("Chýba ďalší krok pri prázdnej oblohe");
+                    S.manual = true;
+                    if (firstWaveNext(live)[1] !== "Použiť GPS") throw Error("Chýba prechod na GPS");
+                    S.manual = false;
+                    if (!firstWaveNext(live)[0].includes("Mávni")) throw Error("Chýba pokyn na mávnutie");
+                    reportFirstWave({ver: 0, why: "nízko nad obzorom"});
+                    if (!$("firstWaveResult").textContent.includes("nízko nad obzorom")) throw Error("Chýba dôvod");
+                    reportFirstWave({ver: 1});
+                    if (!$("firstWaveHint").hidden || !$("firstWaveResult").textContent.includes("overený")) throw Error("Chýba potvrdenie");
+                } finally {
+                    Object.assign(S, before);
+                }
+            }""")
             # 2) appka po úvode
             pg.evaluate("localStorage.setItem('ctl_onb','1')")
             pg.reload()
