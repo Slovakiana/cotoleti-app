@@ -23,9 +23,13 @@ const T_L = new Set(["B779","AN30","DC6","A124","A225","BLCF","A3ST","A337","C5M
 const T_E = new Set(["A400","C17","K35R","E3TF","E3CF","AN12","L39","F16","GRIF","EUFI","F18","F15","C130","C30J","C27J","RQ4","Q4","P8","R135","C295","CN35","C390","E390","L159","MI24","UH1Y","H47"]);
 const T_R = new Set(["A388","B744","B748","B742","A343","B778","GL7T","GLF5","AN26","DC10","L410","AN2","DC3","JU52","Z37","Z37T","Z26","PZ04","H60","MI8","B735","CRJ2","SF34","A338","B762","B3XM","F100","A189","W3","EC25","M28"]);
 const T_U = /^(F2TH|B734|AT72|Z42|SHRK|PC7|F900|B73[23]|AS3|AS6|H160|B412|B212|B505|A119|R66|NH90|S76|A30B|A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
-const TYPES_SRV = {B779: "Boeing 777-9", AN30: "Antonov An-30", DC6: "Douglas DC-6", E390: "Embraer C-390", C295: "Airbus C295", L159: "Aero L-159", MI24: "Mi-24", UH1Y: "UH-1Y Venom", H47: "CH-47 Chinook", R135: "RC-135", Q4: "Global Hawk", RQ4: "Global Hawk", P8: "P-8 Poseidon", Z37: "Čmelák", A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
+const TYPES_SRV = {C140: "Cessna 140", D328: "Dornier 328", M600: "Piper M600", B779: "Boeing 777-9", AN30: "Antonov An-30", DC6: "Douglas DC-6", E390: "Embraer C-390", C295: "Airbus C295", L159: "Aero L-159", MI24: "Mi-24", UH1Y: "UH-1Y Venom", H47: "CH-47 Chinook", R135: "RC-135", Q4: "Global Hawk", RQ4: "Global Hawk", P8: "P-8 Poseidon", Z37: "Čmelák", A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
 const T_ALIAS = {AT44: "AT43", AT45: "AT43", AT46: "AT43", E75S: "E75L", CRJX: "CRJ9", MI17: "MI8", MI171: "MI8", UH60: "H60", S70: "H60", C390: "E390", RQ4: "Q4", S22T: "SR22", P28R: "P28A", P28T: "P28A", P28B: "P28A", C150: "C152", CL30: "CL35"};
 const tAlias = t => T_ALIAS[t] || t;
+function normalizeType(value) {
+  const type = String(value || "").trim().toUpperCase();
+  return /^[A-Z0-9]{2,5}$/.test(type) && !["UNK", "UNKN", "ZZZZ", "NONE", "NA", "NIL"].includes(type) ? tAlias(type) : "";
+}
 const tierOf = t0 => { const t = tAlias(t0); return !t ? "c" : T_L.has(t) ? "l" : T_E.has(t) ? "e" : T_R.has(t) ? "r" : T_U.test(t) ? "u" : "c"; };
 const TIER_W = {c: 3, u: 8, r: 25, e: 45, l: 80};
 const SHINY_P = {c: 15, u: 30, r: 60, e: 80, l: 100}; // z 1000
@@ -86,7 +90,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v80";
+const VERSION = "v81";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -465,9 +469,33 @@ export class Sky extends DurableObject {
     })();
     return this._snapP;
   }
+  async fillPlaneType(plane, hex) {
+    if (plane.type || plane.priv || plane.ground || !/^[0-9a-f]{6}$/.test(hex)) return plane;
+    const cache = this._aircraftTypes || (this._aircraftTypes = new Map());
+    let entry = cache.get(hex);
+    if (!entry || Date.now() >= entry.until) {
+      if (cache.size >= 512) cache.delete(cache.keys().next().value);
+      entry = {until: Date.now() + 2 * 60e3};
+      entry.pending = (async () => {
+        try {
+          const response = await fetch("https://api.adsbdb.com/v0/aircraft/" + hex, {
+            headers: {"User-Agent": UA}, signal: AbortSignal.timeout(1500)
+          });
+          if (!response.ok) return;
+          const ac = (await response.json()).response?.aircraft;
+          if (String(ac?.mode_s || "").toLowerCase() !== hex) return;
+          entry.type = normalizeType(ac.icao_type);
+          if (entry.type) entry.until = Date.now() + 3600e3;
+        } catch (e) {}
+      })();
+      cache.set(hex, entry);
+    }
+    await entry.pending;
+    return entry.type ? {...plane, type: entry.type} : plane;
+  }
   planeRes(a, la, lo) {
     if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: tAlias(String(a.t || "").toUpperCase()), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
+    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: normalizeType(a.t), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
   }
   async verifyPlane(hex, la, lo) {
     // 1) čerstvý prehľad oblohy (≤ 30 s starý)
@@ -475,13 +503,13 @@ export class Sky extends DurableObject {
     const sn = await this.snapshot();
     if (sn && Date.now() - sn.t < 30e3) {
       any = true; const a = sn.m.get(hex);
-      if (a && a.lat != null && (a.seen_pos == null || a.seen_pos < 60)) return this.planeRes(a, la, lo);
+      if (a && a.lat != null && a.lon != null && (a.seen_pos == null || a.seen_pos < 60)) return this.fillPlaneType(this.planeRes(a, la, lo), hex);
     }
     // 2) priamy dopyt na lietadlo – všetky siete naraz, berie sa prvá, ktorá ho pozná
     const SRC = ["https://api.adsb.lol/v2/hex/", "https://api.airplanes.live/v2/hex/", "https://opendata.adsb.fi/api/v2/hex/"];
     const one = u => fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}, signal: AbortSignal.timeout(4000)})
-      .then(r => r.ok ? r.json() : Promise.reject()).then(j => { any = true; const a = (j.ac || j.aircraft || [])[0]; if (!a || a.lat == null) throw 0; return a; });
-    try { return this.planeRes(await Promise.any(SRC.map(one)), la, lo); } catch (e) {}
+      .then(r => r.ok ? r.json() : Promise.reject()).then(j => { any = true; const a = (j.ac || j.aircraft || []).find(a => cleanHex(a.hex) === hex); if (!a || a.lat == null || a.lon == null || a.seen_pos >= 60) throw 0; return a; });
+    try { return this.fillPlaneType(this.planeRes(await Promise.any(SRC.map(one)), la, lo), hex); } catch (e) {}
     // nenašli sme ho nikde: mávnutie prijmeme, ale do ligy sa neráta (vp.found = false)
     return {known: any, found: false};
   }
@@ -722,11 +750,13 @@ export class Sky extends DurableObject {
       if (la == null || lo == null || distKm(la, lo, 48.7, 19.5) > 330) return json({error: "far"}, 404);
       if (!this.rate("pl:" + iph, 400, 60e3)) return json({error: "rate"}, 429);
       const sn = await this.snapshot();
-      if (!sn || now - sn.t > 60e3) return json({error: "stale"}, 503);
+      if (!sn || Date.now() - sn.t > 30e3) return json({error: "stale"}, 503);
       const km = r * 1.852, ac = [];
-      for (const a of sn.m.values()) if (a.lat != null && a.lon != null && distKm(la, lo, a.lat, a.lon) <= km) {
+      for (const a of sn.m.values()) if (a.lat != null && a.lon != null && !(a.seen_pos >= 60) && distKm(la, lo, a.lat, a.lon) <= km) {
         // LADD/PIA (súkromie majiteľa): bez registrácie, prevádzkovateľa a volacieho znaku – len typ a poloha
-        ac.push(a.dbFlags & 12 ? {...a, r: "", ownOp: "", flight: "", desc: ""} : a);
+        const meta = this._aircraftTypes?.get(cleanHex(a.hex));
+        ac.push(a.dbFlags & 12 ? {...a, r: "", ownOp: "", flight: "", desc: ""}
+          : !normalizeType(a.t) && meta?.type && meta.until > Date.now() ? {...a, t: meta.type} : a);
       }
       return json({ac, now: sn.t, src: "sky"}, 200, {"Cache-Control": "public, max-age=5"});
     }
@@ -862,7 +892,8 @@ export class Sky extends DurableObject {
       this.sql.exec("INSERT OR IGNORE INTO wavelog(day, hex, id, t, k, pid, lg) VALUES(?, ?, ?, ?, ?, ?, ?)", d, hex, id, now, k, pdx, league ? 1 : 0);
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
       // dnes už mávnuté, ale ešte nie ulovené (napr. predtým nízko nad obzorom) → úlovok sa smie overiť teraz
-      const fresh = !seen || !this.row("SELECT 1 AS x FROM catches WHERE id=? AND hex=?", id, hex);
+      const previousCatch = this.row("SELECT type FROM catches WHERE id=? AND hex=?", id, hex);
+      const fresh = !seen || !previousCatch || (!previousCatch.type && !!vp.type);
       let golden = false;
       // ✈️ úlovok overený serverom (lietadlo sme našli v sieti a je blízko)
       // výška nad obzorom počíta server – úlovok do súťaží len ≥ 8° (2° rezerva na oneskorenie dát)
@@ -872,7 +903,7 @@ export class Sky extends DurableObject {
       let seq = 0, firstK = false, firstT = false, ed = null;
       // prečo úlovok nie je overený (appka to ukáže hráčovi)
       const why = !fresh ? "" : !vp.found ? (vp.known ? "lietadlo sme v dátach o letoch nenašli" : "dáta o letoch boli dočasne nedostupné") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha bola vybraná ručne, nie z GPS" : !fair ? "si mimo Slovenska alebo máš zapnutú VPN" : !near ? "viac ako 30 km od miesta, kde si dnes začal(a)" : "";
-      if (fresh && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT OR IGNORE INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?)", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
+      if (fresh && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, hex) DO UPDATE SET type=excluded.type, ok=MAX(catches.ok, excluded.ok) WHERE catches.type='' AND excluded.type<>''", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
       if (cok && ty) {
         const had = this.row("SELECT seq FROM typeseq WHERE type=? AND id=?", ty, id);
         if (had) seq = had.seq;

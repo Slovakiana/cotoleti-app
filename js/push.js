@@ -75,18 +75,8 @@ HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{if(D.now)SOC.skew=D.now-Date
 setTimeout(()=>{syncPushUI();maybeAskPush();if(PUSH.on&&pushSupported()&&Notification.permission==="granted"){swTell();if(Date.now()-LS.get("ctl_pushT",0)>86400e3)enablePush(true)}},3000);
 HOOKS.caught.push(()=>{if(COL.n===1)setTimeout(maybeAskPush,5000)});
 
-/* 🛰️ pripomienka preletu ISS – appka vypočíta čas, server pošle upozornenie */
-if($("sp-remind"))$("sp-remind").onclick=async()=>{
-  const n=window.SPACE_NEXT;if(!n)return;
-  if(!PUSH.on||Notification.permission!=="granted"){if(!(await enablePush()))return}
-  try{
-    const r=await apiPost("/api/remind",{at:n.t-5*60e3,kind:n.kind,dir:n.dir,max:n.max});const j=await r.json().catch(()=>({}));
-    if(j.ok){toast("🔔 Pripomeniem ti to","5 minút pred preletom "+(n.kind==="iss"?"ISS":"stanice Tiangong"));$("sp-remind").textContent="✓ Pripomienka nastavená";$("sp-remind").disabled=true}
-    else toast("Pripomienku sa nepodarilo nastaviť","Skús to o chvíľu");
-  }catch(e){toast("Bez internetu","Pripomienku nastavíš, keď budeš online")}
-};
-// odkaz z upozornenia „./#vesmir“ otvorí záložku Vesmír
-if(/vesmir/.test(location.hash))setTimeout(()=>{try{setView("space");history.replaceState(null,"",location.pathname)}catch(e){}},600);
+// Staršie upozornenia na prelet otvoria radar.
+if(location.hash==="#vesmir")history.replaceState(null,"",location.pathname+location.search);
 
 // 🔥 pripomienka série sa dá vypnúť samostatne
 // prepínač svieti len vtedy, keď upozornenia naozaj fungujú; ťuk bez povolenia rovno požiada o povolenie

@@ -81,6 +81,47 @@ await t("obloha: jedna požiadavka na prehľad pre viac mávnutí; výpadok siet
   globalThis.fetch = of;
   assert.equal(r2.s, 200); // po 3 pokusoch sa mávnutie zapíše aj bez overenia
 });
+await t("dohľadanie typu podľa hexu a doplnenie staršieho úlovku", async () => {
+  const original=globalThis.fetch, oldPlane=plane;
+  const id="v81unknowntypetest00000001", ip="4.4.4.14";
+  const tok=(await call("/api/hello",{id},ip)).j.tok;
+  let mode="000000", lookups=0;
+  plane={...plane,hex:"cc0001",t:"UNKN"};
+  globalThis.fetch=async u=>{
+    if(String(u).startsWith("https://api.adsbdb.com/v0/aircraft/")){
+      lookups++;
+      return Response.json({response:{aircraft:{mode_s:mode,icao_type:" d328 "}}});
+    }
+    return original(u);
+  };
+  try{
+    const body={id,tok,hex:plane.hex,lat:48.15,lon:17.11,type:"B738"};
+    const initial=await call("/api/wave",body,ip);
+    assert.equal(initial.j.type,""); // nezhodná identita ani klient neurčia typ
+    assert.equal(lookups,1);
+    sky._aircraftTypes.clear();
+    mode="CC0001";
+    const resolved=await call("/api/wave",body,ip);
+    assert.equal(resolved.j.type,"D328");
+    assert.equal(resolved.j.dup,true);
+    assert.equal(resolved.j.ver,1);
+    await call("/api/wave",body,ip);
+    assert.equal(lookups,2);
+    assert.equal(db.prepare("SELECT type FROM catches WHERE id=? AND hex=?").get(id,plane.hex).type,"D328");
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM wavelog WHERE id=? AND hex=?").get(id,plane.hex).n,1);
+    const radar=await call("/api/planes?lat=48.15&lon=17.11");
+    assert.equal(radar.j.ac[0].t,"D328");
+    plane.dbFlags=4;
+    const privateRadar=await call("/api/planes?lat=48.15&lon=17.11");
+    assert.equal(privateRadar.j.ac[0].t,"UNKN");
+    assert.equal((await sky.verifyPlane(plane.hex,48.15,17.11)).type,"");
+    assert.equal(lookups,2);
+  }finally{
+    globalThis.fetch=original;
+    plane=oldPlane;
+    sky._snap=null;
+  }
+});
 await t("nízko zamávané lietadlo sa overí, keď je neskôr vysoko", async () => {
   const id = "v2lowhighlowhighlowhighlo01", tok = (await call("/api/hello", {id}, "4.4.4.4")).j.tok;
   plane.hex = "ee0001"; plane.lat = 48.9;

@@ -290,7 +290,7 @@ function waveInfo(a){
   const p=planeWaves(a.hex),mine=SOC.waved[dayKey()+a.hex];
   $("waveN").style.display=p.total?"":"none";if($("waveN").textContent!==nf(p.total)){$("waveN").textContent=nf(p.total);$("waveN").classList.remove("bump");void $("waveN").offsetWidth;$("waveN").classList.add("bump")}
   // stav tlačidla: po mávnutí je jasné, že je hotovo
-  const again=mine&&!COL.hex[a.hex]&&(a.el??0)>=10;$("b-wave").classList.toggle("waved",!!mine&&!again);$("waveLbl").textContent=again?"👋 Mávni – teraz do zbierky":mine?"✓ Zamávané":a&&a.el!=null&&a.el<10&&!COL.hex[a.hex]?"👋 Mávni · nízko "+Math.max(0,Math.round(a.el))+"°":waveMood(a);
+  const again=mine&&(!COL.hex[a.hex]||(a.type&&missingTypeCatch(a.hex)))&&(a.el??0)>=10;$("b-wave").classList.toggle("waved",!!mine&&!again);$("waveLbl").textContent=again?"👋 Mávni – teraz do zbierky":mine?"✓ Zamávané":a&&a.el!=null&&a.el<10&&!COL.hex[a.hex]?"👋 Mávni · nízko "+Math.max(0,Math.round(a.el))+"°":waveMood(a);
   $("waveHint").style.display=mine||(LS.get("ctl_waveN",0)|0)>=3?"none":"";
   const em=Object.entries(p.emoji||{}).sort((x,y)=>y[1]-x[1]).slice(0,4).map(([e,n])=>e+" "+n).join("  ");
   const fr=SOC.data&&SOC.data.friends&&SOC.data.friends[a.hex];
@@ -375,30 +375,34 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   const key=SKD.format(new Date(observation.time))+a.hex,already=!!SOC.waved[key];
   showFirstWaveResult("Spracúvam mávnutie…");
   // Trasa môže doplniť záznam úlovku, aj keď spätná väzba už beží.
-  if(!routeOf(a))await Promise.race([loadMeta(a).catch(()=>{}),new Promise(r=>setTimeout(r,1200))]);
+  if(!routeOf(a)||!a.type)await Promise.race([loadMeta(a).catch(()=>{}),new Promise(r=>setTimeout(r,1200))]);
+  a.type=planeType(a);
   const rt=routeOf(a);
   if(already){
     // predtým bolo nízko a kartička nepribudla – teraz je vysoko: pošli znova, nech sa úlovok overí (body sa nerátajú druhýkrát)
-    if(!COL.hex[a.hex]&&(a.el??0)>=10&&SOC.api){
+    if((!COL.hex[a.hex]||missingTypeCatch(a.hex))&&(a.el??0)>=10&&SOC.api){
       let outcome="Mávnutie uložené v zariadení.";
       try{const r=await apiPost("/api/wave",{hex:a.hex,emoji:e,...observation.pos,gps:observation.gps,nick:LS.get("ctl_nick",""),call:a.call||"",type:a.type||""});const j=await r.json().catch(()=>({}));
-        if(r.ok&&j.ok&&j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
+        if(r.ok&&j.ok)a.type=normalizeType(j.type)||a.type;
         LASTWAVE=r.ok&&j.ok?{hex:a.hex,...j}:null;waveBatchStart(a.hex);tryCatch(a);
-        if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
+        if(j.ver){const v=COL.types[normalizeType(j.type)];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
         if(r.ok&&j.ok){reportFirstWave(j);waveRewards(j,a);outcome=j.ver?"Overený úlovok":j.why?"Neoverený úlovok: "+j.why:"Neoverený úlovok"}
       }catch(x){if(!WB)waveBatchStart(a.hex);tryCatch(a)}
       WB.result=outcome;waveBatchEnd();
       return}
+    const upgrade=a.type&&missingTypeCatch(a.hex);
+    if(upgrade)waveBatchStart(a.hex);
     tryCatch(a);
+    if(upgrade){waveBatchEnd();return}
     const owned=COL.types[a.type];
     if(owned?.n)showWaveCard(a.type,"Dnes už zamávané",false,a.hex,nextLv(owned.n,a.type)?"Na ďalšiu hviezdu potrebuješ iný stroj rovnakého typu.":"Najvyššia úroveň kartičky");
-    else showFirstWaveResult("Dnes už zamávané.");
+    else showFirstWaveResult(missingTypeCatch(a.hex)?UNKNOWN_TYPE_WAVE:"Dnes už zamávané.");
     return}
   // body a výzvy sa pripíšu až keď server mávnutie prijme (alebo keď sme offline)
   const credit=()=>{
     SOC.waved[key]=e;waveBatchStart(a.hex);
     // úlovok = zamávanie (nie automaticky, keď appka len beží)
-    if(!COL.hex[a.hex]){if((a.el??0)>=10)tryCatch(a);else{WB.low=a.el??0;SOC.lowWatch={hex:a.hex,t:Date.now()}}}
+    if(!COL.hex[a.hex]||missingTypeCatch(a.hex)){if((a.el??0)>=10)tryCatch(a);else{WB.low=a.el??0;SOC.lowWatch={hex:a.hex,t:Date.now()}}}
     if(typeof streakTouch==="function")streakTouch();
     for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
     LS.set("ctl_waved",SOC.waved);
@@ -437,7 +441,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
     {const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};if(S.top?.hex===a.hex)waveInfo(S.top)}
     LASTWAVE=null;credit();fin(queued?"Čaká na overenie":"Uložené v tomto zariadení");return}
   // server pozná typ z overených dát – kartička dostane ten istý typ, aby sedelo overenie
-  if(j.type&&j.type!==a.type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[a.type]))a.type=j.type;
+  a.type=normalizeType(j.type)||a.type;
   LASTWAVE={hex:a.hex,...j};
   reportFirstWave(j);
   // server overil (≥ 8°), hoci mobil ukazuje menej ako 10° → kartička aj tak patrí hráčovi
@@ -446,7 +450,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   // 🏅 liga hneď po mávnutí: obnov rebríčky a pochváľ posun v divízii
   if(!j.dup){const old=SOC.dv&&SOC.dv.j&&SOC.dv.j.rank;SOC.dv=SOC.frw=null;if(j.ver)SOC.atl=null;
     if(old)setTimeout(()=>apiPost("/api/division",{}).then(r=>r.json()).then(x=>{SOC.dv={t:Date.now(),j:x};renderCompetitionPulse();if(x&&x.rank&&x.rank<old)toast("🏅 Divízia: si "+x.rank+". (bol(a) si "+old+".)","Len tak ďalej 👋");if(LG==="d")renderLeague()}).catch(()=>{}),2500)}
-  if(j.ver){const v=COL.types[j.type||a.type||"?"];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
+  if(j.ver){const v=COL.types[normalizeType(j.type)];if(v){v.ver=1;if(j.seq&&!v.seq)v.seq=j.seq;LS.set("ctl_col",COL)}}
   else if(j.why&&!j.dup&&COL.cx&&COL.cx[a.hex])WB&&WB.items.push(["⏳ neoverené: "+j.why]);
   if(j.seq===1)WB&&WB.items.push(["🧭 PRVÝ NA SLOVENSKU!"]);else if(j.firstK)WB&&WB.items.push(["🧭 Prvý v kraji"]);else if(j.firstT)WB&&WB.items.push(["🧭 Prvý v meste"]);else if(j.seq&&j.seq<=100)WB&&WB.items.push(["č. "+j.seq+" na Slovensku"]);
   waveRewards(j,a);
@@ -487,7 +491,8 @@ function wqPush(b){
   q.push({d:dayKey(),b});
   return lsWrite("ctl_wq",JSON.stringify(q));
 }
-function queuedWaveResult(j){
+function queuedWaveResult(j,type){
+  if(j.ok&&type==="?")return UNKNOWN_TYPE_WAVE;
   if(j.ver)return "Overený úlovok";
   if(j.why)return "Neoverený úlovok: "+j.why;
   if(j.error==="far")return "Neoverené: lietadlo už bolo ďaleko";
@@ -531,14 +536,18 @@ async function flushWq(){
 
       let type=b.type||"?",special="";
       if(response?.ok&&j.ok){
-        if(j.type&&j.type!==type&&/^[A-Z0-9]{2,5}$/.test(j.type)&&(CAT[j.type]||!CAT[type])){
-          if(COL.types[type]&&!COL.types[j.type]){COL.types[j.type]=COL.types[type];delete COL.types[type]}
-          type=j.type;
+        const verifiedType=normalizeType(j.type);
+        if(verifiedType&&missingTypeCatch(b.hex)){
+          const c=COL.cx[b.hex];
+          tryCatch({hex:b.hex,type:verifiedType,call:b.call,el:Math.max(10,c.el||0),mil:!!c.mil});
+          type=verifiedType;
+        }else if(verifiedType&&verifiedType===COL.cx?.[b.hex]?.ty){
+          type=verifiedType;
         }
         const card=COL.types[type];
         if(j.ver){
           betaStep("verified");
-          if(card){card.ver=1;if(j.seq&&!card.seq)card.seq=j.seq}
+          if(card&&verifiedType===type){card.ver=1;if(j.seq&&!card.seq)card.seq=j.seq}
         }
         if(card&&j.shiny&&!card.shiny){
           card.shiny=Date.now();
@@ -550,7 +559,7 @@ async function flushWq(){
         lsFlush();
       }
       update(entry);
-      results.push({hex:b.hex,type,text:queuedWaveResult(j),special,verified:!!j.ver});
+      results.push({hex:b.hex,type,text:queuedWaveResult(j,type),special,verified:!!j.ver});
     }
   }finally{SOC.flushing=false}
 

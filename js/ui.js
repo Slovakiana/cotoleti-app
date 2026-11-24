@@ -21,7 +21,7 @@ function waveBatchEnd(){
   }else if(special&&batch.type){
     showWaveCard(batch.type,special,true,batch.hex,batch.result);
   }else{
-    showFirstWaveResult(batch.result||(batch.low!=null?"Dnes zamávané. Do zbierky až po úlovku vyššie nad obzorom.":"Dnes zamávané."));
+    showFirstWaveResult((caught?.type==="?"||missingTypeCatch(batch.hex))?UNKNOWN_TYPE_WAVE:batch.result||(batch.low!=null?"Dnes zamávané. Do zbierky až po úlovku vyššie nad obzorom.":"Dnes zamávané."));
   }
 }
 function showWaveCard(type,title,reveal,hex,status=""){
@@ -304,6 +304,11 @@ function skyTap(ev){
 }
 
 /* ============ hlavná karta ============ */
+function expandRadar(){
+  $("radius").value="50";
+  $("radius").dispatchEvent(new Event("change"));
+  toast("📡 Hľadám ďalej","Okruh 93 km");
+}
 function heroEmpty(){
   $("guess").classList.remove("on");
   $("h-lbl").textContent=t("now");$("h-rar").style.display="none";
@@ -317,8 +322,8 @@ function heroEmpty(){
   }
   $("h-quip").textContent="";["h-st3","h-dir","h-eta"].forEach(id=>$(id).style.display="none");
   $("b-wave").disabled=true;$("b-wave").style.opacity=.5;
-  if(S.pos&&(S.raw.length||S.loaded)&&$("h-call").textContent===t("empty")){$("h-quip").innerHTML='<span class="emptyActs"><button class="ghost" id="eRad">📡 Hľadať ďalej (93 km)</button><button class="ghost" id="eSpace">🛰️ Pozri ISS</button></span>';
-    $("eRad").onclick=()=>{$("radius").value="50";$("radius").dispatchEvent(new Event("change"));fetchPlanes(true);toast("📡 Hľadám ďalej","Okruh 93 km")};$("eSpace").onclick=()=>setView("space")}
+  if(S.pos&&(S.raw.length||S.loaded)&&$("h-call").textContent===t("empty")&&+$("radius").value<50){$("h-quip").innerHTML='<span class="emptyActs"><button class="ghost" id="eRad">📡 Hľadať ďalej (93 km)</button></span>';
+    $("eRad").onclick=expandRadar}
   $("h-route").classList.remove("on");$("h-photo").classList.remove("on");$("h-links").innerHTML="";$("hero").classList.remove("overhead","emerg");
 }
 function renderHeroStatic(a){
@@ -420,7 +425,10 @@ function firstWaveNext(a){
   if(S.lastKnown)return ["Zobrazuje sa posledná známa obloha. Počkaj na živé údaje."];
   if(!S.loaded)return ["Načítavam živú oblohu…"];
   if(S.manual)return ["Prezeráš oblohu nad vybraným mestom. Mávnutie bez GPS sa neoverí.", "Použiť GPS", ()=>$("placeGps").click()];
-  if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Zatiaľ tu nie je lietadlo vhodné na mávnutie.", "Pozrieť ISS", ()=>setView("space")];
+  if(!a||a.emg||a.santa||a.el==null||a.el<10){
+    const message="Zatiaľ tu nie je lietadlo vhodné na mávnutie.";
+    return +$("radius").value<50?[message,"Hľadať ďalej",expandRadar]:[message];
+  }
   return ["Ťukni na „Mávni“. Počkaj, kým server overí úlovok."];
 }
 
@@ -431,8 +439,7 @@ function renderFirstWaveGuide(a){
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
   const existingLocationChoice=!S.pos&&($("heroCities")||$("posBtns").style.display==="flex");
-  const existingSpaceAction=label==="Pozrieť ISS"&&$("eSpace");
-  button.hidden=!label||!!existingLocationChoice||!!existingSpaceAction;
+  button.hidden=!label||!!existingLocationChoice||(action===expandRadar&&!!$("eRad"));
   $("waveHint").hidden=!!text;
 }
 
@@ -609,8 +616,9 @@ function setView(v){
   const prev=S.view;S.scroll=S.scroll||{};if(prev&&prev!==v)S.scroll[prev]=scrollY;
   S.view=v;
   document.querySelectorAll("nav button").forEach(b=>{b.classList.toggle("on",b.dataset.v===v);b.setAttribute("aria-current",b.dataset.v===v?"page":"false")});
-  ["now","space","col"].forEach(k=>$("v-"+k).classList.toggle("on",k===v));
+  ["now","journal","col"].forEach(k=>$("v-"+k).classList.toggle("on",k===v));
   if(v==="col")renderCol();
+  if(v==="journal")renderJournal();
   HOOKS.view.forEach(f=>{try{f(v)}catch(e){}});
   // každá záložka si pamätá, kde si skončil; opakované ťuknutie = hore
   window.scrollTo({top:prev===v?0:(S.scroll[v]||0)});

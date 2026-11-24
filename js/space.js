@@ -1,7 +1,7 @@
 "use strict";
 /* ============ Vesmír: ISS, Tiangong, Starlink a jasné satelity ============ */
 const SPACE=(()=>{
-  const st={sats:[],passes:[],passT:0,passPos:null,now:[],nowT:0,loading:false,err:"",notified:new Set(),seenIss:false};
+  const st={sats:[],now:[],nowT:0,loading:false,seenIss:false};
   const D2R=Math.PI/180,R2D=180/Math.PI,RE=6371;
 
   function loadLib(){
@@ -41,10 +41,9 @@ const SPACE=(()=>{
     return out;
   }
   const SHORT={iss:"ISS 🛰️",css:"Tiangong 🛰️"};
-  const LONG={iss:"Medzinárodná vesmírna stanica (ISS)",css:"Čínska stanica Tiangong"};
   async function init(){
     if(st.loading||st.sats.length)return;
-    st.loading=true;st.err="";render();
+    st.loading=true;
     try{
       await loadLib();
       const c=await loadTLE();
@@ -53,8 +52,7 @@ const SPACE=(()=>{
       add(parse(c.recent,()=>"starlink"));
       add(parse(c.visual,n=>/STARLINK/i.test(n)?"starlink":/ISS \(ZARYA\)/.test(n)?null:"sat"));
       st.sats.forEach(s=>s.short=SHORT[s.kind]||s.name.replace(/\s*\(.*?\)\s*/g," ").trim().slice(0,22));
-    }catch(e){st.err=e.message}
-    st.loading=false;computePasses(true);render();
+    }catch(e){}finally{st.loading=false}
   }
 
   /* --- slnko --- */
@@ -105,84 +103,6 @@ const SPACE=(()=>{
     return st.now;
   }
 
-  /* --- predpoveď preletov ISS a Tiangong --- */
-  function computePasses(force){
-    if(!S.pos||!window.satellite||!st.sats.length)return;
-    const moved=!st.passPos||Math.abs(st.passPos.lat-S.pos.lat)>.2||Math.abs(st.passPos.lon-S.pos.lon)>.2;
-    if(!force&&!moved&&Date.now()-st.passT<10*60e3)return;
-    st.passT=Date.now();st.passPos={...S.pos};
-    const res=[],t0=Date.now()-5*60e3,step=20e3,end=t0+36*3600e3;
-    for(const s of st.sats.filter(x=>x.kind==="iss"||x.kind==="css")){
-      let cur=null;
-      for(let t=t0;t<end;t+=step){
-        const l=look(s,new Date(t));if(!l)continue;
-        if(l.el>=10){
-          const vis=sunlit(l.eci,t)&&sunAlt(t)<-6;
-          if(!cur)cur={sat:s,start:t,azStart:l.az,max:l.el,maxT:t,azMax:l.az,vis:false,visStart:null};
-          if(l.el>cur.max){cur.max=l.el;cur.maxT=t;cur.azMax=l.az}
-          if(vis){cur.vis=true;if(cur.visStart==null)cur.visStart=t}
-          cur.end=t;cur.azEnd=l.az;
-        }else if(cur){res.push(cur);cur=null}
-      }
-      if(cur)res.push(cur);
-    }
-    st.passes=res.filter(p=>p.end>Date.now()).sort((a,b)=>a.start-b.start);
-  }
-
-  const fmtT=t=>{const d=new Date(t),today=new Date().toDateString()===d.toDateString(),tm=new Date(Date.now()+86400e3).toDateString()===d.toDateString();
-    return (today?"dnes":tm?"zajtra":d.toLocaleDateString("sk-SK",{weekday:"short",day:"numeric",month:"numeric"}))+" o "+d.toLocaleTimeString("sk-SK",{hour:"2-digit",minute:"2-digit"})};
-  const dur=ms=>{const m=Math.floor(ms/60000),s=Math.round(ms%60000/1000);return m?m+" min "+(s?s+" s":""):s+" s"};
-  const cnt=ms=>{if(ms<=0)return "teraz!";const h=Math.floor(ms/3600e3),m=Math.floor(ms%3600e3/60e3),s=Math.floor(ms%60e3/1000);return h?h+" h "+m+" min":m?m+" min "+String(s).padStart(2,"0")+" s":s+" s"};
-
-  function nextVisible(){return st.passes.find(p=>p.vis&&p.end>Date.now())}
-
-  function render(){
-    const sa=sunAlt();
-    $("sp-sun").textContent=sa>0?"☀️ deň":sa>-6?"🌆 súmrak":"🌙 tma";
-    if(st.err){$("sp-err").textContent="Vesmírne dáta sa nenačítali: "+st.err+". Skúsim znova neskôr.";}else $("sp-err").textContent="";
-    if(st.loading||!st.sats.length){if($("sp-remind"))$("sp-remind").hidden=true;$("sp-name").textContent=st.err?"Zatiaľ bez dát":"Počítam dráhy…";return}
-    const p=nextVisible(),now=Date.now();
-    window.SPACE_NEXT=p?{t:p.visStart||p.start,kind:p.sat.kind,dir:dirL(p.azMax),max:Math.round(p.max)}:null;if($("sp-remind"))$("sp-remind").hidden=!p||p.start-now<6*60e3||!SOC.api||(typeof KID==="function"&&KID());
-    if(p){
-      const live=now>=p.start&&now<=p.end;
-      $("sp-name").textContent=(live?"🔴 PRÁVE TERAZ: ":"")+LONG[p.sat.kind];
-      $("sp-when").textContent=fmtT(p.start)+" · "+(p.max>=60?"skoro priamo nad hlavou":"smerom na "+dirL(p.azMax));
-      $("sp-count").style.display="";$("sp-count").innerHTML=live?"✨ <b>Pozri hore!</b> Je na "+dirL(p.azMax):"⏱ O <b>"+cnt(p.start-now)+"</b>";
-      $("sp-grid").style.display="";$("sp-max").textContent=nf(p.max)+"°";$("sp-dur").textContent=dur(p.end-p.start);
-      $("sp-from").textContent=dirS(p.azStart);$("sp-to").textContent=dirS(p.azEnd);
-      $("sp-tip").textContent=p.sat.kind==="iss"?"Hľadaj veľmi jasnú „hviezdu“, ktorá sa rovnomerne pohybuje a nebliká. Žije v nej 7 ľudí a letí rýchlosťou 28 000 km/h. 🚀":"Čínska stanica je slabšia ako ISS, ale za tmy ju uvidíš voľným okom. ✨";
-    }else{
-      $("sp-name").textContent="Najbližších 36 h nič voľným okom";
-      $("sp-when").textContent="ISS preletí, ale cez deň alebo v tieni Zeme. Keď bude vidieť, nájdeš to tu.";
-      $("sp-count").style.display="none";$("sp-grid").style.display="none";$("sp-tip").textContent="";
-    }
-    // zoznam preletov
-    $("sp-passes").innerHTML=st.passes.slice(0,10).map(q=>`<div class="pass"><div><b>${q.sat.kind==="iss"?"ISS":"Tiangong"}</b> · ${fmtT(q.start)}<div class="lookSub">${dirS(q.azStart)} → ${dirS(q.azEnd)} · max ${nf(q.max)}° · ${dur(q.end-q.start)}</div></div><div class="${q.vis?"vis":"lookSub"}">${q.vis?"✨ viditeľný":"neviditeľný"}</div></div>`).join("")||'<div class="lookSub">Žiadne prelety.</div>';
-    // teraz nad obzorom
-    const nowL=visibleNow(),trains=nowL.filter(s=>s.kind==="starlink");
-    $("sp-nowN").textContent=nowL.length?nowL.length+"":"";
-    let html="";
-    if(trains.length>=3)html+=`<div class="qbox" style="margin:6px 0">🚂 Vláčik Starlink! Práve je nad tebou ${trains.length} ${pl(trains.length,"nový satelit","nové satelity","nových satelitov")} – hľadaj rad svetielok, čo idú za sebou.</div>`;
-    html+=nowL.slice(0,12).map(s=>`<div class="row"><div class="l"><b>${s.kind==="iss"||s.kind==="css"?"⭐ ":s.kind==="starlink"?"🔹 ":"· "}${esc(s.kind==="iss"||s.kind==="css"?LONG[s.kind]:s.name)}</b><div>${s.sunlit?"viditeľný voľným okom ✨":s.lit?"na slnku, ale u teba je svetlo":"v tieni Zeme"}</div></div><div class="r"><b>${nf(s.el)}°</b><br>na ${dirS(s.az)}</div></div>`).join("");
-    $("sp-now").innerHTML=html||'<div class="lookSub">'+(sunAlt()>-6?"Teraz je svetlo – satelity uvidíš až po zotmení. ISS a Tiangong ale ukazujem vždy.":"Momentálne nič jasné nad obzorom.")+'</div>';
-  }
-
-  function strip(){
-    const p=nextVisible(),el=$("issStrip");
-    if(!p||p.start-Date.now()>6*3600e3){el.style.display="none";return}
-    const live=Date.now()>=p.start;
-    el.style.display="";
-    $("issTxt").textContent=live?`🛰️ ${p.sat.kind==="iss"?"ISS":"Tiangong"} je TERAZ nad tebou!`:`🛰️ ${p.sat.kind==="iss"?"ISS":"Tiangong"} o ${cnt(p.start-Date.now())}`;
-    // upozornenie 2 minúty vopred
-    const key=p.sat.id+p.start;
-    if(!st.notified.has(key)&&p.start-Date.now()<120e3&&p.start>Date.now()-30e3){
-      st.notified.add(key);
-      toast("🛰️ O chvíľu "+(p.sat.kind==="iss"?"ISS":"Tiangong")+"!","Pozri smerom na "+dirL(p.azStart),"#ffcf4f");
-      if(S.vib&&navigator.vibrate)navigator.vibrate([200,100,200]);
-      if(S.voice)voiceSay("Pozor! O chvíľu nad tebou preletí "+(p.sat.kind==="iss"?"Medzinárodná vesmírna stanica":"čínska vesmírna stanica")+". Pozri na "+dirL(p.azStart)+".");
-    }
-  }
-
   function radar(){
     return visibleNow().map(s=>{const r=(90-s.el)/90*100,x=r*Math.sin(s.az*D2R),y=-r*Math.cos(s.az*D2R),big=s.kind==="iss"||s.kind==="css";
       const c=big?"#ffcf4f":s.kind==="starlink"?"#c77dff":"#fff";
@@ -190,9 +110,6 @@ const SPACE=(()=>{
   }
 
   HOOKS.radar.push(radar);
-  HOOKS.fresh.push(()=>{if(!st.sats.length&&!st.loading)init();else computePasses(false)});
-  HOOKS.view.push(v=>{if(v==="space"){if(!st.sats.length)init();render()}});
-  setInterval(()=>{if(document.hidden)return;if(S.view==="space")render();else if(S.view==="now")strip()},1000);
-  $("issStrip").onclick=()=>setView("space");
-  return {init,sunAlt,visibleNow,render};
+  HOOKS.fresh.push(()=>{if(!st.sats.length&&!st.loading)init()});
+  return {init,sunAlt,visibleNow};
 })();

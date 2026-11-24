@@ -315,7 +315,7 @@ $("c-types").onclick=e=>{
   const choose=e.target.closest("[data-hunt-open]");if(choose){const k=choose.dataset.huntOpen;if(COL.types[k]&&COL.types[k].n)openCard(k);else openLocked(k);return}
   if(e.target.closest("[data-hunt-clear]")){LS.set("ctl_collectorHunt","");renderCards();renderCollectorHuntHome();return}
   const tb=e.target.closest("button[data-m]");if(tb){atlasMode=tb.dataset.m;atlasRare=false;renderCards();$("c-types").querySelector('.atTabs [data-m="'+atlasMode+'"]')?.focus({preventScroll:true});return}
-  const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();return}
+  const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();$("c-types").querySelector('[data-alb="'+albumSel+'"]')?.focus({preventScroll:true});return}
   if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();return}
   const sl=e.target.closest("[data-lk]");if(sl){const k=sl.dataset.lk;if(COL.types[k]?.n){openCard(k)}else openLocked(k);return}
   const sr=e.target.closest(".setRow");if(sr){sr.classList.toggle("open");return}
@@ -552,7 +552,7 @@ const HID_SETS=[
   {id:"h_quad",i:"✉️",n:"Štvorlístok",d:"Štyri motory, štyri typy.",alb:"hid",b:50,t:["A388","B744","B748","A343","A346"].slice(0,4)},
 ];
 const SETS=[...SETS_T,...AL_SETS,...CT_SETS,...REC_SETS,...HID_SETS];
-const ALBUMS=[["typ","🃏 Typy"],["al","💺 Chvosty"],["ct","🛂 Pečiatky"],["rec","📈 Rekordy"],["hid","✉️ Skryté"]];
+const ALBUMS=[["typ","Typy"],["rec","Rekordy"],["hid","Skryté"]];
 let albumSel="typ";
 // koľko slotov sady je splnených
 function setProg(s){
@@ -583,11 +583,60 @@ function monthHTML(){
   const mname=new Date().toLocaleDateString("sk-SK",{month:"long"});
   return `<div class="monthly" style="grid-column:1/-1">🗓️ <b>Mesačná výzva (${mname}):</b> ${MONTH_GOAL} nové objavy – typ, aerolinka, krajina alebo slovenské lietadlo (OM-) · ${Math.min(mn,MONTH_GOAL)}/${MONTH_GOAL}${mdone?" ✅ +"+MONTH_BONUS+" b":" · odmena +"+MONTH_BONUS+" b"}</div>`;
 }
+function albumDiscoveries(mode){
+  const {airlines,destinations}=collectionAlbums(),isPassport=mode==="ct";
+  const regions=isPassport?new Intl.DisplayNames(["sk"],{type:"region",fallback:"none"}):null;
+  const codes=Object.keys(isPassport?destinations:airlines);
+  const entries=codes.map(code=>({code,name:isPassport?regions.of(code):AIRLINES[code]}))
+    .filter(entry=>entry.name).sort((a,b)=>a.name.localeCompare(b.name,"sk"));
+  const label=isPassport?"Letecký pas":"Aerolinky";
+  const description=isPassport
+    ?"Pečiatku získaš za cieľovú krajinu letu, ktorému si zamával. Trasa musí byť známa."
+    :"Značku získaš, keď zamávaš lietadlu rozpoznanej aerolinky.";
+  const mark=code=>isPassport?String.fromCodePoint(...Array.from(code,ch=>127397+ch.charCodeAt(0))):code;
+  const tiles=entries.map(({code,name})=>`<li><b aria-hidden="true">${mark(code)}</b><span>${esc(name)}</span></li>`).join("");
+  return `<section class="albumDiscovery" aria-label="${label}">
+    <h3>${label} <span>${entries.length}</span></h3><p>${description}</p>
+    ${tiles?`<ul>${tiles}</ul>`:'<p class="lookSub">Prvý objav ešte len čaká.</p>'}
+  </section>`;
+}
+let journalMode="ct";
+function renderJournal(){
+  document.querySelectorAll("[data-journal]").forEach(button=>{
+    const selected=button.dataset.journal===journalMode;
+    button.classList.toggle("on",selected);
+    button.setAttribute("aria-pressed",String(selected));
+  });
+  $("journalAlbum").innerHTML=albumDiscoveries(journalMode)
+    +`<details class="albumExtras"><summary>Tematické sady</summary>${setRows(journalMode)}</details>`;
+}
+document.querySelectorAll("[data-journal]").forEach(button=>button.onclick=()=>{
+  if(button.dataset.journal===journalMode)return;
+  journalMode=button.dataset.journal;
+  renderJournal();
+});
+
+$("journalAlbum").addEventListener("click",e=>{
+  const row=e.target.closest(".setRow");
+  if(row)row.classList.toggle("open");
+});
+$("journalAlbum").addEventListener("keydown",e=>{
+  if(e.target.matches(".setRow")&&(e.key==="Enter"||e.key===" ")){
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
 function setsHTML(){
-  COL.sets=COL.sets||{};
-  const list=SETS.filter(s=>s.alb===albumSel),done=list.filter(s=>COL.sets[s.id]).length;
-  return `<div class="albums" style="grid-column:1/-1">${ALBUMS.map(([a,l])=>{const L=SETS.filter(s=>s.alb===a),d=L.filter(s=>COL.sets[s.id]).length;return `<button class="${albumSel===a?"on":""}" data-alb="${a}">${l}<small>${d}/${L.length}</small></button>`}).join("")}</div>
-  <div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets[s.id],hid=s.alb==="hid"&&!dn&&h===0;
+  const tabs=`<div class="albums" style="grid-column:1/-1">${ALBUMS.map(([a,l])=>{
+    const list=SETS.filter(s=>s.alb===a),done=list.filter(s=>COL.sets?.[s.id]).length;
+    return `<button class="${albumSel===a?"on":""}" data-alb="${a}" aria-pressed="${albumSel===a}">${l}<small>${done}/${list.length}</small></button>`;
+  }).join("")}</div>`;
+  return tabs+setRows(albumSel);
+}
+function setRows(mode){
+  const list=SETS.filter(s=>s.alb===mode);
+  return `<div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets?.[s.id],hid=s.alb==="hid"&&!dn&&h===0;
     const lab=(x,i)=>s.t?(CAT[s.t[i]]?CAT[s.t[i]].name:s.t[i]):s.slots[i].l;
     return `<div class="setRow ${dn?"done":""}" role="button" tabindex="0"><span class="si" aria-hidden="true">${hid?"✉️":s.i}</span><span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+"\u00a0b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} ›</span>
       <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></div>`}).join("")}</div>`;

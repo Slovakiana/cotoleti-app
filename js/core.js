@@ -40,7 +40,7 @@ const TX={
 const t=k=>TX[k][S.vych?1:0];
 
 /* ============ číselníky ============ */
-const TYPES={A319:"Airbus A319",A320:"Airbus A320",A20N:"Airbus A320neo",A321:"Airbus A321",A21N:"Airbus A321neo",A318:"Airbus A318",
+const TYPES={C140:"Cessna 140",D328:"Dornier 328",M600:"Piper M600",A319:"Airbus A319",A320:"Airbus A320",A20N:"Airbus A320neo",A321:"Airbus A321",A21N:"Airbus A321neo",A318:"Airbus A318",
 A306:"Airbus A300",A310:"Airbus A310",A332:"Airbus A330-200",A333:"Airbus A330-300",A338:"Airbus A330-800neo",A339:"Airbus A330-900neo",A343:"Airbus A340-300",A346:"Airbus A340-600",A359:"Airbus A350-900",A35K:"Airbus A350-1000",A388:"Airbus A380",
 BCS1:"Airbus A220-100",BCS3:"Airbus A220-300",B733:"Boeing 737-300",B734:"Boeing 737-400",B737:"Boeing 737-700",B738:"Boeing 737-800",B739:"Boeing 737-900",B37M:"Boeing 737 MAX 7",B38M:"Boeing 737 MAX 8",B39M:"Boeing 737 MAX 9",B3XM:"Boeing 737 MAX 10",
 B742:"Boeing 747-200",B744:"Boeing 747-400",B748:"Boeing 747-8",B752:"Boeing 757-200",B753:"Boeing 757-300",B762:"Boeing 767-200",B763:"Boeing 767-300",B764:"Boeing 767-400",B772:"Boeing 777-200",B77W:"Boeing 777-300ER",B77L:"Boeing 777-200LR",B778:"Boeing 777-8",B779:"Boeing 777-9",B788:"Boeing 787-8",B789:"Boeing 787-9",B78X:"Boeing 787-10",
@@ -116,7 +116,7 @@ function enrich(now){
     if(alt!=null&&a.vr!=null&&dt>0)alt=Math.max(0,alt+a.vr*FT/60*dt);
     const {d,b}=distBear(S.pos.lat,S.pos.lon,lat,lon);
     const el=alt!=null?elev(d,alt,S.pos.alt):null;
-    return {...a,lat,lon,alt,dist:d,bear:b,el};
+    return {...a,type:planeType(a),reg:a.priv?"":a.reg||aircraftMeta(a)?.registration||"",lat,lon,alt,dist:d,bear:b,el};
   }).sort((x,y)=>(y.el??-99)-(x.el??-99));
 }
 // kedy bude lietadlo najbližšie
@@ -132,19 +132,26 @@ function approach(a){
 /* ============ dáta ============ */
 // rovnaké lietadlo pod rôznymi kódmi → jedna kartička (zhodné so serverom T_ALIAS)
 const T_ALIAS={AT44:"AT43",AT45:"AT43",AT46:"AT43",E75S:"E75L",CRJX:"CRJ9",MI17:"MI8",MI171:"MI8",UH60:"H60",S70:"H60",C390:"E390",RQ4:"Q4",S22T:"SR22",P28R:"P28A",P28T:"P28A",P28B:"P28A",C150:"C152",CL30:"CL35"};
+function normalizeType(value){
+  const type=String(value||"").trim().toUpperCase();
+  return /^[A-Z0-9]{2,5}$/.test(type)&&!["UNK","UNKN","ZZZZ","NONE","NA","NIL"].includes(type)
+    ?(Object.hasOwn(T_ALIAS,type)?T_ALIAS[type]:type):"";
+}
+function aircraftMeta(a){
+  const ac=!a.priv&&S.meta.get(a.hex)?.ac;
+  if(/^[0-9a-f]{6}$/i.test(a.hex)&&String(ac?.mode_s||"").toLowerCase()===a.hex.toLowerCase())return ac;
+}
+const planeType=a=>normalizeType(a.type)||normalizeType(aircraftMeta(a)?.icao_type);
 function normReadsb(j){
   return (j.ac||j.aircraft||[]).filter(a=>a.lat!=null&&a.lon!=null).map(a=>{
     const ground=a.alt_baro==="ground";
     const altFt=typeof a.alt_geom==="number"?a.alt_geom:(typeof a.alt_baro==="number"?a.alt_baro:null);
-    return {hex:a.hex,call:(a.flight||"").trim(),reg:a.r||"",type:T_ALIAS[a.t]||a.t||"",desc:"",op:a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),dbf:a.dbFlags|0,priv:!!(a.dbFlags&12),emg:/^7[567]00$/.test(a.squawk||"")||!!(a.emergency&&a.emergency!=="none"),fl:typeof a.alt_baro==="number"?Math.round(a.alt_baro/100):null,kt:a.gs!=null?Math.round(a.gs):null,
+    return {hex:a.hex,call:(a.flight||"").trim(),reg:a.r||"",type:normalizeType(a.t),desc:"",op:a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),dbf:a.dbFlags|0,priv:!!(a.dbFlags&12),emg:/^7[567]00$/.test(a.squawk||"")||!!(a.emergency&&a.emergency!=="none"),fl:typeof a.alt_baro==="number"?Math.round(a.alt_baro/100):null,kt:a.gs!=null?Math.round(a.gs):null,
       lat:a.lat,lon:a.lon,alt:ground?0:(altFt!=null?altFt*FT:null),ground,spd:a.gs!=null?a.gs*KT:null,trk:a.track??a.true_heading??null,
       vr:a.baro_rate??a.geom_rate??null,sq:a.squawk||""};
   });
 }
-// OpenSky neposiela typ ani registráciu → doplň z adsbdb (ak už prišli), inak sa nedá zbierať
-function osMeta(hex){const m=S.meta.get(hex),ac=m&&m.ac;const t=ac&&ac.icao_type?String(ac.icao_type).toUpperCase():"";
-  if(!ac&&S.meta.size<600&&typeof loadMeta==="function")setTimeout(()=>loadMeta({hex,call:""}),0);
-  return {reg:ac&&ac.registration||"",type:T_ALIAS[t]||t}}
+// OpenSky neposiela typ. Doplní ho rovnaká cesta ako pre ostatné živé zdroje.
 const SOURCES=[
   // vlastný server: spoločná snímka oblohy nad SR (najmenej záťaže, mimo SR vráti 404 → ďalší zdroj)
   {name:"Čo to letí",own:true,url:(la,lo,r)=>`${MYPROXY}/api/planes?lat=${la}&lon=${lo}&r=${Math.min(60,r)}`,parse:normReadsb},
@@ -153,7 +160,7 @@ const SOURCES=[
   {name:"adsb.fi",url:(la,lo,r)=>`https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/${r}`,parse:normReadsb},
   {name:"OpenSky",url:(la,lo,r)=>{const dl=r*1852/111320,dn=dl/Math.cos(rad(la));
      return `https://opensky-network.org/api/states/all?lamin=${(+la-dl).toFixed(3)}&lamax=${(+la+dl).toFixed(3)}&lomin=${(+lo-dn).toFixed(3)}&lomax=${(+lo+dn).toFixed(3)}`},
-   parse:j=>(j.states||[]).filter(s=>s[6]!=null&&s[5]!=null).map(s=>({hex:s[0],call:(s[1]||"").trim(),...osMeta(s[0]),desc:"",op:"",cat:"",mil:false,
+   parse:j=>(j.states||[]).filter(s=>s[6]!=null&&s[5]!=null).map(s=>({hex:s[0],call:(s[1]||"").trim(),type:"",reg:"",desc:"",op:"",cat:"",mil:false,
      lat:s[6],lon:s[5],alt:s[8]?0:(s[13]??s[7]),ground:s[8],spd:s[9]!=null?s[9]*3.6:null,trk:s[10],vr:s[11]!=null?s[11]/FT*60:null,sq:s[14]||""}))}
 ];
 // Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
@@ -249,17 +256,34 @@ async function adsbdb(path){
   }
   return null;
 }
-async function loadMeta(a){
-  if(S.meta.has(a.hex)){const x=S.meta.get(a.hex);if(!(x&&x.retryAt&&Date.now()>x.retryAt))return}
-  S.meta.set(a.hex,{loading:true});
+function loadMeta(a){
+  if(a.priv||!/^[0-9a-f]{6}$/i.test(a.hex))return Promise.resolve();
+  const previous=S.meta.get(a.hex);
+  if(previous?.pending)return previous.pending;
+  if(previous&&(!previous.retryAt||Date.now()<previous.retryAt))return Promise.resolve();
+  const pending=fetchMeta(a);
+  S.meta.set(a.hex,{pending});
+  return pending;
+}
+async function fetchMeta(a){
   const m={ac:null,route:null};
   const r1=await adsbdb("aircraft/"+a.hex+(a.call?"?callsign="+encodeURIComponent(a.call):""));
-  if(r1&&typeof r1==="object"){m.ac=r1.aircraft||null;m.route=r1.flightroute||null}
+  if(r1&&typeof r1==="object"){
+    if(String(r1.aircraft?.mode_s||"").toLowerCase()===a.hex.toLowerCase()){
+      m.ac=r1.aircraft;
+      S.meta.get(a.hex).ac=m.ac;
+    }
+    m.route=r1.flightroute||null;
+  }
   if(!m.route&&a.call){const r2=await adsbdb("callsign/"+encodeURIComponent(a.call));if(r2&&typeof r2==="object")m.route=r2.flightroute||null}
-  // nič neprišlo (výpadok) → skús znova o 2 min; pamäť nech nerastie donekonečna
-  if(!r1&&!m.route){S.metaRetry=S.metaRetry||{};const n=S.metaRetry[a.hex]=(S.metaRetry[a.hex]|0)+1;S.meta.set(a.hex,n<=3?{retryAt:Date.now()+120e3}:m);return}
-  S.meta.set(a.hex,m);if(S.meta.size>600){const ks=[...S.meta.keys()].slice(0,200);ks.forEach(k=>S.meta.delete(k))}
-  if(S.top&&S.top.hex===a.hex){renderHeroStatic(S.top);announce(S.top,true)}
+  if(!r1&&!m.route)m.retryAt=Date.now()+120e3;
+  S.meta.set(a.hex,m);
+  if(S.meta.size>600){for(const [hex,entry] of S.meta){if(!entry.pending&&hex!==a.hex)S.meta.delete(hex);if(S.meta.size<=400)break}}
+  if(S.top?.hex===a.hex){
+    const type=planeType(S.top);
+    if(type!==S.top.type)S.top={...S.top,type};
+    renderHeroStatic(S.top);announce(S.top,true);
+  }
 }
 
 /* ============ hlášky ============ */
@@ -346,15 +370,44 @@ function lvlWatch(B){const l=lvlOf(COL.pts);if(COL.lvlSeen==null||l<=COL.lvlSeen
   COL.lvlSeen=l;LS.set("ctl_col",COL);const m=["⬆️ Level "+(l+1)+": "+lvlName(l),"Obloha ťa začína poznávať."];if(B)B.items.push(m);else if(typeof toast==="function")toast(m[0],m[1])}
 HOOKS.live.push(()=>{if(!(typeof WB!=="undefined"&&WB))lvlWatch()});
 const ownTypes=()=>Object.entries(COL.types).filter(([k,v])=>v.n>0&&k!=="?").length;
+// Objavy patria ku zbierke, takže sa prenesú spolu s profilom aj po orezaní histórie.
+function rememberAlbumCatch(c,albums){
+  if(Object.hasOwn(AIRLINES,c.al))albums.airlines[c.al]=true;
+  const code=String(c.dc||"").trim().toUpperCase();
+  if(/^[A-Z]{2}$/.test(code)&&code!=="ZZ")albums.destinations[code]=true;
+}
+function collectionAlbums(){
+  if(COL.albums)return COL.albums;
+  const albums={airlines:{},destinations:{}};
+  for(const card of Object.values(COL.types)){
+    if(!card.n)continue;
+    if(card.fp)rememberAlbumCatch(card.fp,albums);
+    for(const airline of Object.keys(card.al||{}))rememberAlbumCatch({al:airline},albums);
+  }
+  for(const catchData of Object.values(COL.cx||{}))rememberAlbumCatch(catchData,albums);
+  COL.albums=albums;
+  LS.set("ctl_col",COL);
+  return albums;
+}
+const UNKNOWN_TYPE_WAVE="Mávnutie uložené · typ lietadla sa nepodarilo určiť.";
+const missingTypeCatch=hex=>COL.cx?.[hex]?.ty==="?";
 function tryCatch(a){
-  if(a.el==null||a.el<10||COL.hex[a.hex])return false;
+  const upgrading=!!(a.type&&missingTypeCatch(a.hex));
+  if(a.el==null||a.el<10||(COL.hex[a.hex]&&!upgrading))return false;
   const r=rarity(a),ty=a.type||"?",newType=!(COL.types[ty]&&COL.types[ty].n)&&ty!=="?",pts=RAR[r].p*(newType?2:1);
-  COL.hex[a.hex]=Date.now();COL.n++;COL.pts+=pts;
-  COL.types[ty]=COL.types[ty]||{n:0,r:typeTier(ty),name:typeName(a,S.meta.get(a.hex)),first:Date.now()};COL.types[ty].n++;
+  const at=upgrading?COL.cx[a.hex].t:Date.now();
+  if(upgrading){
+    const unknown=COL.types["?"];
+    if(unknown&&--unknown.n<=0)delete COL.types["?"];
+  }else{
+    COL.hex[a.hex]=at;COL.n++;COL.pts+=pts;
+  }
+  COL.types[ty]=COL.types[ty]||{n:0,r:typeTier(ty),name:typeName(a,S.meta.get(a.hex)),first:at};COL.types[ty].n++;
   const v=COL.types[ty];v.r=typeTier(ty);
   // 🧾 pamäť úlovku: kde, kto, kam – pre albumy (aerolinky, krajiny, OM-) a „Prvá: nad Petržalkou“
   try{const rt=routeOf(a),al=(a.call||"").slice(0,3).toUpperCase();COL.cx=COL.cx||{};
-    const c={t:Date.now(),ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&(rt.destination.country_iso_name||rt.destination.iso_country)||"",oc:rt&&rt.origin&&(rt.origin.country_iso_name||rt.origin.iso_country)||"",alt:a.alt!=null?Math.round(a.alt):null,el:Math.round(a.el),spd:a.spd!=null?Math.round(a.spd):null,mil:a.mil?1:0};
+    const c=upgrading?{...COL.cx[a.hex],ty}:{t:at,ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&(rt.destination.country_iso_name||rt.destination.iso_country)||"",oc:rt&&rt.origin&&(rt.origin.country_iso_name||rt.origin.iso_country)||"",alt:a.alt!=null?Math.round(a.alt):null,el:Math.round(a.el),spd:a.spd!=null?Math.round(a.spd):null,mil:a.mil?1:0};
+    rememberAlbumCatch(c,collectionAlbums());
     COL.cx[a.hex]=c;if(!v.fp)v.fp=c;
     // 🧹 pamäť: veľmi stará história úlovkov (> 20 000) sa skráti, zbierka a kartičky ostávajú
     {const ks=Object.keys(COL.hex);if(ks.length>20000){const old=Date.now()-365*864e5;for(const k of ks)if(COL.hex[k]<old){delete COL.hex[k];if(COL.cx)delete COL.cx[k]}}}
@@ -362,7 +415,7 @@ function tryCatch(a){
     if(/^OM-/.test(c.reg)){COL.om=COL.om||{};COL.om[c.reg]=COL.om[c.reg]||Date.now()}
     const ks=Object.keys(COL.cx);if(ks.length>4000)ks.sort((x,y)=>COL.cx[x].t-COL.cx[y].t).slice(0,ks.length-4000).forEach(k=>delete COL.cx[k]);
   }catch(e){}
-  const prevLvl=lvlOf(COL.pts-pts);
+  const prevLvl=lvlOf(COL.pts-(upgrading?0:pts));
   const newAch=ACH.filter(x=>{if(COL.ach[x.id])return false;try{return !!x.c(a)}catch(e){return false}});newAch.forEach(x=>COL.ach[x.id]=Date.now());
   LS.set("ctl_col",COL);
   let T=t("caught")+" +"+pts+" "+(pts===1?"bod":pts<5?"body":"bodov"),Sub=titleOf(a)+" · "+typeName(a,S.meta.get(a.hex));
@@ -371,11 +424,13 @@ function tryCatch(a){
   // nový level neprekryje odznak – ukáže sa ako ďalšie oznámenie
   if(lvlOf(COL.pts)>prevLvl){COL.lvlSeen=lvlOf(COL.pts);if(newAch.length){if(!(typeof WB!=="undefined"&&WB))setTimeout(()=>toast("⬆️ Nový level: "+lvlName(lvlOf(COL.pts)),"Obloha ťa začína poznávať."),100)}else{T="⬆️ Nový level: "+lvlName(lvlOf(COL.pts));Sub="Obloha ťa začína poznávať."}}
   if(typeof WB!=="undefined"&&WB){WB.caught={type:ty,name:COL.types[ty].name||ty,title:titleOf(a),r,newType};newAch.forEach(x=>WB.items.push(["🏅 "+x.n]));if(lvlOf(COL.pts)>prevLvl){WB.items.push(["⬆️ Level "+(lvlOf(COL.pts)+1)+": "+lvlName(lvlOf(COL.pts))]);COL.lvlSeen=lvlOf(COL.pts)}}
+  else if(upgrading)toast("Doplnená kartička",COL.types[ty].name,RAR[r].col);
   else toast(T,Sub,RAR[r].col);
   if(r!=="c"||newAch.length||newType)confetti(r==="l"?120:r==="e"?80:40);
   ping(r);
   HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
   if(S.view==="col")renderCol();
+  if(S.view==="journal")renderJournal();
 }
 // odznaky podľa stavu zbierky (bez lietadla) – pri štarte, po synchronizácii a po prenose
 function checkAch(){for(const x of ACH){if(COL.ach[x.id]||x.c.length>0)continue;try{if(x.c())grantAch(x.id)}catch(e){}}}
