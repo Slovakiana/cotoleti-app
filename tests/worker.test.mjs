@@ -415,7 +415,9 @@ await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async
   const minted=(await call("/api/hello",{id:"v2anotherresetgeneration00001",epoch:1})).j;
   assert.ok(minted.tok);
   assert.equal(await sky.authed("v2anotherresetgeneration00001",minted.tok),true,"nový token musí fungovať");
-  assert.equal(minted.tok,await sky.tokOld("v2anotherresetgeneration00001"),"po resete nesmie deploy zmeniť existujúci token");
+  assert.notEqual(minted.tok,await sky.tokOld("v2anotherresetgeneration00001"),"nový účet po resete musí mať vlastný podpis");
+  const resumed=(await call("/api/hello",{id:"v2anotherresetgeneration00001",epoch:1,tok:minted.tok})).j;
+  assert.equal(resumed.tok,minted.tok,"existujúci účet si pri prihlásení zachová token");
   const second=await adminReset({resetAction:"prepare"});
   const again=await adminReset({resetAction:"execute",nonce:second.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
   assert.equal(again.j.epoch,2);

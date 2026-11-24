@@ -633,7 +633,11 @@ export class Sky extends DurableObject {
         // limit nových zariadení na IP je vysoký: iCloud Private Relay a mobilní operátori zdieľajú IP medzi tisíckami ľudí
         // zdieľané IP (operátori, iCloud Private Relay) majú tisíce ľudí – brzdíme len nárazy, nie denný počet
         if (!legacy && (!this.rate("mintm:" + iph, 20, 60e3) || !this.rate("mint:" + iph, 5000, 86400e3))) { this.bump("mint_block"); return json({error: "rate"}, 429); }
-        this.sql.exec("INSERT INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, now);
+        // Give each account created after a reset a fresh signing epoch.
+        // Existing rows keep their epoch, so deploying this does not rotate active tokens.
+        const [high, low] = epoch > 0 ? crypto.getRandomValues(new Uint32Array(2)) : [0, 0];
+        const signingEpoch = epoch > 0 ? ((high & 0x000fffff) * 2 ** 32 + low + 1) : 0;
+        this.sql.exec("INSERT INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, now, signingEpoch);
         // pozvanie sa ráta len pri skutočne novom zariadení
         if (!legacy && /^[A-Za-z0-9]{16}$/.test(b.r || "") && this.rate("ref:" + iph, 3, 86400e3)) this.sql.exec("INSERT INTO refs(pid, n) VALUES(?, 1) ON CONFLICT(pid) DO UPDATE SET n = n + 1", b.r);
       } else if (ex.ep && !sameStr(await this.tokE(id, ex.ep), b.tok || "")) {
