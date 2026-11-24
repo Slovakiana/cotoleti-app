@@ -204,7 +204,7 @@ def main():
                 $("cardClose").click();
                 location.hash = "karta=A320";
             }""")
-            pg.locator("#cardM.on.locked .lockSil svg").wait_for(timeout=5000)
+            pg.locator("#cardM.on.locked .lockSil > svg").wait_for(timeout=5000)
             pg.evaluate("""() => {
                 if(S.view!=="col" || COL.types.A320 || location.hash || !$("cardBig").querySelector('[data-hunt-pick="A320"]'))
                     throw Error("Zdieľaný odkaz neotvoril správnu neulovenú kartičku");
