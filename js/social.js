@@ -12,6 +12,10 @@ function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.se
 // Overenie identity po štarte, návrate z pozadia a návrate internetu.
 // Neplatnosť účtu potvrdzuje výhradne server; výpadok siete nikdy nemaže zbierku.
 SOC.authVerified=false;SOC.authChecked=0;SOC.resetting=false;SOC.moved=false;
+async function apiRequest(url,options,timeout=11000){
+  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),timeout);
+  try{return await fetch(url,{...options,signal:ctl.signal})}finally{clearTimeout(timer)}
+}
 async function ensureTok(force=false){
   if(!SOC.api||SOC.resetting||SOC.moved)return "";
   if(SOC.helloP)return SOC.helloP;
@@ -21,7 +25,7 @@ async function ensureTok(force=false){
   SOC.helloP=(async()=>{
     const fail=er=>{SOC.helloErr=er;SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);SOC.authVerified=false;try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+er}))}catch(x){}};
     try{
-      const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},cache:"no-store",body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),epoch:LS.get("ctl_reset_epoch",0),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
+      const r=await apiRequest(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},cache:"no-store",body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),epoch:LS.get("ctl_reset_epoch",0),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
       const j=await r.json().catch(()=>({error:"json"}));
       if(r.status===409&&j.error==="reset"&&Number.isSafeInteger(j.epoch)&&j.epoch>Number(LS.get("ctl_reset_epoch",0))){
         // Presne overená vyššia generácia. Počas prechodu nepúšťame ďalšie API volania.
@@ -52,7 +56,7 @@ async function ensureTok(force=false){
 async function apiPost(path,obj){
   const tok=await ensureTok();
   if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved)throw Error("auth_pending");
-  const r=await fetch(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})});
+  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})});
   if(r.status===401){SOC.authVerified=false;SOC.authChecked=0;SOC.helloNext=0}
   return r;
 }
@@ -360,14 +364,15 @@ function reportFirstWave(j){
 
 async function doWave(e){
   const a=S.top;if(!a)return;
-  if(S.lastKnown){toast("⏳ Načítavam aktuálnu oblohu…","Zamávaj o sekundu – teraz ukazujem poslednú známu polohu lietadiel");return}
+  if(!a.santa&&skyStale()){showFirstWaveResult("Na mávnutie treba živé údaje. Obnov radar.");return}
   if(SOC.inflight||a.emg)return;
   if(!a.santa&&!a.emg)betaStep("wave");
   const observation={time:Date.now(),pos:posR(),gps:!S.manual};
   SOC.inflight=a.hex;SOC.waveHex=a.hex;
+  renderHeroLive(a);
   $("waveResultCard").hidden=true;
   journalWaveReward();
-  try{return await doWave1(e,{...a},observation)}finally{SOC.inflight=null}
+  try{return await doWave1(e,{...a},observation)}finally{SOC.inflight=null;renderHeroLive(S.top)}
 }
 async function doWave1(e,a,observation){LASTWAVE=null;
   $("wavePick").classList.remove("on");
@@ -376,7 +381,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   const key=SKD.format(new Date(observation.time))+a.hex,already=!!SOC.waved[key];
   showFirstWaveResult("Spracúvam mávnutie…");
   // Trasa môže doplniť záznam úlovku, aj keď spätná väzba už beží.
-  if(!routeOf(a)||!a.type)await Promise.race([loadMeta(a).catch(()=>{}),new Promise(r=>setTimeout(r,1200))]);
+  if(!routeOf(a)||!a.type)loadMeta(a).catch(()=>{});
   a.type=planeType(a);
   const rt=routeOf(a);
   if(already){
@@ -428,6 +433,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   }catch(err){ // bez internetu – mávnutie platí aspoň u teba a odošle sa neskôr
     const queued=wqPush(body);
     credit();const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};if(S.top?.hex===a.hex)waveInfo(S.top);
+    if(queued&&navigator.onLine)setTimeout(flushWq,15000);
     fin(queued?"Čaká na overenie":"Uložené v tomto zariadení");return}
   if(j.error==="far"){showFirstWaveResult("Lietadlo je príliš ďaleko. Skús mávnuť bližšiemu.");toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
   if(j.error==="rate"){showFirstWaveResult("Mávnuť môžeš znova o chvíľu.");toast("Spomaľ 🙂","Mávať môžeš znova o chvíľu");return}

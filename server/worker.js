@@ -11,6 +11,27 @@
 import { DurableObject } from "cloudflare:workers";
 
 const ALLOW = ["www.airport-data.com","api.adsb.lol","api.airplanes.live","opendata.adsb.fi","opensky-network.org","api.adsbdb.com","celestrak.org","api.open-meteo.com"];
+const API_BODY_BYTES = 4096;
+const TRANSFER_DATA_BYTES = 1_500_000;
+const TRANSFER_BODY_BYTES = 2 * TRANSFER_DATA_BYTES + 4096;
+const TEXT_ENCODER = new TextEncoder();
+const boundedBody = async (req, limit) => {
+  if (Number(req.headers.get("content-length") || 0) > limit) return null;
+  if (!req.body) return "";
+  const reader = req.body.getReader(), decoder = new TextDecoder();
+  let size = 0, text = "";
+  for (;;) {
+    const {done, value} = await reader.read();
+    if (done) return text + decoder.decode();
+    size += value.byteLength;
+    if (size > limit) { reader.cancel().catch(() => {}); return null; }
+    text += decoder.decode(value, {stream: true});
+  }
+};
+function objectJSON(text) {
+  try { const value = JSON.parse(text); return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
+  catch (e) { return null; }
+}
 const EMO = ["👋","❤️","🇸🇰","🔥","😂","🫡"];
 const KRAJE = ["BA","TT","TN","NR","ZA","BB","PO","KE","XX"];
 const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type, x-admin-key","Access-Control-Max-Age":"86400"};
@@ -52,6 +73,31 @@ const EVENTS = [
   {id: "snp2027", n: "Výročie SNP 2027", from: "2027-08-28T22:00:00Z", to: "2027-08-29T22:00:00Z"},
   {id: "halloween2027", n: "Strašidelné lietadlo 2027", from: "2027-10-31T16:00:00Z", to: "2027-10-31T23:00:00Z"},
 ];
+const SNAPSHOT_AGE = 30e3;
+const ADSB_ORIGINS = ["https://api.adsb.lol/v2/", "https://api.airplanes.live/v2/", "https://opendata.adsb.fi/api/v2/"];
+const radarCoordinates = (lat, lon, radius) => {
+  if (lat == null || lon == null || lat === "" || lon === "") return null;
+  const la = Number(lat), lo = Number(lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo) || Math.abs(la) > 90 || Math.abs(lo) > 180 || distKm(la, lo, 48.7, 19.5) > 330) return null;
+  return {la, lo, r: Math.min(60, Math.max(5, num(radius) || 40))};
+};
+const currentAircraft = a => a && /^~?[a-f0-9]{6}$/i.test(a.hex || "") &&
+  Number.isFinite(a.lat) && Math.abs(a.lat) <= 90 && Number.isFinite(a.lon) && Math.abs(a.lon) <= 180 &&
+  !(a.seen_pos >= 60);
+const privateAircraft = a => a.dbFlags & 12 ? {hex: a.hex, t: a.t || "", r: "", ownOp: "", flight: "", desc: "", dbFlags: a.dbFlags, lat: a.lat, lon: a.lon,
+  alt_baro: a.alt_baro, alt_geom: a.alt_geom, gs: a.gs, track: a.track, baro_rate: a.baro_rate,
+  geom_rate: a.geom_rate, category: a.category, emergency: a.emergency, seen_pos: a.seen_pos} : a;
+async function liveFeed(url, timeout, cacheSeconds=5, cancel) {
+  const deadline = AbortSignal.timeout(timeout);
+  const response = await fetch(url, {headers: {"User-Agent": UA}, cf: {cacheTtl: cacheSeconds, cacheEverything: true},
+    redirect: "manual", signal: cancel ? AbortSignal.any([deadline, cancel]) : deadline});
+  if (!response.ok) throw Error("upstream " + response.status);
+  const data = await response.json(), ac = data?.ac || data?.aircraft;
+  if (!Array.isArray(ac)) throw Error("upstream format");
+  const t = Number(data.now || 0), at = t > 0 ? (t < 1e12 ? t * 1000 : t) : Date.now();
+  if (!Number.isFinite(at) || Date.now() - at > SNAPSHOT_AGE || at - Date.now() > SNAPSHOT_AGE) throw Error("upstream stale");
+  return {ac: ac.filter(currentAircraft), at: Math.min(Date.now(), at)};
+}
 function elevDeg(km, altFt) { if (altFt == null || km == null) return null; const h = altFt * 0.3048, d = Math.max(km * 1000, 1); return Math.atan2(h - d * d / (2 * 6371e3), d) * 180 / Math.PI; }
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
 const cleanHex = h => String(h || "").toLowerCase().replace(/[^0-9a-f~]/g, "").slice(0, 8);
@@ -90,7 +136,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v84";
+const VERSION = "v85";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -454,19 +500,25 @@ export class Sky extends DurableObject {
   // je lietadlo naozaj blízko tvrdenej polohy?
   // prehľad celej oblohy nad SR (1 požiadavka na 15 s pre všetkých hráčov) – menej záťaže sietí, menej výpadkov
   async snapshot() {
-    const now = Date.now(), sn = this._snap;
-    if (sn && now - sn.t < 15e3) return sn;
+    const sn = this._snap;
+    if (sn && Date.now() - sn.t < 15e3) return sn;
     if (this._snapP) return this._snapP;
-    this._snapP = (async () => {
-      const urls = ["https://api.adsb.lol/v2/point/48.7/19.5/250", "https://api.airplanes.live/v2/point/48.7/19.5/250", "https://opendata.adsb.fi/api/v2/lat/48.7/lon/19.5/dist/250"];
-      const one = u => fetch(u, {headers: {"User-Agent": UA}, signal: AbortSignal.timeout(5000)}).then(r => r.ok ? r.json() : Promise.reject()).then(j => { const ac = j.ac || j.aircraft; if (!Array.isArray(ac)) throw 0; return ac; });
-      try {
-        const ac = await Promise.any(urls.map(one)), m = new Map();
-        for (const a of ac) if (a.hex) m.set(cleanHex(a.hex), a);
-        this._snap = {t: Date.now(), m}; this.setMeta("upstream", Date.now());
-      } catch (e) { this.bump("snap_fail"); }
-      this._snapP = null; return this._snap || null;
-    })();
+    if (Date.now() < (this._snapRetryAt || 0)) return sn || null;
+    const paths = ["point/48.7/19.5/250", "point/48.7/19.5/250", "lat/48.7/lon/19.5/dist/250"];
+    const requests = new AbortController();
+    this._snapP = Promise.any(ADSB_ORIGINS.map(async (host, i) => {
+      const feed = await liveFeed(host + paths[i], 3500, 5, requests.signal);
+      if (!feed.ac.length) throw Error("empty regional feed");
+      return feed;
+    })).then(({ac, at}) => {
+      this._snap = {t: at, m: new Map(ac.map(a => [cleanHex(a.hex), a]))};
+      this.setMeta("upstream", at);
+      return this._snap;
+    }).catch(() => {
+      this._snapRetryAt = Date.now() + 12e3;
+      this.bump("snap_fail");
+      return sn || null;
+    }).finally(() => { requests.abort(); this._snapP = null; });
     return this._snapP;
   }
   async fillPlaneType(plane, hex) {
@@ -495,23 +547,35 @@ export class Sky extends DurableObject {
   }
   planeRes(a, la, lo) {
     if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: String(a.flight || "").trim(), type: normalizeType(a.t), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
+    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: a.dbFlags & 12 ? "" : String(a.flight || "").trim(), type: normalizeType(a.t), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: a.dbFlags & 12 ? "" : String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
   }
   async verifyPlane(hex, la, lo) {
-    // 1) čerstvý prehľad oblohy (≤ 30 s starý)
-    let any = false;
-    const sn = await this.snapshot();
-    if (sn && Date.now() - sn.t < 30e3) {
-      any = true; const a = sn.m.get(hex);
-      if (a && a.lat != null && a.lon != null && (a.seen_pos == null || a.seen_pos < 60)) return this.fillPlaneType(this.planeRes(a, la, lo), hex);
+    let any = false, timer;
+    const requests = new AbortController();
+    const snapshot = this.snapshot().then(sn => {
+      if (!sn || Date.now() - sn.t > SNAPSHOT_AGE) throw Error("snapshot stale");
+      any = true;
+      const a = sn.m.get(hex);
+      if (!a) throw Error("not in snapshot");
+      return a;
+    });
+    const direct = new Promise(resolve => { timer = setTimeout(resolve, 350); }).then(() =>
+      Promise.any(ADSB_ORIGINS.map(async host => {
+        const {ac, at} = await liveFeed(host + "hex/" + hex, 3500, 8, requests.signal);
+        any = true;
+        this.setMeta("upstream", Math.max(at, Number(this.getMeta("upstream") || 0)));
+        const a = ac.find(a => cleanHex(a.hex) === hex);
+        if (!a) throw Error("not in feed");
+        return a;
+      }))
+    );
+    try {
+      const a = await Promise.any([snapshot, direct]);
+      requests.abort();
+      return this.fillPlaneType(this.planeRes(a, la, lo), hex);
     }
-    // 2) priamy dopyt na lietadlo – všetky siete naraz, berie sa prvá, ktorá ho pozná
-    const SRC = ["https://api.adsb.lol/v2/hex/", "https://api.airplanes.live/v2/hex/", "https://opendata.adsb.fi/api/v2/hex/"];
-    const one = u => fetch(u + hex, {headers: {"User-Agent": UA}, cf: {cacheTtl: 10, cacheEverything: true}, signal: AbortSignal.timeout(4000)})
-      .then(r => r.ok ? r.json() : Promise.reject()).then(j => { any = true; const a = (j.ac || j.aircraft || []).find(a => cleanHex(a.hex) === hex); if (!a || a.lat == null || a.lon == null || a.seen_pos >= 60) throw 0; return a; });
-    try { return this.fillPlaneType(this.planeRes(await Promise.any(SRC.map(one)), la, lo), hex); } catch (e) {}
-    // nenašli sme ho nikde: mávnutie prijmeme, ale do ligy sa neráta (vp.found = false)
-    return {known: any, found: false};
+    catch (e) { return {known: any, found: false}; }
+    finally { clearTimeout(timer); requests.abort(); }
   }
   async keys() {
     if (this._keys) return this._keys;
@@ -672,7 +736,7 @@ export class Sky extends DurableObject {
   async fetch(req) {
     const u = new URL(req.url), d = this.day(), now = Date.now(), p = u.pathname;
     let _b = null;
-    const body = async () => { if (_b) return _b; try { const t = await req.text(); _b = t.length > 4000 ? {} : JSON.parse(t); } catch (e) { _b = {}; } return _b; };
+    const body = async () => _b ||= objectJSON(await req.text()) || {};
     const ip = req.headers.get("x-cc-ip") || "", country = req.headers.get("x-cc-country") || "", ipLat = num(req.headers.get("x-cc-lat")), ipLon = num(req.headers.get("x-cc-lon"));
     const iph = await this.iph(ip);
     const ipFar = (la, lo) => ipLat != null && la != null && distKm(la, lo, ipLat, ipLon) > 650;
@@ -726,6 +790,9 @@ export class Sky extends DurableObject {
       if (!x || now - x.t > 10 * 60e3) { this.bump("xclaim_bad"); return json({error: "code"}, 404); }
       this.sql.exec("DELETE FROM xfer WHERE code=?", code);
       this.sql.exec("UPDATE ids SET ep = COALESCE(ep, 0) + 1 WHERE id=?", x.id);
+      this.sql.exec("DELETE FROM subs WHERE id=?", x.id);
+      this.sql.exec("DELETE FROM msgs WHERE id=?", x.id);
+      this.sql.exec("DELETE FROM queue WHERE id=?", x.id);
       const pd = await this.pid(x.id);
       return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), epoch: Number(this.getMeta("player_reset_epoch")||0), data: x.data});
     }
@@ -746,16 +813,16 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/planes") {
       // 🛩️ lietadlá okolo hráča zo spoločnej snímky oblohy nad SR (formát ako adsb.lol) – jedna požiadavka na sieť pre všetkých
-      const la = num(qp("lat")), lo = num(qp("lon")), r = Math.min(60, Math.max(5, num(qp("r")) || 40));
-      if (la == null || lo == null || distKm(la, lo, 48.7, 19.5) > 330) return json({error: "far"}, 404);
+      const coordinates = radarCoordinates(qp("lat"), qp("lon"), qp("r"));
+      if (!coordinates) return json({error: "far"}, 404);
+      const {la, lo, r} = coordinates;
       if (!this.rate("pl:" + iph, 400, 60e3)) return json({error: "rate"}, 429);
       const sn = await this.snapshot();
-      if (!sn || Date.now() - sn.t > 30e3) return json({error: "stale"}, 503);
+      if (!sn || Date.now() - sn.t > SNAPSHOT_AGE) return json({error: "stale"}, 503);
       const km = r * 1.852, ac = [];
-      for (const a of sn.m.values()) if (a.lat != null && a.lon != null && !(a.seen_pos >= 60) && distKm(la, lo, a.lat, a.lon) <= km) {
-        // LADD/PIA (súkromie majiteľa): bez registrácie, prevádzkovateľa a volacieho znaku – len typ a poloha
+      for (const a of sn.m.values()) if (distKm(la, lo, a.lat, a.lon) <= km) {
         const meta = this._aircraftTypes?.get(cleanHex(a.hex));
-        ac.push(a.dbFlags & 12 ? {...a, r: "", ownOp: "", flight: "", desc: ""}
+        ac.push(a.dbFlags & 12 ? privateAircraft(a)
           : !normalizeType(a.t) && meta?.type && meta.until > Date.now() ? {...a, t: meta.type} : a);
       }
       return json({ac, now: sn.t, src: "sky"}, 200, {"Cache-Control": "public, max-age=5"});
@@ -1013,9 +1080,13 @@ export class Sky extends DurableObject {
       return json(out);
     }
     if (p === "/api/xfer" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), data = String(b.data || "");
-      if (data.length > 400000 || !this.rate("xfer:" + id, 10, 3600e3)) return json({error: "big"}, 413);
-      let code; do { code = Array.from({length: 8}, () => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 31)]).join(""); } while (this.row("SELECT 1 AS x FROM xfer WHERE code=?", code));
+      const b = await body(), id = cleanId(b.id), data = b.data;
+      if (!this.rate("xfer:" + id, 10, 3600e3)) return json({error: "rate"}, 429);
+      if (typeof data !== "string" || !objectJSON(data)) return json({error: "bad"}, 400);
+      if (TEXT_ENCODER.encode(data).byteLength > TRANSFER_DATA_BYTES) return json({error: "big"}, 413);
+      let code;
+      do { code = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => "0123456789ABCDEFGHJKMNPQRSTVWXYZ"[b & 31]).join(""); }
+      while (this.row("SELECT 1 AS x FROM xfer WHERE code=?", code));
       this.sql.exec("DELETE FROM xfer WHERE id=? OR t < ?", id, now - 10 * 60e3);
       this.sql.exec("INSERT INTO xfer(code, id, data, t) VALUES(?, ?, ?, ?)", code, id, data, now);
       return json({code, ttl: 600});
@@ -1525,18 +1596,28 @@ export default {
     const url = new URL(req.url);
     if (url.pathname.startsWith("/api/")) {
       if (!env.SKY) return json({error: "no sky"}, 503);
-      if (Number(req.headers.get("content-length") || 0) > 4096) return json({error: "big"}, 413);
-      if (!isoRate("api:" + (req.headers.get("cf-connecting-ip") || ""), 3000)) return json({error: "rate"}, 429, {"Retry-After": "30"});
+      if (req.method !== "GET" && req.method !== "POST") return json({error: "method"}, 405, {Allow: "GET, POST, OPTIONS"});
+      const ip = req.headers.get("cf-connecting-ip") || "";
+      if (!isoRate("api:" + ip, 3000) || (url.pathname === "/api/xfer" && !isoRate("xfer:" + ip, 20)))
+        return json({error: "rate"}, 429, {"Retry-After": "30"});
       const h = new Headers();
       for (const [k, v] of req.headers) if (!k.toLowerCase().startsWith("x-cc-")) h.set(k, v);
       h.set("x-cc-ip", req.headers.get("cf-connecting-ip") || "");
       h.set("x-cc-country", (req.cf && req.cf.country) || "");
       h.set("x-cc-asn", String((req.cf && req.cf.asn) || ""));
       if (req.cf && req.cf.latitude) { h.set("x-cc-lat", String(req.cf.latitude)); h.set("x-cc-lon", String(req.cf.longitude)); }
-      const fwd = new Request(req.url, {method: req.method, headers: h, body: req.method === "POST" ? await req.text() : undefined});
+      let payload;
+      if (req.method === "POST") {
+        try { payload = await boundedBody(req, url.pathname === "/api/xfer" ? TRANSFER_BODY_BYTES : API_BODY_BYTES); }
+        catch (e) { return json({error: "bad"}, 400); }
+        if (payload === null) return json({error: "big"}, 413);
+        if (!objectJSON(payload)) return json({error: "bad"}, 400);
+        h.delete("content-length");
+      }
+      const fwd = new Request(req.url, {method: req.method, headers: h, body: payload});
       // ⚡ verejné odpovede bez osobných údajov z okrajovej cache Cloudflare (menej práce pre Durable Object)
       const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/heat": 600, "/api/specials": 600, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
-      const ttl = typeof caches !== "undefined" && req.method === "GET" && !url.searchParams.has("id") ? EDGE[url.pathname] : 0;
+      const ttl = typeof caches !== "undefined" && caches.default && ctx && req.method === "GET" && !url.searchParams.has("id") ? EDGE[url.pathname] : 0;
       let ck = null;
       if (ttl) {
         const cu = new URL(url.origin + url.pathname); const ks = [...url.searchParams.keys()].sort();
@@ -1544,7 +1625,16 @@ export default {
         ck = new Request(cu.toString()); const hit = await caches.default.match(ck).catch(() => null); if (hit) return hit;
       }
       try {
-        const r = await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd);
+        let r = await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd);
+        if (req.method === "GET" && url.pathname === "/api/planes" && r.status === 503) {
+          const c = radarCoordinates(url.searchParams.get("lat"), url.searchParams.get("lon"), url.searchParams.get("r"));
+          if (c) {
+            try {
+              const {ac, at} = await liveFeed(ADSB_ORIGINS[0] + `point/${c.la.toFixed(2)}/${c.lo.toFixed(2)}/${c.r}`, 2250, 8);
+              r = json({ac: ac.map(privateAircraft), now: at, src: "adsb.lol"});
+            } catch (e) {}
+          }
+        }
         if (ck && r.status === 200) { const out = new Response(r.body, r); out.headers.set("Cache-Control", "public, max-age=" + ttl); ctx.waitUntil(caches.default.put(ck, out.clone()).catch(() => {})); return out; }
         return r;
       }
@@ -1563,7 +1653,7 @@ export default {
         h.set("Referrer-Policy", "strict-origin-when-cross-origin");
         h.set("X-Frame-Options", "DENY");
         h.set("Permissions-Policy", "geolocation=(self), camera=(self), microphone=(self)");
-        h.set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+        h.set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
         return new Response(r.body, {status: r.status, headers: h});
       }
       return new Response("Čo to letí? server beží ✈️", {headers: CORS});
@@ -1576,7 +1666,7 @@ export default {
     const PATHS = {"api.adsb.lol": /^\/v2\//, "api.airplanes.live": /^\/v2\//, "opendata.adsb.fi": /^\/api\/v2\//, "opensky-network.org": /^\/api\/states\/all$/, "api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/, "www.airport-data.com": /^\/api\/ac_thumb\.json$/};
     if (t.protocol !== "https:" || !ALLOW.includes(t.hostname) || !PATHS[t.hostname].test(t.pathname)) return new Response("nepovolené", {status: 403, headers: CORS});
     try {
-      const r = await fetch(t, {redirect: "manual", headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: t.hostname === "celestrak.org" ? 3600 : t.hostname === "api.adsbdb.com" || t.hostname === "www.airport-data.com" ? 86400 : t.hostname === "api.open-meteo.com" ? 900 : 8, cacheEverything: true}});
+      const r = await fetch(t, {redirect: "manual", signal: AbortSignal.timeout(6000), headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: t.hostname === "celestrak.org" ? 3600 : t.hostname === "api.adsbdb.com" || t.hostname === "www.airport-data.com" ? 86400 : t.hostname === "api.open-meteo.com" ? 900 : 8, cacheEverything: true}});
       const h = new Headers(CORS);
       h.set("Content-Type", t.hostname === "celestrak.org" ? "text/plain; charset=utf-8" : "application/json; charset=utf-8");
       h.set("X-Content-Type-Options", "nosniff");

@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Čo to letí?">
 <meta name="description" content="Zamávaj skutočnému lietadlu. Získaj jeho kartičku a vytvor si vlastnú zbierku.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/ https://unpkg.com/leaflet@1.9.4/ https://unpkg.com/satellite.js@4.1.4/ https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/ https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'">
 <meta property="og:title" content="Čo to letí? · Kartičky zo skutočných preletov">
 <meta property="og:description" content="Zamávaj skutočnému lietadlu. Získaj jeho kartičku.">
 <meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og/c/b738-v79.jpg">
@@ -237,10 +237,10 @@ nav button.on{background:rgba(255,255,255,.14);color:#fff}
 .dl .t{flex:1}.dl small{display:block;color:var(--mut);font-size:calc(12px*var(--fs,1))}
 .dl.done .t{text-decoration:line-through;opacity:.55}
 .ach{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
-.ach div{background:rgba(0,0,0,.22);border-radius:16px;padding:10px 4px;text-align:center;font-size:calc(10.5px*var(--fs,1));color:var(--mut);border:1px solid transparent;line-height:1.2}
-.ach div i{font-style:normal;font-size:calc(24px*var(--fs,1));display:block;filter:grayscale(1);opacity:.3;margin-bottom:4px}
-.ach div.got{color:var(--txt);border-color:rgba(255,207,79,.4);background:rgba(255,207,79,.08)}
-.ach div.got i{filter:none;opacity:1}
+.ach button{min-width:0;min-height:44px;font-family:inherit;background:rgba(0,0,0,.22);border-radius:16px;padding:10px 4px;text-align:center;font-size:calc(10.5px*var(--fs,1));color:var(--mut);border:1px solid transparent;line-height:1.2}
+.ach button i{font-style:normal;font-size:calc(24px*var(--fs,1));display:block;filter:grayscale(1);opacity:.3;margin-bottom:4px}
+.ach button.got{color:var(--txt);border-color:rgba(255,207,79,.4);background:rgba(255,207,79,.08)}
+.ach button.got i{filter:none;opacity:1}
 .duelRow{margin-top:10px}
 .duelRow .xp{margin:5px 0 0}
 details.set{margin:0 12px 12px;padding:4px 16px}
@@ -699,7 +699,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 .huntHome[data-state="near"] .huntHomeGo{background:#176d57;color:#fff}
 .huntHome[data-state="done"]{border-color:rgba(255,207,79,.58)!important;background:radial-gradient(circle at 100% 0%,rgba(255,207,79,.2),transparent 62%),#252035}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=84">
+<link rel="stylesheet" href="lib/journal.css?v=85">
 </head>
 <body>
 <div id="bg"></div>
@@ -1131,26 +1131,26 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=84"></script>
-<script src="js/ui.js?v=84"></script>
-<script src="js/ar.js?v=84"></script>
-<script src="js/space.js?v=84"></script>
-<script src="js/weather.js?v=84"></script>
-<script src="js/extras.js?v=84"></script>
-<script src="js/social.js?v=84"></script>
-<script src="js/wrapped.js?v=84"></script>
-<script src="js/push.js?v=84"></script>
-<script src="js/track.js?v=84"></script>
-<script src="js/towns.js?v=84"></script>
-<script src="js/catalog.js?v=84"></script>
-<script src="js/cards.js?v=84"></script>
-<script src="js/journal.js?v=84"></script>
-<script src="js/mail.js?v=84"></script>
-<script src="js/golden.js?v=84"></script>
-<script src="js/teams.js?v=84"></script>
-<script src="js/duel.js?v=84"></script>
-<script src="js/sound.js?v=84"></script>
-<script src="js/santa.js?v=84"></script>
-<script src="js/main.js?v=84"></script>
+<script src="js/core.js?v=85"></script>
+<script src="js/ui.js?v=85"></script>
+<script src="js/ar.js?v=85"></script>
+<script src="js/space.js?v=85"></script>
+<script src="js/weather.js?v=85"></script>
+<script src="js/extras.js?v=85"></script>
+<script src="js/social.js?v=85"></script>
+<script src="js/wrapped.js?v=85"></script>
+<script src="js/push.js?v=85"></script>
+<script src="js/track.js?v=85"></script>
+<script src="js/towns.js?v=85"></script>
+<script src="js/catalog.js?v=85"></script>
+<script src="js/cards.js?v=85"></script>
+<script src="js/journal.js?v=85"></script>
+<script src="js/mail.js?v=85"></script>
+<script src="js/golden.js?v=85"></script>
+<script src="js/teams.js?v=85"></script>
+<script src="js/duel.js?v=85"></script>
+<script src="js/sound.js?v=85"></script>
+<script src="js/santa.js?v=85"></script>
+<script src="js/main.js?v=85"></script>
 </body>
 </html>

@@ -5,12 +5,12 @@ const SPACE=(()=>{
   const D2R=Math.PI/180,R2D=180/Math.PI,RE=6371;
 
   function loadLib(){
-    return new Promise((res,rej)=>{
-      if(window.satellite)return res();
-      const urls=["lib/satellite.min.js","https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js","https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js","https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"];
-      let i=0;const next=()=>{if(i>=urls.length)return rej(new Error("nepodarilo sa načítať výpočtovú knižnicu"));
-        const sc=document.createElement("script");sc.src=urls[i++];sc.onload=()=>window.satellite?res():next();sc.onerror=next;document.head.appendChild(sc)};
-      next();
+    if(window.satellite)return Promise.resolve();
+    return new Promise((resolve,reject)=>{
+      const script=document.createElement("script");script.src="lib/satellite.min.js";
+      script.onload=()=>window.satellite?resolve():reject(Error("výpočtová knižnica sa nenačítala"));
+      script.onerror=()=>{script.remove();reject(Error("výpočtová knižnica sa nenačítala"))};
+      document.head.appendChild(script);
     });
   }
   async function getText(url){

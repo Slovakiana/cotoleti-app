@@ -83,7 +83,7 @@ function pax(a){
 const CITY_SK={"London":"Londýn","Vienna":"Viedeň","Wien":"Viedeň","Paris":"Paríž","Rome":"Rím","Roma":"Rím","Prague":"Praha","Praha":"Praha","Munich":"Mníchov","München":"Mníchov","Frankfurt am Main":"Frankfurt","Frankfurt":"Frankfurt","Warsaw":"Varšava","Budapest":"Budapešť","Athens":"Atény","Milan":"Miláno","Venice":"Benátky","Brussels":"Brusel","Copenhagen":"Kodaň","Kyiv":"Kyjev","Bucharest":"Bukurešť","Belgrade":"Belehrad","Zurich":"Zürich","Zürich":"Zürich","Geneva":"Ženeva","Lisbon":"Lisabon","Naples":"Neapol","Cologne":"Kolín","Nuremberg":"Norimberg","Dubai":"Dubaj","Cairo":"Káhira","Thessaloniki":"Solún","Krakow":"Krakov","Kraków":"Krakov","Kosice":"Košice","Košice":"Košice","Zilina":"Žilina","Stockholm":"Štokholm","Beijing":"Peking","Tokyo":"Tokio","Seoul":"Soul","Singapore":"Singapur","Moscow":"Moskva","Tel Aviv-Yafo":"Tel Aviv","Tel Aviv":"Tel Aviv","Hamburg":"Hamburg","Berlin":"Berlín","Amsterdam":"Amsterdam","Madrid":"Madrid","Barcelona":"Barcelona","Istanbul":"Istanbul","Antalya":"Antalya","Hurghada":"Hurghada","Larnaca":"Larnaka","Heraklion":"Heraklion","Split":"Split","Dubrovnik":"Dubrovník","Zagreb":"Záhreb","Ljubljana":"Ľubľana","Sofia":"Sofia","Dublin":"Dublin","Oslo":"Oslo","Helsinki":"Helsinki","Riga":"Riga","Vilnius":"Vilnius","Tallinn":"Tallinn","Doha":"Dauha","Abu Dhabi":"Abú Zabí","New York":"New York","Bangkok":"Bangkok","Malaga":"Málaga","Palma":"Mallorca","Palma De Mallorca":"Mallorca","Tenerife":"Tenerife","Bratislava":"Bratislava","Poprad":"Poprad","Lyon":"Lyon","Nice":"Nice","Marseille":"Marseille","Manchester":"Manchester","Edinburgh":"Edinburgh","Bologna":"Bologna","Catania":"Catania","Bari":"Bari","Porto":"Porto","Gdansk":"Gdansk","Katowice":"Katovice","Wroclaw":"Vroclav","Eindhoven":"Eindhoven","Charleroi":"Charleroi","Dusseldorf":"Düsseldorf","Düsseldorf":"Düsseldorf","Stuttgart":"Stuttgart","Salzburg":"Salzburg","Innsbruck":"Innsbruck","Graz":"Graz","Linz":"Linz"};
 const citySk=n=>n?(CITY_SK[n]||n):"";
 // trasa z adsbdb podľa volacieho znaku býva zastaraná – ak lietadlo ďaleko od cieľa letí opačným smerom, radšej ju neukáž
-const routeOf=a=>{const m=S.meta.get(a.hex),r=m&&m.route;if(!(r&&r.origin&&r.destination))return null;const d=r.destination;
+const routeOf=a=>{if(a.priv)return null;const m=S.meta.get(a.hex),r=m&&m.route;if(!(r&&r.origin&&r.destination))return null;const d=r.destination;
   if(a.trk!=null&&a.lat!=null&&d.latitude!=null&&d.longitude!=null){const x=distBear(a.lat,a.lon,+d.latitude,+d.longitude);if(x.d>150e3&&Math.abs(((a.trk-x.b)%360+540)%360-180)>100)return null}
   return r};
 
@@ -356,6 +356,10 @@ function renderHeroStatic(a){
 }
 function renderHeroLive(a){
   if(!a)return;
+  const stale=skyStale()&&!a.santa;
+  const wave=$("b-wave"),disabled=stale||a.emg||!!(typeof SOC!=="undefined"&&SOC.inflight);
+  if(wave.disabled!==disabled)wave.disabled=disabled;
+  wave.style.opacity=disabled?.5:1;
   const el=Math.max(0,a.el??0);
   $("hero").classList.toggle("overhead",el>=60);
   $("h-look").textContent=el>=75?t("overhead"):`Pozri na ${dirL(a.bear)} · ${nf(el)}° hore`;
@@ -401,12 +405,12 @@ function renderCol(){
       <div class="xp" style="margin-top:6px"><i style="width:${pct}%"></i></div><small>${next?"Stupeň "+(T.indexOf(next)+1)+": "+next+" b → odmena "+SEAS_REW[T.indexOf(next)]:"🏆 Všetky stupne sezóny hotové!"}</small>`}
   {const sd=seenSum();$("c-seen").innerHTML=sd?sd:"";$("c-seen").hidden=!sd}
   const types=Object.entries(COL.types);
-  const typesOwn=types.filter(([,v])=>v.n);$("c-n").textContent=COL.n;$("c-t").textContent=typesOwn.length;const rr=types.filter(([k,v])=>v.n&&RORD[typeTier(k)]>=2).length;$("c-r").textContent=rr;
+  const typesOwn=types.filter(([key,v])=>key!=="?"&&v.n);$("c-n").textContent=COL.n;$("c-t").textContent=typesOwn.length;const rr=types.filter(([k,v])=>v.n&&RORD[typeTier(k)]>=2).length;$("c-r").textContent=rr;
   {const sp=id=>$(id)&&$(id).nextElementSibling;if(sp("c-n"))sp("c-n").textContent=pl(COL.n,"úlovok","úlovky","úlovkov");if(sp("c-t"))sp("c-t").textContent=pl(typesOwn.length,"typ","typy","typov");if(sp("c-r"))sp("c-r").textContent=pl(rr,"vzácny","vzácne","vzácnych")}
   // odznaky: získané (najnovšie hore), potom zamknuté s návodom a pokrokom; v detskom režime bez sociálnych
   {const kid=typeof KID==="function"&&KID(),L=ACH.filter(x=>!(kid&&x.soc)),got=L.filter(x=>COL.ach[x.id]).sort((a,b)=>COL.ach[b.id]-COL.ach[a.id]),rest=L.filter(x=>!COL.ach[x.id]);
     const prog=x=>{try{const p=x.pr&&x.pr();return p?`<b class="achP">${Math.min(p[0],p[1])}/${p[1]}</b>`:""}catch(e){return ""}};
-    $("c-ach").innerHTML=[...got,...rest].map(x=>`<div class="${COL.ach[x.id]?"got":""}" data-ach="${x.id}" role="button"><i>${x.i}</i>${esc(x.n)}${COL.ach[x.id]?"":(x.h?`<small>${esc(x.h)}</small>`:"")+prog(x)}</div>`).join("");
+    $("c-ach").innerHTML=[...got,...rest].map(x=>`<button type="button" class="${COL.ach[x.id]?"got":""}" data-ach="${x.id}"><i>${x.i}</i>${esc(x.n)}${COL.ach[x.id]?"":(x.h?`<small>${esc(x.h)}</small>`:"")+prog(x)}</button>`).join("");
     $("c-achN").textContent=got.length+"/"+L.length}
   const order={l:0,r:1,u:2,c:3};
   if(typeof renderCards==="function")renderCards();
@@ -422,8 +426,8 @@ let firstWaveVerified = false;
 function firstWaveNext(a){
   if(!S.pos)return ["Povoľ polohu alebo vyber mesto, aby sa ti zobrazil radar.", "Vybrať polohu", ()=>$("statusPill").click()];
   if(!navigator.onLine)return ["Si bez internetu. Po pripojení obnov radar."];
+  if(skyStale())return ["Zobrazuje sa posledná známa obloha. Na mávnutie treba živé údaje.", "Obnoviť radar", ()=>fetchPlanes(true)];
   if(S.failN)return ["Dáta o letoch sú dočasne nedostupné.", "Obnoviť radar", ()=>fetchPlanes(true)];
-  if(S.lastKnown)return ["Zobrazuje sa posledná známa obloha. Počkaj na živé údaje."];
   if(!S.loaded)return ["Načítavam živú oblohu…"];
   if(S.manual)return ["Prezeráš oblohu nad vybraným mestom. Mávnutie bez GPS sa neoverí.", "Použiť GPS", ()=>$("placeGps").click()];
   if(!a||a.emg||a.santa||a.el==null||a.el<10){
@@ -435,7 +439,7 @@ function firstWaveNext(a){
 
 function renderFirstWaveGuide(a){
   const hint=$("firstWaveHint"),button=$("firstWaveAction");
-  const [text,label,action]=(!firstWaveGuide||firstWaveVerified)&&a&&!S.manual&&S.loaded&&!S.failN&&!S.lastKnown&&navigator.onLine?[]:firstWaveNext(a);
+  const [text,label,action]=(!firstWaveGuide||firstWaveVerified)&&a&&!S.manual&&S.loaded&&!S.failN&&!skyStale()&&navigator.onLine?[]:firstWaveNext(a);
   if(hint.textContent!==(text||""))hint.textContent=text||"";
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
@@ -452,6 +456,7 @@ function showFirstWaveResult(text, verified=false){
 
 function tick(fresh){
   const now=Date.now();
+  if(S.raw.length&&skyStale()&&!S.lastKnown){S.lastKnown=true;setStatus("Posledná známa obloha",false)}
   S.list=enrich(now);
   let best=null;
   if(S.pick){best=S.list.find(a=>a.hex===S.pick)||null;if(!best)S.pick=null}
@@ -467,8 +472,8 @@ function tick(fresh){
   if(HOOKS.list)HOOKS.list.forEach(f=>{try{f(S.list)}catch(e){console.error(e)}});
   if(fresh||now%3000<1000)renderList(S.list);
   // lietadlá sa už nezbierajú samé – úlovok len zamávaním (hra je o pozeraní hore)
-  if(fresh)seenLog(S.list);
-  if(best&&best.el>=60&&!S.buzzed.has(best.hex)){S.buzzed.add(best.hex);if(S.vib)haptic([120,60,120,60,240])}
+  if(fresh&&!skyStale())seenLog(S.list);
+  if(best&&!skyStale()&&best.el>=60&&!S.buzzed.has(best.hex)){S.buzzed.add(best.hex);if(S.vib)haptic([120,60,120,60,240])}
   if(fresh){S.list.slice(0,8).forEach(a=>loadMeta(a));HOOKS.fresh.forEach(f=>{try{f()}catch(e){console.error(e)}})}
 }
 /* ============ hlas ============ */
@@ -592,10 +597,11 @@ function startGps(){
 function gotPos(p,first){
   ev("gps_ok");
   betaStep("gps");
+  const before=S.pos&&radarPositionKey(S.pos);
   S.pos={lat:p.coords.latitude,lon:p.coords.longitude,alt:p.coords.altitude||0};LS.set("ctl_pos",S.pos);showPos();
   $("posBtns").style.display="none";err("");
   if(!S.raw.length){$("h-type").textContent="Poloha OK ✓ Hľadám lietadlá…";setStatus("Načítavam lietadlá…",false)}
-  if(first)fetchPlanes();
+  if(first||before!==radarPositionKey(S.pos))fetchPlanes();
 }
 function posErr(e){
   if(S.manual)return;
@@ -830,22 +836,52 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want
 const XKEYS={ctl_col:"object",ctl_collectorHunt:"string",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean",ctl_kid:"boolean",ctl_kpin:"string",ctl_adopt:"string"};
 async function xferMake(){
   if(typeof apiPost!=="function")return;
+  lsFlush();
   const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
   try{const r=await apiPost("/api/xfer",{data:JSON.stringify(data)});const j=await r.json();
-    if(!j.code){toast("Kód sa nepodarilo vytvoriť","Skús o chvíľu");return}
+    if(!r.ok||!j.code){
+      toast("Kód sa nepodarilo vytvoriť",r.status===413?"Zbierka prekročila limit prenosu.":r.status===429?"Limit prenosov. Skús neskôr.":"Skús o chvíľu");return;
+    }
     $("xCode").textContent=j.code.slice(0,4)+" "+j.code.slice(4);$("xM").classList.add("on");
   }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
+}
+function transferEntries(raw){
+  const data=JSON.parse(raw||"{}");
+  if(!data||typeof data!=="object"||Array.isArray(data))throw Error("transfer data");
+  const entries=new Map();
+  for(const [key,type] of Object.entries(XKEYS)){
+    if(typeof data[key]!=="string")continue;
+    try{
+      const value=JSON.parse(data[key]);
+      if(typeof value===type&&value!==null)entries.set(key,data[key]);
+    }catch(e){}
+  }
+  return entries;
 }
 async function xferClaim(){
   const code=(prompt("Zadaj 8-miestny kód z druhého mobilu:")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");if(code.length!==8)return;
   if(!confirm("Prenesiem sem zbierku z druhého mobilu. Tvoja súčasná zbierka v tomto mobile sa nahradí. Pokračovať?"))return;
-  try{const r=await fetch(DEFAULT_PROXY+"/api/xclaim",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({code})});const j=await r.json();
-    if(!j.id){toast("Kód je neplatný alebo vypršal","Vytvor v druhom mobile nový – platí 10 minút a len raz");return}
-    let data={};try{data=JSON.parse(j.data||"{}")}catch(e){}
-    for(const [k,t] of Object.entries(XKEYS)){if(typeof data[k]!=="string")continue;try{const v=JSON.parse(data[k]);if(typeof v===t&&v!==null)localStorage.setItem(k,data[k])}catch(e){}}
-    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_onb",1);LSP.clear();LS.set=()=>{}; // do reloadu nič neprepíše prenesenú zbierku
+  let r,j;
+  try{
+    r=await apiRequest(DEFAULT_PROXY+"/api/xclaim",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({code})});
+    j=await r.json();
+  }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie");return}
+  if(r.status===404){toast("Kód je neplatný alebo vypršal","Vytvor v druhom mobile nový – platí 10 minút a len raz");return}
+  if(!r.ok||!j.id||!j.tok){toast("Prenos sa nepodaril",r.status===429?"Skús o chvíľu.":"Skontroluj pripojenie a skús znova.");return}
+  try{
+    const entries=transferEntries(j.data);
+    lsFlush();
+    const replace=[...Object.keys(XKEYS),"ctl_wq","ctl_waved","ctl_wpd","ctl_mpd","ctl_push","ctl_pushT","ctl_pushAsked"];
+    const previous=new Map(replace.map(key=>[key,localStorage.getItem(key)]));
+    const restore=(key,value)=>{if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value)};
+    try{
+      for(const key of replace)localStorage.removeItem(key);
+      for(const [key,value] of entries)restore(key,value);
+    }catch(e){for(const [key,value] of previous)restore(key,value);throw e}
+    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_onb",1);
+    LSP.clear();LS.set=()=>{};
     toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);
-  }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
+  }catch(e){toast("Zbierku sa nepodarilo uložiť","Skontroluj voľné miesto v prehliadači.")}
 }
 $("b-transfer").onclick=()=>{if(kidPinOk("prenos zbierky"))xferMake()};$("b-claim").onclick=()=>{if(kidPinOk("prenos zbierky"))xferClaim()};$("xClose").onclick=()=>$("xM").classList.remove("on");
 /* návod na pridanie na plochu */

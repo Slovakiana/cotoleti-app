@@ -48,14 +48,20 @@ $("b-shazam").onclick=shazam;
 $("shzClose").onclick=()=>{shzStop();$("shz").classList.remove("on")};
 
 /* ============ 🗺️ Mapa trasy ============ */
-let LMAP=null,LLAYER=null;
+let LMAP=null,LLAYER=null,leafletLoading=null;
 function loadLeaflet(){
-  return new Promise((res,rej)=>{
-    if(window.L)return res();
-    const css=document.createElement("link");css.rel="stylesheet";css.href="lib/leaflet/leaflet.css";document.head.appendChild(css);
-    const urls=["lib/leaflet/leaflet.js","https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js","https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"];let i=0;
-    const next=()=>{if(i>=urls.length)return rej(new Error("mapa sa nenačítala"));const s=document.createElement("script");s.src=urls[i++];s.onload=()=>window.L?res():next();s.onerror=next;document.head.appendChild(s)};next();
-  });
+  if(window.L)return Promise.resolve();
+  if(leafletLoading)return leafletLoading;
+  if(!document.querySelector('link[data-leaflet]')){
+    const css=document.createElement("link");css.rel="stylesheet";css.href="lib/leaflet/leaflet.css";css.dataset.leaflet="";document.head.appendChild(css);
+  }
+  leafletLoading=new Promise((resolve,reject)=>{
+    const script=document.createElement("script");script.src="lib/leaflet/leaflet.js";
+    script.onload=()=>window.L?resolve():reject(Error("mapa sa nenačítala"));
+    script.onerror=()=>{script.remove();reject(Error("mapa sa nenačítala"))};
+    document.head.appendChild(script);
+  }).finally(()=>{leafletLoading=null});
+  return leafletLoading;
 }
 function gcPath(a,b,n=64){
   const toV=p=>{const la=rad(p[0]),lo=rad(p[1]);return [Math.cos(la)*Math.cos(lo),Math.cos(la)*Math.sin(lo),Math.sin(la)]};
@@ -90,14 +96,14 @@ async function openMap(){
     LLAYER=L.layerGroup().addTo(LMAP);
   }
   LLAYER.clearLayers();
-  const cur=enrich(Date.now()).find(x=>x.hex===a.hex)||a,m=S.meta.get(a.hex)||{},rt=m.route,pts=[[S.pos.lat,S.pos.lon],[cur.lat,cur.lon]];
+  const cur=enrich(Date.now()).find(x=>x.hex===a.hex)||a,m=S.meta.get(a.hex)||{},rt=catchRoute(a),pts=[[S.pos.lat,S.pos.lon],[cur.lat,cur.lon]];
   L.circleMarker([S.pos.lat,S.pos.lon],{radius:7,color:"#6dffc7",fillColor:"#6dffc7",fillOpacity:.9}).bindTooltip("Ty",{permanent:true,direction:"bottom"}).addTo(LLAYER);
   let info=titleOf(a)+" · "+typeName(a,m);
   if(rt&&rt.origin&&rt.destination&&rt.origin.latitude!=null){
     const o=[rt.origin.latitude,rt.origin.longitude],d=[rt.destination.latitude,rt.destination.longitude];
     L.polyline(gcPath(o,[cur.lat,cur.lon]),{color:"#4fc3ff",weight:3}).addTo(LLAYER);
     L.polyline(gcPath([cur.lat,cur.lon],d),{color:"#ff4fd8",weight:3,dashArray:"6 8"}).addTo(LLAYER);
-    [[o,rt.origin],[d,rt.destination]].forEach(([p,ap])=>L.circleMarker(p,{radius:5,color:"#fff",fillOpacity:1}).bindTooltip((ap.iata_code||"")+" "+citySk(ap.municipality||ap.name||""),{permanent:true,direction:"top"}).addTo(LLAYER));
+    [[o,rt.origin],[d,rt.destination]].forEach(([p,ap])=>L.circleMarker(p,{radius:5,color:"#fff",fillOpacity:1}).bindTooltip(esc((ap.iata_code||"")+" "+citySk(ap.municipality||ap.name||"")),{permanent:true,direction:"top"}).addTo(LLAYER));
     pts.push(o,d);
     const d1=distBear(o[0],o[1],cur.lat,cur.lon).d,d2=distBear(cur.lat,cur.lon,d[0],d[1]).d;
     info+=` · ${citySk(rt.origin.municipality||rt.origin.name)||rt.origin.iata_code} → ${citySk(rt.destination.municipality||rt.destination.name)||rt.destination.iata_code} · prejdených ${nf(d1/(d1+d2)*100)} % · zostáva ${nf(d2/1000)} km`;
