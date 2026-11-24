@@ -7,8 +7,8 @@
 
 ### Časť A: integrita účtov a reset (teraz)
 - [x] Analýza: starý podpis hráčskeho tokenu môže prežiť `/api/admin` globálny reset.
-- [x] Zmeniť podpis tokenu podľa `player_reset_epoch` s kompatibilitou generácie 0.
-- [x] Regresné testy: starý token neobnoví účet po resete; nový token funguje; opakovaný reset zneplatní tokeny.
+- [x] Po resete zakázať automatické znovuvytvorenie vymazaného účtu zo starého tokenu (bez zmeny podpisu fungujúcich účtov).
+- [x] Regresné testy: zmazaný účet nevznikne zo starého tokenu; nový účet funguje; opakovaný reset nezrekonštruuje účty; podpisy už existujúcich tokenov sa nemenia.
 - [x] Kompletné CI na vetve + pull request – PR #15 (časť A, pred pridaním B).
 - [ ] Kontrola a vedomé schválenie produkčného nasadenia.
 - [ ] Po nasadení overiť Cloudflare Worker samostatne.

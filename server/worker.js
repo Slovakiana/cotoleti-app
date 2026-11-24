@@ -392,13 +392,7 @@ export class Sky extends DurableObject {
   async fk(pd, day = this.day()) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("fk:" + pd + ":" + day))).replace(/[^A-Za-z0-9]/g, "").slice(0, 10); }
   async fkOk(pd, fk) { for (const back of [0, 1, 2, 3, 4, 5, 6]) if (sameStr(await this.fk(pd, this.day(Date.now() - back * 86400e3)), String(fk || ""))) return true; return false; }
   isKid(id) { const r = this.row("SELECT kid FROM ids WHERE id=?", id); return !!(r && r.kid); }
-  async tokE(id, ep) {
-    // Globálny reset mení podpis všetkých tokenov, nie iba tabuľku ids.
-    // Pri epoch=0 zachovávame kompatibilitu s vydanými tokenmi pred prvým resetom.
-    const resetEpoch = Number(this.getMeta("player_reset_epoch") || 0);
-    const payload = "id:" + id + (ep ? ":" + ep : "") + (resetEpoch ? ":reset:" + resetEpoch : "");
-    return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode(payload))).slice(0, 24);
-  }
+  async tokE(id, ep) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("id:" + id + (ep ? ":" + ep : "")))).slice(0, 24); }
   async tok(id) { const r = this.row("SELECT ep FROM ids WHERE id=?", id); return this.tokE(id, r ? r.ep || 0 : 0); }
   async tokOld(id) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("id:" + id))).slice(0, 24); }
   // token platí len pre existujúci účet a aktuálnu „epochu“ (po prenose alebo zmazaní prestane platiť)
@@ -407,7 +401,7 @@ export class Sky extends DurableObject {
     const r = this.row("SELECT ep FROM ids WHERE id=?", id);
     if (r) return sameStr(await this.tokE(id, r.ep || 0), tok);
     // platný token, ale účet chýba v tabuľke (starší alebo stratený záznam) – zaregistrovať a pustiť ďalej
-    if (id.length >= 16 && sameStr(await this.tokE(id, 0), tok)) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
+    if (!Number(this.getMeta("player_reset_epoch") || 0) && id.length >= 16 && sameStr(await this.tokE(id, 0), tok)) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
     return false;
   }
   bump(k) { try { this.sql.exec("INSERT INTO sig(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", this.day(), k); } catch (e) {} }
@@ -635,7 +629,7 @@ export class Sky extends DurableObject {
       const ex = this.row("SELECT ep FROM ids WHERE id=?", id);
       if (!ex) {
         // starší používateľ s platným tokenom (z čias pred tabuľkou ids) – zaregistrovať bez limitu
-        const legacy = !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
+        const legacy = epoch === 0 && !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
         // limit nových zariadení na IP je vysoký: iCloud Private Relay a mobilní operátori zdieľajú IP medzi tisíckami ľudí
         // zdieľané IP (operátori, iCloud Private Relay) majú tisíce ľudí – brzdíme len nárazy, nie denný počet
         if (!legacy && (!this.rate("mintm:" + iph, 20, 60e3) || !this.rate("mint:" + iph, 5000, 86400e3))) { this.bump("mint_block"); return json({error: "rate"}, 429); }
