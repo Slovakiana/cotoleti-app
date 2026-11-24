@@ -308,7 +308,7 @@ def main():
                     setView("journal");
                     const page=$("v-journal").getBoundingClientRect();
                     const map=$("journalAlbum").querySelector(".journalMapStage").getBoundingClientRect();
-                    if(page.left<12||page.width>880||map.height>431)
+                    if(page.left<12||page.width>880||map.height>431||Math.abs(map.width-page.width)>3)
                         throw Error("Denník alebo mapa preteká pri "+width+" px");
                     journalMode="al";
                     renderJournal();
