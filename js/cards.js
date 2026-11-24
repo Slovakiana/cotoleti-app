@@ -6,7 +6,8 @@ const PILOT_SPEC={
   A320:{fw:.102,wp:.385,rc:.225,sw:24,tc:.062,eng:[{at:.32,k:"jet"}],tp:.87,ts:.35,tsw:30},
   B38M:{fw:.096,wp:.42,rc:.21,sw:25,tc:.058,eng:[{at:.32,k:"jet",big:1}],tp:.86,ts:.34,tsw:28,winglets:true,split:true},
   E190:{fw:.085,wp:.41,rc:.205,sw:22,tc:.053,eng:[{at:.34,k:"jet"}],tp:.87,ts:.35,tsw:29,winglets:true},
-  A388:{fw:.105,wp:.39,rc:.22,sw:33,tc:.058,eng:[{at:.29,k:"jet",big:1},{at:.57,k:"jet",big:1}],tp:.865,ts:.36,tsw:34}
+  A388:{fw:.105,wp:.39,rc:.22,sw:33,tc:.058,eng:[{at:.29,k:"jet",big:1},{at:.57,k:"jet",big:1}],tp:.865,ts:.36,tsw:34},
+  Z43:{fw:.16,wp:.28,rc:.23,sw:1,tc:.12,eng:[{nose:1}],tp:.86,ts:.37,tsw:5}
 };
 const SPEC={
   twin:{fw:.105,wp:.38,rc:.2,sw:26,tc:.06,eng:[{at:.34,k:"jet"}],tp:.86,ts:.34,tsw:32},
@@ -23,6 +24,8 @@ const SPEC={
   jetT:{fw:.1,wp:.42,rc:.2,sw:5,tc:.12,eng:[],tp:.88,ts:.36,tsw:8,tipTanks:1},
   ga:{fw:.12,wp:.28,rc:.17,sw:0,tc:.14,eng:[{nose:1}],tp:.9,ts:.32,tsw:5},
   ga1:{fw:.11,wp:.4,rc:.16,sw:2,tc:.1,eng:[{nose:1,big:1}],tp:.9,ts:.32,tsw:8},
+  glider:{fw:.081,wp:.3,rc:.2,sw:2,tc:.085,eng:[],tp:.88,ts:.22,tsw:4},
+  motorGlider:{fw:.14,wp:.33,rc:.2,sw:2,tc:.085,eng:[{nose:1}],tp:.88,ts:.21,tsw:4},
 };
 /* silueta zhora (tak ho vidíš zo zeme), v presných pomeroch dĺžky a rozpätia */
 function planeSVG(c,o){
@@ -121,7 +124,10 @@ const PILOT_ART={
   A388:{sky:"#121636",horizon:"#6854a5",ground:"#0d102a",ice:"#c9b4ff",angle:-22,x:110,y:11,scale:1.10,sun:300,night:true},
   A320:{sky:"#193652",horizon:"#67bcd2",ground:"#162b4a",ice:"#d9f8fc",angle:26,x:110,y:18,scale:1.02,sun:96},
   B38M:{sky:"#241b4c",horizon:"#e76882",ground:"#2d1740",ice:"#ffcdc2",angle:-29,x:107,y:11,scale:1.06,sun:330},
-  E190:{sky:"#173b5d",horizon:"#ffc49c",ground:"#1c3b56",ice:"#ffebcb",angle:38,x:100,y:17,scale:1.07,sun:309}
+  E190:{sky:"#173b5d",horizon:"#ffc49c",ground:"#1c3b56",ice:"#ffebcb",angle:38,x:100,y:17,scale:1.07,sun:309},
+  Z43:{sky:"#21475f",horizon:"#b8bf82",ground:"#283d37",ice:"#fff0b2",angle:35,x:109,y:13,scale:1.07,sun:315},
+  BL13:{sky:"#263955",horizon:"#e19075",ground:"#372e49",ice:"#ffdab7",angle:-29,x:104,y:15,scale:1.12,sun:103},
+  L13S:{sky:"#15505b",horizon:"#8bd4bf",ground:"#204551",ice:"#e9ffd2",angle:22,x:106,y:12,scale:1.1,sun:324}
 };
 function pilotArt(c,v,id){
   const a=PILOT_ART[c.code],shiny=!!v.shiny;
@@ -404,7 +410,8 @@ function cardExtras(k,v){
   if(v.n){h+=`<div class="cardBtns"><button class="btn sec" data-card-link="${esc(k)}">Zdieľať odkaz</button>`;const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
     if(["c","u"].includes(r)&&(v.n|0)>=2&&!(typeof KID==="function"&&KID()))h+=v.ver?`<button class="btn sec" data-gift="${esc(k)}">🎁 Daruj kópiu</button>`:`<button class="btn sec" disabled title="Darovať sa dá len overená kartička">🎁 Daruj (po overení)</button>`;
     h+=`</div>`}
-  if(aircraft)h+=`<dl class="cardAircraft"><div><dt>Rozpätie</dt><dd>${nf(aircraft.span,1)} m</dd></div><div><dt>Dĺžka</dt><dd>${nf(aircraft.len,1)} m</dd></div><div><dt>Dolet</dt><dd>${nf(aircraft.range)} km</dd></div><div><dt>Typická kapacita</dt><dd>${aircraft.seats?nf(aircraft.seats)+" miest":"—"}</dd></div></dl>`;
+  if(aircraft)h+=`<dl class="cardAircraft"><div><dt>Rozpätie</dt><dd>${nf(aircraft.span,1)} m</dd></div><div><dt>Dĺžka</dt><dd>${nf(aircraft.len,1)} m</dd></div>${aircraft.range==null?"":`<div><dt>Dolet</dt><dd>${nf(aircraft.range)} km</dd></div>`}<div><dt>Kapacita</dt><dd>${aircraft.seats?nf(aircraft.seats)+" "+pl(aircraft.seats,"miesto","miesta","miest"):"—"}</dd></div></dl>
+    <p class="lookSub">${esc(aircraft.fact)}</p>`;
   // formy: podmienka priamo pod ikonou (title na iPhone nevidieť)
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:f[3]}</small></span>`).join("")}</div>`;
   // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
@@ -633,7 +640,8 @@ function openLocked(k){
   $("cardCollection").hidden=true;
   const c=CAT[k];if(!c){toast("🔒 "+k,"Toto lietadlo ešte v zbierke nemáš. Pozeraj hore!");return}
   const r=cardRar(k),nf2=n=>n==null?"–":Number(n).toLocaleString("sk-SK");
-  const hint=r==="l"?"Legendárne – nad Slovenskom ho uvidíš len párkrát do roka. Keď poletí pri tebe, appka ti dá vedieť (ak máš zapnuté upozornenia).":r==="e"?"Epické – vojenské a špeciálne lietadlá, nad Slovenskom len občas. Sleduj oblohu pri cvičeniach a leteckých dňoch.":r==="r"?"Vzácne – občas preletí, najčastejšie na diaľkových linkách vysoko nad nami.":r==="u"?"Menej bežné – oplatí sa pozerať hore ráno a podvečer.":"Bežné – nad Slovenskom lieta denne. Stačí pozrieť hore a zamávať.";
+  const glider=c.fam==="glider"||c.fam==="motorGlider";
+  const hint=glider||k==="Z43"?"Hľadaj ho pri aerokluboch počas lietania. Na radare sa objaví, keď živé dáta zachytia jeho polohu.":r==="l"?"Legendárne – nad Slovenskom ho uvidíš len párkrát do roka. Keď poletí pri tebe, appka ti dá vedieť (ak máš zapnuté upozornenia).":r==="e"?"Epické – vojenské a špeciálne lietadlá, nad Slovenskom len občas. Sleduj oblohu pri cvičeniach a leteckých dňoch.":r==="r"?"Vzácne – občas preletí, najčastejšie na diaľkových linkách vysoko nad nami.":r==="u"?"Menej bežné – oplatí sa pozerať hore ráno a podvečer.":"Bežné – nad Slovenskom lieta denne. Stačí pozrieť hore a zamávať.";
   $("cardBig").innerHTML=`<div class="mcard lockedCard" style="text-align:left">
     <div class="lbl"><span>📖 Atlas · č. ${c.no}</span><span>🔒 neulovené</span></div>
     <div class="lockSil">${cardSVG(k,null,{id:"locked"})}</div>
@@ -641,8 +649,8 @@ function openLocked(k){
     <div class="lookSub">${esc(c.maker)} · ${RAR[r].n}</div>
     <div class="lockStats">
       <div><b>${nf2(c.len)} m</b><small>dĺžka</small></div><div><b>${nf2(c.span)} m</b><small>rozpätie</small></div>
-      <div><b>${c.seats?nf2(c.seats):"—"}</b><small>${c.seats?pl(c.seats,"miesto","miesta","miest"):"náklad"}</small></div><div><b>${nf2(c.range)} km</b><small>dolet</small></div>
-      <div><b>${nf2(c.spd)} km/h</b><small>rýchlosť</small></div><div><b>${c.year||"–"}</b><small>prvý let</small></div>
+      <div><b>${c.seats?nf2(c.seats):"—"}</b><small>${c.seats?pl(c.seats,"miesto","miesta","miest"):"náklad"}</small></div>${c.range==null?"":`<div><b>${nf2(c.range)} km</b><small>dolet</small></div>`}
+      <div><b>${nf2(c.spd)} km/h</b><small>${glider?"max. rýchlosť":"rýchlosť"}</small></div>${c.year?`<div><b>${c.year}</b><small>prvý let</small></div>`:""}
     </div>
     <p style="margin:12px 0 6px;line-height:1.45">💡 ${esc(c.fact)}</p>
     <p class="lookSub" style="margin:0">🔭 ${hint}</p>

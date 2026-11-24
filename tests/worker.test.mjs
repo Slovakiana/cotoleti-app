@@ -122,6 +122,26 @@ await t("dohľadanie typu podľa hexu a doplnenie staršieho úlovku", async () 
     sky._snap=null;
   }
 });
+await t("server rozlíši Blaník od všeobecného vetroňa a Vivatu", async () => {
+  const original = globalThis.fetch;
+  const aircraft = {
+    "cc0010": {icao_type: "GLID", type: "L-13 BLANIK"},
+    "cc0011": {icao_type: "GLID", type: "L-23 Super Blanik"},
+    "cc0012": {icao_type: "L13S", type: "L-13 SE Vivat"},
+  };
+  globalThis.fetch = async url => {
+    const hex = String(url).split("/").at(-1);
+    return Response.json({response: {aircraft: {mode_s: hex, ...aircraft[hex]}}});
+  };
+  try {
+    for (const [hex, type] of [["cc0010", "BL13"], ["cc0011", ""], ["cc0012", "L13S"]]) {
+      const observed = sky.planeRes({...plane, hex, t: "GLID"}, 48.15, 17.11);
+      assert.equal((await sky.fillPlaneType(observed, hex)).type, type);
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 await t("radar vráti čerstvú záložnú odpoveď a zachová súkromné údaje skryté", async () => {
   const before=globalThis.fetch, oldPlane=plane;
   plane={...plane,dbFlags:4,r:"OM-TEST",ownOp:"Privátna letka",squawk:"1200"};

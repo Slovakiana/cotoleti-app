@@ -64,7 +64,8 @@ JAL:"Japan Airlines",ANA:"ANA",EVA:"EVA Air",THA:"Thai Airways",HVN:"Vietnam Air
 AAR:"Asiana Airlines",KQA:"Kenya Airways",ETH:"Ethiopian Airlines",RAM:"Royal Air Maroc",RJA:"Royal Jordanian",OMA:"Oman Air",
 TKJ:"AJet",FHY:"Freebird Airlines",FHM:"Freebird Airlines Europe",BUC:"European Air Charter",SEH:"SKY express",GWI:"Germanwings",
 BEE:"Flybe",ICE:"Icelandair",NAX:"Norwegian",EDW:"Edelweiss Air",ANE:"Air Nostrum",
-TJT:"Twin Jet",VOE:"Volotea",AEA:"Air Europa",EXS:"Jet2.com",DAH:"Air Algérie",TAR:"Tunisair",AUI:"Ukraine International Airlines"});
+TJT:"Twin Jet",VOE:"Volotea",AEA:"Air Europa",EXS:"Jet2.com",DAH:"Air Algérie",TAR:"Tunisair",AUI:"Ukraine International Airlines",
+KMM:"KM Malta Airlines",UZB:"Uzbekistan Airways"});
 const AIRLINE_BRANDS={RUK:"RYR",WMT:"WZZ",WUK:"WZZ",WAZ:"WZZ",EJU:"EZY",EZS:"EZY",NSZ:"NOZ",NAX:"NOZ",
   TOM:"TUI",TFL:"TUI",JAF:"TUI",BCS:"DHK",DHX:"DHK",TVQ:"TVS",TVP:"TVS",TVL:"TVS",FHM:"FHY",QAC:"QTR",FIE:"FIA"};
 const airlineBrand=code=>Object.hasOwn(AIRLINE_BRANDS,code)?AIRLINE_BRANDS[code]:code;
@@ -145,14 +146,18 @@ function approach(a){
 const T_ALIAS={AT44:"AT43",AT45:"AT43",AT46:"AT43",E75S:"E75L",CRJX:"CRJ9",MI17:"MI8",MI171:"MI8",UH60:"H60",S70:"H60",C390:"E390",RQ4:"Q4",S22T:"SR22",P28R:"P28A",P28T:"P28A",P28B:"P28A",C150:"C152",CL30:"CL35"};
 function normalizeType(value){
   const type=String(value||"").trim().toUpperCase();
-  return /^[A-Z0-9]{2,5}$/.test(type)&&!["UNK","UNKN","ZZZZ","NONE","NA","NIL"].includes(type)
+  return /^[A-Z0-9]{2,5}$/.test(type)&&!["UNK","UNKN","ZZZZ","NONE","NA","NIL","GLID"].includes(type)
     ?(Object.hasOwn(T_ALIAS,type)?T_ALIAS[type]:type):"";
 }
 function aircraftMeta(a){
   const ac=!a.priv&&S.meta.get(a.hex)?.ac;
   if(/^[0-9a-f]{6}$/i.test(a.hex)&&String(ac?.mode_s||"").toLowerCase()===a.hex.toLowerCase())return ac;
 }
-const planeType=a=>normalizeType(a.type)||normalizeType(aircraftMeta(a)?.icao_type);
+function planeType(a){
+  const ac=aircraftMeta(a);
+  // GLID označuje ľubovoľný vetroň. BL13 je kód kartičky, keď databáza potvrdí model.
+  return normalizeType(a.type)||normalizeType(ac?.icao_type)||(/^L[ -]?13A?\s+BLAN[IÍ]K$/i.test(String(ac?.type||"").trim())?"BL13":"");
+}
 function normReadsb(j){
   return (j.ac||j.aircraft||[]).filter(a=>a&&/^~?[a-f0-9]{6}$/i.test(a.hex||"")&&
     Number.isFinite(a.lat)&&Math.abs(a.lat)<=90&&Number.isFinite(a.lon)&&Math.abs(a.lon)<=180&&!(a.seen_pos>=60)).map(a=>{
