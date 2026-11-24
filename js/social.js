@@ -410,7 +410,11 @@ async function doWave1(e,a,observation){LASTWAVE=null;
       }catch(x){if(!WB)waveBatchStart(a.hex);tryCatch(a)}
       WB.result=outcome;waveBatchEnd();
       return}
-    tryCatch(a);showFirstWaveResult("Dnes už zamávané.");return}
+    tryCatch(a);
+    const owned=COL.types[a.type];
+    if(owned?.n)showWaveCard(a.type,"Dnes už zamávané",false,a.hex,nextLv(owned.n,a.type)?"Na ďalšiu hviezdu potrebuješ iný stroj rovnakého typu.":"Najvyššia úroveň kartičky");
+    else showFirstWaveResult("Dnes už zamávané.");
+    return}
   // body a výzvy sa pripíšu až keď server mávnutie prijme (alebo keď sme offline)
   const credit=()=>{
     SOC.waved[key]=e;waveBatchStart(a.hex);

@@ -86,7 +86,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v78";
+const VERSION = "v79";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -1449,7 +1449,7 @@ function b64json(s) { try { const b = atob(String(s).replace(/-/g, "+").replace(
 async function sharePage(url, env, ctx) {
   const [, , kind, raw = ""] = url.pathname.split("/"), data = raw.slice(0, 1500);
   const nm = v => cleanName(v, 20) || "Kamarát";
-  let title = "Čo to letí? · Kartičky zo skutočných preletov", desc = "Zamávaj skutočnému lietadlu. Získaj jeho kartičku.", img = "c/b738-v78", hash = "";
+  let title = "Čo to letí? · Kartičky zo skutočných preletov", desc = "Zamávaj skutočnému lietadlu. Získaj jeho kartičku.", img = "c/b738-v79", hash = "";
   let cardPreview = false;
   if (kind === "v" && /^[\w-]+$/.test(data)) { const j = b64json(data) || {}; hash = "vyzva=" + data; img = "vyzva";
     title = `⚔️ ${nm(j.n)} ťa vyzýva!`; desc = `Má ${Number(j.t) | 0} kartičiek lietadiel a ${Number(j.p) | 0} bodov. Prekonáš to?`; }
@@ -1465,9 +1465,10 @@ async function sharePage(url, env, ctx) {
   else if (kind === "p" && /^[0-9a-f]{6}$/.test(data)) { hash = "p=" + data; const q = k => { const v = cleanName(url.searchParams.get(k), 24) || ""; return k === "m" ? (TOWNS.some(t => t[0] === v) ? v : "") : /^[\p{L} .'-]{2,24}$/u.test(v) ? v : ""; }; const c = (url.searchParams.get("c") || "").replace(/[^A-Z0-9]/gi, "").slice(0, 8), dd = q("d"), m = q("m");
     title = `✈️ ${m ? m + ": práve letí" : "Práve letí"} ${c || "lietadlo"}${dd ? " → " + dd : ""}`; desc = "A čo letí nad tebou? Pozri hore."; }
   else if (kind === "c" && /^[A-Z0-9]{2,5}$/.test(data)) {
-    const pilot = {B738: "Boeing 737-800", AT76: "ATR 72-600", A388: "Airbus A380"};
+    const pilot = {B738: "Boeing 737-800", AT76: "ATR 72-600", A388: "Airbus A380", A320: "Airbus A320", B38M: "Boeing 737 MAX 8", E190: "Embraer E190"};
     const name = pilot[data] || TYPES_SRV[data] || data;
-    img = pilot[data] ? "c/" + data.toLowerCase() + "-v78" : "c/c-" + tierOf(data);
+    img = pilot[data] ? "c/" + data.toLowerCase() + "-v79" : "c/c-" + tierOf(data);
+    hash = "karta=" + data;
     title = name + " · Čo to letí?";
     cardPreview = true;
   }
@@ -1483,7 +1484,7 @@ async function sharePage(url, env, ctx) {
 <meta property="og:title" content="${he(title)}"><meta property="og:description" content="${he(desc)}"><meta property="og:image" content="${OGI + img}.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:url" content="${he(cardPreview ? url.origin + url.pathname : url.href)}"><meta property="og:type" content="website"><meta property="og:site_name" content="Čo to letí?"><meta name="twitter:card" content="summary_large_image">
 ${cardPreview ? "" : `<meta http-equiv="refresh" content="0;url=${he(to)}">`}<style>body{background:#0d1430;color:#fff;font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0}main{max-width:540px;padding:24px;text-align:center}img{display:block;width:100%;height:auto;border-radius:16px}h1{font-size:clamp(1.4rem,5vw,2rem)}a{display:inline-flex;align-items:center;min-height:44px;color:#6dffc7}</style></head>
-<body><main>${cardPreview ? `<h1>${he(title)}</h1><img width="1200" height="630" src="${OGI + img}.jpg" alt=""><p>${he(desc)}</p>` : ""}<a href="${he(to)}">Otvoriť Čo to letí?</a></main></body></html>`;
+<body><main>${cardPreview ? `<h1>${he(title)}</h1><img width="1200" height="630" src="${OGI + img}.jpg" alt=""><p>${he(desc)}</p>` : ""}<a href="${he(to)}">${cardPreview ? "Pozrieť kartičku v Atlase" : "Otvoriť Čo to letí?"}</a></main></body></html>`;
   return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src https:"}});
 }
 
