@@ -743,13 +743,14 @@ function embeddedBrowserName(ua,ref=""){
   return "";
 }
 const embeddedBrowser=embeddedBrowserName(UA,document.referrer);
+const inApp=!!embeddedBrowser; // spätná kompatibilita pre inštaláciu na plochu a darčeky
 function inAppBar(){
   if(!embeddedBrowser||LS.get("ctl_inappX",false)||document.querySelector(".inappBar"))return;
   const b=document.createElement("section");b.className="inappBar glass";b.setAttribute("role","region");
   b.setAttribute("aria-label","Otvoriť v bežnom prehliadači");
   b.innerHTML=`<b>🔐 Ochráň si zbierku</b><span>Odkaz si otvoril v ${embeddedBrowser==="WhatsApp"?"WhatsAppe":"inej aplikácii"}. V jej prehliadači môže vzniknúť iný hráčsky účet.</span><span><strong>Skopíruj odkaz, otvor Safari alebo Chrome a vlož ho do adresného riadka.</strong> Ďalej používaj stále ten istý prehliadač.</span><div class="inappActions"><button type="button" class="inappCopy">📋 Kopírovať odkaz</button><button type="button" class="inappClose" aria-label="Zavrieť upozornenie">✕</button></div>`;
   b.querySelector(".inappCopy").onclick=async()=>{
-    const url="https://slovakiana.github.io/cotoleti-app/";
+    const url=location.href; // zachová prípadný darčekový / pozývací odkaz
     try{await navigator.clipboard.writeText(url);b.querySelector(".inappCopy").textContent="✅ Skopírované – otvor Safari/Chrome"}
     catch(e){const c=b.querySelector(".inappCopy");c.textContent="Odkaz: "+url;c.style.overflowWrap="anywhere"}
   };

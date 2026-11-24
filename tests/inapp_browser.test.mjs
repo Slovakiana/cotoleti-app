@@ -23,6 +23,8 @@ const bar=src.slice(src.indexOf("function inAppBar(){"),src.indexOf("// obrazovk
 assert.ok(bar.includes("setTimeout(inAppBar,350)"),"banner pred prvým mávnutím");
 assert.ok(!bar.includes("ctl_waveN"),"banner nezávisí od prvého úlovku");
 assert.ok(bar.includes("navigator.clipboard.writeText(url)"),"kópia odkazu Safari/Chrome");
+assert.ok(bar.includes("const url=location.href"),"darčekové a pozývacie odkazy sa zachovajú");
 assert.ok(bar.includes("if(!embeddedBrowser"),"bez varovania v bežnom prehliadači");
+assert.ok(src.includes("const inApp=!!embeddedBrowser;"),"kompatibilita inštalácie a darčekov");
 assert.ok(bar.includes("b.querySelector(\".inappClose\")"),"používateľ môže upozornenie zavrieť");
 console.log("✓ v69: WhatsApp iOS/Android, ostatné in-app prehliadače, bezpečné spustenie");
