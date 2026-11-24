@@ -49,6 +49,10 @@
 - [x] Pilot je pripravený s vlastným počítadlom, overením na serveri a vypínačom v administrácii. Cieľ 0 znamená vypnuté. Pri prechode na nový týždeň sa radar prepne na jeho výsledky.
 - [ ] Pred zapnutím vybrať cieľ podľa objemu overených mávnutí. Správca ho zadá v administrácii samostatne. Počas pilotného týždňa ho ponechať stabilný.
 
+## v73 – Výsledok misie a prehľadnejší radar
+- [x] Na radare sprístupniť výsledok uplynulého týždňa a vlastný príspevok v rozbaliteľnom súhrne.
+- [x] Zachovať cieľ rozbehnutého týždňa. Nastavený nový cieľ platí od ďalšieho týždňa, nula pilot hneď pozastaví.
+
 ## Pravidlá vydania
 1. Každá časť samostatná vetva/PR; pred zlúčením úspešné serverové aj prehliadačové testy.
 2. Frontend (GitHub Pages) a backend (Cloudflare Workers) overovať osobitne.

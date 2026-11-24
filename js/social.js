@@ -137,7 +137,7 @@ function renderCompetitionPulse(){
 function renderWeeklyMission(mission){
   $("weeklyMission").hidden=!mission;
   if(!mission)return;
-  const {goal,total,mine}=mission;
+  const {goal,total,mine,previous}=mission;
   $("weeklyMissionTotal").textContent=nf(total)+" z "+nf(goal)+" overených mávnutí tento týždeň";
   const progress=$("weeklyMissionProgress");
   progress.max=goal;
@@ -145,6 +145,12 @@ function renderWeeklyMission(mission){
   $("weeklyMissionMine").hidden=mine==null;
   if(mine!=null)$("weeklyMissionMine").textContent="Tvoj príspevok: "+nf(mine);
   $("weeklyMissionDone").hidden=total<goal;
+  $("weeklyMissionPrevious").hidden=!previous;
+  if(previous){
+    const outcome=previous.total>=previous.goal?"🏅 Cieľ splnený":"Cieľ nesplnený";
+    const personal=previous.mine==null?"":" · Tvoj príspevok: "+nf(previous.mine);
+    $("weeklyMissionRecap").textContent=outcome+" · "+nf(previous.total)+" z "+nf(previous.goal)+personal;
+  }
 }
 
 function socRender(){
