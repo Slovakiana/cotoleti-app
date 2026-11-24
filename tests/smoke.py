@@ -373,7 +373,10 @@ def main():
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)
-            ok = pg.evaluate("document.fonts.check('16px Inter')")
+            ok = pg.evaluate("""async () => {
+                await document.fonts.load("16px Inter");
+                return document.fonts.check("16px Inter");
+            }""")
             if not ok:
                 errs.append("písmo Inter sa nenačítalo z appky")
             b.close()
