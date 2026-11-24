@@ -34,6 +34,8 @@ jobs:
         run: node tests/hunt_home.test.mjs
       - name: Bezpečné otvorenie cez WhatsApp
         run: node tests/inapp_browser.test.mjs
+      - name: Identita po resete a offline
+        run: node tests/identity_resume.test.mjs
       - name: Identita
         run: node tests/cid.test.mjs
       - name: Odznaky

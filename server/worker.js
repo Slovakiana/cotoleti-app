@@ -667,7 +667,7 @@ export class Sky extends DurableObject {
       this.sql.exec("DELETE FROM xfer WHERE code=?", code);
       this.sql.exec("UPDATE ids SET ep = COALESCE(ep, 0) + 1 WHERE id=?", x.id);
       const pd = await this.pid(x.id);
-      return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), data: x.data});
+      return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), epoch: Number(this.getMeta("player_reset_epoch")||0), data: x.data});
     }
     const OPEN = ["/api/sky", "/api/msg", "/api/admin", "/api/stats"]; // /api/stats overuje ADMIN_KEY samostatne
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {

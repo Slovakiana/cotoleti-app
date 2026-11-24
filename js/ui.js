@@ -783,7 +783,7 @@ async function xferClaim(){
     if(!j.id){toast("Kód je neplatný alebo vypršal","Vytvor v druhom mobile nový – platí 10 minút a len raz");return}
     let data={};try{data=JSON.parse(j.data||"{}")}catch(e){}
     for(const [k,t] of Object.entries(XKEYS)){if(typeof data[k]!=="string")continue;try{const v=JSON.parse(data[k]);if(typeof v===t&&v!==null)localStorage.setItem(k,data[k])}catch(e){}}
-    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_onb",1);LSP.clear();LS.set=()=>{}; // do reloadu nič neprepíše prenesenú zbierku
+    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_onb",1);LSP.clear();LS.set=()=>{}; // do reloadu nič neprepíše prenesenú zbierku
     toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);
   }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
 }
