@@ -352,7 +352,10 @@ function waveRewards(j,a){
     WB&&WB.items.push(["🏆 Si v zlatej posádke"])}
 }
 function reportFirstWave(j){
-  if(j.ver)showFirstWaveResult("Úlovok je overený. Kartičku nájdeš v zbierke.",true);
+  if(j.ver){
+    betaStep("verified");
+    showFirstWaveResult("Úlovok je overený. Kartičku nájdeš v zbierke.",true);
+  }
   else showFirstWaveResult("Mávnutie uložené. Úlovok sa neoveril"+(j.why?": "+j.why+".":"."));
 }
 
@@ -360,6 +363,7 @@ async function doWave(e){
   const a=S.top;if(!a)return;
   if(S.lastKnown){toast("⏳ Načítavam aktuálnu oblohu…","Zamávaj o sekundu – teraz ukazujem poslednú známu polohu lietadiel");return}
   if(SOC.inflight===a.hex)return; // dvojťuk: druhé mávnutie počas odosielania ignoruj
+  if(!a.santa&&!a.emg)betaStep("wave");
   SOC.inflight=a.hex;try{return await doWave1(e,a)}finally{SOC.inflight=null}
 }
 async function doWave1(e,a){LASTWAVE=null;

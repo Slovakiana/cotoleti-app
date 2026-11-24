@@ -35,13 +35,17 @@
 - [ ] Skúsiť aj zamietnutú polohu, ručné mesto, výpadok siete počas mávnutia a opätovné pripojenie.
 
 ## v71 – Pozorovateľnosť beta testovania
-- [ ] Bez osobných identifikátorov merať prvé spustenie → GPS → mávnutie → overená karta → návrat.
-- [ ] Doplniť agregovaný dashboard do administrácie.
-- [ ] Overiť retenciu D1/D7, kontrolu počtov a súkromie údajov.
+- [x] Počítať prvé otvorenie, GPS, prvý pokus o mávnutie, prvé serverové overenie a prvý návrat v ďalší deň. Každá nová udalosť posiela len názov kroku.
+- [x] V administrácii zobraziť agregované počty krokov za posledných sedem kalendárnych dní.
+- [ ] Po beta teste skontrolovať počty. Ide o samostatné počty krokov podľa dňa udalosti. Kohortovú retenciu D1/D7 posúdiť samostatne.
 
 ## v72 – Nová herná mechanika (podľa výsledkov bety)
 - [ ] Vyhodnotiť testerov a najväčšiu prekážku návratu do aplikácie.
-- [ ] Návrh „Spoločná týždenná misia Slovenska“ len so skutočnými overenými mávnutiami.
+- [ ] Ak sa ľudia po prvom overenom úlovku málo vracajú, otestovať jednu spoločnú týždennú misiu Slovenska.
+  - Cieľ je spoločný počet serverom overených mávnutí. Týždeň sa začína v pondelok podľa času v Bratislave.
+  - Jedno lietadlo sa jednému hráčovi započíta najviac raz za deň. Odložené mávnutie patrí do týždňa, v ktorom vzniklo, ak ho server ešte dokáže overiť.
+  - Na radare zobraziť spoločný postup a vlastné započítané príspevky. Pre prvý pilot stačí spoločný odznak pri splnení cieľa, bez zásahu do ligových bodov.
+  - Výšku cieľa zvoliť podľa skutočného týždenného objemu overených mávnutí. Úspech posúdiť podľa návratov a spätnej väzby testerov.
 - [ ] Ekonomika odmien, ochrana pred podvádzaním, serverové testy.
 - [ ] Až potom implementácia a samostatné schválenie nasadenia.
 

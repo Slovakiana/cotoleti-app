@@ -211,6 +211,10 @@ await t("lievik a chyby sa počítajú anonymne", async () => {
   assert.equal(db.prepare("SELECT n FROM funnel WHERE step='open'").get().n, 1);
   assert.equal(db.prepare("SELECT COUNT(*) c FROM funnel").get().c, 1);
   assert.ok(!db.prepare("SELECT msg FROM errs").get().msg.includes("https"));
+  for(const step of ["beta_open","beta_gps","beta_wave","beta_verified","beta_return"]){
+    await call("/api/ev",{step,v:"A"});
+    assert.equal(db.prepare("SELECT n FROM funnel WHERE step=?").get(step).n,1);
+  }
 });
 await t("vážne nahlásenie skryje meno hneď, admin ho vie vrátiť", async () => {
   await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Janka Novakova"}, "9.9.9.9");
@@ -236,6 +240,8 @@ await t("štatistiky len s kľúčom", async () => {
 
   const r = await W.fetch(new Request("https://x/api/stats", {headers: {"x-admin-key": "tajne"}}), env); const j = await r.json();
   assert.equal(r.status, 200); assert.ok(j.days.length === 14);
+  assert.equal(j.lievik7dni.beta_verified,1);
+  assert.equal(j.lievik7dni["beta_verified:A"],undefined);
   assert.equal((await call("/api/export")).s, 404); // export celej databázy je zrušený
 });
 await t("moje údaje sa dajú stiahnuť", async () => { const r = await call("/api/mydata", {id: C, tok: hc.tok}); assert.equal(r.s, 200); assert.ok(Array.isArray(r.j.wavelog)); assert.ok(!JSON.stringify(r.j).includes(C)); });

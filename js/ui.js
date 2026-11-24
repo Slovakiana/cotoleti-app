@@ -585,6 +585,7 @@ function startGps(){
 }
 function gotPos(p,first){
   ev("gps_ok");
+  betaStep("gps");
   S.pos={lat:p.coords.latitude,lon:p.coords.longitude,alt:p.coords.altitude||0};LS.set("ctl_pos",S.pos);showPos();
   $("posBtns").style.display="none";err("");
   if(!S.raw.length){$("h-type").textContent="Poloha OK ✓ Hľadám lietadlá…";setStatus("Načítavam lietadlá…",false)}
@@ -745,9 +746,20 @@ openFriends();addEventListener("hashchange",openFriends);
 const ABV=(()=>{let v=LS.get("ctl_ab","");if(!/^[AB]$/.test(v)){v=Math.random()<.5?"A":"B";LS.set("ctl_ab",v)}return v})();
 // aktuálny pokus: text hlavného tlačidla v úvode
 if(ABV==="B"&&$("go"))$("go").textContent="📍 Ukáž mi, čo letí nado mnou";
+const betaFirstDay=(()=>{
+  const stored=LS.get("ctl_beta_day","");
+  if(stored)return stored;
+  if(LS.get("ctl_onb",0)||LS.get("ctl_ev",{}).open)return "";
+  const today=new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"});
+  LS.set("ctl_beta_day",today);
+  return today;
+})();
+function betaStep(step){
+  if(betaFirstDay)ev("beta_"+step);
+}
 function ev(step){
   try{const done=LS.get("ctl_ev",{});if(done[step])return;done[step]=1;LS.set("ctl_ev",done);
-    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({step,r:LS.get("ctl_ref",""),v:ABV}),keepalive:true}).catch(()=>{})}catch(e){}
+    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(step.startsWith("beta_")?{step}:{step,r:LS.get("ctl_ref",""),v:ABV}),keepalive:true}).catch(()=>{})}catch(e){}
 }
 {let errN=0;const rep=m=>{if(errN++>5)return;try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:String(m).slice(0,200)}))}catch(e){}};
   addEventListener("error",e=>rep((e.message||"err")+" @"+String(e.filename||"").split("/").pop()+":"+e.lineno));
@@ -757,6 +769,8 @@ function ev(step){
   if(r&&/^[A-Za-z0-9]{16}$/.test(r)&&!LS.get("ctl_ref","")&&!LS.get("ctl_onb",0)){LS.set("ctl_ref",r);ev("ref_join")}
   if(r)try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}}
 ev("open");
+betaStep("open");
+if(betaFirstDay&&new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"})>betaFirstDay)betaStep("return");
 {const last=LS.get("ctl_lastDay",""),td=new Date().toLocaleDateString("sv-SE");if(last&&last!==td){ev("day2");const gs=Object.values(COL.types).filter(v=>v.gift&&!v.n),g=gs.find(v=>!/uvítanie/.test(v.gift.from))||gs[0];if(g)setTimeout(()=>toast("🤝 Čaká na teba "+g.name,"Od: "+g.gift.from+" – zamávaj takému lietadlu a kartička bude celá tvoja"),7000)}LS.set("ctl_lastDay",td)}
 if(matchMedia("(display-mode: standalone)").matches||navigator.standalone)ev("install");
 HOOKS.caught.push(()=>{ev("catch1");if(COL.n>=5)ev("catch5")});

@@ -86,7 +86,8 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "2026-11-21d";
+const VERSION = "v71";
+const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
 const lc = v => String(v || "").normalize("NFKC").trim().toLocaleLowerCase("sk");
@@ -653,8 +654,9 @@ export class Sky extends DurableObject {
     if (p === "/api/ev" && req.method === "POST") {
       // anonymné počítadlo krokov (bez id, bez IP) – lievik
       const b = await body(), st = String(b.step || ""), v = /^[AB]$/.test(b.v || "") ? ":" + b.v : "";
-      if (!EVS.includes(st) || !this.rate("ev:" + iph, 60, 3600e3)) return json({ok: true});
-      this.sql.exec("INSERT INTO funnel(day, step, n) VALUES(?, ?, 1) ON CONFLICT(day, step) DO UPDATE SET n = n + 1", d, st + v);
+      const beta = BETA_STEPS.includes(st);
+      if ((!beta && !EVS.includes(st)) || !this.rate("ev:" + iph, 60, 3600e3)) return json({ok: true});
+      this.sql.exec("INSERT INTO funnel(day, step, n) VALUES(?, ?, 1) ON CONFLICT(day, step) DO UPDATE SET n = n + 1", d, beta ? st : st + v);
       return json({ok: true});
     }
     if (p === "/api/err" && req.method === "POST") {
@@ -723,7 +725,7 @@ export class Sky extends DurableObject {
         days.push({day: dd, dau, waves: (this.row("SELECT n FROM totals WHERE day=?", dd) || {n: 0}).n, d1: born ? Math.round(back / born * 100) + "%" : "–"});
       }
       const coh = (back) => { const born0 = Date.parse(this.day(now - back * 86400e3) + "T00:00:00Z") - 7 * 86400e3, born1 = born0 + 7 * 86400e3; const b = (this.row("SELECT COUNT(*) AS c FROM ids WHERE t >= ? AND t < ?", born0, born1) || {c: 0}).c; const r = (this.row("SELECT COUNT(DISTINCT i.id) AS c FROM ids i JOIN seen s ON s.id = i.id AND s.day >= ? WHERE i.t >= ? AND i.t < ?", this.day(now - 2 * 86400e3), born0, born1) || {c: 0}).c; return b ? Math.round(r / b * 100) + "% z " + b : "–"; };
-      const funnel = {}; for (const r of this.sql.exec("SELECT step, SUM(n) AS n FROM funnel WHERE day >= ? GROUP BY step", this.day(now - 7 * 86400e3)).toArray()) funnel[r.step] = r.n;
+      const funnel = {}; for (const r of this.sql.exec("SELECT step, SUM(n) AS n FROM funnel WHERE day >= ? GROUP BY step", this.day(now - 6 * 86400e3)).toArray()) funnel[r.step] = r.n;
       const errors = this.sql.exec("SELECT msg, SUM(n) AS n FROM errs GROUP BY msg ORDER BY n DESC LIMIT 10").toArray();
       return json({retencia: {d7: coh(7), d30: coh(30)}, lievik7dni: funnel, chyby: errors, users: (this.row("SELECT COUNT(*) AS c FROM ids") || {c: 0}).c, pushSubs: (this.row("SELECT COUNT(*) AS c FROM subs") || {c: 0}).c, teams: (this.row("SELECT COUNT(*) AS c FROM teams") || {c: 0}).c, days});
     }
@@ -1312,7 +1314,12 @@ function adminPage() {
   const html = `<!doctype html><html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Čo to letí? – správa</title>
 <style>body{font:16px system-ui;background:#0d1430;color:#fff;margin:0;padding:18px}input,button,select{font:inherit;padding:12px;border-radius:12px;border:0;margin:4px 0;width:100%;box-sizing:border-box}button{background:#6dffc7;font-weight:700}pre{white-space:pre-wrap;background:#ffffff14;padding:12px;border-radius:12px;font-size:13px}label{display:block;margin-top:10px}</style></head>
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
-<button id="s">📊 Štatistiky</button><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
+<button id="s">📊 Štatistiky</button>
+<section id="betaFunnel" hidden>
+<h3>Prvé kroky v bete za 7 dní</h3>
+<p>Počty udalostí z nových prehliadačov. Každý krok sa v prehliadači ráta raz. Kroky môžu pochádzať z rôznych dní.</p>
+<dl id="betaSteps"></dl>
+</section><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
 <button id="f">💾 Uložiť vypínače</button>
 <section style="border:2px solid #f4a4a4;border-radius:14px;padding:12px;margin:20px 0;background:#4a1828">
@@ -1324,7 +1331,8 @@ function adminPage() {
 </section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 const bars=(t,rows,key,col)=>{const w=340,h=120,n=rows.length,mx=Math.max(1,...rows.map(r=>+r[key]||0)),bw=w/n;let sv="<svg viewBox='0 0 "+w+" "+(h+34)+"' style='width:100%;background:#ffffff0d;border-radius:12px'>";rows.forEach((r,i)=>{const v=+r[key]||0,bh=Math.round(v/mx*(h-18));sv+="<rect x='"+(i*bw+2)+"' y='"+(h-bh)+"' width='"+(bw-4)+"' height='"+bh+"' rx='3' fill='"+col+"'/><text x='"+(i*bw+bw/2)+"' y='"+(h-bh-4)+"' font-size='9' fill='#fff' text-anchor='middle'>"+v+"</text><text x='"+(i*bw+bw/2)+"' y='"+(h+14)+"' font-size='8' fill='#ffffffaa' text-anchor='middle'>"+r.day.slice(8)+"."+r.day.slice(5,7)+"</text>"});return "<h3 style='margin:14px 0 6px'>"+t+"</h3>"+sv+"</svg>"};
-$("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";try{
+const betaLabels = {beta_open:"Prvé otvorenie",beta_gps:"GPS poloha",beta_wave:"Prvý pokus o mávnutie",beta_verified:"Prvý overený úlovok",beta_return:"Prvý návrat v ďalší deň"};
+$("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";$("betaFunnel").hidden=true;try{
  const key=$("k").value;
  if(!key){o.textContent="Zadaj hodnotu ADMIN_KEY, nie názov premennej.";return}
  const r=await fetch("/api/stats",{method:"POST",headers:H(),body:JSON.stringify({key})});
@@ -1332,6 +1340,13 @@ $("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";try{
  if(r.status===401){o.textContent=j.configured===false?"⚠️ Produkčný server nevidí ADMIN_KEY. Skontroluj, či je Secret aktívny v nasadení Workeru (nie iba uložený v Settings).":j.keyReceived===false?"⚠️ Server nedostal zadaný kľúč. Skontroluj pripojenie a aktuálne nasadenie.":"⚠️ Server ADMIN_KEY vidí, ale zadaná hodnota sa nezhoduje. Zadaj hodnotu Secret presne tak, ako bola uložená, bez ďalších medzier.";return}
  if(!r.ok){o.textContent="Server odpovedal chybou "+r.status+": "+(j.error||"neznáma");return}
  const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";
+ const betaSteps=$("betaSteps");betaSteps.replaceChildren();
+ for(const [step,label] of Object.entries(betaLabels)){
+   const dt=document.createElement("dt"),dd=document.createElement("dd");
+   dt.textContent=label;dd.textContent=String(j.lievik7dni?.[step]||0);
+   betaSteps.append(dt,dd);
+ }
+ $("betaFunnel").hidden=false;
  o.textContent=JSON.stringify(j,null,1)
  }catch(e){o.textContent="Spojenie so serverom zlyhalo. Skús obnoviť stránku."}};
 $("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};
