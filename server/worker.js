@@ -46,10 +46,11 @@ const T_R = new Set(["A388","B744","B748","B742","A343","B778","GL7T","GLF5","AN
 const T_U = /^(F2TH|B734|AT72|Z42|SHRK|PC7|F900|B73[23]|AS3|AS6|H160|B412|B212|B505|A119|R66|NH90|S76|A30B|A306|A310|A33|A35|B76|B77|B78|B75|AT4|AT7|DH8|EC|AS5|A109|A139|A169|B06|B407|B429|R44|R22|S92|GLF|GL|CL|FA|F9|C68|C700|PC24|LJ|E55|E50|C56|C25|C510|BE20|B350|TBM|P180|C208|PC12|GA[5-8]C)/;
 const TYPES_SRV = {C140: "Cessna 140", D328: "Dornier 328", M600: "Piper M600", B779: "Boeing 777-9", AN30: "Antonov An-30", DC6: "Douglas DC-6", E390: "Embraer C-390", C295: "Airbus C295", L159: "Aero L-159", MI24: "Mi-24", UH1Y: "UH-1Y Venom", H47: "CH-47 Chinook", R135: "RC-135", Q4: "Global Hawk", RQ4: "Global Hawk", P8: "P-8 Poseidon", Z37: "Čmelák", A124: "Antonov An-124", BLCF: "Boeing Dreamlifter", A3ST: "Airbus Beluga", A337: "Airbus BelugaXL", C5M: "C-5 Galaxy", B52: "B-52", F35: "F-35", MD11: "MD-11", A346: "Airbus A340-600", IL76: "Iljušin Il-76", A400: "Airbus A400M", C17: "C-17 Globemaster", K35R: "KC-135 tanker", E3TF: "AWACS", F16: "F-16", GRIF: "Gripen", EUFI: "Eurofighter", C130: "C-130 Hercules", C30J: "C-130J", C27J: "C-27J Spartan", H60: "Black Hawk", MI8: "Mi-17", L39: "L-39", VC25: "Air Force One", U2: "U-2", B2: "B-2"};
 const T_ALIAS = {AT44: "AT43", AT45: "AT43", AT46: "AT43", E75S: "E75L", CRJX: "CRJ9", MI17: "MI8", MI171: "MI8", UH60: "H60", S70: "H60", C390: "E390", RQ4: "Q4", S22T: "SR22", P28R: "P28A", P28T: "P28A", P28B: "P28A", C150: "C152", CL30: "CL35"};
+Object.assign(TYPES_SRV, {Z43: "Zlín Z-43", BL13: "Let L-13 Blaník", L13S: "Aerotechnik L-13 Vivat"});
 const tAlias = t => T_ALIAS[t] || t;
 function normalizeType(value) {
   const type = String(value || "").trim().toUpperCase();
-  return /^[A-Z0-9]{2,5}$/.test(type) && !["UNK", "UNKN", "ZZZZ", "NONE", "NA", "NIL"].includes(type) ? tAlias(type) : "";
+  return /^[A-Z0-9]{2,5}$/.test(type) && !["UNK", "UNKN", "ZZZZ", "NONE", "NA", "NIL", "GLID"].includes(type) ? tAlias(type) : "";
 }
 const tierOf = t0 => { const t = tAlias(t0); return !t ? "c" : T_L.has(t) ? "l" : T_E.has(t) ? "e" : T_R.has(t) ? "r" : T_U.test(t) ? "u" : "c"; };
 const TIER_W = {c: 3, u: 8, r: 25, e: 45, l: 80};
@@ -136,7 +137,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v85";
+const VERSION = "v86";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -536,7 +537,8 @@ export class Sky extends DurableObject {
           if (!response.ok) return;
           const ac = (await response.json()).response?.aircraft;
           if (String(ac?.mode_s || "").toLowerCase() !== hex) return;
-          entry.type = normalizeType(ac.icao_type);
+          // BL13 je interný kód presného modelu, ktorý zdroj eviduje len ako GLID.
+          entry.type = normalizeType(ac.icao_type) || (/^L[ -]?13A?\s+BLAN[IÍ]K$/i.test(String(ac.type || "").trim()) ? "BL13" : "");
           if (entry.type) entry.until = Date.now() + 3600e3;
         } catch (e) {}
       })();

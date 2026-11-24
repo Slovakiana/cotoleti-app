@@ -328,9 +328,15 @@ def main():
                     throw Error("Kartička aerolinky nemá zaujímavosť");
                 $("journalDetail").close();
                 host.querySelector('[data-journal-filter="all"]').click();
-                for(const code of ["MSC","MNE","AXE","TVS","PGT"]){
+                for(const code of ["MSC","MNE","AXE","TVS","PGT","KMM","UZB"]){
                     if(!host.querySelector('[data-journal-entry="'+code+'"] img'))
                         throw Error("V katalógu chýba logo dopravcu "+code);
+                }
+                for(const code of ["JAL","LOT","KMM","UZB"]){
+                    host.querySelector('button[data-journal-entry="'+code+'"]').click();
+                    if(!$("journalDetailBody").querySelector(".journalFact")||!$("journalDetailBody").querySelector(".journalSource"))
+                        throw Error("V katalógu chýba zaujímavosť alebo zdroj dopravcu "+code);
+                    $("journalDetail").close();
                 }
                 if (host.querySelector(".journalAirlines").getBoundingClientRect().right>document.documentElement.clientWidth)
                     throw Error("Album preteká mimo obrazovku");
@@ -407,6 +413,26 @@ def main():
                     throw Error("Doplnenie typu zmenilo počet úlovkov alebo body");
             }""")
             print("✓ dohľadanie typu podľa transpondéra a doplnenie zaznamenaného úlovku")
+            pg.evaluate("""() => {
+                const [glider]=normReadsb({ac:[{hex:"abc150",t:"GLID",lat:48.15,lon:17.11,alt_baro:2000}]});
+                for(const [mode_s,type] of [["abc151","L-13 BLANIK"],["abc150","L-23 Super Blanik"]]){
+                    S.meta.set(glider.hex,{ac:{mode_s,icao_type:"GLID",type}});
+                    if(planeType(glider)) throw Error("Iný vetroň dostal kartičku Blaníka");
+                }
+                S.meta.set(glider.hex,{ac:{mode_s:glider.hex,icao_type:"GLID",type:"L-13 BLANIK"}});
+                if(planeType(glider)!=="BL13"||planeType({...glider,priv:true})||planeType({...glider,type:"L13S"})!=="L13S")
+                    throw Error("Modely vetroňov sa zamenili alebo unikli súkromné údaje");
+                for(const code of ["Z43","BL13","L13S","C140","D328","M600"]){
+                    openLocked(code);
+                    if(!$("cardBig").querySelector(".lockSil svg")||!$("cardBig").textContent.includes(CAT[code].fact))
+                        throw Error("Chýba karta Atlasu "+code);
+                    $("cardClose").click();
+                }
+                const extras=cardExtras("BL13",{n:1});
+                if(!extras.includes(CAT.BL13.fact)||extras.includes("Dolet")||CAT.B3XM.year!==2021)
+                    throw Error("Nesprávne údaje v kartičke");
+            }""")
+            print("✓ aeroklubové karty a rozlíšenie vetroňov")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)
