@@ -396,10 +396,26 @@ await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async
   assert.equal(draft.s,200);assert.ok(draft.j.nonce);
   assert.equal((await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"nie"})).s,400);
   assert.ok(db.prepare("SELECT COUNT(*) c FROM ids").get().c>0);
+  // Pred resetom je token C platný. Po resete ho už nesmie akceptovať ani
+  // samoopravná cesta authed(), ktorá kedysi obnovovala chýbajúce účty.
+  assert.equal(await sky.authed(C,hc.tok),true);
   const done=await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
   assert.equal(done.j.ok,true);assert.equal(done.j.epoch,1);
   for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres"])
     assert.equal(db.prepare("SELECT COUNT(*) c FROM "+table).get().c,0,table);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001"})).s,409);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001",epoch:1})).s,200);
+  const before=db.prepare("SELECT COUNT(*) AS c FROM ids").get().c;
+  assert.equal(await sky.authed(C,hc.tok),false,"starý token musí byť po resete neplatný");
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,before,"starý token nesmie znovu vytvoriť účet");
+  assert.equal((await call("/api/wave",{id:C,tok:hc.tok,hex:"aabbcc",lat:48.15,lon:17.11})).s,401);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,before);
+  const minted=(await call("/api/hello",{id:"v2anotherresetgeneration00001",epoch:1})).j;
+  assert.ok(minted.tok);
+  assert.equal(await sky.authed("v2anotherresetgeneration00001",minted.tok),true,"nový token musí fungovať");
+  const second=await adminReset({resetAction:"prepare"});
+  const again=await adminReset({resetAction:"execute",nonce:second.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
+  assert.equal(again.j.epoch,2);
+  assert.equal(await sky.authed("v2anotherresetgeneration00001",minted.tok),false,"každý ďalší reset zneplatní tokeny predošlej generácie");
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,0);
 });

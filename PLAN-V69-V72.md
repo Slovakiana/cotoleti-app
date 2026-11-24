@@ -1,0 +1,49 @@
+# Plán vydaní v69–v72 – beta testovanie
+
+> Stav aktualizovať pri každom PR. **Nič z tohto plánu nie je automatickým súhlasom na produkčné nasadenie ani vymazanie dát.**
+> Aktuálna produkčná vetva pred začiatkom: v68, commit `8cf6fd4`.
+
+## v69 – Bezpečný štart bety
+
+### Časť A: integrita účtov a reset (teraz)
+- [x] Analýza: starý podpis hráčskeho tokenu môže prežiť `/api/admin` globálny reset.
+- [x] Zmeniť podpis tokenu podľa `player_reset_epoch` s kompatibilitou generácie 0.
+- [x] Regresné testy: starý token neobnoví účet po resete; nový token funguje; opakovaný reset zneplatní tokeny.
+- [ ] Kompletné CI na vetve + pull request.
+- [ ] Kontrola a vedomé schválenie produkčného nasadenia.
+- [ ] Po nasadení overiť Cloudflare Worker samostatne.
+
+### Časť B: vstup z WhatsAppu
+- [ ] Detekovať WhatsApp a ďalšie in-app prehliadače (s overením používateľského agenta).
+- [ ] Pred prvým úlovkom ukázať nenásilný, ale jednoznačný návod Safari/Chrome a jednu stabilnú inštaláciu.
+- [ ] Otestovať na iPhone a Androide, nevytvárať automaticky ďalšiu identitu.
+
+### Časť C: synchronizácia účtu a strata spojenia
+- [ ] Pri štarte a návrate online overiť `player_reset_epoch`, aj keď je token vo vyrovnávacej pamäti.
+- [ ] Bezpečný prechod po resete: lokálne dáta vyčistiť len po overenej odpovedi servera.
+- [ ] Offline/online, prenos zbierky, opätovné spustenie, neplatný token: regresné testy.
+- [ ] Vysvetliť rozdiel medzi „Vymazať lokálnu zbierku“ a „Zmazať moje údaje“.
+
+## v70 – Prvých 5 minút hráča
+- [ ] Skrátiť onboarding a vysvetliť prvé zamávanie.
+- [ ] Jasne odlíšiť lokálne mávnutie od serverom overeného úlovku.
+- [ ] Zrozumiteľné stavy prázdnej oblohy, nepovolenej GPS a slabého signálu.
+- [ ] Používateľský test prvého úlovku a zrozumiteľnosti odmeny.
+
+## v71 – Pozorovateľnosť beta testovania
+- [ ] Bez osobných identifikátorov merať prvé spustenie → GPS → mávnutie → overená karta → návrat.
+- [ ] Doplniť agregovaný dashboard do administrácie.
+- [ ] Overiť retenciu D1/D7, kontrolu počtov a súkromie údajov.
+
+## v72 – Nová herná mechanika (podľa výsledkov bety)
+- [ ] Vyhodnotiť testerov a najväčšiu prekážku návratu do aplikácie.
+- [ ] Návrh „Spoločná týždenná misia Slovenska“ len so skutočnými overenými mávnutiami.
+- [ ] Ekonomika odmien, ochrana pred podvádzaním, serverové testy.
+- [ ] Až potom implementácia a samostatné schválenie nasadenia.
+
+## Pravidlá vydania
+1. Každá časť samostatná vetva/PR; pred zlúčením úspešné serverové aj prehliadačové testy.
+2. Frontend (GitHub Pages) a backend (Cloudflare Workers) overovať osobitne.
+3. Nikdy nespúšťať globálny reset databázy v rámci migrácie alebo deploya.
+4. Neprepisovať identitu existujúcemu hráčovi pri chybe siete; radšej zobrazovať zrozumiteľný stav.
+5. Po získaní spätnej väzby z WhatsApp komunity upraviť priority zostávajúcich úloh.
