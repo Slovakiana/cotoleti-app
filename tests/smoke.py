@@ -313,8 +313,7 @@ def main():
                 S.meta.set(aircraft.hex,{call:aircraft.call,route:{callsign_icao:aircraft.call,
                   origin:{country_iso_name:"AT"},destination:{country_iso_name:"AU",municipality:"Sydney",iata_code:"SYD"}}});
                 complete();
-                await Promise.resolve();
-                await Promise.resolve();
+                await new Promise(resolve=>setTimeout(resolve,0));
                 if (COL.cx[aircraft.hex].dc!=="AU"||!COL.albums.destinations.AU)
                     throw Error("Neskorá trasa nedoplnila pas");
                 journalMode="ct";

@@ -53,7 +53,7 @@ const journalAssetVersion=new URL(document.currentScript.src).search;
 function journalPassport(entries){
   const data=journalAssets.world.data;
   const zoomed=journalMap==="europe";
-  const viewBox=zoomed?"452 12 160 112":"0 0 1000 445";
+  const viewBox=zoomed?"452 12 160 112":"-10 -10 1020 460";
   const unlocked=new Map(entries.map(entry=>[entry.code,entry]));
   const map=data?Object.entries(data.regions).map(([code,[shape,x,y]])=>{
     const entry=unlocked.get(code);
