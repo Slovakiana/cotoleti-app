@@ -301,6 +301,23 @@ def main():
                 setView("col");
                 $("c-types").querySelector('[data-m="mine"]').click();
             }""")
+            for width in (320, 1440):
+                pg.set_viewport_size({"width": width, "height": 900})
+                pg.evaluate("""(width) => {
+                    journalMode="ct";
+                    setView("journal");
+                    const page=$("v-journal").getBoundingClientRect();
+                    const map=$("journalAlbum").querySelector(".journalMapStage").getBoundingClientRect();
+                    if(page.left<12||page.width>880||map.height>431)
+                        throw Error("Denník alebo mapa preteká pri "+width+" px");
+                    journalMode="al";
+                    renderJournal();
+                    const cards=$("journalAlbum").querySelectorAll(".journalBrand");
+                    if(cards.length<2||cards[0].getBoundingClientRect().top!==cards[1].getBoundingClientRect().top)
+                        throw Error("Dve logá sa nezmestia vedľa seba pri "+width+" px");
+                    setView("col");
+                }""", width)
+            pg.set_viewport_size({"width": 390, "height": 844})
             pg.emulate_media(reduced_motion="reduce")
             pg.evaluate("""async () => {
                 const aircraft={hex:"aa123b",call:"QFA123",el:25,type:"B789"};
