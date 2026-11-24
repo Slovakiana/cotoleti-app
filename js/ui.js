@@ -384,7 +384,11 @@ function renderPax(){
 function renderList(list){
   const rest=list.filter(a=>!S.top||a.hex!==S.top.hex).slice(0,12);
   $("radarCnt").textContent=list.filter(a=>a.el>0).length+" nad obzorom";
-  $("list").innerHTML=rest.length?rest.map(a=>{const m=S.meta.get(a.hex),rt=routeOf(a);return `<div class="row" role="button" tabindex="0" aria-label="${esc([rt?"letí do "+citySk(rt.destination.municipality):"",titleOf(a),airlineOf(a),typeName(a,m),a.alt!=null?"výška "+nf(a.alt/1000,1)+" km":"",dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov nad obzorom",RAR[rarity(a)].n].filter(Boolean).join(", "))}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div></div>
+  const today=dayKey();
+  const wavedLabel="Dnes zamávané";
+  $("list").innerHTML=rest.length?rest.map(a=>{
+    const m=S.meta.get(a.hex),rt=routeOf(a),waved=!!SOC.waved[today+a.hex];
+    return `<div class="row" role="button" tabindex="0" aria-label="${esc([rt?"letí do "+citySk(rt.destination.municipality):"",titleOf(a),airlineOf(a),typeName(a,m),a.alt!=null?"výška "+nf(a.alt/1000,1)+" km":"",dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov nad obzorom",RAR[rarity(a)].n,waved?wavedLabel:""].filter(Boolean).join(", "))}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div>${waved?'<span class="nearWaved"><span aria-hidden="true">✓</span> '+wavedLabel+'</span>':""}</div>
     <div class="r">${a.type&&!COL.types[a.type]&&!a.santa?'<span class="newTag">NOVÁ</span> ':""}${a.alt!=null?"výška <b>"+nf(a.alt/1000,1)+" km</b>":"—"}<br>${dirS(a.bear)} · ${nf(Math.max(0,a.el??0))}°</div></div>`}).join(""):'<div class="lookSub">Nič ďalšie v okolí.</div>';
 }
 $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pick=r.dataset.hex;haptic(10);tick(true);window.scrollTo({top:0,behavior:"smooth"})}};

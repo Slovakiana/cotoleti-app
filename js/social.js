@@ -414,6 +414,8 @@ async function doWave1(e,a){LASTWAVE=null;
     if(typeof streakTouch==="function")streakTouch();
     for(const k of Object.keys(SOC.waved))if(k.slice(0,10)!==dayKey())delete SOC.waved[k];
     LS.set("ctl_waved",SOC.waved);
+    // The player can select another flight while this wave is being sent.
+    if(S.top?.hex!==a.hex&&S.list.some(plane=>plane.hex===a.hex))renderList(S.list);
     // body za mávanie: +1, najviac 10 denne (hra je o pozeraní hore, nie o ťukaní)
     {const wd=LS.get("ctl_wpd",{d:"",n:0});if(wd.d!==dayKey()){wd.d=dayKey();wd.n=0}if(wd.n<10){COL.pts+=1;wd.n++}LS.set("ctl_wpd",wd)}LS.set("ctl_col",COL);
     const n=(LS.get("ctl_waveN",0)|0)+1;LS.set("ctl_waveN",n);

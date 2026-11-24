@@ -103,6 +103,28 @@ def main():
                     renderWeeklyMission(null);
                 }""")
                 print(f"✓ poradie kariet, šírka misie a dotykové ovládanie pri {width} px")
+            pg.evaluate("""() => {
+                const [selected, waved, untouched] = ["4ca123", "49d3c1", "abc123"].map(hex=>({hex, el: 30, bear: 90, alt: 10000, type: "B738"}));
+                const oldTop = S.top;
+                try {
+                    S.top = selected;
+                    SOC.waved["2000-01-01"+untouched.hex] = "👋";
+                    renderList([selected, waved, untouched]);
+                    const row = hex => $("list").querySelector('[data-hex="'+hex+'"]');
+                    if ($("list").querySelector(".nearWaved")) throw Error("Stará história sa zobrazuje ako dnešná");
+                    SOC.waved[dayKey()+waved.hex] = "👋";
+                    renderList([selected, waved, untouched]);
+                    const marked = row(waved.hex);
+                    if (!marked.querySelector(".nearWaved") || !marked.getAttribute("aria-label").includes("Dnes zamávané")
+                        || row(untouched.hex).querySelector(".nearWaved"))
+                        throw Error("Zoznam nerozlišuje dnešné mávnutie");
+                } finally {
+                    delete SOC.waved[dayKey()+waved.hex];
+                    delete SOC.waved["2000-01-01"+untouched.hex];
+                    S.top = oldTop;
+                    renderList(S.list);
+                }
+            }""")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)
