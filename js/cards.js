@@ -703,7 +703,7 @@ async function giftQR(url,text,name){
 async function giftClaim(){const m=location.hash.match(/dar=([A-Za-z0-9]{6,8})/);if(!m)return;
   if(!LS.get("ctl_onb",0)){afterOnb(giftClaim);return}if(typeof KID==="function"&&KID())return;
   // prehliadač v Messengeri/Instagrame má vlastné úložisko – darček by ostal tam; najprv ponúkni Safari, po ✕ ho otvoríme tu
-  if(typeof inApp!=="undefined"&&inApp&&!LS.get("ctl_inappX",false)){inAppBar();const x=document.querySelector(".inappBar button");x&&x.addEventListener("click",()=>setTimeout(giftClaim,300));toast("🎁 Darček otvor v Safari","Ťukni ⋯ → Otvoriť v prehliadači, nech sa kartička nestratí");return}
+  if(typeof inApp!=="undefined"&&inApp&&!LS.get("ctl_inappX",false)){inAppBar();const x=document.querySelector(".inappBar .inappClose");x&&x.addEventListener("click",()=>setTimeout(giftClaim,300));toast("🎁 Darček otvor v Safari","Ťukni ⋯ → Otvoriť v prehliadači, nech sa kartička nestratí");return}
   history.replaceState(null,"",location.pathname);
   try{const r=await apiPost("/api/giftclaim",{code:m[1]});if(r.status===401||r.status>=500)throw 0;const j=await r.json();if(!j.type){toast("🎁 Darček už nie je platný",j.error==="self"?"Toto je tvoj vlastný darček 🙂":"Možno ho už niekto použil");return}
     const v=COL.types[j.type];if(v&&v.n){toast("🎁 Túto kartičku už máš","Aj tak vďaka – darček poslal(a) "+j.from+" 💛");return}

@@ -401,7 +401,7 @@ export class Sky extends DurableObject {
     const r = this.row("SELECT ep FROM ids WHERE id=?", id);
     if (r) return sameStr(await this.tokE(id, r.ep || 0), tok);
     // platný token, ale účet chýba v tabuľke (starší alebo stratený záznam) – zaregistrovať a pustiť ďalej
-    if (id.length >= 16 && sameStr(await this.tokE(id, 0), tok)) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
+    if (!Number(this.getMeta("player_reset_epoch") || 0) && id.length >= 16 && sameStr(await this.tokE(id, 0), tok)) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
     return false;
   }
   bump(k) { try { this.sql.exec("INSERT INTO sig(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", this.day(), k); } catch (e) {} }
@@ -629,11 +629,15 @@ export class Sky extends DurableObject {
       const ex = this.row("SELECT ep FROM ids WHERE id=?", id);
       if (!ex) {
         // starší používateľ s platným tokenom (z čias pred tabuľkou ids) – zaregistrovať bez limitu
-        const legacy = !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
+        const legacy = epoch === 0 && !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
         // limit nových zariadení na IP je vysoký: iCloud Private Relay a mobilní operátori zdieľajú IP medzi tisíckami ľudí
         // zdieľané IP (operátori, iCloud Private Relay) majú tisíce ľudí – brzdíme len nárazy, nie denný počet
         if (!legacy && (!this.rate("mintm:" + iph, 20, 60e3) || !this.rate("mint:" + iph, 5000, 86400e3))) { this.bump("mint_block"); return json({error: "rate"}, 429); }
-        this.sql.exec("INSERT INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, now);
+        // Give each account created after a reset a fresh signing epoch.
+        // Existing rows keep their epoch, so deploying this does not rotate active tokens.
+        const [high, low] = epoch > 0 ? crypto.getRandomValues(new Uint32Array(2)) : [0, 0];
+        const signingEpoch = epoch > 0 ? ((high & 0x000fffff) * 2 ** 32 + low + 1) : 0;
+        this.sql.exec("INSERT INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, now, signingEpoch);
         // pozvanie sa ráta len pri skutočne novom zariadení
         if (!legacy && /^[A-Za-z0-9]{16}$/.test(b.r || "") && this.rate("ref:" + iph, 3, 86400e3)) this.sql.exec("INSERT INTO refs(pid, n) VALUES(?, 1) ON CONFLICT(pid) DO UPDATE SET n = n + 1", b.r);
       } else if (ex.ep && !sameStr(await this.tokE(id, ex.ep), b.tok || "")) {
@@ -667,7 +671,7 @@ export class Sky extends DurableObject {
       this.sql.exec("DELETE FROM xfer WHERE code=?", code);
       this.sql.exec("UPDATE ids SET ep = COALESCE(ep, 0) + 1 WHERE id=?", x.id);
       const pd = await this.pid(x.id);
-      return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), data: x.data});
+      return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), epoch: Number(this.getMeta("player_reset_epoch")||0), data: x.data});
     }
     const OPEN = ["/api/sky", "/api/msg", "/api/admin", "/api/stats"]; // /api/stats overuje ADMIN_KEY samostatne
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {

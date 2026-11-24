@@ -9,32 +9,51 @@ let TOK=LS.get("ctl_tok",""),PID=LS.get("ctl_pid",""),FK=LS.get("ctl_fk","");
 // pozvánkový kľúč platí 24 h – obnov ho, ak je starší
 if(Date.now()-LS.get("ctl_fkT",0)>12*3600e3)FK="";
 function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.set(k,""));location.reload()}
-async function ensureTok(){
-  if((TOK&&FK)||!SOC.api)return TOK;
-  if(SOC.helloNext&&Date.now()<SOC.helloNext)return TOK; // po chybe chvíľu počkaj, nezahlcuj server
-  // súbežné volania (štart: sky, mycards, fronta…) zdieľajú jedno prihlásenie
+// Overenie identity po štarte, návrate z pozadia a návrate internetu.
+// Neplatnosť účtu potvrdzuje výhradne server; výpadok siete nikdy nemaže zbierku.
+SOC.authVerified=false;SOC.authChecked=0;SOC.resetting=false;SOC.moved=false;
+async function ensureTok(force=false){
+  if(!SOC.api||SOC.resetting||SOC.moved)return "";
   if(SOC.helloP)return SOC.helloP;
+  if(!force&&TOK&&FK&&SOC.authVerified&&Date.now()-SOC.authChecked<60000)return TOK;
+  if(!navigator.onLine)return "";
+  if(SOC.helloNext&&Date.now()<SOC.helloNext)return "";
   SOC.helloP=(async()=>{
-    const fail=err=>{SOC.helloErr=err;SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+err}))}catch(x){}};
-    try{const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),epoch:LS.get("ctl_reset_epoch",0),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
+    const fail=er=>{SOC.helloErr=er;SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);SOC.authVerified=false;try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+er}))}catch(x){}};
+    try{
+      const r=await fetch(SOC.api+"/api/hello",{method:"POST",headers:{"Content-Type":"text/plain"},cache:"no-store",body:JSON.stringify({id:SOC.cid,tok:LS.get("ctl_tok0",""),epoch:LS.get("ctl_reset_epoch",0),r:LS.get("ctl_ref",""),kid:typeof KID==="function"&&KID()?1:0})});
       const j=await r.json().catch(()=>({error:"json"}));
-      if(j.error==="reset"&&Number.isSafeInteger(j.epoch)&&j.epoch>0){
-        // Po administrátorskom resete sa nesmú zachovať staré úlovky ani tokeny.
+      if(r.status===409&&j.error==="reset"&&Number.isSafeInteger(j.epoch)&&j.epoch>Number(LS.get("ctl_reset_epoch",0))){
+        // Presne overená vyššia generácia. Počas prechodu nepúšťame ďalšie API volania.
+        SOC.resetting=true;SOC.authVerified=false;
         LSP.clear();try{for(const k of Object.keys(localStorage))if(k.startsWith("ctl_")||k.startsWith("nm_"))localStorage.removeItem(k)}catch(e){}
-        LS.set("ctl_reset_epoch",j.epoch);TOK="";SOC.cid="";toast("🆕 Nová testovacia sezóna","Všetci hráči začínajú od nuly.");setTimeout(()=>location.reload(),150);return "";
+        LS.set("ctl_reset_epoch",j.epoch);TOK="";PID="";FK="";SOC.cid="";
+        toast("🆕 Nová testovacia sezóna","Všetci hráči začínajú od nuly.");
+        setTimeout(()=>location.reload(),150);
+        return "";
       }
-      if(j.error==="moved"){toast("🔁 Zbierka bola prenesená do iného zariadenia","Tu začínaš odznova");setTimeout(newIdentity,2500);return ""}
-      if(!j.tok){fail(r.status+"/"+(j.error||"?"));return TOK}
-      const was=!!SOC.helloFail;SOC.helloErr="";SOC.helloFail=0;SOC.helloNext=0;if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);
-      LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);PID=j.pid||"";LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now())
+      if(j.error==="moved"&&r.status===401){
+        // Prenos na iné zariadenie NESMIE sám zmazať lokálnu zbierku.
+        SOC.moved=true;SOC.authVerified=false;
+        toast("🔁 Účet je na inom zariadení","Táto zbierka ostala v mobile. Kontaktuj podporu pred vytvorením novej.");
+        return "";
+      }
+      if(!r.ok||!j.tok||!j.pid){fail(r.status+"/"+(j.error||"?"));return ""}
+      const was=!!SOC.helloFail;SOC.helloErr="";SOC.helloFail=0;SOC.helloNext=0;
+      LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);
+      PID=j.pid;LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now());
+      SOC.authVerified=true;SOC.authChecked=Date.now();
+      if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);
     }catch(e){fail("net")}
-    return TOK})().finally(()=>{SOC.helloP=null});
+    return SOC.authVerified?TOK:"";
+  })().finally(()=>{SOC.helloP=null});
   return SOC.helloP;
 }
 async function apiPost(path,obj){
-  await ensureTok();
-  const r=await fetch(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok:TOK})});
-  if(r.status===401){if(TOK)LS.set("ctl_tok0",TOK);TOK="";LS.set("ctl_tok","")}
+  const tok=await ensureTok();
+  if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved)throw Error("auth_pending");
+  const r=await fetch(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})});
+  if(r.status===401){SOC.authVerified=false;SOC.authChecked=0;SOC.helloNext=0}
   return r;
 }
 const posR=()=>S.pos?{lat:Math.round(S.pos.lat*100)/100,lon:Math.round(S.pos.lon*100)/100}:{};
@@ -485,3 +504,13 @@ async function syncCards(){
     if(ch){LS.set("ctl_col",COL);if(S.view==="col")renderCol()}}catch(e){}
 }
 setTimeout(syncCards,4000);HOOKS.view.push(v=>{if(v==="col")syncCards()});
+// Pri otvorení ešte pred ďalšími hernými požiadavkami, a po návrate zo spánku,
+// vždy skontroluj generáciu na serveri (bez vymazania pri výpadku siete).
+function verifyPlayerOnResume(){
+  if(document.hidden||!navigator.onLine||SOC.resetting||SOC.moved)return;
+  if(!SOC.authVerified||Date.now()-SOC.authChecked>=60000)ensureTok(true).catch(()=>{});
+}
+setTimeout(verifyPlayerOnResume,0);
+addEventListener("online",verifyPlayerOnResume);
+document.addEventListener("visibilitychange",verifyPlayerOnResume);
+

@@ -252,7 +252,7 @@ await t("zmazanie údajov zruší aj token", async () => {
 await t("prenos zbierky: jednorazový kód, starý mobil stratí prístup", async () => {
   const x = await call("/api/xfer", {id: B, tok: hb.tok, data: "{\"ctl_col\":\"{}\"}"}, "5.6.7.8");
   assert.equal(x.j.code.length, 8);
-  const c1 = await call("/api/xclaim", {code: x.j.code}, "8.8.8.8"); assert.equal(c1.j.id, B); assert.ok(c1.j.tok !== hb.tok);
+  const c1 = await call("/api/xclaim", {code: x.j.code}, "8.8.8.8"); assert.equal(c1.j.id, B); assert.ok(c1.j.tok !== hb.tok); assert.equal(c1.j.epoch,0,"prenos musí obsahovať generáciu servera");
   assert.equal((await call("/api/xclaim", {code: x.j.code}, "8.8.8.8")).s, 404); // druhýkrát nie
   assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11}, "5.6.7.8")).s, 401);
   assert.equal((await call("/api/hello", {id: B}, "5.6.7.8")).s, 401); // starý mobil si nový token nevypýta
@@ -396,10 +396,31 @@ await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async
   assert.equal(draft.s,200);assert.ok(draft.j.nonce);
   assert.equal((await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"nie"})).s,400);
   assert.ok(db.prepare("SELECT COUNT(*) c FROM ids").get().c>0);
+  // Pred resetom je token C platný. Po resete ho už nesmie akceptovať ani
+  // samoopravná cesta authed(), ktorá kedysi obnovovala chýbajúce účty.
+  assert.equal(await sky.authed(C,hc.tok),true);
+  // Dôležité: existujúce tokeny už aktívnych testerov sa po nasadení nesmú meniť.
+  assert.equal(await sky.tokOld(C),hc.tok,"podpis existujúcich tokenov ostáva stabilný");
   const done=await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
   assert.equal(done.j.ok,true);assert.equal(done.j.epoch,1);
   for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres"])
     assert.equal(db.prepare("SELECT COUNT(*) c FROM "+table).get().c,0,table);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001"})).s,409);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001",epoch:1})).s,200);
+  const before=db.prepare("SELECT COUNT(*) AS c FROM ids").get().c;
+  assert.equal(await sky.authed(C,hc.tok),false,"vymazaný účet sa nesmie automaticky obnoviť");
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,before,"starý token nesmie znovu vytvoriť účet");
+  assert.equal((await call("/api/wave",{id:C,tok:hc.tok,hex:"aabbcc",lat:48.15,lon:17.11})).s,401);
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,before);
+  const minted=(await call("/api/hello",{id:"v2anotherresetgeneration00001",epoch:1})).j;
+  assert.ok(minted.tok);
+  assert.equal(await sky.authed("v2anotherresetgeneration00001",minted.tok),true,"nový token musí fungovať");
+  assert.notEqual(minted.tok,await sky.tokOld("v2anotherresetgeneration00001"),"nový účet po resete musí mať vlastný podpis");
+  const resumed=(await call("/api/hello",{id:"v2anotherresetgeneration00001",epoch:1,tok:minted.tok})).j;
+  assert.equal(resumed.tok,minted.tok,"existujúci účet si pri prihlásení zachová token");
+  const second=await adminReset({resetAction:"prepare"});
+  const again=await adminReset({resetAction:"execute",nonce:second.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
+  assert.equal(again.j.epoch,2);
+  assert.equal(await sky.authed("v2anotherresetgeneration00001",minted.tok),false,"každý ďalší reset zneplatní tokeny predošlej generácie");
+  assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,0);
 });
