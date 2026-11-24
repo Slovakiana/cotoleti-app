@@ -24,7 +24,7 @@
 - [x] Pri štarte a návrate online overiť generáciu cez serverové `/api/hello`, aj keď je token vo vyrovnávacej pamäti.
 - [x] Bezpečný prechod po resete: lokálne dáta vyčistiť iba po overenej odpovedi `409 reset` s vyššou generáciou; pri výpadku ponechať identitu.
 - [x] Offline/online, prenos zbierky vrátane epochy, opätovné spustenie, 401, presunutý účet: regresné testy.
-- [ ] Vysvetliť rozdiel medzi „Vymazať lokálnu zbierku“ a „Zmazať moje údaje“.
+- [x] Vysvetliť rozdiel medzi lokálnym resetom a serverovým zmazaním účtu priamo v nastaveniach.
 
 ## v70 – Prvých 5 minút hráča
 - [ ] Skrátiť onboarding a vysvetliť prvé zamávanie.

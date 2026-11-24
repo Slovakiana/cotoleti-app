@@ -608,7 +608,7 @@ $("mset").onclick=()=>{
 };
 $("mgps").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 let resetArm=0;
-$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať zbierku"))return;COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);localStorage.removeItem("ctl_season");renderCol();$("b-reset").textContent="Vymazané";toast("Zbierka vymazaná","Začínaš od nuly")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
+$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať lokálnu zbierku"))return;COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);localStorage.removeItem("ctl_season");renderCol();$("b-reset").textContent="Vymazané";toast("Lokálna zbierka vymazaná","Overené úlovky a výsledky zostávajú na serveri")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
 $("b-pos").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 $("b-man").onclick=()=>{showCities(true)};
 $("sky").addEventListener("click",skyTap);
