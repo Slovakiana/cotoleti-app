@@ -250,7 +250,7 @@ function didYouKnow(){
   const pool=(miss.length?miss:CATALOG.filter(x=>x[10])),x=pool[hash(dayKey()+"dyk")%pool.length];if(!x)return "";
   const have=COL.types[x[0]]&&COL.types[x[0]].n;
   return `<div class="dyk" data-dyk="${esc(x[0])}">💡 <b>Vieš, že…?</b> ${esc(x[1])}: ${esc(x[10])}${have?"":" <small>Zamávaj mu a kartička je tvoja.</small>"}</div>`}
-$("dailyStrip").onclick=()=>setView("col");
+$("dailyStrip").onclick=()=>openCollectionSection("dailyBox");
 
 /* ============ ⚔️ Výzva pre kamaráta ============ */
 const b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");

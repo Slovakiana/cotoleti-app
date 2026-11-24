@@ -36,12 +36,12 @@ $("t-moment").onclick=async()=>{
 // ponuka (priming) – až pri 2. návšteve a len raz
 function maybeAskPush(){
   // ponúkni hneď, keď človek niečo zažil (úlovok/mávnutie), nie až pri 2. návšteve
-  if(!SOC.api||PUSH.on||LS.get("ctl_pushAsked",false)||((LS.get("ctl_visits",0)|0)<2&&COL.n<1&&!(LS.get("ctl_waveN",0)|0)))return;
+  if(!SOC.api||PUSH.on||LS.get("ctl_pushAsked",false)||!COL.n||document.querySelector(".modal.on"))return;
   // pri sérii 2+ ponúkni upozornenia ako strážcu série (najsilnejší dôvod)
   const st=typeof streakLive==="function"?streakLive().n:0;
   if(st>=2)$("pushAskTxt").textContent=`🔥 ${st} ${pl(st,"deň","dni","dní")} v rade! Mám ti pripomenúť, keď ti séria bude chýbať? Raz denne aj spoločný moment.`+(isIOS()&&!isStandalone()?" Na iPhone najprv pridaj appku na plochu (Zdieľať ⬆️ → Pridať na plochu).":"");
   else if(isIOS()&&!isStandalone())$("pushAskTxt").textContent="Raz denne ti v náhodnej chvíli dáme vedieť. Na iPhone treba appku najprv pridať na plochu (Zdieľať ⬆️ → Pridať na plochu).";
-  $("pushAsk").classList.add("on");if(st>=2)setTimeout(()=>{try{$("pushAsk").scrollIntoView({behavior:"smooth",block:"center"})}catch(e){}},400);
+  $("pushAsk").classList.add("on");
 }
 $("pushYes").onclick=async()=>{LS.set("ctl_pushAsked",true);LS.set("ctl_streakp",true);$("pushAsk").classList.remove("on");PUSH.moment=true;LS.set("ctl_moment",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush()){ev("push_ok");}if(PUSH.on)toast("🔔 Hotovo!","Dáme ti vedieť, keď sa celé Slovensko pozrie hore")};
 $("pushNo").onclick=()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on")};

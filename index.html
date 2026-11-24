@@ -8,11 +8,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Čo to letí?">
-<meta name="description" content="Pozri hore. Zisti, čo ti práve letí nad hlavou, koľko ľudí v tom sedí a zamávaj im spolu s celým Slovenskom.">
+<meta name="description" content="Zamávaj skutočnému lietadlu. Získaj jeho kartičku a vytvor si vlastnú zbierku.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/ https://unpkg.com/leaflet@1.9.4/ https://unpkg.com/satellite.js@4.1.4/ https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/ https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'">
-<meta property="og:title" content="Čo to letí? ✈️ Pozri hore.">
-<meta property="og:description" content="Každé lietadlo nad tebou naživo – odkiaľ, kam a koľko ľudí v ňom sedí. Zamávaj mu s celým Slovenskom 👋">
-<meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og/default.jpg">
+<meta property="og:title" content="Čo to letí? · Kartičky zo skutočných preletov">
+<meta property="og:description" content="Zamávaj skutočnému lietadlu. Získaj jeho kartičku.">
+<meta property="og:image" content="https://slovakiana.github.io/cotoleti-app/og/c/b738-v78.jpg">
 <meta property="og:url" content="https://slovakiana.github.io/cotoleti-app/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -547,7 +547,6 @@ body.moment #toast{top:calc(var(--top) + 50px)!important}
 body[data-sky=d] .glass,body[data-sky=g] .glass{background:linear-gradient(180deg,rgba(8,16,48,.42),rgba(8,16,48,.28))}
 body[data-sky=d] .pageHead p,body[data-sky=d] .kick,body[data-sky=d] .lbl,body[data-sky=d] .lookSub,body[data-sky=g] .lookSub,body[data-sky=d] .sub{color:rgba(255,255,255,.94);text-shadow:0 1px 2px rgba(0,0,0,.35)}
 body[data-sky=d] .etaBox,body[data-sky=g] .etaBox{background:rgba(4,20,14,.45);border-color:rgba(109,255,199,.45)}
-.shareNudge{margin-top:8px;width:100%;font-size:calc(14px*var(--fs,1))!important;min-height:40px;padding:8px 12px}
 .newTag{display:inline-block;font:800 10px/1 var(--body);letter-spacing:.06em;padding:3px 6px;border-radius:6px;background:#ff4fd8;color:#fff;vertical-align:2px}
 .lgTabs{flex-wrap:wrap!important;overflow:visible!important}body.kid .lgTabs [data-t=f],body.kid .lgTabs [data-t=d],body.kid .lgTabs [data-t=t],body.kid .sr:has(#nick){display:none!important}
 #b-cduel{background:rgba(255,255,255,.1)!important;color:#fff!important;border:1px solid var(--gline)!important}
@@ -664,6 +663,18 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 /* 🏆 Súťažný pulz: jeden jasný cieľ na domovskej obrazovke */
 .compPulse{position:relative;overflow:hidden;border:1px solid rgba(255,207,79,.32)!important;background:radial-gradient(circle at 98% 0%,rgba(255,207,79,.15),transparent 58%),linear-gradient(155deg,rgba(32,35,77,.96),rgba(12,21,45,.96));padding:16px!important}
 .compPulse[hidden]{display:none!important}
+.collectionGroup>section{margin-inline:0}
+.collectionGroup>summary{min-height:44px;gap:8px}
+.atlasMore{grid-column:1/-1;margin:8px 0}
+.atlasMore>summary{min-height:44px;cursor:pointer;padding:12px 0}
+.atlasMore .atTabs{margin-bottom:8px}
+.cardHeadline{font:750 18px var(--disp);text-align:center;margin:0 0 10px}
+.cardIdentity{text-align:center;font-size:13px;margin:10px 0}
+.cardAircraft{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;text-align:center}
+.cardAircraft div{background:rgba(255,255,255,.06);padding:7px;border-radius:8px}
+.cardAircraft dt{font-size:12px;color:var(--mut2)}
+.cardAircraft dd{margin:4px 0 0;font-weight:700}
+.cardDetails>summary{cursor:pointer;min-height:44px;padding:12px 0;text-align:center}
 .firstWaveHint{margin:8px 0 0;font-size:calc(13px*var(--fs,1));line-height:1.4;color:var(--mut2)}
 .firstWaveAction{min-height:44px;margin-top:4px}
 .weeklyMission h2{font-size:calc(17px*var(--fs,1));margin:0 0 6px}
@@ -699,10 +710,10 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 <!-- ONBOARDING (len prvýkrát) -->
 <div id="onb" style="display:none">
   <div class="sky"><div class="pl">✈️</div></div>
-  <h1 id="onbTitle"><span>Čo ti práve letí nad hlavou?</span></h1>
-  <p>Povoľ polohu, nájdi lietadlo na radare a zamávaj mu. Za overený úlovok získaš kartičku do zbierky.</p>
+  <h1 id="onbTitle"><span>Zamávaj skutočnému lietadlu. Získaj jeho kartičku.</span></h1>
+  <p>Pri lietadle na radare ťukni na Mávni. Úlovky nájdeš vo svojej zbierke.</p>
   <div class="onbLive" id="onbLive"></div>
-  <button class="cta" id="go">📍 Povoliť polohu a ukázať oblohu</button>
+  <button class="cta" id="go">Nájsť lietadlá v okolí</button>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
   <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
@@ -748,9 +759,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <p class="firstWaveHint" id="firstWaveHint" hidden></p>
     <button class="ghost firstWaveAction" id="firstWaveAction" type="button" hidden></button>
     <div class="msg" id="firstWaveResult" role="status"></div>
+    <button class="ghost firstWaveAction" id="waveResultCard" type="button" hidden>Pozrieť kartičku</button>
     <div class="cardHint" id="cardHint"></div>
-    <button class="btn sec shareNudge" id="shareNudge" hidden>📤 Pošli kamarátovi, nech zamáva aj on</button>
-    <div class="waveHint" id="waveHint">Podrž tlačidlo Mávni pre ďalšie reakcie.</div>
+      <div class="waveHint" id="waveHint">Podrž tlačidlo Mávni pre ďalšie reakcie.</div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="dir" id="h-dir">
@@ -814,12 +825,78 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="lbl"><span>Ďalšie lietadlá okolo teba</span><span id="radarCnt"></span></div>
     <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
   </section>
-  <section class="card glass huntHome" id="huntHome" data-state="empty" aria-label="Osobný lov lietadla">
-    <div class="huntHomeKicker">🎯 TVOJA ZBERATEĽSKÁ MISIA</div>
+  <section class="card glass huntHome" id="huntHome" data-state="empty" hidden aria-label="Osobný lov lietadla">
     <div class="huntHomeTitle" id="huntHomeTitle">Vyber si vysnívanú kartičku</div>
     <p class="huntHomeDetail" id="huntHomeDetail">V Atlase vyber typ lietadla, po ktorom pátraš.</p>
     <button class="huntHomeGo" type="button" id="huntHomeGo">🃏 Vyber v Atlase</button>
   </section>
+  <footer>Dáta: adsb.lol (ODbL), airplanes.live, <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>, adsbdb.com, CelesTrak, Open-Meteo (CC BY 4.0).<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie a zdroje</a></footer>
+</main>
+
+<!-- VESMÍR -->
+<main id="v-space" class="view">
+  <div class="pageHead"><h1>Vesmír nad tebou</h1><p>ISS, Tiangong a vláčiky Starlink</p></div>
+  <section class="card glass hero2" id="sp-next">
+    <div class="lbl"><span>Najbližší viditeľný prelet</span><span id="sp-sun"></span></div>
+    <div class="big" id="sp-name" style="font-size:calc(28px*var(--fs,1))">Počítam dráhy…</div>
+    <div class="sub" id="sp-when"></div>
+    <div class="etaBox" id="sp-count" style="display:none"></div>
+    <div class="grid2" id="sp-grid" style="display:none;margin-top:10px">
+      <div><b id="sp-max">—</b><span>najvyššie nad obzorom</span></div>
+      <div><b id="sp-dur">—</b><span>dĺžka preletu</span></div>
+      <div><b id="sp-from">—</b><span>objaví sa na</span></div>
+      <div><b id="sp-to">—</b><span>zmizne na</span></div>
+    </div>
+    <button class="btn" id="sp-remind" hidden style="margin-top:10px;width:100%">🔔 Pripomeň mi 5 minút vopred</button>
+    <div class="qbox" id="sp-tip"></div>
+    <div class="msg" id="sp-err"></div>
+  </section>
+  <section class="card glass">
+    <div class="lbl" style="margin-bottom:6px"><span>Teraz nad obzorom</span><span id="sp-nowN"></span></div>
+    <div id="sp-now"><div class="lookSub">—</div></div>
+  </section>
+  <section class="card glass">
+    <div class="lbl" style="margin-bottom:6px"><span>Prelety staníc (36 h)</span></div>
+    <div id="sp-passes"><div class="lookSub">—</div></div>
+  </section>
+  <footer>Dráhy: CelesTrak · výpočet: satellite.js. ISS je najlepšie vidieť 1–2 h po západe alebo pred východom slnka.</footer>
+</main>
+
+<!-- JA -->
+<main id="v-col" class="view">
+  <div class="pageHead"><button class="gearBtn glass" id="b-gear" aria-label="Nastavenia">⚙️</button><h1 id="meName">Zbierka</h1><p id="meSub"></p></div>
+  <section class="card glass" id="atlasSection">
+    <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
+    <div class="shelf" id="showcase" hidden></div>
+    <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
+  </section>
+  <details class="more glass prof collectionGroup">
+    <summary>Profil a štatistiky</summary>
+    <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
+    <div class="lvl" id="c-lvl">—</div>
+    <div class="ptype" id="c-type">☁️ Snívač v oblakoch</div>
+    <div class="xp"><i id="c-bar"></i></div>
+    <div class="lookSub" id="c-next"></div>
+    <div class="lookSub" id="c-season"></div>
+    <div class="seenBox" id="c-seen" hidden></div>
+    <div class="st3b">
+      <div><b id="c-n">0</b><span>úlovkov</span></div>
+      <div><b id="c-t">0</b><span>typov</span></div>
+      <div><b id="c-r">0</b><span>vzácnych</span></div>
+    </div>
+    <button class="mileBtn" id="b-miles">✈ <b id="c-miles">0</b> <span id="c-milesL">míľ</span> · obchod</button>
+    <button class="wrapBtn" id="b-wrapped">✨ Môj týždeň na oblohe</button>
+    <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
+  </details>
+  <details class="more glass collectionGroup" id="dailyBox">
+    <summary>Dnešné výzvy <small id="d-streak"></small></summary>
+    <div id="stampBox"></div>
+    <div id="d-list" style="margin-top:6px"></div>
+  </details>
+  <details class="more glass collectionGroup" id="community">
+    <summary>Komunita <small>liga · misia · súboje</small></summary>
+    <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
+    <div class="lookSub" id="famScore" style="text-align:center"></div>
   <section class="card glass compPulse" id="compPulse" hidden aria-label="Tvoja týždenná súťaž">
     <div class="compPulseEyebrow" id="compPulseEyebrow">🏅 Tvoja týždenná liga</div>
     <div class="compPulseTitle" id="compPulseTitle">Načítavam poradie…</div>
@@ -865,70 +942,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="trLine" id="pushAskTxt">Pošleme ti upozornenie v náhodnej chvíli. Máš 3 minúty pozrieť sa na oblohu – spolu so všetkými ostatnými.</div>
     <div class="trActs"><button class="p" id="pushYes">Zapnúť</button><button id="pushNo">Teraz nie</button></div>
   </section>
-  <footer>Dáta: adsb.lol (ODbL), airplanes.live, <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>, adsbdb.com, CelesTrak, Open-Meteo (CC BY 4.0).<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie a zdroje</a></footer>
-</main>
-
-<!-- VESMÍR -->
-<main id="v-space" class="view">
-  <div class="pageHead"><h1>Vesmír nad tebou</h1><p>ISS, Tiangong a vláčiky Starlink</p></div>
-  <section class="card glass hero2" id="sp-next">
-    <div class="lbl"><span>Najbližší viditeľný prelet</span><span id="sp-sun"></span></div>
-    <div class="big" id="sp-name" style="font-size:calc(28px*var(--fs,1))">Počítam dráhy…</div>
-    <div class="sub" id="sp-when"></div>
-    <div class="etaBox" id="sp-count" style="display:none"></div>
-    <div class="grid2" id="sp-grid" style="display:none;margin-top:10px">
-      <div><b id="sp-max">—</b><span>najvyššie nad obzorom</span></div>
-      <div><b id="sp-dur">—</b><span>dĺžka preletu</span></div>
-      <div><b id="sp-from">—</b><span>objaví sa na</span></div>
-      <div><b id="sp-to">—</b><span>zmizne na</span></div>
-    </div>
-    <button class="btn" id="sp-remind" hidden style="margin-top:10px;width:100%">🔔 Pripomeň mi 5 minút vopred</button>
-    <div class="qbox" id="sp-tip"></div>
-    <div class="msg" id="sp-err"></div>
-  </section>
-  <section class="card glass">
-    <div class="lbl" style="margin-bottom:6px"><span>Teraz nad obzorom</span><span id="sp-nowN"></span></div>
-    <div id="sp-now"><div class="lookSub">—</div></div>
-  </section>
-  <section class="card glass">
-    <div class="lbl" style="margin-bottom:6px"><span>Prelety staníc (36 h)</span></div>
-    <div id="sp-passes"><div class="lookSub">—</div></div>
-  </section>
-  <footer>Dráhy: CelesTrak · výpočet: satellite.js. ISS je najlepšie vidieť 1–2 h po západe alebo pred východom slnka.</footer>
-</main>
-
-<!-- JA -->
-<main id="v-col" class="view">
-  <div class="pageHead"><button class="gearBtn glass" id="b-gear" aria-label="Nastavenia">⚙️</button><h1 id="meName">Spotter</h1><p id="meSub">Tvoja obloha, úlovky a výzvy</p></div>
-  <section class="card glass prof">
-    <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
-    <div class="lvl" id="c-lvl">—</div>
-    <div class="ptype" id="c-type">☁️ Snívač v oblakoch</div>
-    <div class="xp"><i id="c-bar"></i></div>
-    <div class="lookSub" id="c-next"></div>
-    <div class="lookSub" id="c-season"></div>
-    <div class="seenBox" id="c-seen" hidden></div>
-    <div class="st3b">
-      <div><b id="c-n">0</b><span>úlovkov</span></div>
-      <div><b id="c-t">0</b><span>typov</span></div>
-      <div><b id="c-r">0</b><span>vzácnych</span></div>
-    </div>
-    <div class="shelf" id="showcase" hidden></div>
-    <button class="mileBtn" id="b-miles">✈ <b id="c-miles">0</b> <span id="c-milesL">míľ</span> · obchod</button>
-    <button class="wrapBtn" id="b-wrapped">✨ Môj týždeň na oblohe</button>
-    <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
-  </section>
-  <section class="card glass">
-    <div class="lbl"><span>🎯 Dnešné výzvy</span><span id="d-streak"></span></div>
-    <div id="stampBox"></div>
-    <div id="d-list" style="margin-top:6px"></div>
-  </section>
-  <section class="card glass">
-    <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
-    <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
-    <div class="lookSub" id="famScore" style="text-align:center"></div>
-    <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
-  </section>
+  </details>
   <details class="more glass" id="achBox">
   <summary>🏅 Odznaky <small id="c-achN"></small></summary>
   <div class="ach" id="c-ach" style="margin-top:12px"></div>
@@ -986,9 +1000,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </main>
 
 <nav class="glass" aria-label="Hlavná navigácia">
-  <button data-v="now" class="on" aria-current="page"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></i>Obloha</button>
+  <button data-v="now" class="on" aria-current="page"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></i>Lov</button>
   <button data-v="space"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M3.5 15.5c-1.5 2.6 3.5 2.3 9.5-1.2s9.5-7.4 8-10-5.4.1-5.4.1"/></svg></i>Vesmír</button>
-  <button data-v="col"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></i>Ja</button>
+  <button data-v="col"><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></i>Zbierka</button>
 </nav>
 
 <!-- AR -->
@@ -1023,7 +1037,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </div></div>
 <div class="modal" id="cardM" role="dialog" aria-modal="true" aria-label="Zberateľská kartička"><div style="width:100%;max-width:420px">
   <div id="cardBig"></div>
-  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn pri" id="cardShare">📸 Pochváľ sa</button><button class="btn ico" id="cardVideo" aria-label="Video s odhalením kartičky" style="flex:0 0 60px" hidden>🎬</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
+  <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn sec" id="cardCollection" type="button" hidden>Do zbierky</button><button class="btn pri" id="cardShare">Zdieľať</button><button class="btn ico" id="cardVideo" aria-label="Video s odhalením kartičky" style="flex:0 0 60px" hidden>🎬</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
 </div></div>
 
 <div class="modal" id="shopM" role="dialog" aria-modal="true" aria-labelledby="shopT"><div class="mcard">
@@ -1132,25 +1146,25 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=73"></script>
-<script src="js/ui.js?v=73"></script>
-<script src="js/ar.js?v=73"></script>
-<script src="js/space.js?v=73"></script>
-<script src="js/weather.js?v=73"></script>
-<script src="js/extras.js?v=73"></script>
-<script src="js/social.js?v=73"></script>
-<script src="js/wrapped.js?v=73"></script>
-<script src="js/push.js?v=73"></script>
-<script src="js/track.js?v=73"></script>
-<script src="js/towns.js?v=73"></script>
-<script src="js/catalog.js?v=73"></script>
-<script src="js/cards.js?v=73"></script>
-<script src="js/mail.js?v=73"></script>
-<script src="js/golden.js?v=73"></script>
-<script src="js/teams.js?v=73"></script>
-<script src="js/duel.js?v=73"></script>
-<script src="js/sound.js?v=73"></script>
-<script src="js/santa.js?v=73"></script>
-<script src="js/main.js?v=73"></script>
+<script src="js/core.js?v=78"></script>
+<script src="js/ui.js?v=78"></script>
+<script src="js/ar.js?v=78"></script>
+<script src="js/space.js?v=78"></script>
+<script src="js/weather.js?v=78"></script>
+<script src="js/extras.js?v=78"></script>
+<script src="js/social.js?v=78"></script>
+<script src="js/wrapped.js?v=78"></script>
+<script src="js/push.js?v=78"></script>
+<script src="js/track.js?v=78"></script>
+<script src="js/towns.js?v=78"></script>
+<script src="js/catalog.js?v=78"></script>
+<script src="js/cards.js?v=78"></script>
+<script src="js/mail.js?v=78"></script>
+<script src="js/golden.js?v=78"></script>
+<script src="js/teams.js?v=78"></script>
+<script src="js/duel.js?v=78"></script>
+<script src="js/sound.js?v=78"></script>
+<script src="js/santa.js?v=78"></script>
+<script src="js/main.js?v=78"></script>
 </body>
 </html>

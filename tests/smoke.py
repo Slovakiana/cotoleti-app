@@ -20,6 +20,11 @@ def stub(route):
     if "/v2/" in u or "adsb" in u and "adsbdb" not in u:
         return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps(PLANES))
     if "workers.dev" in u:
+        if "/api/hello" in u:
+            return route.fulfill(status=200, content_type="application/json", headers=h, body='{"tok":"test-token","pid":"tester","fk":"test-key","epoch":0}')
+        if "/api/wave" in u:
+            request = json.loads(route.request.post_data or "{}")
+            return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps({"ok": True, "ver": 1, "type": request["type"]}))
         if "/api/planes" in u:
             return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps({**PLANES, "src": "sky"}))
         if "/api/sky" in u:
@@ -88,6 +93,10 @@ def main():
                     const bounds = id => $(id).getBoundingClientRect();
                     if (!ids.slice(1).every((id, i) => $(ids[i]).compareDocumentPosition($(id)) & Node.DOCUMENT_POSITION_FOLLOWING))
                         throw Error("Herné karty odsunuli zoznam lietadiel");
+                    setView("col");
+                    if (!($("atlasSection").compareDocumentPosition($("community")) & Node.DOCUMENT_POSITION_FOLLOWING))
+                        throw Error("Zbierka neukazuje Atlas pred Komunitou");
+                    $("community").open = true;
                     renderWeeklyMission({goal: 100, total: 28, mine: 2, previous: {goal: 100, total: 104, mine: 4}});
                     const past = $("weeklyMissionPrevious");
                     if (past.hidden || past.open || !past.textContent.includes("Cieľ splnený"))
@@ -101,6 +110,8 @@ def main():
                         throw Error("Misia sa nezmestí do šírky alebo má malý dotykový cieľ");
                     past.open = false;
                     renderWeeklyMission(null);
+                    $("community").open = false;
+                    setView("now");
                 }""")
                 print(f"✓ poradie kariet, šírka misie a dotykové ovládanie pri {width} px")
             pg.evaluate("""() => {
@@ -124,6 +135,47 @@ def main():
                     S.top = oldTop;
                     renderList(S.list);
                 }
+            }""")
+            pg.set_viewport_size({"width": 320, "height": 844})
+            pg.evaluate("""() => {
+                const flight = S.list.find(a=>a.hex==="4ca123");
+                if (!flight) throw Error("Chýba skúšobný Boeing");
+                S.pick=flight.hex; tick(true);
+                const selected=S.top;
+                void doWave("👋");
+                if (!$("firstWaveResult").textContent.includes("Spracúvam"))
+                    throw Error("Mávnutie nemá okamžitú odozvu");
+                if (S.top!==selected) throw Error("Zmenil sa vybraný let");
+            }""")
+            pg.locator("#cardBig h2").wait_for(timeout=7000)
+            pg.evaluate("""() => {
+                const h=$("cardBig").querySelector("h2");
+                const illustration=$("cardBig").querySelector(".holoWrap svg");
+                if (h.textContent!=="Boeing 737-800" || !illustration.textContent.includes("ATLAS OBLOHY")
+                    || !COL.types.B738.ver || COL.types.B738.n!==1)
+                    throw Error("Odhalenie nesedí s overeným úlovkom");
+                const w=illustration.getBoundingClientRect();
+                if (w.left<0 || w.right>document.documentElement.clientWidth)
+                    throw Error("Kartička preteká na 320 px");
+                window.savedCardAsset=null;
+                shareBlob=async(blob,name,caption)=>{window.savedCardAsset={blob,name,caption};};
+                $("cardShare").click();
+            }""")
+            for _ in range(30):
+                if pg.evaluate("() => (window.savedCardAsset?.blob.size || 0) > 1000"):
+                    break
+                pg.wait_for_timeout(100)
+            else:
+                raise AssertionError("Export kartičky nevytvoril obrázok")
+            pg.evaluate("""async () => {
+                const {blob,caption}=window.savedCardAsset;
+                const img=await createImageBitmap(blob);
+                if(img.width!==1080||img.height!==1920||!caption.includes("/s/c/B738"))
+                    throw Error("Zdieľanie neexportovalo zobrazenú kartu");
+                img.close();
+                $("cardCollection").click();
+                if(S.view!=="col"||!$("c-types").querySelector('[data-k="B738"]'))
+                    throw Error("Prvý úlovok sa nedá nájsť v Zbierke");
             }""")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:

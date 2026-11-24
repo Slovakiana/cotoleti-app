@@ -6,41 +6,34 @@ let toastT;
 const TQ=[];let tBusy=false;
 /* 👋 po mávnutí: všetky odmeny v JEDNOM oznámení (namiesto 4–5 toastov za sebou) */
 let WB=null;
-function waveBatchStart(){WB={t0:COL.pts,items:[],caught:null,low:null,social:"",col:null}}
-function waveBatchEnd(e){
-  const B=WB;WB=null;if(!B)return;
-  const got=COL.pts-B.t0,c=B.caught;
-  if(typeof lvlWatch==="function")lvlWatch(B);
-  let T,Sub=[];
-  if(c){T=c.newType?"🃏 Nová kartička: "+c.name:"👋 Ulovené: "+c.title;}
-  else if(B.low!=null)T=(e||"👋")+" Zamávané · do zbierky až nad 10°";
-  else T=(e||"👋")+" Zamávané!";
-  if(got>0)Sub.push("+"+got+" "+(got===1?"bod":got<5?"body":"bodov"));
-  const lab=q=>{const t=q[0]||"",em=(t.match(/^\p{Extended_Pictographic}/u)||[""])[0];
-    if(/^🎯/.test(t)&&q[1])return "✅ Výzva: "+q[1];
-    return (em?em+" ":"")+t.replace(/^[^\p{L}\d]+/u,"").replace(/^(Nový odznak|Odznak):\s*/,"").replace(/\s*\+\d+\s*(bod\w*|b)\b/,"").replace(/!$/,"").trim()};
-  // overenie a poradie na Slovensku majú prednosť pred odznakmi
-  const pri=x=>/^(⏳|✓|🧭|č\. |PRVÝ|⬆)/.test(x)?0:1;
-  const its=B.items.map(lab).filter(Boolean).sort((x,y)=>pri(x)-pri(y));
-  Sub.push(...its.slice(0,3));if(its.length>3)Sub.push("ďalšie nájdeš v záložke Ja");
-  if(!its.length&&B.social)Sub.push(B.social);
-  // veta podľa cieľa letu (len keď je v toaste miesto)
-  if(c&&Sub.length<3&&S.top&&typeof routeOf==="function"&&routeOf(S.top)){const d=citySk(routeOf(S.top).destination.municipality);if(d)Sub.push("✈️ smer "+d)}
-  if(B.low!=null&&!c)Sub.push("je len "+Math.max(0,Math.round(B.low))+"° nad obzorom");
-  toast(T,Sub.join(" · "),c?RAR[c.r].col:B.col);
-  // chvíľa po mávnutí = najlepší moment poslať lietadlo ďalej
-  if(S.top&&!S.top.santa&&!(typeof KID==="function"&&KID())){const sn=$("shareNudge");sn.hidden=false;sn.dataset.hex=S.top.hex;clearTimeout(sn._t);sn._t=setTimeout(()=>sn.hidden=true,12000)}
-  // 👯 pozvanie v správnej chvíli: po 3. overenej kartičke alebo prvej lesklej (raz)
-  {const vn=Object.values(COL.types).filter(v=>v.ver).length,sh=Object.values(COL.types).some(v=>v.shiny);
-    if(!LS.get("ctl_invNudge",0)&&!(typeof KID==="function"&&KID())&&(vn>=3||sh)){LS.set("ctl_invNudge",1);setTimeout(()=>{let el=$("invNudge");if(!el){el=document.createElement("button");el.id="invNudge";el.className="pill glass";document.body.appendChild(el)}
-      el.textContent="👯 Zbieraj s kamarátom – spoločné mávnutie = bonus";el.hidden=false;el.onclick=()=>{el.hidden=true;typeof sendDuel==="function"&&sendDuel()};setTimeout(()=>el.hidden=true,12000)},6000)}}
-  if(c&&c.newType&&typeof openCard==="function")setTimeout(()=>{if(!document.querySelector(".modal.on")){cardK=c.type;openCard(c.type,true)}},2400);
+function waveBatchStart(hex){WB={hex,items:[],caught:null,low:null}}
+function waveBatchEnd(){
+  const batch=WB;WB=null;
+  if(!batch)return;
+  if(typeof lvlWatch==="function")lvlWatch(batch);
+  const caught=batch.caught;
+  const special=batch.special;
+  if(caught&&caught.type!=="?"){
+    const title=special||(caught.newType?"Nová kartička: "+caught.name:cardProgress(caught.type,COL.types[caught.type]));
+    showWaveCard(caught.type,title,caught.newType||!!special,batch.hex,batch.result);
+  }else if(special&&batch.type){
+    showWaveCard(batch.type,special,true,batch.hex,batch.result);
+  }else{
+    showFirstWaveResult(batch.result||(batch.low!=null?"Dnes zamávané. Do zbierky až po úlovku vyššie nad obzorom.":"Dnes zamávané."));
+  }
+}
+function showWaveCard(type,title,reveal,hex,status=""){
+  const button=$("waveResultCard");
+  showFirstWaveResult([title,status].filter(Boolean).join(" · "));
+  button.hidden=false;
+  button.onclick=()=>openCard(type);
+  if(reveal&&S.view==="now"&&S.top?.hex===hex&&!document.querySelector(".modal.on"))openCard(type,title);
 }
 function toast(a,b,col){
   if(WB){WB.items.push([a,b,col]);return}
   if(TQ.some(q=>q[0]===a)||(tBusy&&$("toastT").textContent===a))return; // bez duplicít
   // viac odznakov naraz = jedno oznámenie
-  if(/^🏅/.test(a)){const q=TQ.find(x=>/^🏅/.test(x[0]));if(q){const n=(q.n||1)+1;q.n=n;q[0]=`🏅 ${n} ${n<5?"nové odznaky":"nových odznakov"}`;q[1]="Pozri si ich v záložke Ja";return}}
+  if(/^🏅/.test(a)){const q=TQ.find(x=>/^🏅/.test(x[0]));if(q){const n=(q.n||1)+1;q.n=n;q[0]=`🏅 ${n} ${n<5?"nové odznaky":"nových odznakov"}`;q[1]="Pozri si ich v Zbierke";return}}
   TQ.push([a,b,col]);if(TQ.length>4)TQ.splice(1,TQ.length-4);if(!tBusy)toastNext();
 }
 function toastNext(){
@@ -386,10 +379,16 @@ function renderList(list){
   $("radarCnt").textContent=list.filter(a=>a.el>0).length+" nad obzorom";
   const today=dayKey();
   const wavedLabel="Dnes zamávané";
-  $("list").innerHTML=rest.length?rest.map(a=>{
+  const root=$("list"),focus=root.contains(document.activeElement)?document.activeElement.dataset.hex:null;
+  const html=rest.length?rest.map(a=>{
     const m=S.meta.get(a.hex),rt=routeOf(a),waved=!!SOC.waved[today+a.hex];
     return `<div class="row" role="button" tabindex="0" aria-label="${esc([rt?"letí do "+citySk(rt.destination.municipality):"",titleOf(a),airlineOf(a),typeName(a,m),a.alt!=null?"výška "+nf(a.alt/1000,1)+" km":"",dirL(a.bear)+", "+nf(Math.max(0,a.el??0))+" stupňov nad obzorom",RAR[rarity(a)].n,waved?wavedLabel:""].filter(Boolean).join(", "))}" data-hex="${esc(a.hex)}"><div class="l"><b><span class="badge" style="background:${RAR[rarity(a)].col}"></span>${esc(rt?"→ "+citySk(rt.destination.municipality):titleOf(a))}</b><div>${esc([airlineOf(a),typeName(a,m)].filter(Boolean).join(" · "))}</div>${waved?'<span class="nearWaved"><span aria-hidden="true">✓</span> '+wavedLabel+'</span>':""}</div>
     <div class="r">${a.type&&!COL.types[a.type]&&!a.santa?'<span class="newTag">NOVÁ</span> ':""}${a.alt!=null?"výška <b>"+nf(a.alt/1000,1)+" km</b>":"—"}<br>${dirS(a.bear)} · ${nf(Math.max(0,a.el??0))}°</div></div>`}).join(""):'<div class="lookSub">Nič ďalšie v okolí.</div>';
+  if(root.renderedHTML!==html){
+    root.innerHTML=html;
+    root.renderedHTML=html;
+    if(focus)root.querySelector('[data-hex="'+CSS.escape(focus)+'"]')?.focus({preventScroll:true});
+  }
 }
 $("list").onclick=e=>{const r=e.target.closest(".row");if(r&&r.dataset.hex){S.pick=r.dataset.hex;haptic(10);tick(true);window.scrollTo({top:0,behavior:"smooth"})}};
 
@@ -412,8 +411,8 @@ function renderCol(){
     $("c-achN").textContent=got.length+"/"+L.length}
   const order={l:0,r:1,u:2,c:3};
   if(typeof renderCards==="function")renderCards();
-  const nk=LS.get("ctl_nick",""),pf=LS.get("ctl_profs",null);$("meName").textContent=nk||(pf&&pf.n&&pf.n[pf.cur])||"Spotter";
-  if(pf&&pf.n){const P=profState();$("meSub").innerHTML=`👨‍👩‍👧 Hrá <b>${esc(P.n[P.cur])}</b> · `+["A","B","C"].filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}">→ ${esc(P.n[x])}</button>`).join(" ")}
+  const pf=LS.get("ctl_profs",null);
+  if(pf&&pf.n){const P=profState();const label=`👨‍👩‍👧 Hrá <b>${esc(P.n[P.cur])}</b> · `+["A","B","C"].filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}">→ ${esc(P.n[x])}</button>`).join(" ");if($("meSub").innerHTML!==label)$("meSub").innerHTML=label}
   if(typeof spotterType==="function"){const st=spotterType();$("c-type").textContent="Tento týždeň: "+st.e+" "+st.n;$("c-type").hidden=/Začínajúci/.test(st.n)}
 }
 
@@ -445,8 +444,7 @@ function renderFirstWaveGuide(a){
 }
 
 function showFirstWaveResult(text, verified=false){
-  if(!firstWaveGuide||firstWaveVerified)return;
-  firstWaveVerified=verified;
+  if(verified)firstWaveVerified=true;
   $("firstWaveResult").textContent=text;
   if(verified)renderFirstWaveGuide(S.top);
 }
@@ -676,7 +674,14 @@ $("statusPill").onclick=()=>{haptic(10);$("placeCities").innerHTML=CITIES.map(c=
 $("placeClose").onclick=()=>$("placeM").classList.remove("on");
 $("placeCities").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=CITIES.find(x=>x[0]===b.dataset.c);if(!c)return;$("placeM").classList.remove("on");setManual(c[1],c[2],c[0])};
 $("placeGps").onclick=()=>{$("placeM").classList.remove("on");S.manual=false;LS.set("ctl_manual",false);startGps();toast("📍 Hľadám tvoju polohu…","Ukážem, čo letí priamo nad tebou")};
-$("streakChip").onclick=()=>{setView("col");setTimeout(()=>{const d=$("dailyBox")||$("d-list");d&&d.scrollIntoView({behavior:"smooth",block:"center"})},300)};
+function openCollectionSection(id){
+  setView("col");
+  const section=$(id);
+  section.open=true;
+  section.querySelector("summary")?.focus({preventScroll:true});
+  section.scrollIntoView({behavior:RM()?"auto":"smooth",block:"start"});
+}
+$("streakChip").onclick=()=>openCollectionSection("dailyBox");
 async function boot(){
   SKY.cv=$("sky");SKY.c=SKY.cv.getContext("2d");skySize();addEventListener("resize",()=>skySize());skyFrame();
   paintSky();
@@ -749,10 +754,8 @@ const openFriends=()=>{if(/tim=|vyzva=/.test(location.hash))$("friendsBox").open
 openFriends();addEventListener("hashchange",openFriends);
 
 /* ============ 📊 anonymné meranie (bez id, bez IP) + hlásenie chýb ============ */
-// 🧪 A/B test: každé zariadenie dostane natrvalo skupinu A alebo B; lievik v /admin ukáže kroky zvlášť (napr. wave1:A vs wave1:B)
+// 🧪 Existujúce zariadenia si ponechajú skupinu A alebo B pre historické počítadlá; lievik v /admin ukáže kroky zvlášť (napr. wave1:A vs wave1:B)
 const ABV=(()=>{let v=LS.get("ctl_ab","");if(!/^[AB]$/.test(v)){v=Math.random()<.5?"A":"B";LS.set("ctl_ab",v)}return v})();
-// aktuálny pokus: text hlavného tlačidla v úvode
-if(ABV==="B"&&$("go"))$("go").textContent="📍 Ukáž mi, čo letí nado mnou";
 const betaFirstDay=(()=>{
   const stored=LS.get("ctl_beta_day","");
   if(stored)return stored;
@@ -802,8 +805,11 @@ function inAppBar(){
   b.setAttribute("aria-label","Otvoriť v bežnom prehliadači");
   b.innerHTML=`<b>🔐 Ochráň si zbierku</b><span>Odkaz si otvoril v ${embeddedBrowser==="WhatsApp"?"WhatsAppe":"inej aplikácii"}. V jej prehliadači môže vzniknúť iný hráčsky účet.</span><span><strong>Skopíruj odkaz, otvor Safari alebo Chrome a vlož ho do adresného riadka.</strong> Ďalej používaj stále ten istý prehliadač.</span><div class="inappActions"><button type="button" class="inappCopy">📋 Kopírovať odkaz</button><button type="button" class="inappClose" aria-label="Zavrieť upozornenie">✕</button></div>`;
   b.querySelector(".inappCopy").onclick=async()=>{
-    const url=location.href; // zachová prípadný darčekový / pozývací odkaz
-    try{await navigator.clipboard.writeText(url);b.querySelector(".inappCopy").textContent="✅ Skopírované – otvor Safari/Chrome"}
+    const url=new URL(location.href);
+    // Pozvánka je po načítaní uložená v tomto prehliadači. Pri prechode ju prenes v odkaze.
+    const referral=LS.get("ctl_ref","");
+    if(!LS.get("ctl_onb",0)&&/^[A-Za-z0-9]{16}$/.test(referral))url.searchParams.set("r",referral);
+    try{await navigator.clipboard.writeText(url.href);b.querySelector(".inappCopy").textContent="✅ Skopírované – otvor Safari/Chrome"}
     catch(e){const c=b.querySelector(".inappCopy");c.textContent="Odkaz: "+url;c.style.overflowWrap="anywhere"}
   };
   b.querySelector(".inappClose").onclick=()=>{LS.set("ctl_inappX",true);b.remove()};
@@ -819,7 +825,7 @@ function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
 
 /* ============ 🔁 prenos zbierky jednorazovým kódom (platí 10 min, starý mobil stratí prístup) ============ */
-const XKEYS={ctl_col:"object",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean",ctl_kid:"boolean",ctl_kpin:"string",ctl_adopt:"string"};
+const XKEYS={ctl_col:"object",ctl_collectorHunt:"string",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean",ctl_kid:"boolean",ctl_kpin:"string",ctl_adopt:"string"};
 async function xferMake(){
   if(typeof apiPost!=="function")return;
   const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
@@ -863,7 +869,7 @@ const FOCUSABLE='button:not([disabled]),[href],input:not([disabled]),select,text
 {const ret=new Map();
   const mo=new MutationObserver(ms=>{for(const m of ms){const el=m.target;if(!el.classList||!el.classList.contains("modal"))continue;
     const on=el.classList.contains("on");
-    if(on&&!ret.has(el)){ret.set(el,document.activeElement);el.setAttribute("role",el.getAttribute("role")||"dialog");el.setAttribute("aria-modal","true");
+    if(on&&!ret.has(el)){ret.set(el,el.returnFocus||document.activeElement);el.returnFocus=null;el.setAttribute("role",el.getAttribute("role")||"dialog");el.setAttribute("aria-modal","true");
       setTimeout(()=>{if(!el.classList.contains("on")||el.contains(document.activeElement))return;const t=el.querySelector("h2,h3,.mcard")||el;if(!t.hasAttribute("tabindex"))t.setAttribute("tabindex","-1");try{t.focus({preventScroll:true})}catch(e){}},60)}
     else if(!on&&ret.has(el)){const r=ret.get(el);ret.delete(el);if(r&&r.focus&&document.contains(r)&&!document.querySelector(".modal.on"))try{r.focus({preventScroll:true})}catch(e){}}}});
   document.querySelectorAll(".modal").forEach(el=>mo.observe(el,{attributes:true,attributeFilter:["class"]}))}
@@ -1011,15 +1017,6 @@ fsApply();addEventListener("pageshow",fsApply);
 /* ⚙️ nastavenia jedným ťukom z hlavičky Ja */
 $("b-gear").onclick=()=>{const st=$("settings");st.open=true;haptic(8);setTimeout(()=>st.scrollIntoView({behavior:"smooth",block:"start"}),60)};
 
-$("shareNudge").onclick=async()=>{
-  const a=S.list.find(x=>x.hex===$("shareNudge").dataset.hex)||S.top;if(!a)return;$("shareNudge").hidden=true;
-  const rt=routeOf(a),to=rt?" → "+citySk(rt.destination.municipality):"",n=planeWaves(a.hex).total||1;
-  const text=`👋 Mávam lietadlu ${a.call||""}${to}. Dnes mu už ${zam(n)} ${n} ${ludia(n)} – letí aj nad tebou? Zamávaj aj ty ✈️`;
-  const url=planeLink(a);
-  try{if(navigator.share){await navigator.share({title:"Čo to letí?",text,url});ev("nudgeShare");return}}catch(e){if(e.name==="AbortError")return}
-  try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho kamarátovi")}catch(e){}
-};
-HOOKS.heroStatic.push(a=>{const sn=$("shareNudge");if(sn&&!sn.hidden&&(!a||a.hex!==sn.dataset.hex))sn.hidden=true});
 // prišiel si z odkazu od kamaráta? povedz to už na úvode
 // pozvánka pred úvodom: meno pozývajúceho z odkazu (ak sa dá prečítať)
 if(!LS.get("ctl_onb",0)&&/(vyzva|kd|tim|let|dar|p)=/.test(location.hash)){const d=document.createElement("div");d.className="onbInvite";
@@ -1036,7 +1033,7 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp"];
+const PKEYS=["ctl_col","ctl_collectorHunt","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp"];
 const PROF_IDS=["A","B","C"];
 function profState(){const P=LS.get("ctl_profs",{cur:"A",n:{}});P.n=Object.assign({A:"Ja",B:"Dieťa",C:"Dieťa 2"},P.n);return P}
 function profNext(P){return P.cur==="A"?"B":"A"}
