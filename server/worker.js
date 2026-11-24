@@ -332,7 +332,7 @@ export class Sky extends DurableObject {
   weeklyMission(now, id = "") {
     const week = this.week(now), goal = this.ensureMissionWeek(week);
     if (!goal) return null;
-    const previousWeek = this.week(now - 7 * 86400e3);
+    const previousWeek = new Date(Date.parse(week + "T12:00:00Z") - 7 * 86400e3).toISOString().slice(0, 10);
     const previous = this.row("SELECT goal FROM mission_weeks WHERE week=?", previousWeek);
     return {...this.missionResult(week, goal, id), previous: previous ? this.missionResult(previousWeek, previous.goal, id) : null};
   }

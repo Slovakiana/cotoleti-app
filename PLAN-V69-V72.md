@@ -52,6 +52,7 @@
 ## v73 – Výsledok misie a prehľadnejší radar
 - [x] Na radare sprístupniť výsledok uplynulého týždňa a vlastný príspevok v rozbaliteľnom súhrne.
 - [x] Zachovať cieľ rozbehnutého týždňa. Nastavený nový cieľ platí od ďalšieho týždňa, nula pilot hneď pozastaví.
+- [x] Presunúť zoznam lietadiel pred herné karty. Pri prvom úlovku dať pokyn k tlačidlu Mávni a skryť opakované akcie na polohu a ISS.
 
 ## Pravidlá vydania
 1. Každá časť samostatná vetva/PR; pred zlúčením úspešné serverové aj prehliadačové testy.

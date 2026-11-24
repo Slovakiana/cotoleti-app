@@ -422,7 +422,7 @@ function firstWaveNext(a){
   if(!navigator.onLine)return ["Si bez internetu. Po pripojení obnov radar."];
   if(S.failN)return ["Dáta o letoch sú dočasne nedostupné.", "Obnoviť radar", ()=>fetchPlanes(true)];
   if(S.lastKnown||!S.loaded)return ["Načítavam aktuálnu oblohu…"];
-  if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Počkaj, kým bude lietadlo vyššie nad obzorom. Medzitým si môžeš pozrieť prelety ISS.", "Pozrieť ISS", ()=>setView("space")];
+  if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Zatiaľ tu nie je lietadlo vhodné na mávnutie.", "Pozrieť ISS", ()=>setView("space")];
   if(S.manual)return ["Radar ukazuje oblohu nad vybraným mestom. Na overený úlovok použi GPS.", "Použiť GPS", ()=>$("placeGps").click()];
   return ["Ťukni na „Mávni“. Počkaj, kým server overí úlovok."];
 }
@@ -434,7 +434,10 @@ function renderFirstWaveGuide(a){
   if(hint.textContent!==(text||""))hint.textContent=text||"";
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
-  button.hidden=!label;
+  const existingLocationChoice=!S.pos&&($("heroCities")||$("posBtns").style.display==="flex");
+  const existingSpaceAction=label==="Pozrieť ISS"&&$("eSpace");
+  button.hidden=!label||!!existingLocationChoice||!!existingSpaceAction;
+  $("waveHint").hidden=!!text;
 }
 
 function showFirstWaveResult(text, verified=false){

@@ -404,22 +404,31 @@ await t("týždenná misia: overenie, jedinečné príspevky a hranica týždňa
     assert.equal(await mission(identity), null);
     assert.equal((await call("/api/admin", {missionGoal: 1})).s, 401);
     assert.equal((await adminReset({missionGoal: 1.5})).s, 400);
-    assert.equal((await adminReset({missionGoal: 1})).j.missionGoal, 1);
+    Date.now = () => monday - 8 * 60e3;
+    assert.equal((await adminReset({missionGoal: 1})).j.currentGoal, 1);
+    assert.equal((await adminReset({missionGoal: 2})).j.currentGoal, 1);
+    Date.now = () => monday;
     plane.hex = "aabb70";
     assert.equal((await wave({gps: false})).j.ver, 0);
     assert.equal((await mission(identity)).total, 0);
     plane.hex = "aabb71";
     assert.equal((await wave({t: monday - 8 * 60e3, pl: {la: plane.lat, lo: plane.lon, alt: plane.alt_baro}})).j.ver, 1);
-    assert.deepEqual(await mission(identity), {week: "2026-11-23", goal: 1, total: 0, mine: 0});
+    assert.deepEqual(await mission(identity), {week: "2026-11-23", goal: 2, total: 0, mine: 0, previous: {week: "2026-11-16", goal: 1, total: 1, mine: 1}});
     assert.equal(sky.weeklyMission(monday - 8 * 60e3, C).mine, 1);
     plane.hex = "aabb72";
     assert.equal((await wave()).j.ver, 1);
     await wave();
-    assert.deepEqual(await mission(identity), {week: "2026-11-23", goal: 1, total: 1, mine: 1});
+    assert.deepEqual(await mission(identity), {week: "2026-11-23", goal: 2, total: 1, mine: 1, previous: {week: "2026-11-16", goal: 1, total: 1, mine: 1}});
     assert.equal((await mission({id: C})).mine, null);
     assert.equal((await call("/api/mydata", identity, "9.9.9.9")).j.mission_waves.length, 2);
     await adminReset({missionGoal: 0});
     assert.equal(await mission(identity), null);
+
+    Date.now = () => Date.parse("2026-03-23T10:00:00Z");
+    await adminReset({missionGoal: 5});
+    Date.now = () => Date.parse("2026-03-29T22:05:00Z"); // prvý pondelok po zmene na letný čas
+    assert.equal((await mission(identity)).previous.week, "2026-03-23");
+    await adminReset({missionGoal: 0});
   } finally {
     Date.now = oldNow;
     Object.assign(plane, oldPlane);
@@ -441,7 +450,7 @@ await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async
   assert.equal(await sky.tokOld(C),hc.tok,"podpis existujúcich tokenov ostáva stabilný");
   const done=await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
   assert.equal(done.j.ok,true);assert.equal(done.j.epoch,1);
-  for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres","mission_waves"])
+  for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres","mission_waves","mission_weeks"])
     assert.equal(db.prepare("SELECT COUNT(*) c FROM "+table).get().c,0,table);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001"})).s,409);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001",epoch:1})).s,200);

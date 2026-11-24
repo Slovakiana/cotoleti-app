@@ -663,6 +663,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 /* 🏆 Súťažný pulz: jeden jasný cieľ na domovskej obrazovke */
 .compPulse{position:relative;overflow:hidden;border:1px solid rgba(255,207,79,.32)!important;background:radial-gradient(circle at 98% 0%,rgba(255,207,79,.15),transparent 58%),linear-gradient(155deg,rgba(32,35,77,.96),rgba(12,21,45,.96));padding:16px!important}
 .compPulse[hidden]{display:none!important}
+.firstWaveHint{margin:8px 0 0;font-size:calc(13px*var(--fs,1));line-height:1.4;color:var(--mut2)}
+.firstWaveAction{min-height:44px;margin-top:4px}
+.weeklyMission h2{font-size:calc(17px*var(--fs,1));margin:0 0 6px}
+.weeklyMission .compPulseDetail{margin:6px 0 0}
+.weeklyMission progress{display:block;width:100%;height:8px;margin-top:8px;accent-color:var(--mint)}
+.weeklyMission details{margin-top:6px;border-top:1px solid var(--gline)}
+.weeklyMission summary{min-height:44px;line-height:1.4;padding:12px 0;cursor:pointer;font-size:calc(13px*var(--fs,1))}
+.weeklyMission details .compPulseDetail{margin:0 0 6px}
 .compPulseEyebrow{font-size:11px;font-weight:850;letter-spacing:.075em;color:#ffe49b}
 .compPulseTitle{font:900 clamp(18px,5.4vw,25px)/1.2 var(--disp);margin:9px 0;color:#fff}
 .compPulseDetail{font-size:13px;line-height:1.48;color:#d5def2;margin:0 0 12px}
@@ -725,9 +733,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   </section>
 
   <section id="hero" class="glass">
-    <p class="sub" id="firstWaveHint" hidden></p>
-    <button class="ghost" id="firstWaveAction" type="button" hidden></button>
-    <div class="msg" id="firstWaveResult" role="status"></div>
     <div class="kick"><span id="h-lbl">Práve nad tebou</span><span class="sp"></span><span class="rar" id="h-rar" style="display:none"></span><span class="lookup" id="lookupBadge">POZRI HORE 👆</span><span class="goldTag">🏆 ZLATÉ LIETADLO</span></div>
     <div class="big" id="h-call">—</div>
     <div class="sub" id="h-type">Čakám na polohu…</div>
@@ -739,9 +744,12 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
     </div>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
+    <p class="firstWaveHint" id="firstWaveHint" hidden></p>
+    <button class="ghost firstWaveAction" id="firstWaveAction" type="button" hidden></button>
+    <div class="msg" id="firstWaveResult" role="status"></div>
     <div class="cardHint" id="cardHint"></div>
     <button class="btn sec shareNudge" id="shareNudge" hidden>📤 Pošli kamarátovi, nech zamáva aj on</button>
-    <div class="waveHint" id="waveHint">Zamávaj a lietadlo máš v zbierke · podrž = iná reakcia</div>
+    <div class="waveHint" id="waveHint">Podrž tlačidlo Mávni pre ďalšie reakcie.</div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="dir" id="h-dir">
@@ -801,6 +809,10 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <div class="links" id="h-links"></div>
     </div>
   </details>
+  <section class="card glass" id="nearCard">
+    <div class="lbl"><span>Ďalšie lietadlá okolo teba</span><span id="radarCnt"></span></div>
+    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
+  </section>
   <section class="card glass huntHome" id="huntHome" data-state="empty" aria-label="Osobný lov lietadla">
     <div class="huntHomeKicker">🎯 TVOJA ZBERATEĽSKÁ MISIA</div>
     <div class="huntHomeTitle" id="huntHomeTitle">Vyber si vysnívanú kartičku</div>
@@ -814,7 +826,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="compPulseTrack" aria-hidden="true"><i id="compPulseBar" style="width:0%"></i></div>
     <button class="compPulseGo" id="compPulseGo" type="button">🏆 Zobraziť moju divíziu <span aria-hidden="true">›</span></button>
   </section>
-  <section class="card glass compPulse" id="weeklyMission" hidden aria-labelledby="weeklyMissionTitle">
+  <section class="card glass weeklyMission" id="weeklyMission" hidden aria-labelledby="weeklyMissionTitle">
     <h2 class="compPulseTitle" id="weeklyMissionTitle">Spoločná misia Slovenska</h2>
     <p class="compPulseDetail" id="weeklyMissionTotal"></p>
     <progress id="weeklyMissionProgress" aria-label="Postup spoločnej misie"></progress>
@@ -824,10 +836,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <summary>Výsledok minulého týždňa</summary>
       <p class="compPulseDetail" id="weeklyMissionRecap"></p>
     </details>
-  </section>
-  <section class="card glass" id="nearCard">
-    <div class="lbl"><span>Ďalšie lietadlá okolo teba</span><span id="radarCnt"></span></div>
-    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
   </section>
   <section class="card glass" id="krajeCard" style="display:none">
     <div class="lbl"><span id="lgHead">🇸🇰 Dnes mávalo Slovensko</span><span id="wavesToday"></span></div>

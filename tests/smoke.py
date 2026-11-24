@@ -81,6 +81,28 @@ def main():
                 renderWeeklyMission(null);
                 if (!$("weeklyMission").hidden) throw Error("Vypnutá misia je viditeľná");
             }""")
+            for width in (320, 390, 768):
+                pg.set_viewport_size({"width": width, "height": 844})
+                pg.evaluate("""() => {
+                    const ids = ["hero", "nearCard", "huntHome", "compPulse", "weeklyMission"];
+                    const bounds = id => $(id).getBoundingClientRect();
+                    if (!ids.slice(1).every((id, i) => $(ids[i]).compareDocumentPosition($(id)) & Node.DOCUMENT_POSITION_FOLLOWING))
+                        throw Error("Herné karty odsunuli zoznam lietadiel");
+                    renderWeeklyMission({goal: 100, total: 28, mine: 2, previous: {goal: 100, total: 104, mine: 4}});
+                    const past = $("weeklyMissionPrevious");
+                    if (past.hidden || past.open || !past.textContent.includes("Cieľ splnený"))
+                        throw Error("Výsledok minulého týždňa má byť dostupný a zbalený");
+                    past.querySelector("summary").click();
+                    if (!past.open || bounds("weeklyMissionRecap").height === 0)
+                        throw Error("Výsledok minulého týždňa sa nedá rozbaliť");
+                    if (bounds("weeklyMission").right > document.documentElement.clientWidth
+                        || bounds("weeklyMissionProgress").right > bounds("weeklyMission").right
+                        || past.querySelector("summary").getBoundingClientRect().height < 44)
+                        throw Error("Misia sa nezmestí do šírky alebo má malý dotykový cieľ");
+                    past.open = false;
+                    renderWeeklyMission(null);
+                }""")
+                print(f"✓ poradie kariet, šírka misie a dotykové ovládanie pri {width} px")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)
