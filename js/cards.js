@@ -158,7 +158,9 @@ function pilotArt(c,v,id){
     ${shiny?'<path d="M336 35v36m-18-18h36M64 108v24m-12-12h24" stroke="#fff5fc" stroke-width="2" opacity=".85"/>':""}`;
 }
 function pilotCard(c,v,id,mini=false){
-  const key=c.code,r=typeTier(key),frame=v.shiny?"#f9c8ed":FRAME[r][0],title=SVGE(c.name);
+  const key=c.code,r=typeTier(key),title=SVGE(c.name);
+  const custom=!mini&&FRAMES_SHOP[COL.frame];
+  const frame=v.shiny?"#f9c8ed":v.gold?"#ffcf4f":(custom||FRAME[r])[0];
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" font-family="Inter,system-ui,sans-serif">
   <defs><clipPath id="scene${id}"><rect x="18" y="72" width="384" height="352" rx="13"/></clipPath></defs>
   <rect x="3" y="3" width="414" height="582" rx="28" fill="#081329" stroke="${frame}" stroke-width="5"/>
@@ -336,7 +338,7 @@ $("huntHomeGo").onclick=()=>{
   atlasMode="miss";atlasOpen=false;document.querySelector('nav [data-v="col"]')?.click();
 };
 
-/* ---- Atlas v záložke Ja ---- */
+/* ---- Atlas v Zbierke ---- */
 let atlasOpen=false;let atlasMode="mine";let atlasRare=false;
 const cardRar=k=>typeTier(k);
 const inSeries=k=>CAT[k]&&!TROPHY.has(k);
@@ -440,12 +442,14 @@ function openCard(k,reveal){
 }
 function cardExtras(k,v){
   const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
+  const aircraft=PILOT_ART[k]?CAT[k]:null;
   const verL=v.ver?`<div class="verOk">✓ Overená${v.seq?" · č. "+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená · <button data-why="1" style="display:inline;margin:0">🔎 Prečo?</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · ${esc(cardProgress(k,v))}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
   // tlačidlá hneď pod kartičkou (na malom displeji nie sú schované pod lištou)
   if(v.n){h+=`<div class="cardBtns">`;const pin=(COL.show||[]).includes(k);h+=`<button class="btn sec" data-pin="${esc(k)}">${pin?"📌 Vo vitríne":"📌 Do vitríny"}</button>`;
     if(["c","u"].includes(r)&&(v.n|0)>=2&&!(typeof KID==="function"&&KID()))h+=v.ver?`<button class="btn sec" data-gift="${esc(k)}">🎁 Daruj kópiu</button>`:`<button class="btn sec" disabled title="Darovať sa dá len overená kartička">🎁 Daruj (po overení)</button>`;
     h+=`</div>`}
+  if(aircraft)h+=`<dl class="cardAircraft"><div><dt>Rozpätie</dt><dd>${nf(aircraft.span,1)} m</dd></div><div><dt>Dĺžka</dt><dd>${nf(aircraft.len,1)} m</dd></div><div><dt>Dolet</dt><dd>${nf(aircraft.range)} km</dd></div><div><dt>Typická kapacita</dt><dd>${nf(aircraft.seats)} miest</dd></div></dl>`;
   // formy: podmienka priamo pod ikonou (title na iPhone nevidieť)
   h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:f[3]}</small></span>`).join("")}</div>`;
   // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
@@ -507,7 +511,8 @@ HOOKS.caught.push(a=>{
   if(msg&&!WB)setTimeout(()=>toast(msg[0],msg[1],"#ff4fd8"),3500);
 });
 $("cardShare").onclick=async()=>{
-  const key=cardK,v=COL.types[key];if(!v)return;
+  const key=cardK,card=COL.types[key];if(!card)return;
+  const v={...card};
   const svg=cardSVG(key,v,{id:"s"}),img=new Image(),W=1080,H=1920;
   img.onload=()=>{
     const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
@@ -683,7 +688,8 @@ $("cardBig").addEventListener("click",e=>{const b=e.target.closest("[data-hunt-p
 function vidOK(){return typeof MediaRecorder!=="undefined"&&!!HTMLCanvasElement.prototype.captureStream}
 function vidMime(){for(const m of ["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"])try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}return ""}
 if($("cardVideo"))$("cardVideo").onclick=()=>{
-  const key=cardK,v=COL.types[key];if(!v||!vidOK())return;
+  const key=cardK,card=COL.types[key];if(!card||!vidOK())return;
+  const v={...card};
   const btn=$("cardVideo");btn.disabled=true;btn.textContent="⏳";
   const done=()=>{btn.disabled=false;btn.textContent="🎬"};
   const img=new Image(),W=720,H=1280,CW=560,CH=784;
@@ -743,7 +749,7 @@ $("showcase")&&($("showcase").onclick=e=>{const b=e.target.closest("[data-sk]");
     if(!cand.length){toast("📌 Zatiaľ nemáš čo vystaviť","Zamávaj lietadlu a získaj kartičku");return}
     $("cdBox").innerHTML=`<div class="lbl"><span>📌 Vyber kartičku do vitríny</span></div><div class="cdPick" id="showPick">${cand.map(k=>`<button data-pk="${esc(k)}">${cardMini(k,COL.types[k])}</button>`).join("")}</div><div class="acts"><button class="btn ico" id="cdX" style="flex:1">Zrušiť</button></div>`;
     $("cdM").classList.add("on");
-    $("showPick").onclick=ev=>{const p=ev.target.closest("[data-pk]");if(!p)return;COL.show=COL.show||[];if(COL.show.length<showSlots())COL.show.push(p.dataset.pk);LS.set("ctl_col",COL);$("cdM").classList.remove("on");renderShow();haptic(10);toast("📌 Vo vitríne","Ukáž ju kamarátom v záložke Ja")}}});
+    $("showPick").onclick=ev=>{const p=ev.target.closest("[data-pk]");if(!p)return;COL.show=COL.show||[];if(COL.show.length<showSlots())COL.show.push(p.dataset.pk);LS.set("ctl_col",COL);$("cdM").classList.remove("on");renderShow();haptic(10);toast("📌 Vo vitríne","Ukáž ju kamarátom v Zbierke")}}});
 /* ✈ míle: druhá mena bez platenia – z denných bodov (prvých 60 b naplno, potom 25 %) */
 function mileSync(){
   COL.mi=COL.mi|0;if(COL.ptsSeen==null){COL.ptsSeen=COL.pts;COL.mi=Math.min(300,Math.round(COL.pts/10))}
@@ -755,7 +761,7 @@ function mileSync(){
 const SHOP=[
   {id:"freeze",i:"❄️",n:"Zmrazenie série",d:"Keď vynecháš deň, séria nespadne (max. 3)",c:80,ok:()=>((typeof DAILY!=="undefined"&&DAILY&&DAILY.freeze)|0)<3,buy:()=>{const D=dailyEnsure();D.freeze=(D.freeze|0)+1;LS.set("ctl_daily",D);renderDaily()}},
   {id:"swap",i:"🔄",n:"Ďalšia výmena výzvy",d:"Vymeň dnes ešte jednu výzvu",c:25,ok:()=>true,buy:()=>{const D=dailyEnsure();D.swapped=false;LS.set("ctl_daily",D);renderDaily()}},
-  {id:"slot2",i:"🏛️",n:"2. miesto vo vitríne",d:"Vystav ďalšiu kartičku v záložke Ja",c:200,once:1},
+  {id:"slot2",i:"🏛️",n:"2. miesto vo vitríne",d:"Vystav ďalšiu kartičku v Zbierke",c:200,once:1},
   {id:"slot3",i:"🏛️",n:"3. miesto vo vitríne",d:"Plná vitrína",c:500,once:1,ok:()=>!!(COL.shop||{}).slot2},
   {id:"fr_tatry",i:"🏔️",n:"Rám Tatry",d:"Rám na všetky tvoje kartičky (dá sa prepínať)",c:150,once:1},
   {id:"fr_dunaj",i:"🌊",n:"Rám Dunaj",d:"Rám na všetky tvoje kartičky (dá sa prepínať)",c:250,once:1},

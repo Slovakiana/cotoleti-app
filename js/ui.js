@@ -33,7 +33,7 @@ function toast(a,b,col){
   if(WB){WB.items.push([a,b,col]);return}
   if(TQ.some(q=>q[0]===a)||(tBusy&&$("toastT").textContent===a))return; // bez duplicít
   // viac odznakov naraz = jedno oznámenie
-  if(/^🏅/.test(a)){const q=TQ.find(x=>/^🏅/.test(x[0]));if(q){const n=(q.n||1)+1;q.n=n;q[0]=`🏅 ${n} ${n<5?"nové odznaky":"nových odznakov"}`;q[1]="Pozri si ich v záložke Ja";return}}
+  if(/^🏅/.test(a)){const q=TQ.find(x=>/^🏅/.test(x[0]));if(q){const n=(q.n||1)+1;q.n=n;q[0]=`🏅 ${n} ${n<5?"nové odznaky":"nových odznakov"}`;q[1]="Pozri si ich v Zbierke";return}}
   TQ.push([a,b,col]);if(TQ.length>4)TQ.splice(1,TQ.length-4);if(!tBusy)toastNext();
 }
 function toastNext(){

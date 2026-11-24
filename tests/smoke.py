@@ -161,7 +161,12 @@ def main():
                 shareBlob=async(blob,name,caption)=>{window.savedCardAsset={blob,name,caption};};
                 $("cardShare").click();
             }""")
-            pg.wait_for_function("window.savedCardAsset?.blob.size>1000")
+            for _ in range(30):
+                if pg.evaluate("() => (window.savedCardAsset?.blob.size || 0) > 1000"):
+                    break
+                pg.wait_for_timeout(100)
+            else:
+                raise AssertionError("Export kartičky nevytvoril obrázok")
             pg.evaluate("""async () => {
                 const {blob,caption}=window.savedCardAsset;
                 const img=await createImageBitmap(blob);

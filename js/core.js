@@ -381,7 +381,7 @@ function tryCatch(a){
 function checkAch(){for(const x of ACH){if(COL.ach[x.id]||x.c.length>0)continue;try{if(x.c())grantAch(x.id)}catch(e){}}}
 function grantAch(id){if(COL.ach[id])return;const x=ACH.find(q=>q.id===id);if(!x)return;COL.ach[id]=Date.now();LS.set("ctl_col",COL);
   // tesne po úvode nech odznak neprekryje prvý pohľad na oblohu
-  const wait=Math.max(0,20000-(Date.now()-LS.get("ctl_onbT",0)));setTimeout(()=>{toast("🏅 Nový odznak: "+x.n,"Nájdeš ho v záložke Ja → Odznaky.","#ffcf4f");confetti(50);ping("r")},wait);if(S.view==="col")renderCol()}
+  const wait=Math.max(0,20000-(Date.now()-LS.get("ctl_onbT",0)));setTimeout(()=>{toast("🏅 Nový odznak: "+x.n,"Nájdeš ho v Zbierke → Odznaky.","#ffcf4f");confetti(50);ping("r")},wait);if(S.view==="col")renderCol()}
 
 
 /* odkazy od kamarátov (výzva, súboj) počkajú, kým človek prejde úvodom */
