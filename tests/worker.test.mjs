@@ -393,6 +393,38 @@ const adminReset=async b=>{
   const r=await W.fetch(new Request("https://x/api/admin",{method:"POST",headers:{"x-admin-key":"tajne"},body:JSON.stringify({...b,key:"tajne"})}),env);
   return {s:r.status,j:await r.json()};
 };
+await t("týždenná misia: overenie, jedinečné príspevky a hranica týždňa", async () => {
+  const oldNow = Date.now, oldPlane = {...plane};
+  const monday = Date.parse("2026-11-22T23:05:00Z"); // v Bratislave už pondelok
+  Date.now = () => monday;
+  const mission = async (body) => (await call("/api/sky", body, "9.9.9.9")).j.mission;
+  const identity = {id: C, tok: hc.tok};
+  const wave = (extra = {}) => call("/api/wave", {...identity, hex: plane.hex, lat: 48.15, lon: 17.11, ...extra}, "9.9.9.9");
+  try {
+    assert.equal(await mission(identity), null);
+    assert.equal((await call("/api/admin", {missionGoal: 1})).s, 401);
+    assert.equal((await adminReset({missionGoal: 1.5})).s, 400);
+    assert.equal((await adminReset({missionGoal: 1})).j.missionGoal, 1);
+    plane.hex = "aabb70";
+    assert.equal((await wave({gps: false})).j.ver, 0);
+    assert.equal((await mission(identity)).total, 0);
+    plane.hex = "aabb71";
+    assert.equal((await wave({t: monday - 8 * 60e3, pl: {la: plane.lat, lo: plane.lon, alt: plane.alt_baro}})).j.ver, 1);
+    assert.deepEqual(await mission(identity), {week: "2026-11-23", goal: 1, total: 0, mine: 0});
+    assert.equal(sky.weeklyMission(monday - 8 * 60e3, C).mine, 1);
+    plane.hex = "aabb72";
+    assert.equal((await wave()).j.ver, 1);
+    await wave();
+    assert.deepEqual(await mission(identity), {week: "2026-11-23", goal: 1, total: 1, mine: 1});
+    assert.equal((await mission({id: C})).mine, null);
+    assert.equal((await call("/api/mydata", identity, "9.9.9.9")).j.mission_waves.length, 2);
+    await adminReset({missionGoal: 0});
+    assert.equal(await mission(identity), null);
+  } finally {
+    Date.now = oldNow;
+    Object.assign(plane, oldPlane);
+  }
+});
 await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {
   assert.equal((await call("/api/admin",{resetAction:"prepare"})).s,401);
   assert.equal((await call("/api/admin",{resetAction:"execute",key:"nespravny"})).s,401);
@@ -409,7 +441,7 @@ await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async
   assert.equal(await sky.tokOld(C),hc.tok,"podpis existujúcich tokenov ostáva stabilný");
   const done=await adminReset({resetAction:"execute",nonce:draft.j.nonce,confirm:"VYMAZAT VSETKY DATA"});
   assert.equal(done.j.ok,true);assert.equal(done.j.epoch,1);
-  for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres"])
+  for(const table of ["ids","typeseq","wavelog","nicks","totals","tweek","refs","streaks","duelres","mission_waves"])
     assert.equal(db.prepare("SELECT COUNT(*) c FROM "+table).get().c,0,table);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001"})).s,409);
   assert.equal((await call("/api/hello",{id:"v2testresetgeneration000001",epoch:1})).s,200);

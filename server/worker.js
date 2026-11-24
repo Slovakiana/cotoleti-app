@@ -86,7 +86,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v71";
+const VERSION = "v72";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -146,6 +146,7 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
       CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
       CREATE TABLE IF NOT EXISTS catches(id TEXT, hex TEXT, t INTEGER, PRIMARY KEY(id, hex));
+      CREATE TABLE IF NOT EXISTS mission_waves(week TEXT, id TEXT, day TEXT, hex TEXT, PRIMARY KEY(week, id, day, hex));
       CREATE TABLE IF NOT EXISTS heatp(m TEXT, cell TEXT, id TEXT, PRIMARY KEY(m, cell, id));
       CREATE TABLE IF NOT EXISTS typeseq(type TEXT, id TEXT, seq INTEGER, w INTEGER, k TEXT, town TEXT, t INTEGER, PRIMARY KEY(type, id));
       CREATE TABLE IF NOT EXISTS edcatch(ev TEXT, id TEXT, no INTEGER, type TEXT, t INTEGER, PRIMARY KEY(ev, id));
@@ -274,6 +275,7 @@ export class Sky extends DurableObject {
         const old = new Date(now - 8 * 86400e3).toISOString().slice(0, 10);
         this.sql.exec("DELETE FROM waves WHERE day < ?", old);
         this.sql.exec("DELETE FROM wavelog WHERE day < ?", old);
+        this.sql.exec("DELETE FROM mission_waves WHERE week < ?", this.week(now - 14 * 86400e3));
         this.sql.exec("DELETE FROM momentby WHERE day < ?", old);
         for (const t of ["planes", "towns", "mails", "kraje"]) this.sql.exec(`DELETE FROM ${t} WHERE day < ?`, old);
         this.sql.exec("DELETE FROM heatp WHERE m < ?", new Date(Date.now() - 70 * 86400e3).toISOString().slice(0, 7));
@@ -310,6 +312,14 @@ export class Sky extends DurableObject {
     try { await fetch(`https://api.telegram.org/bot${e.TG_TOKEN}/sendMessage`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({chat_id: e.TG_CHAT, text: "⚠️ Čo to letí? – " + text})}); } catch (err) {}
   }
   week(t = Date.now()) { const d = new Date(this.day(t) + "T12:00:00Z"); const day = (d.getUTCDay() + 6) % 7; return new Date(d.getTime() - day * 86400e3).toISOString().slice(0, 10); }
+  weeklyMission(now, id = "") {
+    const goal = Number(this.getMeta("mission_goal") || 0);
+    if (!goal) return null;
+    const week = this.week(now);
+    const total = this.row("SELECT COUNT(*) AS n FROM mission_waves WHERE week=?", week).n;
+    const mine = id ? this.row("SELECT COUNT(*) AS n FROM mission_waves WHERE week=? AND id=?", week, id).n : null;
+    return {week, goal, total, mine};
+  }
   goldenNow(d) { return this.row("SELECT * FROM golden WHERE day=? ORDER BY seq DESC LIMIT 1", d); }
   async pickGolden(d, now) {
     const g = this.goldenNow(d), n = (this.row("SELECT COUNT(*) AS c FROM golden WHERE day=?", d) || {c: 0}).c;
@@ -727,7 +737,7 @@ export class Sky extends DurableObject {
       const coh = (back) => { const born0 = Date.parse(this.day(now - back * 86400e3) + "T00:00:00Z") - 7 * 86400e3, born1 = born0 + 7 * 86400e3; const b = (this.row("SELECT COUNT(*) AS c FROM ids WHERE t >= ? AND t < ?", born0, born1) || {c: 0}).c; const r = (this.row("SELECT COUNT(DISTINCT i.id) AS c FROM ids i JOIN seen s ON s.id = i.id AND s.day >= ? WHERE i.t >= ? AND i.t < ?", this.day(now - 2 * 86400e3), born0, born1) || {c: 0}).c; return b ? Math.round(r / b * 100) + "% z " + b : "–"; };
       const funnel = {}; for (const r of this.sql.exec("SELECT step, SUM(n) AS n FROM funnel WHERE day >= ? GROUP BY step", this.day(now - 6 * 86400e3)).toArray()) funnel[r.step] = r.n;
       const errors = this.sql.exec("SELECT msg, SUM(n) AS n FROM errs GROUP BY msg ORDER BY n DESC LIMIT 10").toArray();
-      return json({retencia: {d7: coh(7), d30: coh(30)}, lievik7dni: funnel, chyby: errors, users: (this.row("SELECT COUNT(*) AS c FROM ids") || {c: 0}).c, pushSubs: (this.row("SELECT COUNT(*) AS c FROM subs") || {c: 0}).c, teams: (this.row("SELECT COUNT(*) AS c FROM teams") || {c: 0}).c, days});
+      return json({mission: this.weeklyMission(now), retencia: {d7: coh(7), d30: coh(30)}, lievik7dni: funnel, chyby: errors, users: (this.row("SELECT COUNT(*) AS c FROM ids") || {c: 0}).c, pushSubs: (this.row("SELECT COUNT(*) AS c FROM subs") || {c: 0}).c, teams: (this.row("SELECT COUNT(*) AS c FROM teams") || {c: 0}).c, days});
     }
     if (p === "/api/year") {
       // 🇸🇰 súhrn roka – spoločný pre všetkých, cache 10 min
@@ -862,7 +872,12 @@ export class Sky extends DurableObject {
       }
       // edícia „Bol som pri tom“ – stačí overené mávnutie (aj keď typ lietadla nepoznáme); odložené mávnutie sa ráta v čase mávnutia
       if (cok) {
-        const te = vp.late ? tw : now, ev = EVENTS.find(e => te >= Date.parse(e.from) && te < Date.parse(e.to));
+        const te = vp.late ? tw : now;
+        if (Number(this.getMeta("mission_goal") || 0)) {
+          this.sql.exec("INSERT OR IGNORE INTO mission_waves(week, id, day, hex) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM ids WHERE id=?)",
+            this.week(te), id, this.day(te), hex, id);
+        }
+        const ev = EVENTS.find(e => te >= Date.parse(e.from) && te < Date.parse(e.to));
         if (ev) {
           const h = this.row("SELECT no FROM edcatch WHERE ev=? AND id=?", ev.id, id);
           if (h) ed = {id: ev.id, n: ev.n, no: h.no};
@@ -945,7 +960,7 @@ export class Sky extends DurableObject {
     if (p === "/api/mydata" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id), out = {vytvorene: new Date((this.row("SELECT t FROM ids WHERE id=?", id) || {t: 0}).t).toISOString()};
       const q = (t, w, v) => this.sql.exec(`SELECT * FROM ${t} WHERE ${w}=?`, v).toArray().map(r => { delete r.id; delete r.iph; delete r.lc; return r; });
-      for (const t of ["wavelog", "idday", "nicks", "subs", "tracks", "mails", "tmembers", "seen", "gcand"]) out[t] = q(t, "id", id);
+      for (const t of ["wavelog", "idday", "nicks", "subs", "tracks", "mails", "tmembers", "seen", "gcand", "mission_waves"]) out[t] = q(t, "id", id);
       out.kamarati = (this.row("SELECT COUNT(*) AS c FROM friends WHERE a=?", pd) || {c: 0}).c;
       return json(out);
     }
@@ -980,15 +995,21 @@ export class Sky extends DurableObject {
         "maildeliv","golden","teams","tmembers","tweek","ids","rl","friends","reminders",
         "catches","heatp","typeseq","edcatch","wavewhy","gifts","mayorhof","mayorm",
         "yagg","yplane","seen","reports","banned","idday","funnel","refs","errs",
-        "gcand","xfer","sig","hidden","streaks","duelres"];
+        "gcand","xfer","sig","hidden","streaks","duelres","mission_waves"];
       const nextEpoch = Number(this.getMeta("player_reset_epoch")||0) + 1;
       // Durable Object serializuje operácie; reset celého DB sa vykoná synchronne.
       for (const table of wipe) this.sql.exec("DELETE FROM " + table);
-      this.sql.exec("DELETE FROM meta WHERE k NOT IN ('flags','specials','mig3','player_reset_epoch')");
+      this.sql.exec("DELETE FROM meta WHERE k NOT IN ('flags','specials','mig3','player_reset_epoch','mission_goal')");
       this.setMeta("player_reset_epoch", nextEpoch);
       this._snap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
       this.atlC={};this.cstat=new Map();this._spec=null;
       return json({ok:true,phase:"complete",epoch:nextEpoch,clearedTables:wipe.length});
+      }
+      if (b.missionGoal !== undefined) {
+        if (!Number.isSafeInteger(b.missionGoal) || b.missionGoal < 0 || b.missionGoal > 1000000)
+          return json({error: "mission_goal"}, 400);
+        this.setMeta("mission_goal", b.missionGoal);
+        return json({ok: true, missionGoal: b.missionGoal});
       }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
       if (typeof b.specials === "string") {
@@ -1052,7 +1073,7 @@ export class Sky extends DurableObject {
       const b = await body(), id = cleanId(b.id);
       if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
       const pd = await this.pid(id);
-      for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+      for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "mission_waves", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
         // náhrobok: starý token sa už nedá použiť ani na samoopravu účtu
         this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, Date.now(), 1e6 + Math.floor(Math.random() * 1e6));
       this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
@@ -1224,13 +1245,14 @@ export class Sky extends DurableObject {
       const k = sla != null && country === "SK" && !ipFar(sla, slo) ? krajOf(sla, slo) : "XX";
       if (id.length >= 8) { const pr = this.row("SELECT t FROM pres WHERE id=?", id); if (!pr || now - pr.t > 60e3) { this.sql.exec("INSERT INTO pres(id, t, k) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET t = excluded.t, k = excluded.k", id, now, k); this.sql.exec("INSERT OR IGNORE INTO seen(day, id) VALUES(?, ?)", d, id); this.sql.exec("UPDATE ids SET ls=? WHERE id=?", d, id); } }
       const G = this.snap(d, now);
+      const mission = this.weeklyMission(now, id);
       // šetriaci režim (vypínač v /admin): len spoločné údaje, žiadne osobné dotazy
       if (this.flags().social === "min") {
         // aj v šetriacom režime: počet pozvaných a výhra starostu (2 lacné dotazy podľa kľúča) – inak by sa nepripísali odznaky
         const pidM = id ? await this.pid(id) : "", prevM = new Date(new Date(d + "T12:00:00Z").setUTCDate(0)).toISOString().slice(0, 7);
         const myInvites = pidM ? (this.row("SELECT n FROM refs WHERE pid=?", pidM) || {n: 0}).n : 0;
         const won = id.length >= 8 ? (this.row("SELECT town FROM mayorhof WHERE id=? AND m=?", id, prevM) || {}).town || "" : "";
-        return json({...G, teamsTop: G.teamsTop.map(r => ({name: r.name, n: r.n})), planes: {}, friends: {}, now, mailsIn: [], mailsOut: [], mailOn: {}, myTeam: null, myInvites, goldMine: 0, mayor: won ? {won} : null, flags: this.flags()});
+        return json({...G, mission, teamsTop: G.teamsTop.map(r => ({name: r.name, n: r.n})), planes: {}, friends: {}, now, mailsIn: [], mailsOut: [], mailOn: {}, myTeam: null, myInvites, goldMine: 0, mayor: won ? {won} : null, flags: this.flags()});
       }
       const hexes = (qp("hexes") || "").split(",").map(cleanHex).filter(Boolean).slice(0, 25);
       // čo hráč práve vidí na oblohe (pamäť pár minút) – liga verí mávnutiu nového účtu, len ak to lietadlo naozaj videl
@@ -1304,7 +1326,7 @@ export class Sky extends DurableObject {
       let adopt = null; const ad = cleanName(qp("ad") || "", 40);
       if (ad) { const wk = this.week(now); adopt = {town: ad, d: (this.row("SELECT n FROM towns WHERE day=? AND town=?", d, ad) || {n: 0}).n || 0, w: (this.row("SELECT SUM(n) AS s FROM towns WHERE day >= ? AND town=?", wk, ad) || {s: 0}).s || 0}; }
       const hid = id.length >= 8 ? this.row("SELECT name, appeal FROM hidden WHERE id=?", id) : null;
-      return json({...G, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, myHidden: hid ? {name: hid.name, appeal: hid.appeal | 0} : null, flags: this.flags()});
+      return json({...G, mission, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, myHidden: hid ? {name: hid.name, appeal: hid.appeal | 0} : null, flags: this.flags()});
     }
     return json({error: "not found"}, 404);
   }
@@ -1322,6 +1344,10 @@ function adminPage() {
 </section><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
 <button id="f">💾 Uložiť vypínače</button>
+<label for="missionGoal">Cieľ týždennej misie Slovenska (0 = vypnutá)</label>
+<input id="missionGoal" type="number" min="0" max="1000000" step="1">
+<button id="missionSave">Uložiť cieľ misie</button>
+<p id="missionStatus" role="status"></p>
 <section style="border:2px solid #f4a4a4;border-radius:14px;padding:12px;margin:20px 0;background:#4a1828">
 <strong>⚠️ CELÁ HRA OD NULY – iba správca</strong>
 <p>Nezvratne odstráni všetkých hráčov, ligy, overenia, kartičkové prvenstvá, históriu mávnutí a štatistiky. Zmena sa prejaví aj na starých zariadeniach po obnovení aplikácie. Predtým urob zálohu Durable Object databázy.</p>
@@ -1340,6 +1366,7 @@ $("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";$("betaFunnel"
  if(r.status===401){o.textContent=j.configured===false?"⚠️ Produkčný server nevidí ADMIN_KEY. Skontroluj, či je Secret aktívny v nasadení Workeru (nie iba uložený v Settings).":j.keyReceived===false?"⚠️ Server nedostal zadaný kľúč. Skontroluj pripojenie a aktuálne nasadenie.":"⚠️ Server ADMIN_KEY vidí, ale zadaná hodnota sa nezhoduje. Zadaj hodnotu Secret presne tak, ako bola uložená, bez ďalších medzier.";return}
  if(!r.ok){o.textContent="Server odpovedal chybou "+r.status+": "+(j.error||"neznáma");return}
  const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";
+ $("missionGoal").value=j.mission?.goal??0;
  const betaSteps=$("betaSteps");betaSteps.replaceChildren();
  for(const [step,label] of Object.entries(betaLabels)){
    const dt=document.createElement("dt"),dd=document.createElement("dd");
@@ -1351,6 +1378,14 @@ $("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";$("betaFunnel"
  }catch(e){o.textContent="Spojenie so serverom zlyhalo. Skús obnoviť stránku."}};
 $("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};
 const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({...x,key:$("k").value})});return r.json()};
+$("missionSave").onclick=async()=>{
+  const input=$("missionGoal"), status=$("missionStatus");
+  if(!input.value||!input.checkValidity()){status.textContent="Zadaj celý počet mávnutí od 0 do 1 000 000.";return}
+  try{
+    const j=await A({missionGoal:input.valueAsNumber});
+    status.textContent=j.ok?(j.missionGoal?"Misia je zapnutá. Cieľ je "+j.missionGoal+" mávnutí.":"Misia je vypnutá."):"Cieľ sa nepodarilo uložiť. Skontroluj kľúč.";
+  }catch(e){status.textContent="Spojenie so serverom zlyhalo."}
+};
 const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
 $("q").onclick=()=>Q();
 $("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx").value});const s=j.specials||{lv:{},fi:[]};o.textContent="Uložené: "+Object.keys(s.lv).length+" náterov, "+s.fi.length+" prvých letov"};

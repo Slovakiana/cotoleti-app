@@ -70,6 +70,17 @@ def main():
             for v in ["space", "col", "now"]:
                 pg.click(f'nav [data-v="{v}"]', timeout=5000)
                 pg.wait_for_timeout(1200)
+            pg.evaluate("""() => {
+                renderWeeklyMission({total: 3, goal: 3, mine: 1});
+                if ($("weeklyMission").hidden || $("weeklyMissionDone").hidden
+                    || $("weeklyMissionProgress").value !== 3 || !$("weeklyMissionMine").textContent.endsWith("1"))
+                    throw Error("Chybný stav dokončenej misie");
+                renderWeeklyMission({total: 1, goal: 3, mine: null});
+                if (!$("weeklyMissionDone").hidden || !$("weeklyMissionMine").hidden)
+                    throw Error("Neoverený hráč vidí osobný postup alebo predčasnú odmenu");
+                renderWeeklyMission(null);
+                if (!$("weeklyMission").hidden) throw Error("Vypnutá misia je viditeľná");
+            }""")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)

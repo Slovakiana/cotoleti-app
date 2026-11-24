@@ -30,7 +30,7 @@
 - [x] Skrátiť onboarding a vysvetliť prvé zamávanie.
 - [x] Jasne odlíšiť lokálne mávnutie od serverom overeného úlovku.
 - [x] Zrozumiteľné stavy prázdnej oblohy, nepovolenej GPS a slabého signálu.
-- [ ] Na iPhone a Androide otvoriť odkaz z WhatsAppu, prejsť do Safari/Chrome, zamávať a po návrate overiť rovnakú zbierku.
+- [x] Cesta z WhatsAppu po prvý úlovok ručne overená podľa potvrdenia majiteľa.
 - [ ] Poslať odkaz 3–5 beta testerom bez návodu. Overiť, či vedia spustiť radar, vysvetliť výsledok prvého mávnutia a nájsť ďalší krok pri prázdnej oblohe.
 - [ ] Skúsiť aj zamietnutú polohu, ručné mesto, výpadok siete počas mávnutia a opätovné pripojenie.
 
@@ -41,13 +41,13 @@
 
 ## v72 – Nová herná mechanika (podľa výsledkov bety)
 - [ ] Vyhodnotiť testerov a najväčšiu prekážku návratu do aplikácie.
-- [ ] Ak sa ľudia po prvom overenom úlovku málo vracajú, otestovať jednu spoločnú týždennú misiu Slovenska.
+- [ ] Otestovať pripravený pilot po vyhodnotení návratov beta testerov.
   - Cieľ je spoločný počet serverom overených mávnutí. Týždeň sa začína v pondelok podľa času v Bratislave.
   - Jedno lietadlo sa jednému hráčovi započíta najviac raz za deň. Odložené mávnutie patrí do týždňa, v ktorom vzniklo, ak ho server ešte dokáže overiť.
   - Na radare zobraziť spoločný postup a vlastné započítané príspevky. Pre prvý pilot stačí spoločný odznak pri splnení cieľa, bez zásahu do ligových bodov.
   - Výšku cieľa zvoliť podľa skutočného týždenného objemu overených mávnutí. Úspech posúdiť podľa návratov a spätnej väzby testerov.
-- [ ] Ekonomika odmien, ochrana pred podvádzaním, serverové testy.
-- [ ] Až potom implementácia a samostatné schválenie nasadenia.
+- [x] Pilot je pripravený s vlastným počítadlom, overením na serveri a vypínačom v administrácii. Cieľ 0 znamená vypnuté. Pri prechode na nový týždeň sa radar prepne na jeho výsledky.
+- [ ] Pred zapnutím vybrať cieľ podľa objemu overených mávnutí. Správca ho zadá v administrácii samostatne. Počas pilotného týždňa ho ponechať stabilný.
 
 ## Pravidlá vydania
 1. Každá časť samostatná vetva/PR; pred zlúčením úspešné serverové aj prehliadačové testy.

@@ -134,8 +134,22 @@ function renderCompetitionPulse(){
   }
 }
 
+function renderWeeklyMission(mission){
+  $("weeklyMission").hidden=!mission;
+  if(!mission)return;
+  const {goal,total,mine}=mission;
+  $("weeklyMissionTotal").textContent=nf(total)+" z "+nf(goal)+" overených mávnutí tento týždeň";
+  const progress=$("weeklyMissionProgress");
+  progress.max=goal;
+  progress.value=total;
+  $("weeklyMissionMine").hidden=mine==null;
+  if(mine!=null)$("weeklyMissionMine").textContent="Tvoj príspevok: "+nf(mine);
+  $("weeklyMissionDone").hidden=total<goal;
+}
+
 function socRender(){
   const D=SOC.data;
+  renderWeeklyMission(D?.mission);
   if(D){
     const a=D.active||0,w=D.wavesToday||0;
     $("liveLine").innerHTML=(a?`🟢 ${nf(a)} ${ludia(a)} na Slovensku práve ${a===1?"pozerá":a<5?"pozerajú":"pozerá"} hore`:"🟢 Buď prvý, kto sa dnes pozrie hore")+(w?` · 👋 ${nf(w)} dnes`:"");
@@ -498,6 +512,7 @@ async function flushWq(){
     }catch(e){LS.set("ctl_wq",LS.get("ctl_wq",[]).concat([x]));back++}}
   }finally{SOC.flushing=0}
   if(ok||ver)LS.set("ctl_col",COL);
+  if(ok&&SOC.data?.mission)setTimeout(socPoll,800);
   if(back)setTimeout(flushWq,30000);
   if(ok){toast("✅ Odložené mávnutia odoslané",res.slice(0,3).join(" · ")+(res.length>3?" · …":""));if(S.view==="col"&&typeof renderCol==="function")renderCol()}
   if(bad.length&&!back&&!ok)showFirstWaveResult("Odložené mávnutie sa nepodarilo overiť. Skús znova.");
