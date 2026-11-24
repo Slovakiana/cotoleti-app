@@ -242,6 +242,35 @@ def main():
                 }finally{apiPost=realPost;LS.set("ctl_wq",[]);}
             }""")
             print("✓ spoločný rám aj stavy odloženého mávnutia")
+            pg.evaluate("""() => {
+                setView("col");
+                if ($("c-types").querySelector(".albumDiscovery")) throw Error("Album prekrýva kartičky");
+                delete COL.albums;
+                COL.cx.legacy={al:"RYR",dc:"it",oc:"AT"};
+                const albums=collectionAlbums();
+                rememberAlbumCatch({al:"RYR",dc:"IT"},albums);
+                rememberAlbumCatch({al:"WZZ",dc:"FR"},albums);
+                rememberAlbumCatch({al:"UNKNOWN",dc:""},albums);
+                delete COL.cx.legacy;
+                if (Object.keys(albums.airlines).length!==2||!albums.destinations.IT||!albums.destinations.FR
+                    ||albums.destinations.AT||Object.keys(albums.destinations).length!==2)
+                    throw Error("Pas nerozlišuje cieľ letu alebo ráta objav dvakrát");
+                $("c-types").querySelector('[data-m="sets"]').click();
+                $("c-types").querySelector('[data-alb="al"]').click();
+                const airline=$("c-types").querySelector(".albumDiscovery");
+                if (!airline.textContent.includes("Ryanair")||!airline.textContent.includes("Wizz Air"))
+                    throw Error("Chýbajú objavené aerolinky");
+                $("c-types").querySelector('[data-alb="ct"]').click();
+                const passport=$("c-types").querySelector(".albumDiscovery");
+                if (!passport.textContent.includes("Taliansko")||!passport.textContent.includes("Francúzsko")
+                    ||passport.textContent.includes("Rakúsko")||$("c-types").querySelector(".albumExtras").open)
+                    throw Error("Pas alebo zbalené tematické sady vyzerajú nesprávne");
+                if (passport.getBoundingClientRect().right>document.documentElement.clientWidth)
+                    throw Error("Pas preteká mimo obrazovku");
+                $("c-types").querySelector('[data-m="mine"]').click();
+                if ($("c-types").querySelector(".albumDiscovery")) throw Error("Album ostal viditeľný v Moje");
+            }""")
+            print("✓ aerolinky a letecký pas, starší úlovok a zbalené sady")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)

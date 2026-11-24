@@ -10,6 +10,11 @@ Claude – hotové 22. 11. večer (v53–v59): tichý režim (pozvaní, starosta
 
 Majiteľ – zostáva: Workers Paid, UptimeRobot, notifikácie, TG_TOKEN · passkey/2FA, ruleset, secret scanning · súkromie (meno, e-mail), DPA, abuse@ · PR Santa do 5. 12., OZ, doména · rozhodnutia (Spotter+, čo vidí kamarát).
 
+## Otvorené po v80
+
+- **Neznáme typy lietadiel.** V radare a pri úlovku použiť dôveryhodný kód dohľadaný v metadátach, keď ho živý zdroj neposlal. Overiť rovnaký výsledok na klientovi aj serveri bez hádania podľa volacieho znaku. Doplniť názvy kódov C140, D328 a M600. Ak typ nenájdeme, zobraziť stav „Mávnutie uložené · typ lietadla sa nepodarilo určiť“.
+- Pri úprave preveriť aj výpadok zdieľanej snímky `/api/planes` a návrat zo záložného zdroja. Chýbajúce dáta a chýbajúci názov v Atlase sú samostatné prípady.
+
 ## Majiteľ
 Workers Paid 5 $ · ADMIN_KEY · TG_TOKEN/TG_CHAT (Cloudflare + GitHub Secrets) · Cloudflare notifikácie · UptimeRobot · občianske združenie (2 %) · licencie dát pred zarábaním · vlastná doména.
 

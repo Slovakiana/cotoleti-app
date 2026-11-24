@@ -346,6 +346,25 @@ function lvlWatch(B){const l=lvlOf(COL.pts);if(COL.lvlSeen==null||l<=COL.lvlSeen
   COL.lvlSeen=l;LS.set("ctl_col",COL);const m=["⬆️ Level "+(l+1)+": "+lvlName(l),"Obloha ťa začína poznávať."];if(B)B.items.push(m);else if(typeof toast==="function")toast(m[0],m[1])}
 HOOKS.live.push(()=>{if(!(typeof WB!=="undefined"&&WB))lvlWatch()});
 const ownTypes=()=>Object.entries(COL.types).filter(([k,v])=>v.n>0&&k!=="?").length;
+// Objavy patria ku zbierke, takže sa prenesú spolu s profilom aj po orezaní histórie.
+function rememberAlbumCatch(c,albums){
+  if(Object.hasOwn(AIRLINES,c.al))albums.airlines[c.al]=true;
+  const code=String(c.dc||"").trim().toUpperCase();
+  if(/^[A-Z]{2}$/.test(code)&&code!=="ZZ")albums.destinations[code]=true;
+}
+function collectionAlbums(){
+  if(COL.albums)return COL.albums;
+  const albums={airlines:{},destinations:{}};
+  for(const card of Object.values(COL.types)){
+    if(!card.n)continue;
+    if(card.fp)rememberAlbumCatch(card.fp,albums);
+    for(const airline of Object.keys(card.al||{}))rememberAlbumCatch({al:airline},albums);
+  }
+  for(const catchData of Object.values(COL.cx||{}))rememberAlbumCatch(catchData,albums);
+  COL.albums=albums;
+  LS.set("ctl_col",COL);
+  return albums;
+}
 function tryCatch(a){
   if(a.el==null||a.el<10||COL.hex[a.hex])return false;
   const r=rarity(a),ty=a.type||"?",newType=!(COL.types[ty]&&COL.types[ty].n)&&ty!=="?",pts=RAR[r].p*(newType?2:1);
@@ -355,6 +374,7 @@ function tryCatch(a){
   // 🧾 pamäť úlovku: kde, kto, kam – pre albumy (aerolinky, krajiny, OM-) a „Prvá: nad Petržalkou“
   try{const rt=routeOf(a),al=(a.call||"").slice(0,3).toUpperCase();COL.cx=COL.cx||{};
     const c={t:Date.now(),ty,al:AIRLINES[al]?al:"",reg:a.priv?"":(a.reg||""),town:S.pos&&typeof townOf==="function"?townOf(S.pos):"",dest:rt?citySk(rt.destination.municipality):"",dc:rt&&(rt.destination.country_iso_name||rt.destination.iso_country)||"",oc:rt&&rt.origin&&(rt.origin.country_iso_name||rt.origin.iso_country)||"",alt:a.alt!=null?Math.round(a.alt):null,el:Math.round(a.el),spd:a.spd!=null?Math.round(a.spd):null,mil:a.mil?1:0};
+    rememberAlbumCatch(c,collectionAlbums());
     COL.cx[a.hex]=c;if(!v.fp)v.fp=c;
     // 🧹 pamäť: veľmi stará história úlovkov (> 20 000) sa skráti, zbierka a kartičky ostávajú
     {const ks=Object.keys(COL.hex);if(ks.length>20000){const old=Date.now()-365*864e5;for(const k of ks)if(COL.hex[k]<old){delete COL.hex[k];if(COL.cx)delete COL.cx[k]}}}
