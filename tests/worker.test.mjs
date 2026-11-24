@@ -124,7 +124,13 @@ await t("náhľady: kartička, darček, lietadlo s hashom; crawler bez limitu", 
   const c = await get("/s/c/A388?s=1&n=4&nk=Janka");
   assert.match(c, /Airbus A380 · Čo to letí/);
   assert.doesNotMatch(c, /Janka|Lesklá|č\. 4 na Slovensku|http-equiv="refresh"/);
-  assert.match(c, /og\/c\/a388-v78\.jpg/);
+  assert.match(c, /og\/c\/a388-v79\.jpg/);
+  assert.match(c, /#karta=A388/);
+  for(const key of ["B738","AT76","A320","B38M","E190"]){
+    const preview=await get("/s/c/"+key);
+    assert.ok(preview.includes("/og/c/"+key.toLowerCase()+"-v79.jpg"));
+    assert.ok(preview.includes("#karta="+key));
+  }
   assert.match(await get("/s/c/AT76?r=ABCDEFGHIJKLMNOP"), /\?r=ABCDEFGHIJKLMNOP/);
   assert.match(await get("/s/g/ABC123?n=Janka&ty=A320"), /#dar=ABC123/);
   assert.match(await get("/s/p/abc123?c=RYR1"), /#p=abc123/);

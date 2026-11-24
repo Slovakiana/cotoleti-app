@@ -177,6 +177,40 @@ def main():
                 if(S.view!=="col"||!$("c-types").querySelector('[data-k="B738"]'))
                     throw Error("Prvý úlovok sa nedá nájsť v Zbierke");
             }""")
+            pg.evaluate("""async () => {
+                setView("now");
+                const previous = S.top;
+                const source = S.list.find(a => a.hex === "4ca123");
+                const second = {...source, hex:"4ca124", type:"B738"};
+                S.top = second;
+                await doWave("👋");
+                if (COL.types.B738.n!==2 || !$("firstWaveResult").textContent.includes("2 z 5")
+                    || $("cardM").classList.contains("on"))
+                    throw Error("Ďalší stroj nepridal postup alebo znovu otvoril odhalenie");
+                S.top = second;
+                await doWave("👋");
+                if (COL.types.B738.n!==2 || !$("firstWaveResult").textContent.includes("Dnes už zamávané"))
+                    throw Error("Opakované mávnutie tomu istému stroju zmenilo úroveň");
+                if (!cardCatchProgress("B738",{n:5}).includes("Nová hviezda")
+                    || !cardCatchProgress("B738",{n:60}).includes("Najvyššia úroveň"))
+                    throw Error("Chybná spätná väzba pri novej alebo poslednej hviezde");
+                S.top = previous;
+                openCard("B738");
+                if (!$("cardBig").querySelector(".cardFirstCatch")?.textContent.includes("Prvý úlovok"))
+                    throw Error("Chýba skutočný prvý úlovok");
+                Object.defineProperty(navigator,"share",{configurable:true,value:async data=>{window.sharedCardLink=data.url}});
+                $("cardBig").querySelector("[data-card-link]").click();
+                if (!window.sharedCardLink.includes("/s/c/B738")) throw Error("Zdieľaný odkaz nesedí");
+                $("cardClose").click();
+                location.hash = "karta=A320";
+            }""")
+            pg.locator("#cardM.on.locked .lockSil > svg").wait_for(timeout=5000)
+            pg.evaluate("""() => {
+                if(S.view!=="col" || COL.types.A320 || location.hash || !$("cardBig").querySelector('[data-hunt-pick="A320"]'))
+                    throw Error("Zdieľaný odkaz neotvoril správnu neulovenú kartičku");
+                $("cardClose").click();
+            }""")
+            print("✓ druhý stroj, opakované mávnutie, hviezdy a otvorenie zdieľanej kartičky")
             src = pg.evaluate("S.src||''")
             if "Čo to letí" not in src:
                 errs.append("lietadlá neprišli z vlastného servera: " + src)

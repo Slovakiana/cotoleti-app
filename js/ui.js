@@ -14,8 +14,10 @@ function waveBatchEnd(){
   const caught=batch.caught;
   const special=batch.special;
   if(caught&&caught.type!=="?"){
-    const title=special||(caught.newType?"Nová kartička: "+caught.name:cardProgress(caught.type,COL.types[caught.type]));
-    showWaveCard(caught.type,title,caught.newType||!!special,batch.hex,batch.result);
+    const title=special||(caught.newType?"Nová kartička: "+caught.name:cardCatchProgress(caught.type,COL.types[caught.type]));
+    const set=caught.newType?cardSetResult(caught.type):"";
+    const status=[batch.result,set].filter(Boolean).join(" · ");
+    showWaveCard(caught.type,title,caught.newType||!!special,batch.hex,status);
   }else if(special&&batch.type){
     showWaveCard(batch.type,special,true,batch.hex,batch.result);
   }else{
