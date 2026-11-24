@@ -341,7 +341,7 @@ function renderHeroStatic(a){
     if(!p||!S.top||S.top.hex!==a.hex)return;
     const img=new Image();img.onload=()=>{if(S.top&&S.top.hex===a.hex){$("h-photo").style.backgroundImage="url('"+img.src.replace(/'/g,"%27")+"')";$("h-photo").classList.add("on");
       $("h-photo").querySelector("small").innerHTML='foto © '+esc(p.by)+' · <a href="'+esc(p.link)+'" target="_blank" rel="noopener">airport-data.com</a>'}};img.onerror=()=>{if(img.src!==p.thumb){p.img=p.thumb;img.src=p.thumb}};img.src=p.img});
-  $("h-quip").textContent=quip(a,m);
+  $("h-quip").textContent="";
   $("hero").classList.toggle("emerg",a.sq==="7700");
   guessUI(a,rt);
   $("h-links").innerHTML=(a.call?`<a href="https://www.flightradar24.com/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">Flightradar24 ↗</a>`:"")+
@@ -349,7 +349,6 @@ function renderHeroStatic(a){
   HOOKS.heroStatic.forEach(f=>{try{f(a)}catch(e){console.error(e)}});
 }
 function renderHeroLive(a){
-  renderPax();
   if(!a)return;
   const el=Math.max(0,a.el??0);
   $("hero").classList.toggle("overhead",el>=60);
@@ -359,7 +358,6 @@ function renderHeroLive(a){
   $("arrow").style.transform=`rotate(${S.heading!=null?a.bear-S.heading:a.bear}deg)`;
   $("compN").style.display=S.heading!=null?"none":"";
   $("g-alt").textContent=a.alt!=null?(a.alt>=1000?nf(a.alt/1000,1)+" km":nf(a.alt)+" m"):"—";$("g-altC").textContent=a.alt!=null&&a.alt>=GERLACH?"výška · "+nf(a.alt/GERLACH,1)+"× Gerlach":"výška";
-  const p=pax(a);$("g-pax").textContent=p>=10?"~"+nf(p):p?String(p):"—";
   $("g-dist").textContent=nf(Math.hypot(a.dist,a.alt||0)/1000,1)+" km";
   $("g-spd").textContent=a.spd!=null?nf(a.spd)+" km/h":"—";$("g-spdC").textContent=spdCompare(a.spd);
   $("g-trk").textContent=a.trk!=null?dirS(a.trk)+" "+nf(a.trk)+"°":"—";
@@ -368,13 +366,6 @@ function renderHeroLive(a){
   if(ap&&ap.t>3&&ap.t<900&&ap.el!=null&&ap.el>=20){const mm=Math.floor(ap.t/60),ss=Math.floor(ap.t%60);eta.innerHTML=`⏱ Najbližšie k tebe o <b>${mm?mm+" min ":""}${ss} s</b> · ${nf(ap.el)}° nad obzorom`;eta.classList.add("on")}
   else if(ap&&ap.t<=3&&ap.t>-60&&el>=40){eta.innerHTML="🎯 Práve je najbližšie k tebe!";eta.classList.add("on")}
   else eta.classList.remove("on");
-}
-let paxKey="";
-function renderPax(){
-  const up=S.list.filter(a=>a.el!=null&&a.el>0),n=up.length,tot=up.reduce((s,a)=>s+pax(a),0);
-  const key=n+"|"+tot;if(key===paxKey)return;paxKey=key;
-  if(!S.raw.length&&!S.rawT){$("paxLine").innerHTML="";return}
-  $("paxLine").innerHTML=n?`Nad tebou práve letí<b>~${nf(tot)} ${ludia(tot)}</b>v ${n} ${n===1?"lietadle":"lietadlách"}`:`Obloha nad tebou<b>je prázdna</b>`;
 }
 function renderList(list){
   const rest=list.filter(a=>!S.top||a.hex!==S.top.hex).slice(0,12);
@@ -426,16 +417,16 @@ function firstWaveNext(a){
   if(!S.pos)return ["Povoľ polohu alebo vyber mesto, aby sa ti zobrazil radar.", "Vybrať polohu", ()=>$("statusPill").click()];
   if(!navigator.onLine)return ["Si bez internetu. Po pripojení obnov radar."];
   if(S.failN)return ["Dáta o letoch sú dočasne nedostupné.", "Obnoviť radar", ()=>fetchPlanes(true)];
-  if(S.lastKnown||!S.loaded)return ["Načítavam aktuálnu oblohu…"];
+  if(S.lastKnown)return ["Zobrazuje sa posledná známa obloha. Počkaj na živé údaje."];
+  if(!S.loaded)return ["Načítavam živú oblohu…"];
+  if(S.manual)return ["Prezeráš oblohu nad vybraným mestom. Mávnutie bez GPS sa neoverí.", "Použiť GPS", ()=>$("placeGps").click()];
   if(!a||a.emg||a.santa||a.el==null||a.el<10)return ["Zatiaľ tu nie je lietadlo vhodné na mávnutie.", "Pozrieť ISS", ()=>setView("space")];
-  if(S.manual)return ["Radar ukazuje oblohu nad vybraným mestom. Na overený úlovok použi GPS.", "Použiť GPS", ()=>$("placeGps").click()];
   return ["Ťukni na „Mávni“. Počkaj, kým server overí úlovok."];
 }
 
 function renderFirstWaveGuide(a){
-  if(!firstWaveGuide)return;
   const hint=$("firstWaveHint"),button=$("firstWaveAction");
-  const [text,label,action]=firstWaveVerified?[]:firstWaveNext(a);
+  const [text,label,action]=(!firstWaveGuide||firstWaveVerified)&&a&&!S.manual&&S.loaded&&!S.failN&&!S.lastKnown&&navigator.onLine?[]:firstWaveNext(a);
   if(hint.textContent!==(text||""))hint.textContent=text||"";
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}

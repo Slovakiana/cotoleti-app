@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const src=readFileSync(new URL("../js/cards.js",import.meta.url),"utf8");
-const first=src.indexOf("/* 💎 Klenotnica:");
+const first=src.indexOf("const collectorFormCount");
 const last=src.indexOf("/* 🔭 Živý osobný lov:",first);
 assert.ok(first>=0&&last>first);
 const tier={A320:"c",A388:"r",B779:"l"};
