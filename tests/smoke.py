@@ -226,6 +226,19 @@ def main():
                 if (root.querySelector('[data-card-form-choice="z"]'))throw Error("Zamknutá forma sa dá vybrať");
                 openCard("B738");
                 if (form()!=="g")throw Error("Pri opätovnom otvorení sa stratil zvolený vzhľad");
+                const parsed=document.createElement("template");
+                for(const [n,level] of [[1,1],[5,2],[20,3],[60,4]]){
+                    parsed.innerHTML=cardSVG("B738",{...first,n,shiny:1});
+                    const card=parsed.content.firstElementChild;
+                    if (+card.dataset.cardLevel!==level || card.dataset.cardTier!=="c" || card.dataset.cardForm!=="g"
+                        || card.querySelectorAll('[data-level-star="earned"]').length!==level
+                        || card.querySelectorAll('[data-level-star="empty"]').length!==4-level
+                        || !card.querySelector("[data-card-foil]") || !card.textContent.includes("LESKLÁ"))
+                        throw Error("Forma, vzácnosť, lesk alebo hviezdy sa na kartičke stratili");
+                }
+                parsed.innerHTML=cardSVG("A388",null,{artHref:""});
+                if (parsed.content.querySelector("[data-level-star],[data-card-foil]"))
+                    throw Error("Zamknutá kartička vyzerá ako získaná");
                 const svg=await cardExportSVG("B738",shownCard(first),{public:true});
                 if (!svg.includes('href="data:image/webp;base64,') || !svg.includes("Zlatá hodinka"))
                     throw Error("Export nepriložil ilustráciu zvolenej formy");
@@ -264,6 +277,7 @@ def main():
                 if (COL.types.B738.n!==2 || !$("firstWaveResult").textContent.includes("Dnes už zamávané"))
                     throw Error("Opakované mávnutie tomu istému stroju zmenilo úroveň");
                 if (!cardCatchProgress("B738",{n:5}).includes("Nová hviezda")
+                    || cardStarMilestone("B738",{n:5})!==2 || cardStarMilestone("B738",{n:6})!==0
                     || !cardCatchProgress("B738",{n:60}).includes("Najvyššia úroveň"))
                     throw Error("Chybná spätná väzba pri novej alebo poslednej hviezde");
                 S.top = previous;

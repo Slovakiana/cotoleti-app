@@ -154,6 +154,48 @@ async function cardExportSVG(k,v,opt){
   }catch(error){} // Pri nedostupnej kulise ostáva v exporte vektorová kresba.
   return cardSVG(k,v,{...opt,artHref});
 }
+// Emblém a rytina sa menia podľa vzácnosti aj pri zvolenej forme a kúpenom ráme.
+const TIER_MARKS={
+  c:'<circle cx="12" cy="12" r="4"/>',
+  u:'<path d="m12 3 8 9-8 9-8-9Z"/>',
+  r:'<path d="m12 1 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z"/>',
+  e:'<path d="m12 2 9 5v10l-9 5-9-5V7Z M3 7l9 10 9-10 M7 4l5 13 5-13"/>',
+  l:'<path d="m2 7 5 5 5-9 5 9 5-5-3 13H5Z"/>'
+};
+const TIER_ENGRAVING={
+  c:"",
+  u:'<path d="m17 115 30-30h39 m250 322h43l24-24" stroke-width="3"/>',
+  r:'<path d="M17 140V110l38-38h59 M305 420h85l13-13v-43 M17 155v9m386 174v12" stroke-width="4"/>',
+  e:'<path d="m17 144 71-72h38M17 127l55-55 M284 420h51l68-68 M350 420l53-53" stroke-width="3"/>',
+  l:'<path d="M17 146V111l39-39h68 M17 124l52-52 M279 420h69l55-55v-30 M367 420l36-36" stroke-width="5"/><path d="M102 79h16m-8-8v16M303 414h16m-8-8v16" stroke-width="2"/>'
+};
+function cardTierStamp(r,locked){
+  const ink=COLLECTOR_TIER[r].hue;
+  const name=(locked?"Zamknutá":RAR[r].n).toUpperCase();
+  const x=387-Math.max(115,46+name.length*10);
+  return `<path d="M${x+10} 376H389V410H${x}V386Z" fill="#080d19" fill-opacity=".93" stroke="${ink}" stroke-opacity="${locked?.5:.9}"/>
+    <g transform="translate(${x+11} 382) scale(.9)" fill="none" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round">${TIER_MARKS[r]}</g>
+    <text x="${x+37}" y="399" fill="${ink}" font-size="15" font-weight="850" letter-spacing="1.1">${name}</text>`;
+}
+function cardStars(level,id){
+  if(!level)return "";
+  const max=level===4,stroke=max?"#ffe4a1":"#859abb";
+  const stars=Array.from({length:4},(_,i)=>`<path data-level-star="${i<level?"earned":"empty"}" transform="translate(${259+35*i} 540)" d="M0-12 3.6-4 12-3.6 5.5 2 7.5 11 0 6.5-7.5 11-5.5 2-12-3.6-3.6-4Z" fill="${i<level?`url(#stars${id})`:"#151e30"}" stroke="${i<level?"#ffe4a1":"#7083a0"}" stroke-width="1.3"/>`).join("");
+  return `<defs><linearGradient id="stars${id}" x2="0" y2="1"><stop stop-color="#fff6dc"/><stop offset=".48" stop-color="#ffd47c"/><stop offset="1" stop-color="#b8752f"/></linearGradient></defs>
+    <path d="M244 520H379L394 534V563H230V535Z" fill="${max?"#39250f":"#0b1221"}" stroke="${stroke}" stroke-opacity="${max?1:.65}"/>
+    ${stars}
+    ${max?'<path d="m237 553 6 4m-7-10 7 4m144 2-6 4m7-10-7 4" fill="none" stroke="#ffe4a1" stroke-width="1.5"/>':""}`;
+}
+function cardFoil(id,scene){
+  if(scene)return `<g data-card-foil="scene" fill="none">
+    <path d="M-4 340 215 65m-124 356L374 67m-118 356 162-199" stroke="url(#foil${id})" stroke-width="34" opacity=".24"/>
+    <path d="M-4 340 215 65m-124 356L374 67m-118 356 162-199" stroke="url(#foil${id})" stroke-width="2" opacity=".64"/>
+    <path d="M67 141v33m-16-16h32m271 144v32m-16-16h32" stroke="#fff7ff" stroke-width="2"/>
+    </g>`;
+  return `<path d="M17 329h159l-18 33H17Z" fill="#101626" stroke="url(#foil${id})" stroke-width="2"/>
+    <path d="m34 335 2.7 7.3 7.3 2.7-7.3 2.7-2.7 7.3-2.7-7.3-7.3-2.7 7.3-2.7Z" fill="url(#foil${id})"/>
+    <text x="51" y="351" fill="#fff0ff" font-size="18" font-weight="850" letter-spacing="2">LESKLÁ</text>`;
+}
 function cardScene(k,v,id,form,ink,dark,metal,href,locked){
   const c=catGuess(k),angle=form==="z"?0:([-34,-24,23,34][hash(k)%4]);
   const planes=svgDefs(id,locked?"#91a7c1":"#f8fcff",locked?"#374964":metal,locked?"#627c99":dark);
@@ -174,8 +216,10 @@ function cardScene(k,v,id,form,ink,dark,metal,href,locked){
       <path d="M34 199v100m-4-90h8m-8 20h8m-8 20h12m-12 20h8m-8 20h8m352-90v100m-4-90h8m-8 20h8m-8 20h8m-8 20h8m-8 20h8"/>
       ${form==="z"||locked?'<circle cx="210" cy="245" r="105" stroke-dasharray="3 8"/><circle cx="210" cy="245" r="122"/><path d="M210 96v28m0 242v30M61 245h28m242 0h28"/>':""}
     </g>
+    ${v.shiny?cardFoil(id,true):""}
     <g opacity="${locked?.65:1}" transform="translate(46 83) rotate(${angle} 164 164)">${planeSVG(c,{box:328,id,acc:ink,body:locked?"#b0bfce":"#fff",shade:locked?"#465f80":metal})}</g>
-    </g><path d="M17 72H374L403 101V407L390 420H17Z" fill="none" stroke="${ink}" stroke-opacity=".57"/>`;
+    </g><path d="M17 72H374L403 101V407L390 420H17Z" fill="none" stroke="${ink}" stroke-opacity=".57"/>
+    ${locked?"":`<g fill="none" stroke="${COLLECTOR_TIER[typeTier(k)].hue}" stroke-opacity=".82">${TIER_ENGRAVING[typeTier(k)]}</g>`}`;
 }
 function cardSVG(code,v,opt={}){
   const c=catGuess(code),key=c.code,r=typeTier(key),tier=COLLECTOR_TIER[r];
@@ -184,20 +228,21 @@ function cardSVG(code,v,opt={}){
   v=v||{};
   const ink=edition?.ink||tier.hue,metal=edition?.metal||FRAME[r][1],dark=edition?.dark||tier.low;
   const custom=!opt.mini&&FRAMES_SHOP[COL.frame];
-  const edge=v.shiny?"#fbc3fa":v.gold?"#ffcf67":custom?.[0]||ink;
-  const edgeMid=custom?.[1]||metal;
-  const label=form?FORMS.find(([k])=>k===form)[2]:locked?"Neulovená":v.gift&&!v.n?"Darovaná kópia":RAR[r].n;
+  const edge=v.gold?"#ffcf67":custom?.[0]||tier.hue;
+  const edgeMid=custom?.[1]||FRAME[r][1];
+  const label=form?FORMS.find(([k])=>k===form)[2]:locked?"Neulovená":v.gift&&!v.n?"Darovaná kópia":"Originál";
   const names=wrapLines(c.name,21);
   const size=Math.min(names.length===1?43:33,Math.floor(595/Math.max(...names.map(s=>s.length))));
   const level=v.n?cardLvl(v.n,key):0;
   const number=c.no?"№ "+String(c.no).padStart(3,"0"):key;
-  const status=locked?"ZAMKNUTÁ":v.shiny?"LESKLÁ":RAR[r].n.toUpperCase();
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" data-card-form="${form||"classic"}" role="img" aria-label="${SVGE(c.name+" · "+label)}" font-family="Inter,system-ui,sans-serif">
+  const description=[c.name,RAR[r].n,label,v.shiny?"Lesklá":"",level?"Hviezdy "+level+" zo 4":""].filter(Boolean).join(" · ");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" data-card-form="${form||"classic"}" data-card-tier="${r}" data-card-level="${level}" role="img" aria-label="${SVGE(description)}" font-family="Inter,system-ui,sans-serif">
   <defs>
     <linearGradient id="metal${id}" x2=".85" y2="1"><stop stop-color="${edge}"/><stop offset=".23" stop-color="${edgeMid}"/><stop offset=".44" stop-color="${edge}"/><stop offset=".67" stop-color="${edgeMid}"/><stop offset=".88" stop-color="${edge}"/><stop offset="1" stop-color="${edgeMid}"/></linearGradient>
+    ${v.shiny?`<linearGradient id="foil${id}" x2="1" y2=".94"><stop stop-color="#ffb6e5"/><stop offset=".2" stop-color="#92e5ff"/><stop offset=".38" stop-color="#aeffdd"/><stop offset=".56" stop-color="#ffe5a0"/><stop offset=".78" stop-color="#dbb2ff"/><stop offset="1" stop-color="#b5f4ff"/></linearGradient>`:""}
     <linearGradient id="stock${id}" x2="1" y2="1"><stop stop-color="${dark}"/><stop offset=".88" stop-color="#090e18"/></linearGradient>
   </defs>
-  <rect x="2" y="2" width="416" height="584" rx="26" fill="url(#metal${id})"/>
+  <rect x="2" y="2" width="416" height="584" rx="26" fill="url(#${v.shiny?"foil":"metal"}${id})"/>
   <rect x="7" y="7" width="406" height="574" rx="21" fill="url(#stock${id})"/>
   <rect x="12" y="12" width="396" height="564" rx="16" fill="none" stroke="${edge}" stroke-opacity=".36"/>
   <text x="27" y="42" fill="${ink}" font-size="19" font-weight="800" letter-spacing="2">ATLAS OBLOHY</text>
@@ -205,13 +250,14 @@ function cardSVG(code,v,opt={}){
   <path d="M291 23h94l10 10v27H291Z" fill="#080d19" stroke="${edge}" stroke-opacity=".60"/>
   <text x="342" y="50" text-anchor="middle" fill="${ink}" font-size="23" letter-spacing="1.5" font-weight="800">${SVGE(key)}</text>
   ${cardScene(key,v,id,form,ink,dark,metal,opt.artHref,locked)}
-  ${form||v.shiny?`<path d="M17 372h32l17 17v31H17Z" fill="${dark}" stroke="${edge}"/>
-  <g transform="translate(26 381)" fill="none" stroke="${edge}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">${edition?.mark||'<path d="M16 2 28 14 16 26 4 14 16 2Zm0 5v14m-7-7h14"/>'}</g>`:""}
-  <text x="387" y="404" fill="#f8fbff" paint-order="stroke" stroke="${dark}" stroke-width="3" text-anchor="end" font-size="14" font-weight="800" letter-spacing="2">${status}</text>
+  ${form?`<path d="M17 372h32l17 17v31H17Z" fill="${dark}" stroke="${edge}"/>
+  <g transform="translate(26 381)" fill="none" stroke="${edge}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">${edition.mark}</g>`:""}
+  ${cardTierStamp(r,locked)}
+  ${v.shiny?cardFoil(id,false):""}
   ${names.slice(0,2).map((line,i)=>`<text x="27" y="${names.length===1?481:464+i*35}" fill="#fff" font-size="${size}" font-weight="800" letter-spacing="-.75">${SVGE(line)}</text>`).join("")}
   <path d="M27 519H393" stroke="${ink}" stroke-opacity=".5"/>
-  <text x="27" y="554" fill="${ink}" font-size="${label.length>13?23:27}" font-weight="750">${label}</text>
-  ${level?Array.from({length:4},(_,i)=>`<path d="m${325+i*19} 540 5 5-5 5-5-5Z" fill="${ink}" opacity="${i<level?1:.29}"/>`).join(""):""}
+  <text x="27" y="554" fill="${ink}" font-size="${label.length>13?23:26}" font-weight="750">${label}</text>
+  ${cardStars(level,id)}
   </svg>`;
 }
 
@@ -342,7 +388,7 @@ function renderCards(){
     (atlasMode==="mine"&&mine.some(k=>owned[k].n)?collectorHuntHTML():"")+
     (atlasMode==="miss"?wantedHTML():"")+
     (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
-    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"owned":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?.n?" · úroveň "+cardLvl(owned[k].n,k)+" zo 4":owned[k]?.gift?" · darovaná kópia":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="vault"?`<b class="vaultCardBadge">${esc(collectorTitle(k,owned[k]))}</b>`:""}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?'Zbierka čaká na tvoj prvý úlovok. <button class="ghost" type="button" data-first-hunt>Prejsť do Lovu</button>' :atlasMode==="vault"?"Tvoja prvá výnimočná kartička ešte len čaká. Ulov vzácny typ alebo objav špeciálnu formu.":"Máš celú sériu! 🏆"}</div>`);
+    (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"owned":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?.shiny?" · lesklá":"")+(owned[k]?.n?" · hviezdy "+cardLvl(owned[k].n,k)+" zo 4":owned[k]?.gift?" · darovaná kópia":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="vault"?`<b class="vaultCardBadge">${esc(collectorTitle(k,owned[k]))}</b>`:""}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?'Zbierka čaká na tvoj prvý úlovok. <button class="ghost" type="button" data-first-hunt>Prejsť do Lovu</button>' :atlasMode==="vault"?"Tvoja prvá výnimočná kartička ešte len čaká. Ulov vzácny typ alebo objav špeciálnu formu.":"Máš celú sériu! 🏆"}</div>`);
   if(more)$("c-types").insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ${pl(more,"ďalšia","ďalšie","ďalších")} ${more} ›</button>`);
 }
 HOOKS.view.push(v=>{if(v==="col")renderCards()});
@@ -392,9 +438,13 @@ function cardProgress(k,v){
   const next=nextLv(v.n,k);
   return next?v.n+" z "+next+" lietadiel do ďalšej hviezdy":"Najvyššia úroveň kartičky";
 }
-function cardCatchProgress(k,v){
+function cardStarMilestone(k,v){
   const level=cardLvl(v.n,k);
-  const title=level>cardLvl(v.n-1,k)?"Nová hviezda · úroveň "+level+" z 4":"Ďalší "+catGuess(k).name+" v zbierke";
+  return level>1&&level>cardLvl(v.n-1,k)?level:0;
+}
+function cardCatchProgress(k,v){
+  const level=cardStarMilestone(k,v);
+  const title=level?"Nová hviezda · úroveň "+level+" z 4":"Ďalší "+catGuess(k).name+" v zbierke";
   return title+" · "+cardProgress(k,v);
 }
 function cardFormPicker(v){
@@ -423,6 +473,7 @@ function openCard(k,reveal,form){
     const first=firstCatchNote(v);
     root.innerHTML=`<h2 class="cardHeadline" tabindex="-1">${esc(catGuess(k).name)}</h2>
       <div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal&&!RM()?"reveal":""}">${cardSVG(k,shownCard(v),{id:"b"})}</div>
+      ${typeof reveal==="string"&&reveal.startsWith("Nová hviezda")?`<p class="cardLevelReward" role="status">${esc(reveal.split(" · ")[0])} · ${cardLvl(v.n,k)}/4</p>`:""}
       ${cardFormPicker(v)}
       <p class="cardIdentity">${v.ver?"✓ Overená":v.n?"Neoverená":"Darovaná kópia"}${v.n?" · "+esc(cardProgress(k,v)):""}</p>
       ${first&&v.n?`<p class="cardFirstCatch">${esc(first)}</p>`:""}

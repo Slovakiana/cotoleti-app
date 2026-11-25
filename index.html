@@ -558,7 +558,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 .cardFormGuide{margin:10px 0;padding:0;list-style:none;display:grid;gap:5px;text-align:left}
 .cardFormGuide li{display:grid;grid-template-columns:1.3em minmax(6em,auto) 1fr;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;background:#ffffff09;font-size:12px}
 .cardFormGuide small{color:var(--mut)}
-.holoWrap.shiny::before{opacity:.18}
+.cardLevelReward{margin:8px 0 0;color:#ffe4a1;font-weight:800;font-size:14px}
 .cardBtns{display:flex;gap:8px;margin-top:8px}.cardBtns .btn{flex:1;font-size:calc(14px*var(--fs,1))}
 .cardBack{aspect-ratio:600/840;max-width:min(80vw,380px);margin:0 auto;border-radius:24px;background:linear-gradient(135deg,#26336e,#121a45);display:grid;place-items:center;align-content:center;gap:10px;cursor:pointer;border:4px solid;animation:backPulse .9s ease-in-out infinite}
 .cardBack b{font-size:80px}.cardBack span{font:800 18px var(--disp);letter-spacing:.1em;opacity:.7}
@@ -570,7 +570,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 .holoWrap.e::before{content:"";position:absolute;z-index:1;background:conic-gradient(from var(--ang,0deg) at 50% 50%,#ff4fd8,#4fc3ff,#6dffc7,#ffcf4f,#ff4fd8);mix-blend-mode:color-dodge;pointer-events:none}
 .holoWrap.r::before,.holoWrap.e::before,.holoWrap.l::before{inset:12.4% 6% 48.3% 6%;border-radius:3%;opacity:.28}
 .holoWrap.l::after{animation:goldSweep 4s linear infinite}@keyframes goldSweep{0%{background-position:-40% 0}100%{background-position:140% 0}}
-.holoWrap.shiny::before{inset:0;opacity:.35}
+.holoWrap.shiny::before{inset:17% 6% 37% 6%;opacity:.18}
 @media (prefers-reduced-motion:reduce){.holoWrap.l::after,.cardBack{animation:none!important}}
 .shopRow .btn{flex:0 0 auto;min-width:86px;padding:8px 12px}
 .lgTabs button,.atTabs button{font-size:calc(13px*var(--fs,1))!important;padding:7px 11px!important;min-height:36px!important}
@@ -706,7 +706,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 .huntHome[data-state="near"] .huntHomeGo{background:#176d57;color:#fff}
 .huntHome[data-state="done"]{border-color:rgba(255,207,79,.58)!important;background:radial-gradient(circle at 100% 0%,rgba(255,207,79,.2),transparent 62%),#252035}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=89">
+<link rel="stylesheet" href="lib/journal.css?v=90">
 </head>
 <body>
 <div id="bg"></div>
@@ -1138,26 +1138,26 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=89"></script>
-<script src="js/ui.js?v=89"></script>
-<script src="js/ar.js?v=89"></script>
-<script src="js/space.js?v=89"></script>
-<script src="js/weather.js?v=89"></script>
-<script src="js/extras.js?v=89"></script>
-<script src="js/social.js?v=89"></script>
-<script src="js/wrapped.js?v=89"></script>
-<script src="js/push.js?v=89"></script>
-<script src="js/track.js?v=89"></script>
-<script src="js/towns.js?v=89"></script>
-<script src="js/catalog.js?v=89"></script>
-<script src="js/cards.js?v=89"></script>
-<script src="js/journal.js?v=89"></script>
-<script src="js/mail.js?v=89"></script>
-<script src="js/golden.js?v=89"></script>
-<script src="js/teams.js?v=89"></script>
-<script src="js/duel.js?v=89"></script>
-<script src="js/sound.js?v=89"></script>
-<script src="js/santa.js?v=89"></script>
-<script src="js/main.js?v=89"></script>
+<script src="js/core.js?v=90"></script>
+<script src="js/ui.js?v=90"></script>
+<script src="js/ar.js?v=90"></script>
+<script src="js/space.js?v=90"></script>
+<script src="js/weather.js?v=90"></script>
+<script src="js/extras.js?v=90"></script>
+<script src="js/social.js?v=90"></script>
+<script src="js/wrapped.js?v=90"></script>
+<script src="js/push.js?v=90"></script>
+<script src="js/track.js?v=90"></script>
+<script src="js/towns.js?v=90"></script>
+<script src="js/catalog.js?v=90"></script>
+<script src="js/cards.js?v=90"></script>
+<script src="js/journal.js?v=90"></script>
+<script src="js/mail.js?v=90"></script>
+<script src="js/golden.js?v=90"></script>
+<script src="js/teams.js?v=90"></script>
+<script src="js/duel.js?v=90"></script>
+<script src="js/sound.js?v=90"></script>
+<script src="js/santa.js?v=90"></script>
+<script src="js/main.js?v=90"></script>
 </body>
 </html>
