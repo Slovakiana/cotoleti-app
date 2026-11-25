@@ -2,7 +2,8 @@
 # Spustí appku z lokálneho servera, siete a server podvrhne, preklikne hlavné záložky
 # a zlyhá pri akejkoľvek chybe JavaScriptu. Spúšťa sa v GitHub Actions pri každom pushi.
 import json, subprocess, sys, time, os
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
+from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NOW = int(time.time() * 1000)
@@ -32,6 +33,100 @@ def stub(route):
         return route.fulfill(status=200, content_type="application/json", headers=h, body='{"ok":true}')
     return route.fulfill(status=200, content_type="application/json", headers=h, body="{}")
 
+def play_first_session(browser, errs):
+    ctx = browser.new_context(
+        viewport={"width": 320, "height": 844}, is_mobile=True, has_touch=True,
+        geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"],
+        reduced_motion="reduce", service_workers="block",
+    )
+    mode = "live"
+    submitted = []
+
+    def scenario(route):
+        url = unquote(route.request.url)
+        payload = None
+        status = 200
+        if "/api/planes" in url:
+            payload = {"ac": [] if mode == "quiet" else PLANES["ac"], "src": "sky", "state": mode,
+                       "now": int(time.time() * 1000) - (45000 if mode == "stale" else 0)}
+            status = 503 if mode == "stale" else 200
+        elif "api.adsbdb.com" in url and ("4ca123" in url or "RYR4KX" in url):
+            payload = {"response": {"flightroute": {
+                "callsign_icao": "RYR4KX", "airline": {"icao": "RYR", "name": "Ryanair"},
+                "origin": {"municipality": "Vienna", "iata_code": "VIE", "country_iso_name": "AT"},
+                "destination": {"municipality": "Budapest", "iata_code": "BUD",
+                                "country_iso_name": "HU", "latitude": 47.44, "longitude": 19.26},
+            }}}
+        elif "/api/wave" in url:
+            submitted.append(json.loads(route.request.post_data or "{}"))
+        if payload is None:
+            return stub(route)
+        return route.fulfill(status=status, content_type="application/json",
+                             headers={"access-control-allow-origin": "*"}, body=json.dumps(payload))
+
+    ctx.route("**/*", scenario)
+    pg = ctx.new_page()
+    pg.on("pageerror", lambda e: errs.append("PAGEERROR first-session " + str(e)))
+    pg.goto("http://localhost:8799/index.html")
+    expect(pg.locator("#onbTitle")).to_be_visible()
+    pg.locator("#go").tap()
+    expect(pg.locator("#onb")).to_be_hidden()
+    expect(pg.locator("#firstWaveHint")).to_contain_text("Mávni")
+    expect(pg.locator("#h-route")).to_contain_text("Budapešť")
+    expect(pg.locator("#b-wave")).to_be_enabled()
+    pg.locator("#b-wave").tap()
+    expect(pg.locator("#cardM.on #cardBig h2")).to_have_text("Boeing 737-800")
+    assert len(submitted) == 1 and submitted[0]["gps"], "Prvé mávnutie neprišlo s GPS"
+    assert pg.locator("#cardBig svg").evaluate(
+        "(el) => el.getBoundingClientRect().right <= document.documentElement.clientWidth"
+    ), "Odhalená kartička presahuje šírku pri 320 px"
+    print("✓ Playtest 320 px: čistý profil, GPS, prvé mávnutie a odhalenie kartičky")
+
+    pg.locator("#cardClose").tap()
+    expect(pg.locator("#waveJournalResult")).to_contain_text("2 nové objavy")
+    pg.locator("#waveJournalResult").tap()
+    expect(pg.locator('#journalAlbum button[data-journal-entry="HU"]')).to_contain_text("Maďarsko")
+    pg.locator('[data-journal="al"]').tap()
+    expect(pg.locator('#journalAlbum button[data-journal-entry="RYR"] img')).to_be_visible()
+    print("✓ Playtest: jediný úlovok odomkol typ, aerolinku a pečiatku")
+
+    pg.locator('nav [data-v="now"]').tap()
+    second = pg.locator('#list [data-hex="49d3c1"]')
+    expect(second).to_be_visible()
+    expect(second.locator(".nearWaved")).to_have_count(0)
+    second.tap()
+    expect(pg.locator('#list [data-hex="4ca123"] .nearWaved')).to_contain_text("Dnes zamávané")
+    expect(pg.locator("#b-wave")).to_be_enabled()
+    pg.locator("#b-wave").tap()
+    expect(pg.locator("#cardM.on #cardBig h2")).to_contain_text("Bell 429")
+    assert len(submitted) == 2 and submitted[1]["hex"] != submitted[0]["hex"]
+    pg.locator("#cardCollection").tap()
+    expect(pg.locator('#c-types [data-k="B738"]')).to_be_visible()
+    expect(pg.locator('#c-types [data-k="B429"]')).to_be_visible()
+    print("✓ Playtest: návrat na radar, dnešné mávnutie v zozname a druhá karta v zbierke")
+
+    pg.locator('nav [data-v="now"]').tap()
+    mode = "quiet"
+    pg.evaluate("fetchPlanes(true)")
+    expect(pg.locator("#firstWaveHint")).to_contain_text("Zatiaľ tu nie je lietadlo")
+    expect(pg.locator("#b-wave")).to_be_disabled()
+    expect(pg.locator("#eRad")).to_be_visible()
+    pg.locator('nav [data-v="col"]').tap()
+    expect(pg.locator('#c-types [data-k="B738"]')).to_be_visible()
+    pg.locator('nav [data-v="now"]').tap()
+    mode = "stale"
+    pg.evaluate("fetchPlanes(true)")
+    expect(pg.locator("#status")).to_contain_text("Posledná známa obloha")
+    expect(pg.locator("#b-wave")).to_be_disabled()
+    expect(pg.locator("#firstWaveHint")).to_contain_text("Na mávnutie treba živé údaje")
+    ctx.set_offline(True)
+    pg.locator('nav [data-v="col"]').tap()
+    expect(pg.locator('#c-types [data-k="B738"]')).to_be_visible()
+    assert len(submitted) == 2
+    print("✓ Playtest: prázdna obloha, zastarané dáta a zbierka dostupná bez siete")
+    ctx.close()
+
+
 def main():
     srv = subprocess.Popen([sys.executable, "-m", "http.server", "8799", "-d", ROOT], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
@@ -39,6 +134,7 @@ def main():
     try:
         with sync_playwright() as p:
             b = p.chromium.launch()
+            play_first_session(b, errs)
             ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
                                 geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
             ctx.route("**/*", stub)
