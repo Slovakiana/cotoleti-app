@@ -458,10 +458,10 @@ def main():
                 $("journalDetail").close();
                 document.querySelector('[data-journal="al"]').click();
                 await journalAssets.brands.pending;
-                if (!host.querySelector('.journalBrand.owned[data-journal-entry="RYR"] img')||
-                    !host.querySelector('.journalBrand.fresh[data-journal-entry="WZZ"] img')||
-                    !host.textContent.includes("Wizz Air"))
-                    throw Error("Album neukázal skutočné logá a nové odhalenia");
+                if (host.querySelector('.journalBrand.owned[data-journal-entry="RYR"] .journalMonogram')?.textContent!=="RYR"||
+                    host.querySelector('.journalBrand.fresh[data-journal-entry="WZZ"] .journalMonogram')?.textContent!=="WZZ"||
+                    host.querySelector(".journalBrand img")||!host.textContent.includes("Wizz Air"))
+                    throw Error("Album neukázal typografické značky a nové odhalenia");
                 host.querySelector('button[data-journal-entry="RYR"]').click();
                 if (!$("journalDetailBody").textContent.includes("Waterford")||
                     !$("journalDetailBody").querySelector(".journalSource"))
@@ -469,8 +469,8 @@ def main():
                 $("journalDetail").close();
                 host.querySelector('[data-journal-filter="all"]').click();
                 for(const code of ["MSC","MNE","AXE","TVS","PGT","KMM","UZB"]){
-                    if(!host.querySelector('[data-journal-entry="'+code+'"] img'))
-                        throw Error("V katalógu chýba logo dopravcu "+code);
+                    if(host.querySelector('[data-journal-entry="'+code+'"] .journalMonogram')?.textContent!==code)
+                        throw Error("V katalógu chýba značka dopravcu "+code);
                 }
                 for(const code of ["JAL","LOT","KMM","UZB"]){
                     host.querySelector('button[data-journal-entry="'+code+'"]').click();
