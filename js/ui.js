@@ -18,19 +18,19 @@ function waveBatchEnd(){
     const title=special||(caught.newType?"Nová kartička: "+caught.name:cardCatchProgress(caught.type,COL.types[caught.type]));
     const set=caught.newType?cardSetResult(caught.type):"";
     const status=[batch.result,set].filter(Boolean).join(" · ");
-    showWaveCard(caught.type,title,caught.newType||!!special,batch.hex,status);
+    showWaveCard(caught.type,title,caught.newType||!!special,batch.hex,status,batch.form);
   }else if(special&&batch.type){
-    showWaveCard(batch.type,special,true,batch.hex,batch.result);
+    showWaveCard(batch.type,special,true,batch.hex,batch.result,batch.form);
   }else{
     showFirstWaveResult((caught?.type==="?"||missingTypeCatch(batch.hex))?UNKNOWN_TYPE_WAVE:batch.result||(batch.low!=null?"Dnes zamávané. Do zbierky až po úlovku vyššie nad obzorom.":"Dnes zamávané."));
   }
 }
-function showWaveCard(type,title,reveal,hex,status=""){
+function showWaveCard(type,title,reveal,hex,status="",form){
   const button=$("waveResultCard");
   showFirstWaveResult([title,status].filter(Boolean).join(" · "));
   button.hidden=false;
-  button.onclick=()=>openCard(type);
-  if(reveal&&S.view==="now"&&S.top?.hex===hex&&!document.querySelector(".modal.on"))openCard(type,title);
+  button.onclick=()=>openCard(type,undefined,form);
+  if(reveal&&S.view==="now"&&S.top?.hex===hex&&!document.querySelector(".modal.on"))openCard(type,title,form);
 }
 function toast(a,b,col){
   if(WB){WB.items.push([a,b,col]);return}

@@ -80,7 +80,7 @@ function svgDefs(id,col,sh,acc){
 }
 const FRAME={c:["#e3e9f5","#8d9bb8"],u:["#a8f5c6","#1f9e5a"],r:["#a9d4ff","#2f6fd6"],e:["#e3a8ff","#7b3fe4"],l:["#fff1a8","#d9a000"]};
 // 🌙🌅🎯🏠❄️ formy kartičky – odomknú sa podmienkou pri úlovku (vedomosti o oblohe, nie náhoda)
-const FORMS=[["n","🌙","Noc","po zotmení"],["g","🌅","Zlatá hodinka","pri západe/východe slnka"],["z","🎯","Zenit","priamo nad hlavou (80°+)"],["h","🏠","Domov","let na Slovensko"],["f","❄️","Mráz","pri mraze"]];
+const FORMS=[["n","🌙","Noc","po zotmení, aspoň 20° nad obzorom"],["g","🌅","Zlatá hodinka","okolo východu alebo západu slnka"],["z","🎯","Zenit","priamo nad hlavou (80°+)"],["h","🏠","Domov","let na Slovensko"],["f","❄️","Mráz","keď je vonku pod 0 °C"]];
 const SEATSX={A306:48,E390:26,R135:0,AN30:0,A124:150,IL76:50,BLCF:113,A3ST:47,A337:51,K35R:90,E3TF:0,C17:77,A400:37,C130:20,C30J:20,AN12:20,MD11:90,B748:137,B744:120};
 const SVGE=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function wrapLines(s,n){const out=[];let l="";for(const w of String(s).replace(/(\d) (?=\d{3}\b)/g,"$1\u00a0").replace(/ (\d{1,4}[.,]?)$/,"\u00a0$1").split(" ")){if((l+" "+w).trim().length>n&&l){out.push(l);l=w}else l=(l+" "+w).trim()}if(l)out.push(l);return out}
@@ -90,6 +90,7 @@ const FRAMES_SHOP={fr_tatry:["#eef4ff","#5b7da8"],fr_dunaj:["#5fd3f0","#0a4a7a"]
 // skráti text po slove (nie uprostred slova)
 
 /* Collector Edition: rozdielne výtvarné motívy podľa rarity, žiadne vymyslené drop rate. */
+const CARD_ART_REV=new URL(document.currentScript.src).search;
 const COLLECTOR_TIER={
   c:{label:"SKY CLASSIC",sign:"●",hue:"#b7d2ff",low:"#27395c"},
   u:{label:"DISCOVERY",sign:"◆",hue:"#70ffcf",low:"#083d3a"},
@@ -117,71 +118,101 @@ function collectorRevealTitle(k,v){
   return ({c:"✈️ NOVÝ OBJAV",u:"◆ NEZVYČAJNÝ OBJAV",r:"💠 VZÁCNY ÚLOVOK!",e:"⚡ EPICKÝ ÚLOVOK!",l:"👑 LEGENDA JE TVOJA!"})[typeTier(k)];
 }
 
-// Originálne scény pre zberateľskú sériu. Rovnaký podklad v Atlase aj v exporte.
-const PILOT_ART={
-  B738:{sky:"#122249",horizon:"#f38e6e",ground:"#101a38",ice:"#ffe2b9",angle:-42,x:102,y:13,scale:1.1,sun:310},
-  AT76:{sky:"#0e5363",horizon:"#b1e7bd",ground:"#103c41",ice:"#e7ffda",angle:31,x:111,y:28,scale:.97,sun:115},
-  A388:{sky:"#121636",horizon:"#6854a5",ground:"#0d102a",ice:"#c9b4ff",angle:-22,x:110,y:11,scale:1.10,sun:300,night:true},
-  A320:{sky:"#193652",horizon:"#67bcd2",ground:"#162b4a",ice:"#d9f8fc",angle:26,x:110,y:18,scale:1.02,sun:96},
-  B38M:{sky:"#241b4c",horizon:"#e76882",ground:"#2d1740",ice:"#ffcdc2",angle:-29,x:107,y:11,scale:1.06,sun:330},
-  E190:{sky:"#173b5d",horizon:"#ffc49c",ground:"#1c3b56",ice:"#ffebcb",angle:38,x:100,y:17,scale:1.07,sun:309},
-  Z43:{sky:"#21475f",horizon:"#b8bf82",ground:"#283d37",ice:"#fff0b2",angle:35,x:109,y:13,scale:1.07,sun:315},
-  BL13:{sky:"#263955",horizon:"#e19075",ground:"#372e49",ice:"#ffdab7",angle:-29,x:104,y:15,scale:1.12,sun:103},
-  L13S:{sky:"#15505b",horizon:"#8bd4bf",ground:"#204551",ice:"#e9ffd2",angle:22,x:106,y:12,scale:1.1,sun:324}
+// Kulisy sú spoločné pre sériu. Silueta, uhol letu a zberateľské prvky patria konkrétnej karte.
+const FORM_ART={
+  n:{ink:"#e2c9ff",dark:"#160d35",metal:"#8b62dd",mark:'<path d="M16 2a10 10 0 1 0 10 15A10 10 0 0 1 16 2Z"/><path d="M23 5v6m-3-3h6"/>'},
+  g:{ink:"#ffddb0",dark:"#30150f",metal:"#d88949",mark:'<path d="M5 19h22M9 23h14M10 16a6 6 0 0 1 12 0M16 4v4m-9 2 3 2m15-2-3 2"/>'},
+  z:{ink:"#b6fff7",dark:"#062431",metal:"#4bbac6",mark:'<circle cx="16" cy="14" r="7"/><path d="M16 2v7m0 10v7M4 14h7m10 0h7"/>'},
+  h:{ink:"#daffbc",dark:"#102b26",metal:"#79a66d",mark:'<path d="m3 22 9-14 5 7 4-9 8 16H3Zm6-9 3 2 3-2"/>'},
+  f:{ink:"#e0f9ff",dark:"#0d233d",metal:"#87bfdc",mark:'<path d="M16 3v22M6 8l20 12M6 20 26 8M12 5l4 4 4-4m-8 18 4-4 4 4"/>'}
 };
-function pilotArt(c,v,id){
-  const a=PILOT_ART[c.code],shiny=!!v.shiny;
-  const light=shiny?"#ffc9f0":a.ice;
-  const sun=a.sun;
-  const planeId=id+"scene";
-  const shapes=c.code==="AT76"
-    ? '<path d="M0 239 76 186 115 216 166 171 218 217 278 182 420 249V280H0Z" fill="#438985"/><path d="M0 261 110 222 151 243 235 207 293 232 362 203 420 232V280H0Z" fill="#185455"/>'
-    : c.code==="A388"
-      ? '<path d="M0 247Q105 211 195 239T420 225V280H0Z" fill="#302c61"/><path d="M0 263Q125 230 231 254T420 247V280H0Z" fill="#201d46"/>'
-      : `<path d="M0 238Q78 211 202 235T420 231V280H0Z" fill="${a.ground}" opacity=".44"/><path d="M0 258Q130 224 267 252T420 244V280H0Z" fill="${a.ground}" opacity=".82"/>`;
-  const renderPlane=planeSVG(c,{box:200,body:"#f8fafc",shade:shiny?"#b794d8":"#91a8bc",acc:a.ground,id:planeId});
-  const stars=a.night?Array.from({length:30},(_,i)=>{
-    const x=(i*89+29)%420,y=(i*37+15)%185;
-    return `<circle cx="${x}" cy="${y}" r="${i%6===0?1.6:.7}" fill="#fff" opacity="${i%6===0?.85:.45}"/>`;
-  }).join(""):"";
-  const clouds=Array.from({length:6},(_,i)=>{
-    const x=(i*79+31)%420,y=154+(i*23)%64,w=34+(i*17)%65;
-    return `<ellipse cx="${x}" cy="${y}" rx="${w}" ry="${5+i%3*3}" fill="url(#light${id})" opacity=".57"/>`;
-  }).join("");
-  return `<defs>${svgDefs(planeId,"#f8fafc",shiny?"#b794d8":"#96aaba",a.ground)}
-    <linearGradient id="sky${id}" x2="0" y2="1"><stop stop-color="${a.sky}"/><stop offset="1" stop-color="${a.horizon}"/></linearGradient>
-    <radialGradient id="light${id}"><stop stop-color="${light}" stop-opacity=".6"/><stop offset="1" stop-color="${light}" stop-opacity="0"/></radialGradient>
-    <linearGradient id="land${id}" x2="0" y2="1"><stop stop-color="${a.ground}" stop-opacity="0"/><stop offset="1" stop-color="${a.ground}"/></linearGradient></defs>
-    <rect width="420" height="280" fill="url(#sky${id})"/>${stars}
-    <circle cx="${sun}" cy="132" r="106" fill="url(#light${id})"/><circle cx="${sun}" cy="132" r="${c.code==="A388"?29:39}" fill="${light}" opacity=".9"/>
-    ${clouds}<path d="M0 189Q57 174 142 193T313 186 420 183 M0 212Q108 202 183 213T420 204" fill="none" stroke="${light}" stroke-opacity=".25" stroke-width="2"/>
-    <path d="M27 33h26m-13-13v26M373 236h26m-13-13v26" fill="none" stroke="${light}" stroke-opacity=".5" stroke-width="1.5"/>
-    ${shapes}<path d="M0 246Q130 220 216 261T420 248V280H0Z" fill="url(#land${id})"/>
-    <g transform="translate(${a.x} ${a.y}) scale(${a.scale}) rotate(${a.angle} 100 100)">${renderPlane}</g>
-    ${shiny?'<path d="M336 35v36m-18-18h36M64 108v24m-12-12h24" stroke="#fff5fc" stroke-width="2" opacity=".85"/>':""}`;
+let cardRenderSerial=0;
+function hasCardForm(v,k){
+  return !!(v?.n&&Object.hasOwn(FORM_ART,k)&&(v.forms?.[k]||(k==="n"&&v.night)));
+}
+function cardCoverForm(v){
+  if(v?.coverForm==="-")return "";
+  if(hasCardForm(v,v?.coverForm))return v.coverForm;
+  const newest=FORMS.filter(([k])=>hasCardForm(v,k))
+    .sort(([a],[b])=>(v.forms?.[b]||(b==="n"&&v.night)||0)-(v.forms?.[a]||(a==="n"&&v.night)||0));
+  return newest[0]?.[0]||"";
+}
+function cardArtURL(form){return "lib/card-art/"+(form||"classic")+".webp"+CARD_ART_REV}
+async function cardExportSVG(k,v,opt){
+  let artHref="";
+  try{
+    const response=await fetch(cardArtURL(cardCoverForm(v)),{signal:AbortSignal.timeout(3500)});
+    if(response.ok){
+      const blob=await response.blob();
+      artHref=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(reader.result);
+        reader.onerror=reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  }catch(error){} // Pri nedostupnej kulise ostáva v exporte vektorová kresba.
+  return cardSVG(k,v,{...opt,artHref});
+}
+function cardScene(k,v,id,form,ink,dark,metal,href,locked){
+  const c=catGuess(k),angle=form==="z"?0:([-34,-24,23,34][hash(k)%4]);
+  const planes=svgDefs(id,locked?"#91a7c1":"#f8fcff",locked?"#374964":metal,locked?"#627c99":dark);
+  const art=locked?"":href===undefined?cardArtURL(form):href;
+  const mirrored=!form&&hash(k+"scene")%2===1;
+  return `<defs>${planes}
+    <clipPath id="scene${id}"><path d="M17 72H374L403 101V407L390 420H17Z"/></clipPath>
+    <radialGradient id="sky${id}"><stop stop-color="${metal}"/><stop offset="1" stop-color="${dark}"/></radialGradient>
+    <linearGradient id="shade${id}" x2="0" y2="1"><stop stop-color="${dark}" stop-opacity=".02"/><stop offset=".53" stop-color="${dark}" stop-opacity=".18"/><stop offset="1" stop-color="${dark}" stop-opacity=".82"/></linearGradient></defs>
+    <g clip-path="url(#scene${id})">
+    <rect x="17" y="72" width="386" height="348" fill="url(#sky${id})"/>
+    ${art?`<image href="${SVGE(art)}" x="17" y="72" width="386" height="348" preserveAspectRatio="xMidYMid slice"${mirrored?' transform="translate(420 0) scale(-1 1)"':""}/>`:""}
+    <rect x="17" y="72" width="386" height="348" fill="${dark}" opacity="${form?.10:.29}"/>
+    <rect x="17" y="72" width="386" height="348" fill="url(#shade${id})"/>
+    <g transform="translate(19 85) scale(.72 .93)">${collectorEditionArt(k,locked?null:v)}</g>
+    <g fill="none" stroke="${ink}" stroke-opacity=".5">
+      <path d="M31 129v-40h30m298 0h9l19 18v22M31 366v38h30m298 0h28v-38"/>
+      <path d="M34 199v100m-4-90h8m-8 20h8m-8 20h12m-12 20h8m-8 20h8m352-90v100m-4-90h8m-8 20h8m-8 20h8m-8 20h8m-8 20h8"/>
+      ${form==="z"||locked?'<circle cx="210" cy="245" r="105" stroke-dasharray="3 8"/><circle cx="210" cy="245" r="122"/><path d="M210 96v28m0 242v30M61 245h28m242 0h28"/>':""}
+    </g>
+    <g opacity="${locked?.65:1}" transform="translate(46 83) rotate(${angle} 164 164)">${planeSVG(c,{box:328,id,acc:ink,body:locked?"#b0bfce":"#fff",shade:locked?"#465f80":metal})}</g>
+    </g><path d="M17 72H374L403 101V407L390 420H17Z" fill="none" stroke="${ink}" stroke-opacity=".57"/>`;
 }
 function cardSVG(code,v,opt={}){
-  const c=catGuess(code),id=(opt.id||"c")+code.replace(/\W/g,"");
-  const mini=!!opt.mini;
+  const c=catGuess(code),key=c.code,r=typeTier(key),tier=COLLECTOR_TIER[r];
+  const id="card"+(++cardRenderSerial);
+  const form=cardCoverForm(v),edition=FORM_ART[form],locked=!v;
   v=v||{};
-  const key=c.code,r=typeTier(key);
-  const custom=!mini&&FRAMES_SHOP[COL.frame];
-  const frame=v.shiny?"#f9c8ed":v.gold?"#ffcf4f":(custom||FRAME[r])[0];
-  const names=wrapLines(c.name,17).slice(0,2);
-  const state=v.n?(v.shiny?"Lesklá":RAR[r].n):v.gift?"Darovaná kópia":"Neulovená";
-  const scene=PILOT_ART[key]?pilotArt(c,v,id):`<rect width="420" height="280" fill="${COLLECTOR_TIER[r].low}"/><g transform="scale(2.10 1.60)">${collectorEditionArt(key,{n:1,shiny:v.shiny},true)}</g>${svgDefs(id,"#f5f8ff","#98aac0",frame)}<g transform="translate(110 32)">${planeSVG(c,{box:200,id,acc:frame})}</g>`;
+  const ink=edition?.ink||tier.hue,metal=edition?.metal||FRAME[r][1],dark=edition?.dark||tier.low;
+  const custom=!opt.mini&&FRAMES_SHOP[COL.frame];
+  const edge=v.shiny?"#fbc3fa":v.gold?"#ffcf67":custom?.[0]||ink;
+  const edgeMid=custom?.[1]||metal;
+  const label=form?FORMS.find(([k])=>k===form)[2]:locked?"Neulovená":v.gift&&!v.n?"Darovaná kópia":RAR[r].n;
+  const names=wrapLines(c.name,21);
+  const size=Math.min(names.length===1?43:33,Math.floor(595/Math.max(...names.map(s=>s.length))));
   const level=v.n?cardLvl(v.n,key):0;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" font-family="Inter,system-ui,sans-serif">
-  <defs><clipPath id="scene${id}"><rect x="18" y="72" width="384" height="352" rx="13"/></clipPath></defs>
-  <rect x="3" y="3" width="414" height="582" rx="28" fill="#081329" stroke="${frame}" stroke-width="5"/>
-  <rect x="13" y="13" width="394" height="562" rx="20" fill="none" stroke="${frame}" stroke-opacity=".38"/>
-  <text x="30" y="53" fill="${frame}" font-size="20" font-weight="750" letter-spacing="2">ATLAS OBLOHY</text>
-  <text x="388" y="53" text-anchor="end" fill="${frame}" font-size="22" font-weight="800">${key}</text>
-  <g clip-path="url(#scene${id})"><svg x="18" y="72" width="384" height="352" viewBox="0 0 420 280" preserveAspectRatio="xMidYMid slice">${scene}</svg></g>
-  <path d="M30 443H390" stroke="${frame}" stroke-opacity=".55"/>
-  ${names.map((line,i)=>`<text x="30" y="${names.length===1?491:473+i*34}" fill="#fff" font-size="${names.length===1?40:32}" font-weight="800" letter-spacing="-1">${SVGE(line)}</text>`).join("")}
-  <text x="30" y="546" fill="${frame}" font-size="25" font-weight="700">${state}</text>
-  ${level?Array.from({length:4},(_,i)=>`<circle cx="${322+i*21}" cy="536" r="6" fill="${frame}" opacity="${i<level?1:.28}"/>`).join(""):`<text x="388" y="545" fill="${frame}" text-anchor="end" font-size="21">${c.no?"№ "+String(c.no).padStart(3,"0"):key}</text>`}</svg>`;
+  const number=c.no?"№ "+String(c.no).padStart(3,"0"):key;
+  const status=locked?"ZAMKNUTÁ":v.shiny?"LESKLÁ":RAR[r].n.toUpperCase();
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" data-card-form="${form||"classic"}" role="img" aria-label="${SVGE(c.name+" · "+label)}" font-family="Inter,system-ui,sans-serif">
+  <defs>
+    <linearGradient id="metal${id}" x2=".85" y2="1"><stop stop-color="${edge}"/><stop offset=".23" stop-color="${edgeMid}"/><stop offset=".44" stop-color="${edge}"/><stop offset=".67" stop-color="${edgeMid}"/><stop offset=".88" stop-color="${edge}"/><stop offset="1" stop-color="${edgeMid}"/></linearGradient>
+    <linearGradient id="stock${id}" x2="1" y2="1"><stop stop-color="${dark}"/><stop offset=".88" stop-color="#090e18"/></linearGradient>
+  </defs>
+  <rect x="2" y="2" width="416" height="584" rx="26" fill="url(#metal${id})"/>
+  <rect x="7" y="7" width="406" height="574" rx="21" fill="url(#stock${id})"/>
+  <rect x="12" y="12" width="396" height="564" rx="16" fill="none" stroke="${edge}" stroke-opacity=".36"/>
+  <text x="27" y="42" fill="${ink}" font-size="19" font-weight="800" letter-spacing="2">ATLAS OBLOHY</text>
+  <text x="27" y="60" fill="#f6f9ff" opacity=".8" font-size="13" font-weight="600" letter-spacing="1.5">${SVGE(number)}</text>
+  <path d="M291 23h94l10 10v27H291Z" fill="#080d19" stroke="${edge}" stroke-opacity=".60"/>
+  <text x="342" y="50" text-anchor="middle" fill="${ink}" font-size="23" letter-spacing="1.5" font-weight="800">${SVGE(key)}</text>
+  ${cardScene(key,v,id,form,ink,dark,metal,opt.artHref,locked)}
+  ${form||v.shiny?`<path d="M17 372h32l17 17v31H17Z" fill="${dark}" stroke="${edge}"/>
+  <g transform="translate(26 381)" fill="none" stroke="${edge}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">${edition?.mark||'<path d="M16 2 28 14 16 26 4 14 16 2Zm0 5v14m-7-7h14"/>'}</g>`:""}
+  <text x="387" y="404" fill="#f8fbff" paint-order="stroke" stroke="${dark}" stroke-width="3" text-anchor="end" font-size="14" font-weight="800" letter-spacing="2">${status}</text>
+  ${names.slice(0,2).map((line,i)=>`<text x="27" y="${names.length===1?481:464+i*35}" fill="#fff" font-size="${size}" font-weight="800" letter-spacing="-.75">${SVGE(line)}</text>`).join("")}
+  <path d="M27 519H393" stroke="${ink}" stroke-opacity=".5"/>
+  <text x="27" y="554" fill="${ink}" font-size="${label.length>13?23:27}" font-weight="750">${label}</text>
+  ${level?Array.from({length:4},(_,i)=>`<path d="m${325+i*19} 540 5 5-5 5-5-5Z" fill="${ink}" opacity="${i<level?1:.29}"/>`).join(""):""}
+  </svg>`;
 }
 
 if(!LS.get("ctl_onb",0))document.addEventListener("DOMContentLoaded",()=>{
@@ -315,7 +346,7 @@ function renderCards(){
   if(more)$("c-types").insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ${pl(more,"ďalšia","ďalšie","ďalších")} ${more} ›</button>`);
 }
 HOOKS.view.push(v=>{if(v==="col")renderCards()});
-let cardK=null;
+let cardK=null,cardVisibleForm="";
 $("c-types").onclick=e=>{
   if(e.target.closest("[data-first-hunt]")){setView("now");return}
   const choose=e.target.closest("[data-hunt-open]");if(choose){const k=choose.dataset.huntOpen;if(COL.types[k]&&COL.types[k].n)openCard(k);else openLocked(k);return}
@@ -366,7 +397,15 @@ function cardCatchProgress(k,v){
   const title=level>cardLvl(v.n-1,k)?"Nová hviezda · úroveň "+level+" z 4":"Ďalší "+catGuess(k).name+" v zbierke";
   return title+" · "+cardProgress(k,v);
 }
-function openCard(k,reveal){
+function cardFormPicker(v){
+  const owned=FORMS.filter(([key])=>hasCardForm(v,key));
+  if(!owned.length)return "";
+  const form=cardVisibleForm||"-";
+  return `<div class="cardFormPicker" role="group" aria-label="Vzhľad kartičky">${[["-","","Originál"],...owned].map(([key,icon,label])=>
+    `<button type="button" data-card-form-choice="${key}" aria-pressed="${key===form}" style="--form-ink:${FORM_ART[key]?.ink||"#d5e6ff"}"><span aria-hidden="true">${icon||"◇"}</span> ${label}</button>`).join("")}</div>`;
+}
+function shownCard(v){return {...v,coverForm:cardVisibleForm||"-"}}
+function openCard(k,reveal,form){
   const v=COL.types[k];if(!v)return;
   const modal=$("cardM"),root=$("cardBig"),video=$("cardVideo"),share=$("cardShare"),r=typeTier(k);
   if(!modal.classList.contains("on"))modal.returnFocus=document.activeElement;
@@ -378,11 +417,13 @@ function openCard(k,reveal){
     if(tile){tile.scrollIntoView({block:"center"});requestAnimationFrame(()=>tile.focus({preventScroll:true}))}
   };
   cardK=k;
+  cardVisibleForm=hasCardForm(v,form)?form:cardCoverForm(v);
   modal.classList.remove("locked");
   const face=()=>{
     const first=firstCatchNote(v);
     root.innerHTML=`<h2 class="cardHeadline" tabindex="-1">${esc(catGuess(k).name)}</h2>
-      <div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal&&!RM()?"reveal":""}">${cardSVG(k,v,{id:"b"})}</div>
+      <div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal&&!RM()?"reveal":""}">${cardSVG(k,shownCard(v),{id:"b"})}</div>
+      ${cardFormPicker(v)}
       <p class="cardIdentity">${v.ver?"✓ Overená":v.n?"Neoverená":"Darovaná kópia"}${v.n?" · "+esc(cardProgress(k,v)):""}</p>
       ${first&&v.n?`<p class="cardFirstCatch">${esc(first)}</p>`:""}
       <details class="cardDetails"><summary>Údaje o kartičke</summary>${collectorDossier(k,v)}${cardExtras(k,v)}</details>`;
@@ -402,7 +443,7 @@ function openCard(k,reveal){
   setTimeout(()=>{if(modal.classList.contains("on")&&root.contains(back))face()},typeof reveal==="string"&&reveal.startsWith("Nová kartička")?450:800);
 }
 function cardExtras(k,v){
-  const r=typeTier(k),fm=v.forms||{},al=v.al?Object.keys(v.al):[];
+  const r=typeTier(k),al=v.al?Object.keys(v.al):[];
   const aircraft=CAT[k];
   const verL=v.ver?`<div class="verOk">✓ Overená${v.seq?" · č. "+v.seq+" na Slovensku":""}</div>`:v.n?`<div class="verNo">⏳ Zatiaľ neoverená · <button data-why="1" style="display:inline;margin:0">🔎 Prečo?</button><div class="whyList" id="whyList"></div></div>`:"";
   let h=`<div class="cardInfo">${verL}${v.n?`<div class="lookSub" style="text-align:center">${stars(cardLvl(v.n,k))} · ${esc(cardProgress(k,v))}</div>`:""}<div class="lookSub" id="cardStat"></div>`;
@@ -412,8 +453,7 @@ function cardExtras(k,v){
     h+=`</div>`}
   if(aircraft)h+=`<dl class="cardAircraft"><div><dt>Rozpätie</dt><dd>${nf(aircraft.span,1)} m</dd></div><div><dt>Dĺžka</dt><dd>${nf(aircraft.len,1)} m</dd></div>${aircraft.range==null?"":`<div><dt>Dolet</dt><dd>${nf(aircraft.range)} km</dd></div>`}<div><dt>Kapacita</dt><dd>${aircraft.seats?nf(aircraft.seats)+" "+pl(aircraft.seats,"miesto","miesta","miest"):"—"}</dd></div></dl>
     <p class="lookSub">${esc(aircraft.fact)}</p>`;
-  // formy: podmienka priamo pod ikonou (title na iPhone nevidieť)
-  h+=`<div class="formRow">${FORMS.map(f=>`<span class="${fm[f[0]]?"on":""}" title="${f[2]}: ${f[3]}">${f[1]}<small>${fm[f[0]]?f[2]:f[3]}</small></span>`).join("")}</div>`;
+  if(v.n)h+=`<ul class="cardFormGuide" aria-label="Podmienky foriem">${FORMS.map(([key,icon,label,rule])=>`<li><span aria-hidden="true">${icon}</span><b>${label}</b><small>${hasCardForm(v,key)?"Odomknutá":rule}</small></li>`).join("")}</ul>`;
   // mesto je už v päte kartičky – tu len to, čo tam nie je (kam letel, výška, dátum)
   if(v.fp&&(v.fp.dest||v.fp.alt))h+=`<div class="lookSub">Pri prvom úlovku${v.fp.dest?" letel → "+esc(v.fp.dest):""}${v.fp.alt?" · "+nf(v.fp.alt).replace(/\s/g,"\u00a0")+"\u00a0m":""}</div>`;
   {const eds=Object.entries(COL.ed||{}).filter(([,g])=>g.ty===k);if(eds.length)h+=`<div class="lookSub">📅 ${eds.map(([,g])=>esc(g.n)+(g.no?" · č. "+g.no:"")).join(" · ")}</div>`}
@@ -428,6 +468,26 @@ async function cardStat(k){
     el.innerHTML=(j.own?`🇸🇰 Na Slovensku ju ${j.own>=2&&j.own<=4?"majú":"má"} ${nf(j.own)} ${pl(j.own,"spotter","spotteri","spotterov")}${j.players?" ("+String(pct).replace(".",",")+" %)":""}`:"🇸🇰 Na Slovensku ju ešte nikto nemá overenú – buď prvý!")+(j.kraj?(()=>{const kp=Math.round(j.kraj.own/j.kraj.players*1000)/10,KN=(typeof KRAJ!=="undefined"&&KRAJ[j.kraj.k]?KRAJ[j.kraj.k][2]:j.kraj.k);return `<br>📍 ${esc(KN)} kraj: ${String(kp).replace(".",",")} % zberateľov${kp<5&&kp<pct?" – <b>u vás vzácna 🔥</b>":kp>pct*2?" – u vás bežná":""}`})():"")+(j.first?`<br>🧭 Objaviteľ: <b>${esc(typeof KID==="function"&&KID()?"Spotter":j.first.nick)}</b>${j.first.town?" · "+esc(j.first.town):""} · ${new Date(j.first.t).toLocaleDateString("sk-SK")}`:"")}catch(e){}
 }
 $("cardBig").addEventListener("click",async e=>{
+  const choice=e.target.closest("[data-card-form-choice]");
+  if(choice){
+    const v=COL.types[cardK],key=choice.dataset.cardFormChoice;
+    if(!v?.n||(key!=="-"&&!hasCardForm(v,key)))return;
+    cardVisibleForm=key==="-"?"":key;
+    v.coverForm=key;
+    LS.set("ctl_col",COL);
+    const wrap=$("cardBig").querySelector(".holoWrap");
+    wrap.classList.remove("reveal");
+    wrap.innerHTML=cardSVG(cardK,v);
+    for(const b of choice.parentElement.children)b.setAttribute("aria-pressed",String(b===choice));
+    for(const tile of $("c-types").querySelectorAll(".mini[data-k]")){
+      if(tile.dataset.k===cardK){
+        const svg=tile.querySelector("svg[data-card-form]");
+        if(svg){svg.insertAdjacentHTML("afterend",cardMini(cardK,v));svg.remove()}
+      }
+    }
+    renderShow();
+    return;
+  }
   const pn=e.target.closest("[data-pin]");if(pn){const k=pn.dataset.pin;COL.show=COL.show||[];const i=COL.show.indexOf(k);
     if(i>=0)COL.show.splice(i,1);else{if(COL.show.length>=showSlots()){toast("🏛️ Vitrína je plná","Ďalšie miesto si odomkneš za míle ✈ v obchode");return}COL.show.push(k)}
     LS.set("ctl_col",COL);pn.textContent=COL.show.includes(k)?"📌 Vo vitríne":"📌 Do vitríny";renderShow();haptic(10);return}
@@ -466,6 +526,11 @@ HOOKS.caught.push(a=>{
   if(c&&c.dc==="SK")set("h");
   try{if(WX&&WX.data&&WX.data.current&&WX.data.current.temperature_2m<0)set("f")}catch(e){}
   if(fm.n&&!v.night)v.night=fm.n;
+  if(got.length&&WB&&ty!=="?"){
+    WB.form=got[0][0];
+    WB.special=WB.special||"Nová forma · "+got[0][2];
+    WB.type=ty;
+  }
   if(got.length&&!msg)msg=[got[0][1]+" Nová forma: "+got[0][2],(v.name||ty)+" · formy "+FORMS.filter(f=>fm[f[0]]).length+"/5"];
   if(v.gift&&v.n===1){v.gift.done=1;COL.pts+=5;msg=msg||["🤝 Splnený sľub!",(v.name||ty)+" – darovaná kartička je teraz celá tvoja · +5 b"]}
   if(!CAT[ty]&&!v.offset){v.offset=1;msg=msg||["⭐ Mimo série!",(v.name||ty)+" – typ, ktorý nie je ani v atlase"]}
@@ -487,8 +552,8 @@ $("cardBig").addEventListener("click",async event=>{
 });
 $("cardShare").onclick=async()=>{
   const key=cardK,card=COL.types[key];if(!card)return;
-  const v={...card};
-  const svg=cardSVG(key,v,{id:"s",public:true}),img=new Image(),W=1080,H=1920;
+  const v=shownCard(card);
+  const svg=await cardExportSVG(key,v,{id:"s",public:true}),img=new Image(),W=1080,H=1920;
   img.onload=()=>{
     const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
     const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#0d1430");g.addColorStop(1,v.shiny?"#5a1f6b":{c:"#1b2a6b",u:"#0b4a33",r:"#0a2a66",e:"#3a1670",l:"#5a3d00"}[typeTier(key)]);x.fillStyle=g;x.fillRect(0,0,W,H);
@@ -682,9 +747,9 @@ $("cardBig").addEventListener("click",e=>{const b=e.target.closest("[data-hunt-p
 /* 🎬 6-sekundové video s odhalením kartičky (na TikTok/Reels/stories), bez hudby */
 function vidOK(){return typeof MediaRecorder!=="undefined"&&!!HTMLCanvasElement.prototype.captureStream}
 function vidMime(){for(const m of ["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"])try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}return ""}
-if($("cardVideo"))$("cardVideo").onclick=()=>{
+if($("cardVideo"))$("cardVideo").onclick=async()=>{
   const key=cardK,card=COL.types[key];if(!card||!vidOK())return;
-  const v={...card};
+  const v=shownCard(card);
   const btn=$("cardVideo");btn.disabled=true;btn.textContent="⏳";
   const done=()=>{btn.disabled=false;btn.textContent="🎬"};
   const img=new Image(),W=720,H=1280,CW=560,CH=784;
@@ -728,7 +793,7 @@ if($("cardVideo"))$("cardVideo").onclick=()=>{
     rec.start(250);requestAnimationFrame(frame);
   };
   img.onerror=done;
-  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(cardSVG(key,v,{id:"v",public:true}));
+  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(await cardExportSVG(key,v,{id:"v",public:true}));
 };
 
 /* 🏛️ vitrína: 3 najlepšie kartičky na profile (1 slot zadarmo, ďalšie za míle) */

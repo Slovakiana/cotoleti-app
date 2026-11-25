@@ -202,7 +202,7 @@ def main():
                 if (S.top!==selected) throw Error("Zmenil sa vybraný let");
             }""")
             pg.locator("#cardBig h2").wait_for(timeout=7000)
-            pg.evaluate("""() => {
+            pg.evaluate("""async () => {
                 const h=$("cardBig").querySelector("h2");
                 const illustration=$("cardBig").querySelector(".holoWrap svg");
                 if (h.textContent!=="Boeing 737-800" || !illustration.textContent.includes("ATLAS OBLOHY")
@@ -211,6 +211,24 @@ def main():
                 const w=illustration.getBoundingClientRect();
                 if (w.left<0 || w.right>document.documentElement.clientWidth)
                     throw Error("Kartička preteká na 320 px");
+                const first=COL.types.B738;
+                first.forms={...first.forms,n:100,g:200};
+                first.coverForm="-";
+                openCard("B738",undefined,"n");
+                const root=$("cardBig"),form=()=>root.querySelector(".holoWrap svg").dataset.cardForm;
+                if(form()!=="n"||first.coverForm!=="-")throw Error("Odhalenie zmenilo uložený vzhľad");
+                const golden=root.querySelector('[data-card-form-choice="g"]');
+                golden.click();
+                if (form()!=="g" || golden.getAttribute("aria-pressed")!=="true"
+                    || LS.get("ctl_col",{}).types.B738.coverForm!=="g"
+                    || !root.querySelector(".holoWrap image").getAttribute("href").includes("/g.webp"))
+                    throw Error("Výber formy nezmenil ilustráciu alebo sa neuložil");
+                if (root.querySelector('[data-card-form-choice="z"]'))throw Error("Zamknutá forma sa dá vybrať");
+                openCard("B738");
+                if (form()!=="g")throw Error("Pri opätovnom otvorení sa stratil zvolený vzhľad");
+                const svg=await cardExportSVG("B738",shownCard(first),{public:true});
+                if (!svg.includes('href="data:image/webp;base64,') || !svg.includes("Zlatá hodinka"))
+                    throw Error("Export nepriložil ilustráciu zvolenej formy");
                 window.savedCardAsset=null;
                 shareBlob=async(blob,name,caption)=>{window.savedCardAsset={blob,name,caption};};
                 $("cardShare").click();
@@ -228,8 +246,8 @@ def main():
                     throw Error("Zdieľanie neexportovalo zobrazenú kartu");
                 img.close();
                 $("cardCollection").click();
-                if(S.view!=="col"||!$("c-types").querySelector('[data-k="B738"]'))
-                    throw Error("Prvý úlovok sa nedá nájsť v Zbierke");
+                if(S.view!=="col"||!$("c-types").querySelector('[data-k="B738"] [data-card-form="g"]'))
+                    throw Error("Prvý úlovok alebo zvolená forma chýba v Zbierke");
             }""")
             pg.evaluate("""async () => {
                 setView("now");

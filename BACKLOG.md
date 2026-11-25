@@ -14,6 +14,10 @@ Majiteľ – zostáva: Workers Paid, UptimeRobot, notifikácie, TG_TOKEN · pass
 
 - Pri úprave preveriť aj výpadok zdieľanej snímky `/api/planes` a návrat zo záložného zdroja. Chýbajúce dáta a chýbajúci názov v Atlase sú samostatné prípady.
 
+## Otvorené po mobilnom playteste v88
+
+- Pri výpadku radaru pridať priamo na kartu lietadla stav „Posledná známa poloha“ s vekom polohy. Hlavný názov cieľa môže pri aktuálnom náhľade pôsobiť ako živý let aj pri vypnutom mávaní.
+
 ## Majiteľ
 Workers Paid 5 $ · ADMIN_KEY · TG_TOKEN/TG_CHAT (Cloudflare + GitHub Secrets) · Cloudflare notifikácie · UptimeRobot · občianske združenie (2 %) · licencie dát pred zarábaním · vlastná doména.
 
