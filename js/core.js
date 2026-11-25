@@ -121,8 +121,8 @@ const dirS=b=>DIRS[Math.round(((b%360)+360)%360/45)%8],dirL=b=>DIRL[Math.round((
 // poloha lietadla dopočítaná podľa rýchlosti a kurzu (plynulý pohyb medzi aktualizáciami)
 function enrich(now){
   if(!S.pos)return [];
-  const dt=Math.min(30,(now-S.rawT)/1000);
-  return S.raw.filter(a=>!a.ground).map(a=>{
+  return S.raw.filter(a=>!a.ground&&(S.lastKnown||now-(a.positionAt||S.rawT)<=RADAR_LIVE_AGE)).map(a=>{
+    const dt=S.lastKnown?0:Math.max(0,Math.min(15,(now-(a.positionAt||S.rawT))/1000));
     let lat=a.lat,lon=a.lon,alt=a.alt;
     if(a.spd!=null&&a.trk!=null&&dt>0){const m=a.spd/3.6*dt;lat+=m*Math.cos(rad(a.trk))/111320;lon+=m*Math.sin(rad(a.trk))/(111320*Math.cos(rad(lat)))}
     if(alt!=null&&a.vr!=null&&dt>0)alt=Math.max(0,alt+a.vr*FT/60*dt);
@@ -165,21 +165,14 @@ function normReadsb(j){
     const ground=a.alt_baro==="ground";
     const altFt=typeof a.alt_geom==="number"?a.alt_geom:(typeof a.alt_baro==="number"?a.alt_baro:null);
     return {hex:a.hex.toLowerCase(),call:priv?"":String(a.flight||"").trim(),reg:priv?"":a.r||"",type:normalizeType(a.t),desc:"",op:priv?"":a.ownOp||"",cat:a.category||"",mil:!!(a.dbFlags&1),dbf:a.dbFlags|0,priv,emg:/^7[567]00$/.test(a.squawk||"")||!!(a.emergency&&a.emergency!=="none"),fl:typeof a.alt_baro==="number"?Math.round(a.alt_baro/100):null,kt:a.gs!=null?Math.round(a.gs):null,
-      lat:a.lat,lon:a.lon,alt:ground?0:(altFt!=null?altFt*FT:null),ground,spd:a.gs!=null?a.gs*KT:null,trk:a.track??a.true_heading??null,
+      seenPos:Math.max(0,Number(a.seen_pos)||0),lat:a.lat,lon:a.lon,alt:ground?0:(altFt!=null?altFt*FT:null),ground,spd:a.gs!=null?a.gs*KT:null,trk:a.track??a.true_heading??null,
       vr:a.baro_rate??a.geom_rate??null,sq:priv?"":a.squawk||""};
   });
 }
-// OpenSky neposiela typ. Doplní ho rovnaká cesta ako pre ostatné živé zdroje.
+const RADAR_LIVE_AGE=30e3,RADAR_PREVIEW_AGE=120e3;
 const SOURCES=[
-  // vlastný server: spoločná snímka oblohy nad SR (najmenej záťaže, mimo SR vráti 404 → ďalší zdroj)
-  {name:"Čo to letí",own:true,url:(la,lo,r)=>`${MYPROXY}/api/planes?lat=${la}&lon=${lo}&r=${Math.min(60,r)}`,parse:normReadsb},
-  {name:"adsb.lol",url:(la,lo,r)=>`https://api.adsb.lol/v2/point/${la}/${lo}/${r}`,parse:normReadsb},
-  {name:"airplanes.live",url:(la,lo,r)=>`https://api.airplanes.live/v2/point/${la}/${lo}/${r}`,parse:normReadsb},
-  {name:"adsb.fi",url:(la,lo,r)=>`https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/${r}`,parse:normReadsb},
-  {name:"OpenSky",url:(la,lo,r)=>{const dl=r*1852/111320,dn=dl/Math.cos(rad(la));
-     return `https://opensky-network.org/api/states/all?lamin=${(+la-dl).toFixed(3)}&lamax=${(+la+dl).toFixed(3)}&lomin=${(+lo-dn).toFixed(3)}&lomax=${(+lo+dn).toFixed(3)}`},
-   parse:j=>(j.states||[]).filter(s=>s[6]!=null&&s[5]!=null).map(s=>({hex:s[0],call:(s[1]||"").trim(),type:"",reg:"",desc:"",op:"",cat:"",mil:false,
-     lat:s[6],lon:s[5],alt:s[8]?0:(s[13]??s[7]),ground:s[8],spd:s[9]!=null?s[9]*3.6:null,trk:s[10],vr:s[11]!=null?s[11]/FT*60:null,sq:s[14]||""}))}
+  {name:"Čo to letí",url:(la,lo,r)=>`${MYPROXY}/api/planes?lat=${la}&lon=${lo}&r=${Math.min(60,r)}`},
+  {name:"adsb.lol",url:(la,lo,r)=>`https://api.adsb.lol/v2/point/${la}/${lo}/${r}`}
 ];
 // Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
 const DEFAULT_PROXY="https://cotoleti-app.radovan-kudela.workers.dev";
@@ -200,9 +193,7 @@ const ROUTES=[
   {name:"server",wrap:u=>MYPROXY+"/?url="+encodeURIComponent(u)},
   {name:"priamo",wrap:u=>u}
 ];
-const COMBOS=SOURCES.filter(s=>s.own).map(s=>({s,rt:ROUTES[1]}));ROUTES.forEach(rt=>SOURCES.forEach(s=>{if(!s.own)COMBOS.push({s,rt})}));
-// pamätaný zdroj (od v55 je na 1. mieste vlastný server – staré číslo sa zahodí)
-let comboIdx=LS.get("ctl_comboV",0)===2?Math.min(COMBOS.length-1,Math.max(0,LS.get("ctl_combo",0)|0)):0;let radarRequest=null;LS.set("ctl_comboV",2);
+let radarRequest=null;
 
 async function getJSON(url,ms=7000,outer){
   const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms);
@@ -212,78 +203,78 @@ async function getJSON(url,ms=7000,outer){
     const res=await fetch(url,{signal:ctl.signal,cache:"no-store"});
     const txt=await res.text();
     let j;try{j=JSON.parse(txt)}catch(e){throw new Error(res.ok?"nie je JSON":"HTTP "+res.status)}
-    return {ok:res.ok,status:res.status,j};
+    return {ok:res.ok,status:res.status,j,retry:res.headers.get("Retry-After")};
   }catch(e){throw new Error(e.name==="AbortError"?"timeout":(e.message||"blokované"))}
   finally{clearTimeout(tm);outer?.removeEventListener("abort",abort)}
 }
 
-// 📶 stav dátových zdrojov (pre nastavenia)
-const SRCST={};
-const radarPositionKey=pos=>[pos.lat,pos.lon].map(x=>(Math.round(x*4)/4).toFixed(2)).join("/");
-const skyStale=()=>!!S.lastKnown||(S.rawT>0&&Date.now()-S.rawT>45e3);
+const radarPositionKey=pos=>[pos.lat,pos.lon].map(x=>(Math.round(x*50)/50).toFixed(2)).join("/");
+const skyStale=()=>!!S.lastKnown||(S.rawT>0&&Date.now()-S.rawT>RADAR_LIVE_AGE);
+const staleSkyLabel=()=>`Posledná známa obloha · pred ${Math.max(0,Math.floor((Date.now()-S.rawT)/1000))} s`;
 async function tryCombo(i,query,signal){
-  const c=COMBOS[i],start=performance.now();
-  try{
-    const {ok,status,j}=await getJSON(c.rt.wrap(c.s.url(query.la,query.lo,query.radius+10)),5500,signal);
-    if(!ok)throw Error("HTTP "+status);
-    if(!j||!(Array.isArray(j.ac)||Array.isArray(j.aircraft)||Array.isArray(j.states)))throw Error("zlý formát");
-    const t=Number(j.now||(Array.isArray(j.states)?j.time:0));
-    const age=t>0?Math.max(0,Date.now()-(t<1e12?t*1000:t)):0;
-    if(age>45e3)throw Error("staré dáta");
-    return {i,list:c.s.parse(j),age,ms:Math.round(performance.now()-start),via:c.s.own&&j.src!=="sky"?j.src:""};
-  }catch(e){if(!signal.aborted)SRCST[i]={err:e.message,t:Date.now()};throw e}
+  const start=performance.now();
+  const {ok,status,j,retry}=await getJSON(SOURCES[i].url(query.la,query.lo,query.radius+2),5500,signal);
+  const stale=i===0&&status===503&&j?.state==="stale";
+  if(!ok&&!stale)throw Object.assign(Error("HTTP "+status),{status,retry});
+  if(!j||!(Array.isArray(j.ac)||Array.isArray(j.aircraft)))throw Error("Zlý formát");
+  const t=Number(j.now), at=t<1e12?t*1000:t, age=Date.now()-at;
+  if(!(at>0)||age < -5000||age>(stale?RADAR_PREVIEW_AGE:RADAR_LIVE_AGE))throw Error("Staré dáta");
+  const list=normReadsb(j).map(a=>({...a,positionAt:at-a.seenPos*1000}));
+  return {i,list,age:Math.max(0,age),ms:Math.round(performance.now()-start),via:j.provider||j.src,stale};
 }
-function gotPlanes(query,{i,list,age,ms,via}){S.failN=0;S.nextTry=0;S.loaded=true;S.skyPosition=query.position;
+function gotPlanes(query,{i,list,age,via,stale=false}){
+  S.failN=0;S.nextTry=stale?Date.now()+15e3:0;S.loaded=true;S.skyPosition=query.position;
   if(typeof SOC!=="undefined"&&SOC.data&&SOC.data.flags&&SOC.data.flags.hideMil)list=list.filter(a=>!a.mil);
-  S.raw=list;S.rawT=Date.now()-age;S.noData=false;if(comboIdx!==i){comboIdx=i;LS.set("ctl_combo",i)}err("");S.lastKnown=false;
-  // 📊 čas do prvého lietadla (anonymne, po pásmach) + posledná známa obloha na rýchly štart
+  S.raw=list;S.rawT=Date.now()-age;S.noData=false;err("");S.lastKnown=stale;
   if(!S.ttfp&&typeof ev==="function"){S.ttfp=performance.now();const t=S.ttfp/1000;ev("ttfp_"+(t<1?"1s":t<3?"3s":t<6?"6s":t<12?"12s":"slow"))}
-  if(!S.lkT||Date.now()-S.lkT>60e3){S.lkT=Date.now();try{LS.set("ctl_lastSky",{t:Date.now(),p:S.pos?[S.pos.lat,S.pos.lon]:null,raw:list.filter(a=>!a.ground).slice(0,40)})}catch(e){}}
-  SRCST[i]={ok:Date.now(),ms};
-  const c=COMBOS[i];
-  {const n=S.raw.filter(a=>!a.ground).length;setStatus(n+" "+(n===1?"lietadlo":n>=2&&n<=4?"lietadlá":"lietadiel")+" naživo",true);S.src=via==="adsb.lol"?"Čo to letí · adsb.lol":c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:"")}
-  tick(true);
+  if(!stale&&(!S.lkT||Date.now()-S.lkT>30e3||!list.length)){
+    S.lkT=Date.now();LS.set("ctl_lastSky",{t:S.rawT,p:S.pos?[S.pos.lat,S.pos.lon]:null,raw:list.filter(a=>!a.ground).slice(0,40)});
+  }
+  const n=list.filter(a=>!a.ground&&(!a.positionAt||Date.now()-a.positionAt<=RADAR_LIVE_AGE)).length;
+  S.src=i===0&&via&&via!=="sky"?"Čo to letí · "+via:SOURCES[i].name;
+  setStatus(stale?staleSkyLabel():n+" "+pl(n,"lietadlo","lietadlá","lietadiel")+" naživo",!stale);
+  tick(!stale);
 }
 async function fetchPlanes(force){
   if(!S.pos)return;
   const position=radarPositionKey(S.pos),[la,lo]=position.split("/"),radius=+$("radius").value;
   const query={position,la,lo,radius};
   if(radarRequest){
-    if(radarRequest.position===position&&radarRequest.radius===radius&&(!force||radarRequest.preferred===comboIdx))return radarRequest.promise;
+    if(radarRequest.position===position&&radarRequest.radius===radius)return radarRequest.promise;
     radarRequest.controller.abort();
   }
   const moved=S.skyPosition&&S.skyPosition!==position;
-  if(moved&&S.raw.length){S.raw=[];S.rawT=0;S.lastKnown=false;S.pick=null;S.loaded=false;tick(true)}
-  if(!navigator.onLine){setStatus("📴 Bez internetu",false);return}
-  if(!force&&!moved&&S.nextTry&&Date.now()<S.nextTry)return;
+  if(moved){S.raw=[];S.rawT=0;S.lastKnown=false;S.pick=null;S.loaded=false;S.lkT=0;tick(false)}
+  if(!navigator.onLine){S.lastKnown=!!S.rawT;setStatus(S.lastKnown?staleSkyLabel():"📴 Bez internetu",false);return}
+  if(!moved&&S.nextTry&&Date.now()<S.nextTry)return;
   const controller=new AbortController();
-  const request={position,radius,preferred:comboIdx,controller};
+  const request={position,radius,controller};
   radarRequest=request;
   request.promise=refreshRadar(request,query).finally(()=>{if(radarRequest===request)radarRequest=null});
   return request.promise;
 }
 async function refreshRadar(request,query){
-  const signal=request.controller.signal, delays=[];
-  const probeOwn=request.preferred!==0&&Date.now()>(S.ownProbeAt||0);
-  if(probeOwn)S.ownProbeAt=Date.now()+120e3;
-  const order=[...new Set([...(probeOwn?[0]:[]),request.preferred,...COMBOS.keys()])];
-  if(!S.raw.length)setStatus("Pripájam sa…",false);
+  const signal=request.controller.signal;
+  if(!S.loaded)setStatus("Pripájam sa…",false);
   try{
-    const winner=await Promise.any(order.map((i,index)=>new Promise(resolve=>{
-      if(!index)resolve();else delays.push(setTimeout(resolve,index*650));
-    }).then(()=>{if(signal.aborted)throw Error("stop");return tryCombo(i,query,signal)})));
-    if(!signal.aborted&&radarRequest===request&&S.pos&&radarPositionKey(S.pos)===query.position)gotPlanes(query,winner);
+    let result;
+    try {result=await tryCombo(0,query,signal)}
+    catch(e){
+      if(e.status!==404||signal.aborted)throw e;
+      result=await tryCombo(1,query,signal);
+    }
+    if(!signal.aborted&&radarRequest===request&&S.pos&&radarPositionKey(S.pos)===query.position)gotPlanes(query,result);
   }catch(e){
     if(signal.aborted||radarRequest!==request)return;
-    S.failN=(S.failN||0)+1;S.nextTry=Date.now()+Math.min(60000,10000*S.failN);
-    S.lastKnown=!!S.raw.length;
-    setStatus(S.lastKnown?"Posledná známa obloha":"Bez spojenia",false);
-    err(S.lastKnown?"Živé dáta sa prerušili. Obnov radar a skús mávnuť znova.":"Dáta o lietadlách sú dočasne nedostupné. Skúšam znova…");
+    S.failN=(S.failN||0)+1;
+    const retry=Number(e.retry)||0;
+    S.nextTry=Date.now()+Math.max(retry*1000,Math.min(60000,10000*S.failN));
+    S.lastKnown=!!S.rawT&&Date.now()-S.rawT<=RADAR_PREVIEW_AGE;
+    if(!S.lastKnown)S.raw=[];
+    setStatus(S.lastKnown?staleSkyLabel():"Živé dáta nedostupné",false);
+    err(S.lastKnown?"Živé dáta sa prerušili. Na mávnutie treba čerstvú polohu.":"Dáta o lietadlách sú dočasne nedostupné. Skúšam znova…");
     if(!S.raw.length)$("h-type").textContent="Dáta o lietadlách sú chvíľu nedostupné";
-    renderFirstWaveGuide(S.top);
-  }finally{
-    request.controller.abort();
-    delays.forEach(clearTimeout);
+    tick(false);
   }
 }
 

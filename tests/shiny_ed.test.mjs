@@ -27,10 +27,11 @@ const W = mod.default;
 
 let plane = {hex: "aabbcc", flight: "WZZ123 ", t: "A21N", lat: 48.2, lon: 17.2, gs: 440, alt_baro: 36000};
 globalThis.fetch = async u => { u = String(u);
-  if (u.includes("/v2/point/") || u.includes("/v2/hex/")) return new Response(JSON.stringify({ac: [plane]}));
+  if (u.includes("/v2/point/") || u.includes("/v2/hex/")) return new Response(JSON.stringify({ac: [plane],now:Date.now()}));
   return new Response("{}"); };
 const call = async (p, b, ip = "1.2.3.4", cc = "SK") => {
-  sky._snap = null;
+  sky._radarSnap = null; sky._radarSnapRetryAt = 0;
+  db.exec("DELETE FROM meta WHERE k LIKE 'radar:%'");
   if (p === "/api/wave" && b && b.gps === undefined) b = {...b, gps: true};
   const r = new Request("https://x" + p, b ? {method: "POST", body: JSON.stringify(b), headers: {"cf-connecting-ip": ip}} : {headers: {"cf-connecting-ip": ip}});
   Object.defineProperty(r, "cf", {value: {country: cc, latitude: "48.15", longitude: "17.1"}});

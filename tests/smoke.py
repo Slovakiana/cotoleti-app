@@ -26,7 +26,7 @@ def stub(route):
             request = json.loads(route.request.post_data or "{}")
             return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps({"ok": True, "ver": 1, "type": request["type"]}))
         if "/api/planes" in u:
-            return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps({**PLANES, "src": "sky"}))
+            return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps({**PLANES, "now": int(time.time()*1000), "src": "sky"}))
         if "/api/sky" in u:
             return route.fulfill(status=200, content_type="application/json", headers=h, body=json.dumps(SKY))
         return route.fulfill(status=200, content_type="application/json", headers=h, body='{"ok":true}')
@@ -106,6 +106,19 @@ def main():
                     tick(false);
                     if(!$("b-wave").disabled||!$("status").textContent.includes("Posledná známa"))
                         throw Error("Radar dovoľuje mávať zastaranému záznamu");
+                    const delivered=Date.now();
+                    S.rawT=delivered;
+                    S.raw=[{...live,positionAt:delivered-31000}];
+                    S.lastKnown=false;
+                    if(enrich(delivered).length)throw Error("Stará poloha z čerstvej snímky zostala živá");
+                    S.lastKnown=true;
+                    const frozen=enrich(delivered)[0];
+                    if(frozen?.lat!==live.lat||frozen?.lon!==live.lon)
+                        throw Error("Posledná známa poloha sa ďalej posúva");
+                    S.rawT=Date.now()-121000;
+                    tick(false);
+                    if(S.raw.length||!$("status").textContent.includes("nedostupné"))
+                        throw Error("Stará snímka sa nezmazala");
                     const hidden=normReadsb({ac:[{hex:"aa123b",lat:48,lon:17,dbFlags:4,flight:"ABC1",r:"OM-AAA",ownOp:"Ukážka"}]})[0];
                     if(hidden.call||hidden.reg||hidden.op)throw Error("Záložný zdroj ukazuje súkromné údaje");
                 }finally{
