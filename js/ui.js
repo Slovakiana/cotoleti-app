@@ -312,6 +312,7 @@ function expandRadar(){
   toast("📡 Hľadám ďalej","Okruh 93 km");
 }
 function heroEmpty(){
+  $("h-position-age").hidden=true;
   $("guess").classList.remove("on");
   $("h-lbl").textContent=t("now");$("h-rar").style.display="none";
   $("h-call").textContent=S.pos?t("empty"):"Pozri hore";
@@ -331,16 +332,16 @@ function heroEmpty(){
 function renderHeroStatic(a){
   if(!a){heroEmpty();HOOKS.heroStatic.forEach(f=>{try{f(null)}catch(e){}});return}
   ["h-st3","h-dir"].forEach(id=>$(id).style.display="");$("b-wave").disabled=false;$("b-wave").style.opacity=1;
-  const m=S.meta.get(a.hex)||{},r=rarity(a),rt=routeOf(a),al=airlineOf(a)||(m.route&&m.route.airline&&m.route.airline.name)||"";
+  const stale=skyStale()&&!a.santa,m=S.meta.get(a.hex)||{},r=rarity(a),rt=routeOf(a),al=airlineOf(a)||(m.route&&m.route.airline&&m.route.airline.name)||"";
   $("h-lbl").textContent=S.pick&&S.pick===a.hex?"Vybrané lietadlo":t("now");
   $("h-rar").style.display=r==="c"&&!isMil(a)?"none":"";$("h-rar").textContent=(isMil(a)?"VOJENSKÉ · ":"")+RAR[r].n.toUpperCase();$("h-rar").style.color=RAR[r].col;
-  $("h-call").textContent=rt?"→ "+citySk(rt.destination.municipality||rt.destination.name):(al||titleOf(a));
+  $("h-call").textContent=rt&&!stale?"→ "+citySk(rt.destination.municipality||rt.destination.name):(al||titleOf(a));
   $("h-type").textContent=[rt&&al?al:"",typeName(a,m),rt||al?(a.priv?"":titleOf(a)):""].filter(Boolean).join(" · ");
   // núdzový kód: žiadna hra ani zdieľanie, neutrálny text
-  const emg=!!a.emg;$("b-wave").disabled=emg;$("b-wave").style.opacity=emg?.5:1;$("b-share").style.display=emg||a.priv?"none":"";
+  const emg=!!a.emg,disabled=emg||stale||!!SOC.inflight;$("b-wave").disabled=disabled;$("b-wave").style.opacity=disabled?.5:1;$("b-share").style.display=emg||a.priv||stale?"none":"";
   if(emg)setTimeout(()=>{if(S.top&&S.top.hex===a.hex)$("h-quip").textContent="Lietadlo hlási neobvyklý kód. Hra je pre tento let vypnutá."},0);
   $("spotLine").textContent=[a.priv?"":a.reg,a.fl!=null?"FL"+String(a.fl).padStart(3,"0"):"",a.kt!=null?a.kt+" kt":"",a.vr!=null?(a.vr>0?"+":"")+Math.round(a.vr)+" ft/min":"",a.sq&&!a.priv?"sq "+a.sq:""].filter(Boolean).join(" · ");
-  if(rt){$("r-o").textContent=rt.origin.iata_code||rt.origin.icao_code||"?";$("r-on").textContent=citySk(rt.origin.municipality||rt.origin.name);
+  if(rt&&!stale){$("r-o").textContent=rt.origin.iata_code||rt.origin.icao_code||"?";$("r-on").textContent=citySk(rt.origin.municipality||rt.origin.name);
     $("r-d").textContent=rt.destination.iata_code||rt.destination.icao_code||"?";$("r-dn").textContent=citySk(rt.destination.municipality||rt.destination.name);$("h-route").classList.add("on")}
   else $("h-route").classList.remove("on");
   $("h-photo").classList.remove("on");
@@ -373,7 +374,22 @@ function renderHeroLive(a){
   $("g-spd").textContent=a.spd!=null?nf(a.spd)+" km/h":"—";$("g-spdC").textContent=spdCompare(a.spd);
   $("g-trk").textContent=a.trk!=null?dirS(a.trk)+" "+nf(a.trk)+"°":"—";
   $("g-trkC").textContent=a.vr>300?"letí smerom · stúpa ↗":a.vr<-300?"letí smerom · klesá ↘":"letí smerom";
-  const ap=approach(a),eta=$("h-eta");eta.style.display="";
+  const notice=$("h-position-age"),eta=$("h-eta"),wasStale=!notice.hidden;
+  notice.hidden=!stale;
+  if(stale){
+    const age=Math.max(0,Math.floor((Date.now()-(a.positionAt||S.rawT))/1000));
+    notice.textContent="Posledná známa poloha · pred "+age+" s";
+    $("b-share").style.display="none";
+    if(!wasStale){
+      $("h-call").textContent=airlineOf(a)||titleOf(a);
+      $("h-route").classList.remove("on");
+    }
+    $("h-look").textContent="Posledný známy smer";
+    $("h-lookSub").textContent="Na mávnutie treba živé údaje";
+    eta.classList.remove("on");eta.style.display="none";
+    return;
+  }
+  const ap=approach(a);eta.style.display="";
   if(ap&&ap.t>3&&ap.t<900&&ap.el!=null&&ap.el>=20){const mm=Math.floor(ap.t/60),ss=Math.floor(ap.t%60);eta.innerHTML=`⏱ Najbližšie k tebe o <b>${mm?mm+" min ":""}${ss} s</b> · ${nf(ap.el)}° nad obzorom`;eta.classList.add("on")}
   else if(ap&&ap.t<=3&&ap.t>-60&&el>=40){eta.innerHTML="🎯 Práve je najbližšie k tebe!";eta.classList.add("on")}
   else eta.classList.remove("on");
@@ -473,7 +489,7 @@ function tick(fresh){
     if(best&&S.top){const cur=S.list.find(a=>a.hex===S.top.hex);if(cur&&cur.el!=null&&best.el-cur.el<2)best=cur}}
   const changed=(best&&best.hex)!==(S.top&&S.top.hex);
   S.top=best;
-  if(changed||fresh){renderHeroStatic(best);if(best){loadMeta(best);if(changed)announce(best,false)}}
+  if(changed||fresh){renderHeroStatic(best);if(best&&!skyStale()){loadMeta(best);if(changed)announce(best,false)}}
   renderHeroLive(best);
   renderFirstWaveGuide(best);
   if(fresh||now%5000<1000){const up=S.list.filter(a=>a.el>0),hi=up.filter(a=>a.el>=10).length,lab=up.length?`Radar oblohy: ${up.length} ${pl(up.length,"lietadlo","lietadlá","lietadiel")} nad obzorom, ${hi} z nich vyššie ako 10 stupňov${best&&best.el!=null?`. ${S.pick===best.hex?"Vybrané":"Najvyššie"}: ${titleOf(best)}, ${RAR[rarity(best)].n.toLowerCase()}, na ${dirL(best.bear)}, ${Math.round(best.el)} stupňov nad obzorom${best.trk!=null?", letí na "+dirL(best.trk):""}${best.el>=10?", dá sa mu zamávať":""}`:""}. Ťuknutím na lietadlo v radare ho vyberieš.`:"Radar oblohy: nad tebou je teraz prázdno";if($("sky").getAttribute("aria-label")!==lab)$("sky").setAttribute("aria-label",lab)}
@@ -483,7 +499,7 @@ function tick(fresh){
   // lietadlá sa už nezbierajú samé – úlovok len zamávaním (hra je o pozeraní hore)
   if(fresh&&!skyStale())seenLog(S.list);
   if(best&&!skyStale()&&best.el>=60&&!S.buzzed.has(best.hex)){S.buzzed.add(best.hex);if(S.vib)haptic([120,60,120,60,240])}
-  if(fresh){S.list.slice(0,8).forEach(a=>loadMeta(a));HOOKS.fresh.forEach(f=>{try{f()}catch(e){console.error(e)}})}
+  if(fresh){if(!skyStale())S.list.slice(0,8).forEach(a=>loadMeta(a));HOOKS.fresh.forEach(f=>{try{f()}catch(e){console.error(e)}})}
 }
 /* ============ hlas ============ */
 function voiceSay(txt){
@@ -492,7 +508,7 @@ function voiceSay(txt){
     speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}
 }
 function announce(a,metaArrived){
-  if(!S.voice||!a)return;
+  if(!S.voice||!a||skyStale())return;
   const m=S.meta.get(a.hex);
   if(m&&m.loading)return; // počkaj na trasu
   if(S.announced.has(a.hex))return;S.announced.add(a.hex);

@@ -196,6 +196,52 @@ await t("anonymný radar zachová transport v86 a kľúč obíde zdieľanú cach
     globalThis.fetch=original;
   }
 });
+await t("ADSB šetrí kvótu, rezervuje overenia a zdieľa rovnaké vyhľadanie", async () => {
+  const before=globalThis.fetch;
+  const region="point/48.7/19.5/250";
+  const env={...sky.env,ADSB_LOL_API_KEY:"fixture-key",ADSB_LOL_WEEKLY_LIMIT:"4750"};
+  const radar=new mod.Sky({storage},env);
+  let calls=0;
+  globalThis.fetch=async()=>{calls++;return Response.json({ac:[plane],now:Date.now()})};
+  try {
+    db.exec("DELETE FROM meta WHERE k='radar:0'");
+    const s=radar.radarStatus(0);
+    radar.setMeta("radar:0",JSON.stringify({...s,authorized:true,count:855,weekCount:855,monthCount:855}));
+    assert.equal(radar.radarInterval(),28000);
+    assert.equal(await radar.radarFeed(0,region),null);
+    const results=await Promise.all([radar.radarFeed(0,"hex/aabbcc",true),radar.radarFeed(0,"hex/aabbcc",true)]);
+    assert.ok(results[0]?.ac.length);
+    assert.equal(results[0],results[1]);
+    assert.equal(calls,1);
+    const latest=radar.radarStatus(0);
+    assert.ok(latest.dayBytes>0);
+    radar.setMeta("radar:0",JSON.stringify({...latest,lastTry:0,monthBytes:3600e6}));
+    assert.equal(await radar.radarFeed(0,"hex/ffffff",true),null);
+    assert.equal(calls,1);
+  } finally {
+    db.exec("DELETE FROM meta WHERE k='radar:0'");
+    globalThis.fetch=before;
+  }
+});
+await t("typ prežije výpadok metadát iba pri zhodnej registrácii", async () => {
+  const before=globalThis.fetch;
+  const radar=new mod.Sky({storage},sky.env);
+  const old={...plane,r:"OM-AAA",t:"L13S"};
+  const current={...old,t:"UNKN"};
+  const previous={t:Date.now()-29000,m:new Map([[old.hex,old]])};
+  let next=current;
+  globalThis.fetch=async()=>Response.json({ac:[next],now:Date.now()});
+  try {
+    db.exec("DELETE FROM meta WHERE k='radar:0'");
+    assert.equal((await radar.refreshRadarSnapshot(previous)).m.get(old.hex).t,"L13S");
+    db.exec("DELETE FROM meta WHERE k='radar:0'");
+    next={...current,r:"OM-BBB"};
+    assert.equal((await radar.refreshRadarSnapshot(previous)).m.get(old.hex).t,"UNKN");
+  } finally {
+    db.exec("DELETE FROM meta WHERE k='radar:0'");
+    globalThis.fetch=before;
+  }
+});
 await t("posledná snímka prežije reštart, údaje z hry a výpadok", async () => {
   const now=Date.now(), before=globalThis.fetch, clock=Date.now;
   try {

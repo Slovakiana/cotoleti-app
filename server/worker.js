@@ -75,7 +75,9 @@ const EVENTS = [
   {id: "halloween2027", n: "Strašidelné lietadlo 2027", from: "2027-10-31T16:00:00Z", to: "2027-10-31T23:00:00Z"},
 ];
 const SNAPSHOT_AGE = 30e3, RADAR_PREVIEW_AGE = 120e3;
-const RADAR_ACTIVE_INTERVAL = 20e3, RADAR_IDLE_INTERVAL = 120e3;
+const RADAR_ACTIVE_INTERVAL = 24e3, RADAR_SAVING_INTERVAL = 28e3;
+const RADAR_REGION = "point/48.7/19.5/250";
+const RADAR_DAY = 86400e3, RADAR_HOUR = 3600e3;
 const ADSB_NAMES = ["adsb.lol", "airplanes.live", "adsb.fi"];
 const positionTime = (a, at) => at - Math.max(0, Number(a.seen_pos) || 0) * 1000;
 const retryDelay = (value, now) => {
@@ -110,11 +112,12 @@ async function liveFeed(url, timeout, token) {
     if (response.body) response.body.cancel().catch(() => {});
     throw error;
   }
-  const data = await response.json(), ac = data?.ac || data?.aircraft;
+  const payload = await response.text(), data = JSON.parse(payload), ac = data?.ac || data?.aircraft;
+  const bytes = token ? Math.max(Number(response.headers.get("Content-Length")) || 0, new TextEncoder().encode(payload).length) : 0;
   if (!Array.isArray(ac)) throw Error("upstream format");
   const t = Number(data.now || 0), at = t > 0 ? (t < 1e12 ? t * 1000 : t) : NaN;
   if (!Number.isFinite(at) || Date.now() - at > SNAPSHOT_AGE || at - Date.now() > SNAPSHOT_AGE) throw Error("upstream stale");
-  return {ac: ac.filter(currentAircraft), at: Math.min(Date.now(), at)};
+  return {ac: ac.filter(currentAircraft), at: Math.min(Date.now(), at), bytes};
 }
 function elevDeg(km, altFt) { if (altFt == null || km == null) return null; const h = altFt * 0.3048, d = Math.max(km * 1000, 1); return Math.atan2(h - d * d / (2 * 6371e3), d) * 180 / Math.PI; }
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
@@ -154,7 +157,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v90";
+const VERSION = "v91";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -458,12 +461,13 @@ export class Sky extends DurableObject {
       const fresh = ac.filter(a => Date.now() - positionTime(a, snapshot.t) <= SNAPSHOT_AGE);
       if (fresh.length || kind === "point") return {ac: fresh};
     }
+    if (path.startsWith("point/")) return null;
     let empty = null;
     for (const i of this.radarSources()) {
       const feed = await this.radarFeed(i, path);
       if (feed) {
         const ac = feed.ac.filter(a => Date.now() - positionTime(a, feed.at) <= SNAPSHOT_AGE);
-        if (ac.length || path.startsWith("point/")) return {ac};
+        if (ac.length) return {ac};
         empty = {ac};
       }
     }
@@ -538,36 +542,71 @@ export class Sky extends DurableObject {
     return Number.isSafeInteger(configured) && configured > 0 ? configured : i === 0 && !key ? 480 : 950;
   }
   radarStatus(i) {
-    const day = new Date(Date.now()).toISOString().slice(0, 10);
-    const month = day.slice(0, 7), week = this.week(Date.now());
+    const utc = new Date(Date.now()).toISOString(), day = utc.slice(0, 10), hour = utc.slice(0, 13);
+    const month = day.slice(0, 7);
+    const week = new Date(Date.parse(day) - ((new Date(day).getUTCDay() + 6) % 7) * RADAR_DAY).toISOString().slice(0, 10);
     const previous = JSON.parse(this.getMeta("radar:" + i) || "{}");
-    return {...previous, day, month, week, count: previous.day === day ? previous.count : 0,
-      monthCount: previous.month === month ? previous.monthCount : 0,
-      weekCount: previous.week === week ? previous.weekCount : 0};
+    return {...previous, day, month, week, hour,
+      count: previous.day === day ? previous.count || 0 : 0,
+      monthCount: previous.month === month ? previous.monthCount || 0 : 0,
+      weekCount: previous.week === week ? previous.weekCount || 0 : 0,
+      hourCount: previous.hour === hour ? previous.hourCount || 0 : 0,
+      dayBytes: previous.day === day ? previous.dayBytes || 0 : 0,
+      monthBytes: previous.month === month ? previous.monthBytes || 0 : 0};
   }
-  async radarFeed(i, path) {
+  radarBudget(i) {
+    const daily = this.radarLimit(i);
+    if (i !== 0) return {daily, weekly: Infinity, monthly: Infinity};
+    const keyed = !!this.env.ADSB_LOL_API_KEY;
+    return {daily, weekly: Number(this.env.ADSB_LOL_WEEKLY_LIMIT) || (keyed ? Math.min(daily * 7, 4750) : daily * 7),
+      monthly: Number(this.env.ADSB_LOL_MONTHLY_LIMIT) || (keyed ? 28500 : 14400)};
+  }
+  radarInterval() {
+    if (!this.env.ADSB_LOL_API_KEY) return RADAR_ACTIVE_INTERVAL;
+    const s = this.radarStatus(0), b = this.radarBudget(0);
+    const daysLeft = Math.max(1, Math.ceil((Date.parse(s.week) + 7 * RADAR_DAY - Date.now()) / RADAR_DAY));
+    return s.count >= b.daily * .45 || (b.weekly - s.weekCount) / daysLeft < b.daily * .6 || s.monthCount >= b.monthly * .8
+      ? RADAR_SAVING_INTERVAL : RADAR_ACTIVE_INTERVAL;
+  }
+  async radarFeed(i, path, verification = false) {
+    if (path === RADAR_REGION) return this.requestRadarFeed(i, path, verification);
+    const cache = this._radarLookups || (this._radarLookups = new Map());
+    const key = i + ":" + path, now = Date.now(), existing = cache.get(key);
+    if (existing && now >= existing.at && now - existing.at < 12000)
+      return existing.pending;
+    if (cache.size >= 128) cache.delete(cache.keys().next().value);
+    const pending = this.requestRadarFeed(i, path, verification).then(feed => {
+      if (!feed && cache.get(key)?.pending === pending) cache.delete(key);
+      return feed;
+    });
+    cache.set(key, {at: now, pending});
+    return pending;
+  }
+  async requestRadarFeed(i, path, verification) {
     const now = Date.now(), key = "radar:" + i;
     const token = i === 0 ? this.env.ADSB_LOL_API_KEY : i === 1 ? this.env.AIRPLANES_LIVE_API_KEY : null;
-    const authorized = !!token;
+    const authorized = !!token, limited = i === 0 && authorized;
     const stored = this.radarStatus(i);
     const status = stored.authorized === authorized ? stored : {...stored, authorized, until: 0, failures: 0};
-    const monthLimit = i === 0 ? Number(this.env.ADSB_LOL_MONTHLY_LIMIT) || (this.env.ADSB_LOL_API_KEY ? 28500 : 14400) : Infinity;
-    const weekLimit = i === 0 ? Number(this.env.ADSB_LOL_WEEKLY_LIMIT) || this.radarLimit(i) * 7 : Infinity;
-    const regional = path === "point/48.7/19.5/250", cap = this.radarLimit(i);
-    const share = regional ? 1 : 0.8;
-    if (now < (status.until || 0) || status.count >= Math.floor(cap * share)
-      || status.monthCount >= Math.floor(monthLimit * share) || status.weekCount >= Math.floor(weekLimit * share)
-      || now < (status.lastTry || 0) + 1100) return null;
+    const budget = this.radarBudget(i);
+    // Časť rozpočtu je vyhradená len na overenie úlovkov mimo spoločnej snímky.
+    const share = limited ? (verification ? 1 : path === RADAR_REGION ? .9 : .8) : path === RADAR_REGION ? 1 : .8;
+    if (now < (status.until || 0) || status.count >= Math.floor(budget.daily * share)
+      || status.monthCount >= Math.floor(budget.monthly * share) || status.weekCount >= Math.floor(budget.weekly * share)
+      || (limited && (status.hourCount >= (verification ? 260 : 235) || status.dayBytes >= 900e6 || status.monthBytes >= 3600e6))
+      || now < (status.lastTry || 0) + (limited ? 1700 : 1100)) return null;
     this.setMeta(key, JSON.stringify({...status, count: status.count + 1, monthCount: status.monthCount + 1,
-      weekCount: status.weekCount + 1, lastTry: now}));
+      weekCount: status.weekCount + 1, hourCount: status.hourCount + 1, lastTry: now}));
     const fi = path.startsWith("point/") ? "lat/" + path.split("/")[1] + "/lon/" + path.split("/")[2] + "/dist/" + path.split("/")[3] : path;
     try {
       const feed = await liveFeed(ADSB_ORIGINS[i] + (i === 2 ? fi : path), 3500, token);
-      this.setMeta(key, JSON.stringify({...this.radarStatus(i), lastSuccess: Date.now(), failures: 0, until: 0, status: 200}));
+      const latest = this.radarStatus(i);
+      this.setMeta(key, JSON.stringify({...latest, dayBytes: latest.dayBytes + feed.bytes, monthBytes: latest.monthBytes + feed.bytes,
+        lastSuccess: Date.now(), failures: 0, until: 0, status: 200}));
       return feed;
     } catch (e) {
       const latest = this.radarStatus(i), failures = (latest.failures || 0) + 1;
-      const delay = e.status === 401 || e.status === 403 ? 3600e3
+      const delay = e.status === 401 || e.status === 403 ? RADAR_HOUR
         : e.status === 429 ? retryDelay(e.retry, Date.now())
         : Math.min(120e3, 5e3 * 2 ** Math.min(failures - 1, 5));
       this.setMeta(key, JSON.stringify({...latest, failures, until: Date.now() + delay, status: e.status || 502}));
@@ -579,9 +618,12 @@ export class Sky extends DurableObject {
     const saved = JSON.parse(this.getMeta("radar_snapshot") || "null");
     return this._radarSnap = saved ? {...saved, m: new Map(saved.ac.map(a => [cleanHex(a.hex), a]))} : null;
   }
-  async snapshot(interval = RADAR_ACTIVE_INTERVAL) {
+  async snapshot() {
     const previous = this.lastRadarSnapshot();
-    if (previous && Date.now() - previous.t < interval) return previous;
+    if (previous) {
+      const age = Date.now() - previous.t;
+      if (age < RADAR_ACTIVE_INTERVAL || (age < RADAR_SAVING_INTERVAL && age < this.radarInterval())) return previous;
+    }
     if (this._radarSnapP) return this._radarSnapP;
     if (Date.now() < (this._radarSnapRetryAt || 0)) return previous;
     this._radarSnapP = this.refreshRadarSnapshot(previous).finally(() => { this._radarSnapP = null; });
@@ -589,11 +631,17 @@ export class Sky extends DurableObject {
   }
   async refreshRadarSnapshot(previous) {
     for (const i of this.radarSources()) {
-      const feed = await this.radarFeed(i, "point/48.7/19.5/250");
+      const feed = await this.radarFeed(i, RADAR_REGION);
       if (!feed || (previous && feed.at <= previous.t)) continue;
       // Veľká prázdna snímka po plnej oblohe môže byť výpadok pokrytia.
       if (!feed.ac.length && previous?.m.size > 10 && Date.now() - previous.t < RADAR_PREVIEW_AGE) continue;
-      const ac = feed.ac.slice(0, 2000).map(privateAircraft);
+      const ac = feed.ac.slice(0, 2000).map(a => {
+        const clean = privateAircraft(a);
+        if (clean.dbFlags & 12 || clean.hex.startsWith("~") || !clean.r || normalizeType(clean.t)) return clean;
+        const last = previous?.m.get(cleanHex(clean.hex));
+        const type = last && !(last.dbFlags & 12) && last.r === clean.r ? normalizeType(last.t) : "";
+        return type ? {...clean, t: type} : clean;
+      });
       const saved = {t: feed.at, provider: ADSB_NAMES[i], ac};
       this.setMeta("radar_snapshot", JSON.stringify(saved));
       this.setMeta("upstream", feed.at);
@@ -639,7 +687,7 @@ export class Sky extends DurableObject {
     if (known && observed && Date.now() - positionTime(observed, sn.t) <= SNAPSHOT_AGE)
       return this.fillPlaneType(this.planeRes(observed, la, lo), hex);
     for (const i of this.radarSources()) {
-      const feed = await this.radarFeed(i, "hex/" + hex);
+      const feed = await this.radarFeed(i, "hex/" + hex, true);
       if (!feed) continue;
       const a = feed.ac.find(item => cleanHex(item.hex) === hex);
       if (!a) { known = true; continue; }
@@ -699,8 +747,7 @@ export class Sky extends DurableObject {
   async cron() {
     const d = this.day(), now = Date.now();
     this.setMeta("cron", now);
-    // Anonymná kvóta sa používa až pri otvorení radaru alebo pri hernom dopyte.
-    if (this.env.ADSB_LOL_API_KEY && this.radarLimit(0) >= 2000) await this.snapshot(RADAR_IDLE_INTERVAL);
+    // Radar sa obnovuje len pri otvorení alebo pri hernom dopyte.
     if (this.getMeta("cleanH") !== String(Math.floor(now / 3600e3))) {
       this.setMeta("cleanH", Math.floor(now / 3600e3)); this.cleanup(d, now);
       const S = {}; for (const r of this.sql.exec("SELECT k, n FROM sig WHERE day=?", d).toArray()) S[r.k] = r.n;
@@ -889,7 +936,7 @@ export class Sky extends DurableObject {
       const radar = {ageSec: sn ? Math.max(0, Math.floor((now - sn.t) / 1000)) : null, provider: sn?.provider || null,
         sources: this.radarSources().map(i => {
           const st = this.radarStatus(i);
-          return {name: ADSB_NAMES[i], requestsToday: st.count, requestsThisWeek: st.weekCount, requestsThisMonth: st.monthCount, dailyLimit: this.radarLimit(i), status: st.status || null, retryAt: st.until || null};
+          return {name: ADSB_NAMES[i], requestsToday: st.count, requestsThisWeek: st.weekCount, requestsThisMonth: st.monthCount, dailyLimit: this.radarLimit(i), weeklyLimit: i === 0 ? this.radarBudget(i).weekly : null, monthlyLimit: i === 0 ? this.radarBudget(i).monthly : null, estimatedBytesToday: st.dayBytes, estimatedBytesThisMonth: st.monthBytes, status: st.status || null, retryAt: st.until || null};
         })};
       return json({radar, ok: now - c < 5 * 60e3, version: VERSION, lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
     }

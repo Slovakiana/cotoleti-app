@@ -11,7 +11,7 @@
 
 - Hodnotu kľúča ADS-B.lol vlož do Cloudflare ako Secret `ADSB_LOL_API_KEY`. Pre vyšší plán nastav `ADSB_LOL_DAILY_LIMIT`, `ADSB_LOL_WEEKLY_LIMIT` a `ADSB_LOL_MONTHLY_LIMIT` s rezervou pod kvótami poskytovateľa. Ide o interné limity v kalendárnych obdobiach. Naďalej platia limity poskytovateľa vrátane prenesených dát.
 - Záložný zdroj zapni až po schválení prístupu. Pre Airplanes.live nastav `AIRPLANES_LIVE_ENABLED=1`, `AIRPLANES_LIVE_DAILY_LIMIT` a podľa dohody kľúč `AIRPLANES_LIVE_API_KEY`, ak poskytovateľ používa hlavičku `x-api-key`. Pre adsb.fi slúžia `ADSB_FI_ENABLED=1` a `ADSB_FI_DAILY_LIMIT`.
-- Bez kľúča sa regionálna snímka obnovuje na požiadanie. Pri schválenom kľúči a dennom limite aspoň 2 000 sa predhrieva aj minútovým časovačom, najskôr po 2 minútach od poslednej snímky. Pri úplnom výpadku sa náhľad zobrazuje najviac 2 minúty. Mávnutie vyžaduje čerstvé údaje.
+- Bez kľúča sa regionálna snímka obnovuje na požiadanie. S kľúčom sa tiež obnovuje len na požiadanie radaru alebo hry. V šetriacom režime používa snímku do 28 sekúnd. Posledných 10 % dopytovej kvóty je vyhradených na overenie úlovkov. Worker odhaduje objem z tiel úspešných odpovedí a pre adhoc plán zastaví ďalšie dopyty pri odhadovaných 0,9 GB denne alebo 3,6 GB mesačne. Pri úplnom výpadku sa náhľad zobrazuje najviac 2 minúty. Mávnutie vyžaduje čerstvé údaje.
 
 ## 2. Nová verzia niečo pokazila
 - **Server:** Cloudflare (appka alebo web) → Workers & Pages → cotoleti-app → **Deployments** → pri predchádzajúcej verzii ⋯ → **Rollback**.

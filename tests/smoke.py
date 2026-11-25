@@ -102,10 +102,18 @@ def main():
                     await old;
                     if(S.raw[0]?.hex!=="abc456"||S.skyPosition!==radarPositionKey(next))
                         throw Error("Staršia odpoveď prepísala nový radar");
+                    $("h-call").textContent="→ Budapešť";
+                    $("h-route").classList.add("on");
+                    $("h-eta").classList.add("on");
                     S.rawT=Date.now()-46e3;
                     tick(false);
-                    if(!$("b-wave").disabled||!$("status").textContent.includes("Posledná známa"))
-                        throw Error("Radar dovoľuje mávať zastaranému záznamu");
+                    if(!$("b-wave").disabled||!$("status").textContent.includes("Posledná známa")
+                        || $("h-position-age").hidden || !$("h-position-age").textContent.includes("Posledná známa poloha")
+                        || $("h-call").textContent.startsWith("→") || $("h-route").classList.contains("on")
+                        || $("h-eta").classList.contains("on"))
+                        throw Error("Zastaraná poloha pôsobí na karte ako živý let");
+                    renderHeroStatic(S.top);
+                    if(!$("b-wave").disabled)throw Error("Aktualizácia údajov povolila mávnutie starej polohe");
                     const delivered=Date.now();
                     S.rawT=delivered;
                     S.raw=[{...live,positionAt:delivered-31000}];

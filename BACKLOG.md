@@ -16,7 +16,7 @@ Majiteľ – zostáva: Workers Paid, UptimeRobot, notifikácie, TG_TOKEN · pass
 
 ## Otvorené po mobilnom playteste v88
 
-- Pri výpadku radaru pridať priamo na kartu lietadla stav „Posledná známa poloha“ s vekom polohy. Hlavný názov cieľa môže pri aktuálnom náhľade pôsobiť ako živý let aj pri vypnutom mávaní.
+- Hotové vo v91: karta ukáže vek poslednej známej polohy a skryje trasu a odpočet do najbližšieho priblíženia.
 
 ## Majiteľ
 Workers Paid 5 $ · ADMIN_KEY · TG_TOKEN/TG_CHAT (Cloudflare + GitHub Secrets) · Cloudflare notifikácie · UptimeRobot · občianske združenie (2 %) · licencie dát pred zarábaním · vlastná doména.
