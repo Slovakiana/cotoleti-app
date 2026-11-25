@@ -77,10 +77,13 @@ def play_first_session(browser, errs):
     pg.locator("#b-wave").tap()
     expect(pg.locator("#cardM.on #cardBig h2")).to_have_text("Boeing 737-800")
     assert len(submitted) == 1 and submitted[0]["gps"], "Prvé mávnutie neprišlo s GPS"
-    assert pg.locator("#cardBig svg").evaluate(
+    assert pg.locator("#cardBig .holoWrap > svg").evaluate(
         "(el) => el.getBoundingClientRect().right <= document.documentElement.clientWidth"
     ), "Odhalená kartička presahuje šírku pri 320 px"
-    print("✓ Playtest 320 px: čistý profil, GPS, prvé mávnutie a odhalenie kartičky")
+    action_in_view = pg.locator("#cardCollection").evaluate(
+        "(el) => {const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight}"
+    )
+    print(f"✓ Playtest 320 px: čistý profil, GPS, prvé mávnutie a odhalenie kartičky; CTA bez posunu: {action_in_view}")
 
     pg.locator("#cardClose").tap()
     expect(pg.locator("#waveJournalResult")).to_contain_text("2 nové objavy")
@@ -107,7 +110,7 @@ def play_first_session(browser, errs):
 
     pg.locator('nav [data-v="now"]').tap()
     mode = "quiet"
-    pg.evaluate("fetchPlanes(true)")
+    pg.evaluate("async () => {if(radarRequest) await radarRequest.promise; await fetchPlanes(true)}")
     expect(pg.locator("#firstWaveHint")).to_contain_text("Zatiaľ tu nie je lietadlo")
     expect(pg.locator("#b-wave")).to_be_disabled()
     expect(pg.locator("#eRad")).to_be_visible()
@@ -115,10 +118,12 @@ def play_first_session(browser, errs):
     expect(pg.locator('#c-types [data-k="B738"]')).to_be_visible()
     pg.locator('nav [data-v="now"]').tap()
     mode = "stale"
-    pg.evaluate("fetchPlanes(true)")
+    pg.evaluate("async () => {if(radarRequest) await radarRequest.promise; await fetchPlanes(true)}")
     expect(pg.locator("#status")).to_contain_text("Posledná známa obloha")
     expect(pg.locator("#b-wave")).to_be_disabled()
     expect(pg.locator("#firstWaveHint")).to_contain_text("Na mávnutie treba živé údaje")
+    title = pg.locator("#h-call").inner_text()
+    print(f"Radar počas výpadku: {title}")
     ctx.set_offline(True)
     pg.locator('nav [data-v="col"]').tap()
     expect(pg.locator('#c-types [data-k="B738"]')).to_be_visible()
