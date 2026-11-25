@@ -307,7 +307,7 @@ function heroEmpty(){
   $("b-wave").disabled=true;$("b-wave").style.opacity=.5;
   if(S.pos&&(S.raw.length||S.loaded)&&$("h-call").textContent===t("empty")&&+$("radius").value<50){$("h-quip").innerHTML='<span class="emptyActs"><button class="ghost" id="eRad">📡 Hľadať ďalej (93 km)</button></span>';
     $("eRad").onclick=expandRadar}
-  $("h-route").classList.remove("on");$("h-photo").classList.remove("on");$("h-links").innerHTML="";$("hero").classList.remove("overhead","emerg");
+  $("h-route").classList.remove("on");$("h-links").innerHTML="";$("hero").classList.remove("overhead","emerg");
 }
 function renderHeroStatic(a){
   if(!a){heroEmpty();HOOKS.heroStatic.forEach(f=>{try{f(null)}catch(e){}});return}
