@@ -296,20 +296,24 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 #shareM img,#shareM video{max-height:66vh;max-width:100%;border-radius:20px}
 #shareM p{color:var(--mut);font-size:calc(14px*var(--fs,1));margin:0;text-align:center}
 
-/* moja obloha (príbehy) */
-#wrap{position:fixed;inset:0;z-index:75;display:none;background:#05070f}
-#wrap.on{display:block}
-.wbars{position:absolute;left:10px;right:10px;top:calc(var(--top) + 10px);display:flex;gap:4px;z-index:3}
-.wbars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden}
-.wbars i b{display:block;height:100%;width:0;background:#fff}
-.wclose{position:absolute;right:14px;top:calc(var(--top) + 22px);z-index:4;font-size:calc(22px*var(--fs,1));padding:8px}
-.wslide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:calc(var(--top) + 60px) 28px calc(var(--bot) + 40px);text-align:left}
-.wslide .k{font:700 13px var(--body);letter-spacing:.14em;text-transform:uppercase;opacity:.8}
-.wslide .h{font:900 clamp(40px,13vw,64px)/1 var(--disp);letter-spacing:-.04em;margin:14px 0}
-.wslide .p{font-size:calc(19px*var(--fs,1));opacity:.9;max-width:440px}
-.wslide .e{font-size:calc(80px*var(--fs,1));margin-bottom:10px}
-.wtap{position:absolute;inset:0;display:flex;z-index:2}.wtap div{flex:1}
-.wacts{position:absolute;left:24px;right:24px;bottom:calc(var(--bot) + 30px);display:flex;flex-direction:column;gap:10px;z-index:3}
+/* Osobný týždeň */
+.weekEntry{width:100%;max-width:100%;min-height:48px;margin:8px 0;padding:10px 13px;display:flex;align-items:center;gap:8px;text-align:left;font-weight:750}
+.weekEntry span:first-child{flex:1}.weekEntry small{color:var(--mint);white-space:nowrap}
+.weekDialog{max-width:520px;background:linear-gradient(153deg,#152a3a,#101827 54%,#211831)}
+.weekTop{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
+.weekTop h2{margin:0;font-size:clamp(19px,5vw,25px)}.weekTop p{margin:4px 0;color:#bce2dc}
+.weekDialog button{min-height:44px}.weekTop button{min-width:44px}
+#weekSwitch{margin:7px 0}.weekSlide{text-align:center;padding:6px 0 10px}
+.weekSlide h3{margin:4px 0 8px;font-size:16px}.weekSlide p{margin:7px 0;line-height:1.45}
+.weekHeroCard{width:min(62vw,224px,calc(40svh * .714));margin:0 auto}.weekHeroCard svg{display:block;width:100%;height:auto}
+.weekSlide ul{padding:0;list-style:none;display:grid;gap:7px;text-align:left;margin:10px 0}
+.weekSlide li{border:1px solid #8ab3be50;padding:10px 12px;border-radius:10px}
+.weekOverview strong{display:block;color:#aeeadf;font-size:52px}
+.weekNav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0 9px}
+#wshare{width:100%;margin:3px 0 0}
+#wslides article:not([hidden]){animation:weekEnter .24s ease-out}
+@keyframes weekEnter{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#wslides article{animation:none!important}}
 
 /* AR */
 #ar{position:fixed;inset:0;z-index:60;background:#000;display:none}
@@ -726,8 +730,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 .relayProof{margin:9px 0;padding:8px 12px;border:1px solid #efc27270;border-radius:12px;color:#ffe5ae;background:#33261960;font:700 12px/1.4 var(--body)}
 @media(max-height:660px){#stage{height:292px!important;min-height:0!important}}
 @media(prefers-reduced-motion:reduce){.holoWrap.reveal svg [data-level-star]{animation:none!important}}
+#map.leaflet-container{background:#121e30}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=92">
+<link rel="stylesheet" href="lib/journal.css?v=93">
 </head>
 <body>
 <div id="bg"></div>
@@ -885,6 +890,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="shelf" id="showcase" hidden></div>
     <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
+  <button class="weekEntry glass" id="b-wrapped" type="button"><span>Môj týždeň na oblohe</span><small id="weekNew" hidden></small><span aria-hidden="true">›</span></button>
   <details class="more glass prof collectionGroup">
     <summary>Profil a štatistiky</summary>
     <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
@@ -900,7 +906,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <div><b id="c-r">0</b><span>vzácnych</span></div>
     </div>
     <button class="mileBtn" id="b-miles">✈ <b id="c-miles">0</b> <span id="c-milesL">míľ</span> · obchod</button>
-    <button class="wrapBtn" id="b-wrapped">✨ Môj týždeň na oblohe</button>
     <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
   </details>
   <details class="more glass collectionGroup" id="dailyBox">
@@ -1032,12 +1037,21 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </div>
 
 <!-- MOJA OBLOHA -->
-<div id="wrap">
-  <div class="wbars" id="wbars"></div>
-  <button class="wclose" id="wclose" aria-label="Zavrieť">✕</button>
-  <div id="wslides"></div>
-  <div class="wtap"><div id="wprev"></div><div id="wnext"></div></div>
-  <div class="wacts" id="wacts" style="display:none"><button class="cta" id="wshare">📸 Zdieľať do príbehu</button><button class="btn ico" style="flex:none;width:100%;padding:14px" id="wduel">⚔️ Vyzvi kamaráta</button></div>
+<div id="wrap" class="modal" aria-labelledby="weekTitle">
+  <section class="mcard weekDialog">
+    <header class="weekTop">
+      <div><h2 id="weekTitle">Môj týždeň na oblohe</h2><p id="weekPeriod"></p></div>
+      <button type="button" class="ghost" id="wclose" aria-label="Zavrieť">✕</button>
+    </header>
+    <button type="button" class="ghost" id="weekSwitch"></button>
+    <div id="wslides"></div>
+    <div id="weekNav" class="weekNav" aria-label="Listovanie">
+      <button type="button" class="ghost" id="wprev">Predošlá</button>
+      <span id="weekPage" aria-live="polite"></span>
+      <button type="button" class="ghost" id="wnext">Ďalšia</button>
+    </div>
+    <button type="button" class="btn pri" id="wshare">Zdieľať môj týždeň</button>
+  </section>
 </div>
 
 <div class="modal" id="trackM" role="dialog" aria-modal="true" aria-label="Sledovanie letu"><div class="mcard">
@@ -1093,7 +1107,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <b>Tvoje práva.</b> V nastaveniach si údaje stiahneš („Moje údaje“) alebo zmažeš („Zmazať moje údaje“ – zo servera aj z mobilu, token prestane platiť). Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
   <b>Komu sa dáta dostanú.</b> Cloudflare (server a databáza), GitHub (hosting appky), Apple/Google/Mozilla (doručenie upozornení, len ak ich zapneš), Google Fonts a CDN unpkg/jsDelivr/cdnjs (písmo a knižnice mapy a satelitov – vidia tvoju IP pri stiahnutí). Niektorí sídlia v USA (EU-US Data Privacy Framework). Dáta o lietadlách sťahuje náš server bez tvojich údajov.<br><br>
   <b>Pravidlá.</b> Nepoužívaj skutočné meno, školu ani triedu. Nikomu nesľubuj stretnutie. Všetko podozrivé nahlás 🚩. Prezývka ani názov tímu nesmú byť urážlivé ani obsahovať cudzie osobné údaje – nevhodné mená server odmieta a po nahlásení skryje. Zlaté lietadlo sa žrebuje zo všetkých, ktorí mu zamávali – odmenou sú len body v hre, žiadne ceny; pri podozrení z podvodu body neuznáme. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolinkí sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
-  <b>Zdroje dát.</b> Mapa pasu: <a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noopener">Natural Earth</a> · logá: <a href="https://www.bts.aero/kontakty/pre-cestujucich/letecke-spolocnosti/" target="_blank" rel="noopener">Letisko Bratislava</a>, <a href="https://github.com/imgmongelli/airlines-logos-dataset" target="_blank" rel="noopener">Airline Logos Dataset</a> a <a href="https://github.com/Jxck-S/airline-logos" target="_blank" rel="noopener">Airline and Operator Logos</a> · údaje o značkách: <a href="https://soaringsymbols.org/" target="_blank" rel="noopener">Soaring Symbols</a> ·  Lietadlá: adsb.lol (ODbL 1.0), airplanes.live, adsb.fi, The OpenSky Network, adsbdb.com · fotky lietadiel: airport-data.com, © autori · satelity: CelesTrak, výpočet satellite.js · počasie: Open-Meteo.com (CC BY 4.0) · mapa: © OpenStreetMap contributors, © CARTO.
+  <b>Zdroje dát.</b> Mapa pasu: <a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noopener">Natural Earth</a> · logá: <a href="https://www.bts.aero/kontakty/pre-cestujucich/letecke-spolocnosti/" target="_blank" rel="noopener">Letisko Bratislava</a>, <a href="https://github.com/imgmongelli/airlines-logos-dataset" target="_blank" rel="noopener">Airline Logos Dataset</a> a <a href="https://github.com/Jxck-S/airline-logos" target="_blank" rel="noopener">Airline and Operator Logos</a> · údaje o značkách: <a href="https://soaringsymbols.org/" target="_blank" rel="noopener">Soaring Symbols</a> ·  Lietadlá: adsb.lol (ODbL 1.0), airplanes.live, adsb.fi, The OpenSky Network, adsbdb.com · fotky lietadiel: airport-data.com, © autori · satelity: CelesTrak, výpočet satellite.js · počasie: Open-Meteo.com (CC BY 4.0) · mapa: Natural Earth.
   </div>
   <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
 </div></div>
@@ -1163,26 +1177,26 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=92"></script>
-<script src="js/ui.js?v=92"></script>
-<script src="js/ar.js?v=92"></script>
-<script src="js/space.js?v=92"></script>
-<script src="js/weather.js?v=92"></script>
-<script src="js/extras.js?v=92"></script>
-<script src="js/social.js?v=92"></script>
-<script src="js/wrapped.js?v=92"></script>
-<script src="js/push.js?v=92"></script>
-<script src="js/track.js?v=92"></script>
-<script src="js/towns.js?v=92"></script>
-<script src="js/catalog.js?v=92"></script>
-<script src="js/cards.js?v=92"></script>
-<script src="js/journal.js?v=92"></script>
-<script src="js/mail.js?v=92"></script>
-<script src="js/golden.js?v=92"></script>
-<script src="js/teams.js?v=92"></script>
-<script src="js/duel.js?v=92"></script>
-<script src="js/sound.js?v=92"></script>
-<script src="js/santa.js?v=92"></script>
-<script src="js/main.js?v=92"></script>
+<script src="js/core.js?v=93"></script>
+<script src="js/ui.js?v=93"></script>
+<script src="js/ar.js?v=93"></script>
+<script src="js/space.js?v=93"></script>
+<script src="js/weather.js?v=93"></script>
+<script src="js/extras.js?v=93"></script>
+<script src="js/social.js?v=93"></script>
+<script src="js/wrapped.js?v=93"></script>
+<script src="js/push.js?v=93"></script>
+<script src="js/track.js?v=93"></script>
+<script src="js/towns.js?v=93"></script>
+<script src="js/catalog.js?v=93"></script>
+<script src="js/cards.js?v=93"></script>
+<script src="js/journal.js?v=93"></script>
+<script src="js/mail.js?v=93"></script>
+<script src="js/golden.js?v=93"></script>
+<script src="js/teams.js?v=93"></script>
+<script src="js/duel.js?v=93"></script>
+<script src="js/sound.js?v=93"></script>
+<script src="js/santa.js?v=93"></script>
+<script src="js/main.js?v=93"></script>
 </body>
 </html>

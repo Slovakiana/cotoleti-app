@@ -148,6 +148,57 @@ def main():
                 renderWeeklyMission(null);
                 if (!$("weeklyMission").hidden) throw Error("Vypnutá misia je viditeľná");
             }""")
+            pg.evaluate("""async () => {
+                const saved={...S}, oldTown=LS.get("ctl_adopt","");
+                try {
+                    const flight=S.list.find(a=>a.type==="B738")||{hex:"4ca123",type:"B738",lat:48.17,lon:17.15};
+                    S.top=flight;S.pos={lat:48.15,lon:17.11};
+                    await openMap();
+                    if(!Object.values(LMAP._layers).some(layer=>layer instanceof L.GeoJSON)
+                        || !LLAYER.getLayers().some(layer=>layer instanceof L.Marker)
+                        || Object.values(LMAP._layers).some(layer=>layer instanceof L.TileLayer))
+                        throw Error("Mapa letu nepoužíva lokálny podklad alebo chýba lietadlo");
+                    $("mapClose").click();
+                    LS.set("ctl_adopt","Žilina");
+                    await openHeat();
+                    if(!LLAYER.getLayers().some(layer=>layer.getTooltip()?.getContent()==="Žilina")
+                        || !$("map").getAttribute("aria-label").includes("mávania"))
+                        throw Error("Adoptovaná obec na mape mávania chýba");
+                    $("mapClose").click();
+                }finally{LS.set("ctl_adopt",oldTown);Object.assign(S,saved)}
+            }""")
+            print("✓ mapa letu a adopcia obce fungujú na lokálnom podklade bez dlaždíc")
+            pg.evaluate("""async () => {
+                const {from,to}=weekBounds(Date.parse("2026-03-29T23:30:00Z"));
+                if(from!=="2026-03-30"||to!=="2026-04-06")throw Error("Týždeň sa neposúva podľa Bratislavy");
+                const saved={cx:COL.cx,types:COL.types,log:LOG,lastKnown:S.lastKnown,share:shareBlob};
+                const p=weekBounds(Date.now(),true),t=Date.parse(p.from+"T12:00:00Z");
+                try{
+                    COL.cx={dummy:{ty:"B738",t}};
+                    COL.types={B738:{n:1,first:t,forms:{n:t}}};
+                    LOG=[{d:p.from,h:"abc111",ty:"A388",t:t/1000,r:"r"}];
+                    S.lastKnown=true;
+                    recordWeekObservations([{hex:"bb0001",el:45,type:"AT76"}]);
+                    if(LOG.length!==1)throw Error("Stará poloha vytvorila pozorovanie");
+                    openWrapped();
+                    const model=WR.model;
+                    if(model.hero.ty!=="B738"||model.hero.form!=="n"||model.observations!==1
+                        || $("wshare").hidden || !document.querySelector(".weekHeroCard svg"))
+                        throw Error("Súhrn uprednostnil pozorovanie pred kartou alebo zakázal zdieľanie");
+                    const i=WR.i;
+                    $("wnext").click();
+                    if(WR.i===i||!$("wslides").children[0].hidden)throw Error("Súhrn sa nedá listovať");
+                    let exported=null;
+                    shareBlob=async(blob,name)=>{exported={blob,name};};
+                    await $("wshare").onclick();
+                    if (!exported || exported.name!=="moj-tyzden.png")throw Error("Týždeň sa nedá exportovať");
+                    const image=await createImageBitmap(exported.blob);
+                    if(image.width!==1080||image.height!==1920)throw Error("PNG nemá formát príbehu");
+                    image.close();
+                    $("wclose").click();
+                }finally{COL.cx=saved.cx;COL.types=saved.types;LOG=saved.log;S.lastKnown=saved.lastKnown;shareBlob=saved.share}
+            }""")
+            print("✓ osobný týždeň, Bratislava, pôvodná forma a ručné listovanie")
             for width in (320, 390, 768):
                 pg.set_viewport_size({"width": width, "height": 844})
                 pg.evaluate("""() => {

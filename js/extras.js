@@ -48,20 +48,53 @@ $("b-shazam").onclick=shazam;
 $("shzClose").onclick=()=>{shzStop();$("shz").classList.remove("on")};
 
 /* ============ 🗺️ Mapa trasy ============ */
-let LMAP=null,LLAYER=null,leafletLoading=null;
+let LMAP=null,LLAYER=null,leafletLoading=null,mapLoading=null,mapRequest=0;
+const mapAssetsVersion=new URL(document.currentScript.src).search;
+const skMapBounds=[[47.68,16.74],[49.65,22.65]];
 function loadLeaflet(){
   if(window.L)return Promise.resolve();
   if(leafletLoading)return leafletLoading;
   if(!document.querySelector('link[data-leaflet]')){
-    const css=document.createElement("link");css.rel="stylesheet";css.href="lib/leaflet/leaflet.css";css.dataset.leaflet="";document.head.appendChild(css);
+    const css=document.createElement("link");css.rel="stylesheet";css.href="lib/leaflet/leaflet.css"+mapAssetsVersion;css.dataset.leaflet="";document.head.appendChild(css);
   }
   leafletLoading=new Promise((resolve,reject)=>{
-    const script=document.createElement("script");script.src="lib/leaflet/leaflet.js";
+    const script=document.createElement("script");script.src="lib/leaflet/leaflet.js"+mapAssetsVersion;
     script.onload=()=>window.L?resolve():reject(Error("mapa sa nenačítala"));
     script.onerror=()=>{script.remove();reject(Error("mapa sa nenačítala"))};
     document.head.appendChild(script);
   }).finally(()=>{leafletLoading=null});
   return leafletLoading;
+}
+function loadGameMap(){
+  if(LMAP)return Promise.resolve();
+  if(mapLoading)return mapLoading;
+  mapLoading=Promise.all([loadLeaflet(),fetch("lib/map-base.json"+mapAssetsVersion).then(r=>{
+    if(!r.ok)throw Error("mapový podklad");return r.json();
+  })]).then(([,world])=>{
+    LMAP=L.map("map",{zoomControl:true,minZoom:2,maxZoom:11,attributionControl:true,worldCopyJump:false});
+    L.geoJSON(world,{interactive:false,attribution:'<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>',
+      style:f=>({weight:f.properties.country==="SK"?1.4:.75,color:"#7395a8",
+        fillColor:f.properties.country==="SK"?"#294c50":"#243b4c",fillOpacity:1})}).addTo(LMAP);
+    LLAYER=L.layerGroup().addTo(LMAP);
+  }).finally(()=>{mapLoading=null});
+  return mapLoading;
+}
+function mapSetup(attempt,title,open){
+  const modal=$("mapM");modal.classList.add("on");
+  $("map").setAttribute("aria-label",title);
+  $("mapInfo").textContent="Načítavam mapu…";
+  return loadGameMap().then(()=>attempt===mapRequest&&modal.classList.contains("on")).catch(()=>{
+    if(attempt!==mapRequest)return false;
+    $("mapInfo").innerHTML='Mapový podklad sa nepodarilo načítať. <button type="button" class="ghost" id="mapRetry">Skúsiť znova</button>';
+    $("mapRetry").onclick=open;
+    return false;
+  });
+}
+function fitGameMap(attempt,points,options){
+  requestAnimationFrame(()=>{
+    if(attempt!==mapRequest||!$("mapM").classList.contains("on"))return;
+    LMAP.invalidateSize({animate:false});LMAP.fitBounds(points,{animate:false,...options});
+  });
 }
 function gcPath(a,b,n=64){
   const toV=p=>{const la=rad(p[0]),lo=rad(p[1]);return [Math.cos(la)*Math.cos(lo),Math.cos(la)*Math.sin(lo),Math.sin(la)]};
@@ -74,32 +107,30 @@ function gcPath(a,b,n=64){
 }
 // 🗺️ Mapa mávania: kde na Slovensku sa máva (len štvorce ~5 km s aspoň 5 hráčmi – nikoho nevidno samostatne)
 async function openHeat(){
-  $("mapM").classList.add("on");$("mapInfo").textContent="Načítavam mapu mávania…";
-  try{await loadLeaflet()}catch(e){$("mapInfo").textContent="Mapa sa nenačítala. Skontroluj internet.";return}
-  if(!LMAP){LMAP=L.map("map",{zoomControl:false,attributionControl:true});
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",subdomains:"abcd",maxZoom:18}).addTo(LMAP);LLAYER=L.layerGroup().addTo(LMAP)}
+  const attempt=++mapRequest;
+  if(!await mapSetup(attempt,"Mapa mávania na Slovensku",openHeat))return;
   LLAYER.clearLayers();
-  let j=null;try{j=await fetch(DEFAULT_PROXY+"/api/heat").then(r=>r.json())}catch(e){}
+  fitGameMap(attempt,skMapBounds,{padding:[15,16]});
+  let j=null;
+  try{const r=await fetch(DEFAULT_PROXY+"/api/heat",{signal:AbortSignal.timeout(5000)});if(r.ok)j=await r.json()}catch(e){}
+  if(attempt!==mapRequest||!$("mapM").classList.contains("on"))return;
   const cells=(j&&j.cells)||[],max=Math.max(5,...cells.map(c=>c[2]));
   cells.forEach(([la,lo,p])=>L.circle([la,lo],{radius:2500+3500*Math.sqrt(p/max),stroke:false,fillColor:p>=max*.5?"#ffcf4f":"#ff4fd8",fillOpacity:.25+.45*p/max}).bindTooltip(p+" "+pl(p,"hráč","hráči","hráčov")).addTo(LLAYER));
   if(S.pos)L.circleMarker([S.pos.lat,S.pos.lon],{radius:6,color:"#6dffc7",fillColor:"#6dffc7",fillOpacity:.9}).bindTooltip("Ty").addTo(LLAYER);
-  $("mapInfo").textContent=cells.length?"Kde sa tento a minulý mesiac mávalo. Ukážeme len miesta, kde mávalo aspoň 5 hráčov.":"Zatiaľ málo dát – miesto sa ukáže, keď v ňom zamáva aspoň 5 hráčov.";
-  setTimeout(()=>{LMAP.invalidateSize();LMAP.fitBounds([[47.73,16.83],[49.61,22.57]],{padding:[10,10]})},60);
+  const town=typeof TOWNS!=="undefined"&&TOWNS.find(p=>p[0]===LS.get("ctl_adopt",""));
+  if(town)L.circleMarker([town[1],town[2]],{radius:7,color:"#ffdb8c",fillColor:"#ffdb8c",fillOpacity:.9}).bindTooltip(esc(town[0]),{permanent:true,direction:"top"}).addTo(LLAYER);
+  $("mapInfo").textContent=!j?"Údaje o mávaní sú dočasne nedostupné.":cells.length?"Miesta, kde tento alebo minulý mesiac mávalo aspoň 5 hráčov.":"Miesto sa ukáže, keď v ňom zamáva aspoň 5 hráčov.";
 }
 async function openMap(){
-  const a=S.top;if(!a){toast("Nič na mape","Počkaj, kým niečo preletí");return}
-  $("mapM").classList.add("on");$("mapInfo").textContent="Načítavam mapu…";
-  try{await loadLeaflet()}catch(e){$("mapInfo").innerHTML="Mapa sa nenačítala. Skontroluj internet a skús znova. <button class=\"btn sec\" id=\"mapRetry\">Skúsiť znova</button>";$("mapRetry").onclick=()=>openMap&&openMap();return}
-  if(!LMAP){
-    LMAP=L.map("map",{zoomControl:false,attributionControl:true});
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",subdomains:"abcd",maxZoom:18}).addTo(LMAP);
-    LLAYER=L.layerGroup().addTo(LMAP);
-  }
+  const a=S.top,pos=S.pos;
+  if(!a||!pos){toast("Nič na mape","Počkaj, kým niečo preletí");return}
+  const attempt=++mapRequest;
+  if(!await mapSetup(attempt,"Mapa letu",openMap))return;
   LLAYER.clearLayers();
-  const cur=enrich(Date.now()).find(x=>x.hex===a.hex)||a,m=S.meta.get(a.hex)||{},rt=catchRoute(a),pts=[[S.pos.lat,S.pos.lon],[cur.lat,cur.lon]];
-  L.circleMarker([S.pos.lat,S.pos.lon],{radius:7,color:"#6dffc7",fillColor:"#6dffc7",fillOpacity:.9}).bindTooltip("Ty",{permanent:true,direction:"bottom"}).addTo(LLAYER);
+  const stale=skyStale(),cur=enrich(Date.now()).find(x=>x.hex===a.hex)||a,m=S.meta.get(a.hex)||{},rt=stale?null:catchRoute(a),pts=[[pos.lat,pos.lon],[cur.lat,cur.lon]];
+  L.circleMarker([pos.lat,pos.lon],{radius:7,color:"#6dffc7",fillColor:"#6dffc7",fillOpacity:.9}).bindTooltip("Ty",{permanent:true,direction:"bottom"}).addTo(LLAYER);
   let info=titleOf(a)+" · "+typeName(a,m);
-  if(rt&&rt.origin&&rt.destination&&rt.origin.latitude!=null){
+  if(rt&&[rt.origin?.latitude,rt.origin?.longitude,rt.destination?.latitude,rt.destination?.longitude].every(x=>x!=null&&Number.isFinite(Number(x)))){
     const o=[rt.origin.latitude,rt.origin.longitude],d=[rt.destination.latitude,rt.destination.longitude];
     L.polyline(gcPath(o,[cur.lat,cur.lon]),{color:"#4fc3ff",weight:3}).addTo(LLAYER);
     L.polyline(gcPath([cur.lat,cur.lon],d),{color:"#ff4fd8",weight:3,dashArray:"6 8"}).addTo(LLAYER);
@@ -108,11 +139,11 @@ async function openMap(){
     const d1=distBear(o[0],o[1],cur.lat,cur.lon).d,d2=distBear(cur.lat,cur.lon,d[0],d[1]).d;
     info+=` · ${citySk(rt.origin.municipality||rt.origin.name)||rt.origin.iata_code} → ${citySk(rt.destination.municipality||rt.destination.name)||rt.destination.iata_code} · prejdených ${nf(d1/(d1+d2)*100)} % · zostáva ${nf(d2/1000)} km`;
     if(cur.spd)info+=` (asi ${Math.floor(d2/(cur.spd/3.6)/3600)} h ${Math.round(d2/(cur.spd/3.6)%3600/60)} min)`;
-  }else info+=" · trasu pre tento let nepoznáme";
+  }else info+=stale?" · Posledná známa poloha":" · trasa nedostupná";
   const ic=L.divIcon({className:"",html:`<div style="font-size:26px;transform:rotate(${(cur.trk??0)-45}deg);filter:drop-shadow(0 0 6px #6dffc7)">✈️</div>`,iconSize:[30,30],iconAnchor:[15,15]});
   L.marker([cur.lat,cur.lon],{icon:ic}).addTo(LLAYER);
   $("mapInfo").textContent=info;
-  setTimeout(()=>{LMAP.invalidateSize();LMAP.fitBounds(pts,{padding:[40,40],maxZoom:9})},60);
+  fitGameMap(attempt,pts,{padding:[36,36],maxZoom:9});
 }
 $("b-map").onclick=openMap;
 $("mapClose").onclick=()=>$("mapM").classList.remove("on");
