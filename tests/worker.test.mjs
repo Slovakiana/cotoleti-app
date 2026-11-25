@@ -27,11 +27,12 @@ const W = mod.default;
 
 let plane = {hex: "aabbcc", flight: "WZZ123 ", t: "A21N", lat: 48.2, lon: 17.2, gs: 440, alt_baro: 36000};
 globalThis.fetch = async u => { u = String(u);
-  if (u.includes("/v2/point/") || u.includes("/v2/hex/")) return new Response(JSON.stringify({ac: [plane]}));
+  if (u.includes("/v2/point/") || u.includes("/v2/hex/")) return new Response(JSON.stringify({ac: [plane], now: Date.now()}));
   return new Response("{}"); };
 
 const call = async (p, b, ip = "1.2.3.4", cc = "SK") => {
-  sky._snap = null; sky._snapRetryAt = 0; // testy menia polohu lietadla – bez medzipamäte oblohy
+  sky._radarSnap = null; sky._radarSnapRetryAt = 0;
+  db.exec("DELETE FROM meta WHERE k LIKE 'radar:%'"); // fixtures menia živé dáta aj čas
   if (p === "/api/wave" && b && b.gps === undefined) b = {...b, gps: true};
   const r = new Request("https://x" + p, b ? {method: "POST", body: JSON.stringify(b), headers: {"cf-connecting-ip": ip, "x-cc-country": "US"}} : {headers: {"cf-connecting-ip": ip}});
   Object.defineProperty(r, "cf", {value: {country: cc, latitude: "48.15", longitude: "17.1"}});
@@ -52,7 +53,7 @@ await t("mávnutie vzdialenému lietadlu odmietnuté", async () => {
   assert.equal(r.j.error, "far");
 });
 const fixed = Date.parse(new Date().toISOString().slice(0, 10) + "T10:00:00Z"), realNow = Date.now;
-Date.now = () => fixed; await sky.cron(); db.exec(`UPDATE ids SET t=${fixed - 60e3}`);
+Date.now = () => fixed; sky._radarSnap = null; db.exec("DELETE FROM meta WHERE k LIKE 'radar:%'"); await sky.cron(); db.exec(`UPDATE ids SET t=${fixed - 60e3}`);
 await t("čerstvý účet nevyhrá zlaté lietadlo", async () => { const r = await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}); assert.notEqual(r.j.golden, "entered", JSON.stringify(r.j)); });
 Date.now = () => fixed + 20 * 60e3;
 await t("zo zahraničia nevyhrá", async () => assert.equal(((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11, gps: true}, "5.6.7.8", "US")).j.golden) !== "entered", true));
@@ -70,7 +71,7 @@ await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM
 await t("obloha: jedna požiadavka na prehľad pre viac mávnutí; výpadok sietí = zopakovať", async () => {
   const of = globalThis.fetch; let n = 0;
   globalThis.fetch = async u => { n++; return of(u); };
-  sky._snap = null; await sky.verifyPlane("aabbcc", 48.15, 17.11); const n1 = n; const v2 = await sky.verifyPlane("aabbcc", 48.15, 17.11);
+  sky._radarSnap = null; await sky.verifyPlane("aabbcc", 48.15, 17.11); const n1 = n; const v2 = await sky.verifyPlane("aabbcc", 48.15, 17.11);
   assert.ok(n1 <= 3); assert.equal(n, n1); assert.equal(v2.found, true);
   globalThis.fetch = async () => { throw new Error("down"); };
   const r = await call("/api/wave", {id: C, tok: hc.tok, hex: "dd0001", lat: 48.15, lon: 17.11});
@@ -119,7 +120,7 @@ await t("dohľadanie typu podľa hexu a doplnenie staršieho úlovku", async () 
   }finally{
     globalThis.fetch=original;
     plane=oldPlane;
-    sky._snap=null;
+    sky._radarSnap=null;
   }
 });
 await t("server rozlíši Blaník od všeobecného vetroňa a Vivatu", async () => {
@@ -142,22 +143,80 @@ await t("server rozlíši Blaník od všeobecného vetroňa a Vivatu", async () 
     globalThis.fetch = original;
   }
 });
-await t("radar vráti čerstvú záložnú odpoveď a zachová súkromné údaje skryté", async () => {
+await t("radar prepne na dostupnú zálohu a skryje súkromné údaje", async () => {
   const before=globalThis.fetch, oldPlane=plane;
+  sky.env.AIRPLANES_LIVE_ENABLED="1";
   plane={...plane,dbFlags:4,r:"OM-TEST",ownOp:"Privátna letka",squawk:"1200"};
+  const attempts=[];
   globalThis.fetch=async u=>{
-    if(String(u).endsWith("/250"))return Response.json({ac:[],now:Date.now()-60e3});
+    const host=new URL(u).hostname;
+    attempts.push(host);
+    if(host==="api.adsb.lol")return Response.json({}, {status:429,headers:{"Retry-After":"120"}});
     return Response.json({ac:[plane],now:Date.now()});
   };
   try{
     const r=await call("/api/planes?lat=48.15&lon=17.11&r=25");
-    assert.equal(r.s,200);assert.equal(r.j.src,"adsb.lol");
+    assert.equal(r.s,200);assert.equal(r.j.provider,"airplanes.live");
+    assert.deepEqual(attempts,["api.adsb.lol","api.airplanes.live"]);
+    const throttle=sky.radarStatus(0);
+    assert.ok(throttle.until>=Date.now()+117e3);
+    assert.equal(await sky.radarFeed(0,"hex/"+plane.hex),null);
     assert.equal(r.j.ac[0].r,"");assert.equal(r.j.ac[0].flight,"");
     assert.equal(r.j.ac[0].squawk,undefined);
-    assert.equal((await call("/api/planes?lat=48.15")).s,404);
     const verified=await sky.verifyPlane(plane.hex,48.15,17.11);
     assert.equal(verified.found,true);assert.equal(verified.reg,"");
-  }finally{globalThis.fetch=before;plane=oldPlane;sky._snap=null;sky._snapRetryAt=0;}
+    assert.equal(attempts.length,2);
+  }finally{
+    globalThis.fetch=before;plane=oldPlane;sky._radarSnap=null;sky._radarSnapRetryAt=0;
+    delete sky.env.AIRPLANES_LIVE_ENABLED;
+  }
+});
+await t("anonymný radar zachová transport v86 a kľúč obíde zdieľanú cache", async () => {
+  const original=globalThis.fetch;
+  const options=[];
+  globalThis.fetch=async (u,init)=>{
+    options.push(init);
+    return Response.json({ac:[plane],now:Date.now()});
+  };
+  try {
+    db.exec("DELETE FROM meta WHERE k='radar:0'");
+    await sky.radarFeed(0,"point/48.7/19.5/250");
+    assert.deepEqual(options[0].cf,{cacheTtl:5,cacheEverything:true});
+    assert.equal(options[0].cache,undefined);
+    assert.equal(options[0].headers["x-api-key"],undefined);
+    const st=sky.radarStatus(0);
+    sky.setMeta("radar:0",JSON.stringify({...st,until:Date.now()+3600e3,lastTry:0}));
+    sky.env.ADSB_LOL_API_KEY="fixture-key";
+    assert.ok(await sky.radarFeed(0,"point/48.7/19.5/250"));
+    assert.equal(options[1].headers["x-api-key"],"fixture-key");
+    assert.equal(options[1].cache,"no-store");
+    assert.equal(options[1].cf,undefined);
+  } finally {
+    delete sky.env.ADSB_LOL_API_KEY;
+    globalThis.fetch=original;
+  }
+});
+await t("posledná snímka prežije reštart, údaje z hry a výpadok", async () => {
+  const now=Date.now(), before=globalThis.fetch, clock=Date.now;
+  try {
+    Date.now=()=>now;
+    const path="/api/planes?lat=48.15&lon=17.11&r=25";
+    assert.equal((await call(path)).j.state,"live");
+    const saved=sky._radarSnap;
+    sky.snap(sky.day(),now);
+    assert.equal(await sky.snapshot(),saved);
+    const restarted=new mod.Sky({storage}, sky.env);
+    assert.equal(restarted.lastRadarSnapshot().t,saved.t);
+    Date.now=()=>now+31e3;
+    globalThis.fetch=async()=>new Response("",{status:503});
+    const stale=await restarted.fetch(new Request("https://x"+path));
+    assert.equal(stale.status,503);
+    assert.equal((await stale.json()).state,"stale");
+    assert.equal((await restarted.verifyPlane(plane.hex,48.15,17.11)).found,false);
+    Date.now=()=>now+121e3;
+    const expired=await restarted.fetch(new Request("https://x"+path));
+    assert.equal((await expired.json()).state,"unavailable");
+  } finally {Date.now=clock;globalThis.fetch=before;sky._radarSnap=null;}
 });
 await t("nízko zamávané lietadlo sa overí, keď je neskôr vysoko", async () => {
   const id = "v2lowhighlowhighlowhighlo01", tok = (await call("/api/hello", {id}, "4.4.4.4")).j.tok;
@@ -379,7 +438,7 @@ await t("náhľad odkazu s ošetreným textom", async () => {
   assert.ok(r.text.includes("#vyzva=" + p));
 });
 await t("proxy: cudzí web a cesty zakázané", async () => {
-  const pr = async (u, o) => (await W.fetch(new Request("https://x/?url=" + encodeURIComponent(u), {headers: o ? {origin: o} : {}}), {})).status;
+  const pr = async (u, o) => (await W.fetch(new Request("https://x/?url=" + encodeURIComponent(u), {headers: o ? {origin: o} : {}}), env)).status;
   assert.equal(await pr("https://api.adsb.lol/v2/point/48/17/25", "https://slovakiana.github.io"), 200);
   assert.equal(await pr("https://api.adsb.lol/v2/point/48/17/25", "https://evil.com"), 403);
   assert.equal(await pr("https://api.adsb.lol/admin"), 403);

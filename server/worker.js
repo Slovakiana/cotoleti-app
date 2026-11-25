@@ -10,7 +10,7 @@
 //  cron každú minútu → spoločný moment + blížiace sa sledované lety
 import { DurableObject } from "cloudflare:workers";
 
-const ALLOW = ["www.airport-data.com","api.adsb.lol","api.airplanes.live","opendata.adsb.fi","opensky-network.org","api.adsbdb.com","celestrak.org","api.open-meteo.com"];
+const ALLOW = ["www.airport-data.com","api.adsbdb.com","celestrak.org","api.open-meteo.com"];
 const API_BODY_BYTES = 4096;
 const TRANSFER_DATA_BYTES = 1_500_000;
 const TRANSFER_BODY_BYTES = 2 * TRANSFER_DATA_BYTES + 4096;
@@ -74,7 +74,16 @@ const EVENTS = [
   {id: "snp2027", n: "Výročie SNP 2027", from: "2027-08-28T22:00:00Z", to: "2027-08-29T22:00:00Z"},
   {id: "halloween2027", n: "Strašidelné lietadlo 2027", from: "2027-10-31T16:00:00Z", to: "2027-10-31T23:00:00Z"},
 ];
-const SNAPSHOT_AGE = 30e3;
+const SNAPSHOT_AGE = 30e3, RADAR_PREVIEW_AGE = 120e3;
+const RADAR_ACTIVE_INTERVAL = 20e3, RADAR_IDLE_INTERVAL = 120e3;
+const ADSB_NAMES = ["adsb.lol", "airplanes.live", "adsb.fi"];
+const positionTime = (a, at) => at - Math.max(0, Number(a.seen_pos) || 0) * 1000;
+const retryDelay = (value, now) => {
+  if (!value) return 60e3;
+  const seconds = Number(value);
+  const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now;
+  return Number.isFinite(delay) ? Math.max(15e3, delay) : 60e3;
+};
 const ADSB_ORIGINS = ["https://api.adsb.lol/v2/", "https://api.airplanes.live/v2/", "https://opendata.adsb.fi/api/v2/"];
 const radarCoordinates = (lat, lon, radius) => {
   if (lat == null || lon == null || lat === "" || lon === "") return null;
@@ -88,14 +97,22 @@ const currentAircraft = a => a && /^~?[a-f0-9]{6}$/i.test(a.hex || "") &&
 const privateAircraft = a => a.dbFlags & 12 ? {hex: a.hex, t: a.t || "", r: "", ownOp: "", flight: "", desc: "", dbFlags: a.dbFlags, lat: a.lat, lon: a.lon,
   alt_baro: a.alt_baro, alt_geom: a.alt_geom, gs: a.gs, track: a.track, baro_rate: a.baro_rate,
   geom_rate: a.geom_rate, category: a.category, emergency: a.emergency, seen_pos: a.seen_pos} : a;
-async function liveFeed(url, timeout, cacheSeconds=5, cancel) {
+async function liveFeed(url, timeout, token) {
   const deadline = AbortSignal.timeout(timeout);
-  const response = await fetch(url, {headers: {"User-Agent": UA}, cf: {cacheTtl: cacheSeconds, cacheEverything: true},
-    redirect: "manual", signal: cancel ? AbortSignal.any([deadline, cancel]) : deadline});
-  if (!response.ok) throw Error("upstream " + response.status);
+  const headers = {"User-Agent": UA};
+  if (token) headers["x-api-key"] = token;
+  // Použi rovnakú cestu cez cache Cloudflare ako fungujúci anonymný radar.
+  // Autentifikované odpovede ostávajú mimo zdieľanej cache.
+  const transport = token ? {cache: "no-store"} : {cf: {cacheTtl: 5, cacheEverything: true}};
+  const response = await fetch(url, {headers, ...transport, redirect: "manual", signal: deadline});
+  if (!response.ok) {
+    const error = Object.assign(Error("upstream " + response.status), {status: response.status, retry: response.headers.get("Retry-After")});
+    if (response.body) response.body.cancel().catch(() => {});
+    throw error;
+  }
   const data = await response.json(), ac = data?.ac || data?.aircraft;
   if (!Array.isArray(ac)) throw Error("upstream format");
-  const t = Number(data.now || 0), at = t > 0 ? (t < 1e12 ? t * 1000 : t) : Date.now();
+  const t = Number(data.now || 0), at = t > 0 ? (t < 1e12 ? t * 1000 : t) : NaN;
   if (!Number.isFinite(at) || Date.now() - at > SNAPSHOT_AGE || at - Date.now() > SNAPSHOT_AGE) throw Error("upstream stale");
   return {ac: ac.filter(currentAircraft), at: Math.min(Date.now(), at)};
 }
@@ -137,7 +154,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v86";
+const VERSION = "v88";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -293,7 +310,7 @@ export class Sky extends DurableObject {
   }
   // spoločná časť pre všetkých – počíta sa raz za 10 s, nie pri každej požiadavke
   snap(d, now) {
-    if (this._snap && this._snap.d === d && now - this._snap.at < 10e3) return this._snap.v;
+    if (this._gameSnap && this._gameSnap.d === d && now - this._gameSnap.at < 10e3) return this._gameSnap.v;
       const active = (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c;
       const kraje = this.sql.exec("SELECT k, n FROM kraje WHERE day = ? ORDER BY n DESC", d).toArray();
       const krajeWeek = this.sql.exec("SELECT k, SUM(n) AS n FROM kraje WHERE day >= ? GROUP BY k ORDER BY n DESC", this.week()).toArray();
@@ -318,7 +335,7 @@ export class Sky extends DurableObject {
       const m = this.moment(d), mo = {start: m.start, end: m.start + MOMENT_MS, n: m.n, live: now >= m.start && now < m.start + MOMENT_MS, past: now >= m.start + MOMENT_MS};
       if (!mo.live && !mo.past) delete mo.start; // čas momentu neprezrádzame vopred
       const v = {active, wavesToday, allTime, record: rec ? {day: rec.day, n: rec.n} : null, kraje, krajeWeek, krajePP, moment: mo, towns, townsSmall, golden, teamsTop, weekTop};
-    this._snap = {d, at: now, v};
+    this._gameSnap = {d, at: now, v};
     return v;
   }
   cleanup(d, now) {
@@ -431,13 +448,26 @@ export class Sky extends DurableObject {
     }
     return m;
   }
-  // ADS-B dotaz so zálohou: adsb.lol → airplanes.live → adsb.fi (každý max 4 s)
   async adsb(path) {
-    const fi = path.startsWith("point/") ? "lat/" + path.split("/")[1] + "/lon/" + path.split("/")[2] + "/dist/" + path.split("/")[3] : path;
-    for (const u of ["https://api.adsb.lol/v2/" + path, "https://api.airplanes.live/v2/" + path, "https://opendata.adsb.fi/api/v2/" + fi]) {
-      try { const r = await fetch(u, {headers: {"User-Agent": UA}, signal: AbortSignal.timeout(4000)}); if (!r.ok) continue; const j = await r.json(); this.setMeta("upstream", Date.now()); return j; } catch (e) {}
+    const snapshot = await this.snapshot();
+    if (snapshot && Date.now() - snapshot.t <= SNAPSHOT_AGE) {
+      const separator = path.indexOf("/");
+      const [kind, value] = [path.slice(0, separator), path.slice(separator + 1)];
+      const ac = kind === "hex" ? [snapshot.m.get(value)].filter(Boolean)
+        : [...snapshot.m.values()].filter(a => kind === "point" || cleanCs(a.flight) === value);
+      const fresh = ac.filter(a => Date.now() - positionTime(a, snapshot.t) <= SNAPSHOT_AGE);
+      if (fresh.length || kind === "point") return {ac: fresh};
     }
-    this.bump("upstream_fail"); return null;
+    let empty = null;
+    for (const i of this.radarSources()) {
+      const feed = await this.radarFeed(i, path);
+      if (feed) {
+        const ac = feed.ac.filter(a => Date.now() - positionTime(a, feed.at) <= SNAPSHOT_AGE);
+        if (ac.length || path.startsWith("point/")) return {ac};
+        empty = {ac};
+      }
+    }
+    return empty;
   }
   isKid(id) { return !!(this.row("SELECT kid FROM ids WHERE id=?", id) || {}).kid; }
   // ♛ legendárny poplach: epické/legendárne lietadlo nad SR → upozorni ľudí do 80 km (1× za lietadlo a deň)
@@ -498,29 +528,80 @@ export class Sky extends DurableObject {
     if (r.n >= limit) return false;
     this.sql.exec("UPDATE rl SET n = n + 1 WHERE k=?", key); return true;
   }
-  // je lietadlo naozaj blízko tvrdenej polohy?
-  // prehľad celej oblohy nad SR (1 požiadavka na 15 s pre všetkých hráčov) – menej záťaže sietí, menej výpadkov
-  async snapshot() {
-    const sn = this._snap;
-    if (sn && Date.now() - sn.t < 15e3) return sn;
-    if (this._snapP) return this._snapP;
-    if (Date.now() < (this._snapRetryAt || 0)) return sn || null;
-    const paths = ["point/48.7/19.5/250", "point/48.7/19.5/250", "lat/48.7/lon/19.5/dist/250"];
-    const requests = new AbortController();
-    this._snapP = Promise.any(ADSB_ORIGINS.map(async (host, i) => {
-      const feed = await liveFeed(host + paths[i], 3500, 5, requests.signal);
-      if (!feed.ac.length) throw Error("empty regional feed");
+  radarSources() {
+    return [0, ...[this.env.AIRPLANES_LIVE_ENABLED, this.env.ADSB_FI_ENABLED]
+      .flatMap((enabled, i) => enabled === "1" ? [i + 1] : [])];
+  }
+  radarLimit(i) {
+    const key = i === 0 ? this.env.ADSB_LOL_API_KEY : i === 1 ? this.env.AIRPLANES_LIVE_API_KEY : null;
+    const configured = Number(this.env[["ADSB_LOL_DAILY_LIMIT", "AIRPLANES_LIVE_DAILY_LIMIT", "ADSB_FI_DAILY_LIMIT"][i]]);
+    return Number.isSafeInteger(configured) && configured > 0 ? configured : i === 0 && !key ? 480 : 950;
+  }
+  radarStatus(i) {
+    const day = new Date(Date.now()).toISOString().slice(0, 10);
+    const month = day.slice(0, 7), week = this.week(Date.now());
+    const previous = JSON.parse(this.getMeta("radar:" + i) || "{}");
+    return {...previous, day, month, week, count: previous.day === day ? previous.count : 0,
+      monthCount: previous.month === month ? previous.monthCount : 0,
+      weekCount: previous.week === week ? previous.weekCount : 0};
+  }
+  async radarFeed(i, path) {
+    const now = Date.now(), key = "radar:" + i;
+    const token = i === 0 ? this.env.ADSB_LOL_API_KEY : i === 1 ? this.env.AIRPLANES_LIVE_API_KEY : null;
+    const authorized = !!token;
+    const stored = this.radarStatus(i);
+    const status = stored.authorized === authorized ? stored : {...stored, authorized, until: 0, failures: 0};
+    const monthLimit = i === 0 ? Number(this.env.ADSB_LOL_MONTHLY_LIMIT) || (this.env.ADSB_LOL_API_KEY ? 28500 : 14400) : Infinity;
+    const weekLimit = i === 0 ? Number(this.env.ADSB_LOL_WEEKLY_LIMIT) || this.radarLimit(i) * 7 : Infinity;
+    const regional = path === "point/48.7/19.5/250", cap = this.radarLimit(i);
+    const share = regional ? 1 : 0.8;
+    if (now < (status.until || 0) || status.count >= Math.floor(cap * share)
+      || status.monthCount >= Math.floor(monthLimit * share) || status.weekCount >= Math.floor(weekLimit * share)
+      || now < (status.lastTry || 0) + 1100) return null;
+    this.setMeta(key, JSON.stringify({...status, count: status.count + 1, monthCount: status.monthCount + 1,
+      weekCount: status.weekCount + 1, lastTry: now}));
+    const fi = path.startsWith("point/") ? "lat/" + path.split("/")[1] + "/lon/" + path.split("/")[2] + "/dist/" + path.split("/")[3] : path;
+    try {
+      const feed = await liveFeed(ADSB_ORIGINS[i] + (i === 2 ? fi : path), 3500, token);
+      this.setMeta(key, JSON.stringify({...this.radarStatus(i), lastSuccess: Date.now(), failures: 0, until: 0, status: 200}));
       return feed;
-    })).then(({ac, at}) => {
-      this._snap = {t: at, m: new Map(ac.map(a => [cleanHex(a.hex), a]))};
-      this.setMeta("upstream", at);
-      return this._snap;
-    }).catch(() => {
-      this._snapRetryAt = Date.now() + 12e3;
-      this.bump("snap_fail");
-      return sn || null;
-    }).finally(() => { requests.abort(); this._snapP = null; });
-    return this._snapP;
+    } catch (e) {
+      const latest = this.radarStatus(i), failures = (latest.failures || 0) + 1;
+      const delay = e.status === 401 || e.status === 403 ? 3600e3
+        : e.status === 429 ? retryDelay(e.retry, Date.now())
+        : Math.min(120e3, 5e3 * 2 ** Math.min(failures - 1, 5));
+      this.setMeta(key, JSON.stringify({...latest, failures, until: Date.now() + delay, status: e.status || 502}));
+      return null;
+    }
+  }
+  lastRadarSnapshot() {
+    if (this._radarSnap !== undefined) return this._radarSnap;
+    const saved = JSON.parse(this.getMeta("radar_snapshot") || "null");
+    return this._radarSnap = saved ? {...saved, m: new Map(saved.ac.map(a => [cleanHex(a.hex), a]))} : null;
+  }
+  async snapshot(interval = RADAR_ACTIVE_INTERVAL) {
+    const previous = this.lastRadarSnapshot();
+    if (previous && Date.now() - previous.t < interval) return previous;
+    if (this._radarSnapP) return this._radarSnapP;
+    if (Date.now() < (this._radarSnapRetryAt || 0)) return previous;
+    this._radarSnapP = this.refreshRadarSnapshot(previous).finally(() => { this._radarSnapP = null; });
+    return this._radarSnapP;
+  }
+  async refreshRadarSnapshot(previous) {
+    for (const i of this.radarSources()) {
+      const feed = await this.radarFeed(i, "point/48.7/19.5/250");
+      if (!feed || (previous && feed.at <= previous.t)) continue;
+      // Veľká prázdna snímka po plnej oblohe môže byť výpadok pokrytia.
+      if (!feed.ac.length && previous?.m.size > 10 && Date.now() - previous.t < RADAR_PREVIEW_AGE) continue;
+      const ac = feed.ac.slice(0, 2000).map(privateAircraft);
+      const saved = {t: feed.at, provider: ADSB_NAMES[i], ac};
+      this.setMeta("radar_snapshot", JSON.stringify(saved));
+      this.setMeta("upstream", feed.at);
+      return this._radarSnap = {t: saved.t, provider: saved.provider, m: new Map(ac.map(a => [cleanHex(a.hex), a]))};
+    }
+    this._radarSnapRetryAt = Date.now() + 12e3;
+    this.bump("snap_fail");
+    return previous;
   }
   async fillPlaneType(plane, hex) {
     if (plane.type || plane.priv || plane.ground || !/^[0-9a-f]{6}$/.test(hex)) return plane;
@@ -552,32 +633,20 @@ export class Sky extends DurableObject {
     return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: a.dbFlags & 12 ? "" : String(a.flight || "").trim(), type: normalizeType(a.t), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: a.dbFlags & 12 ? "" : String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
   }
   async verifyPlane(hex, la, lo) {
-    let any = false, timer;
-    const requests = new AbortController();
-    const snapshot = this.snapshot().then(sn => {
-      if (!sn || Date.now() - sn.t > SNAPSHOT_AGE) throw Error("snapshot stale");
-      any = true;
-      const a = sn.m.get(hex);
-      if (!a) throw Error("not in snapshot");
-      return a;
-    });
-    const direct = new Promise(resolve => { timer = setTimeout(resolve, 350); }).then(() =>
-      Promise.any(ADSB_ORIGINS.map(async host => {
-        const {ac, at} = await liveFeed(host + "hex/" + hex, 3500, 8, requests.signal);
-        any = true;
-        this.setMeta("upstream", Math.max(at, Number(this.getMeta("upstream") || 0)));
-        const a = ac.find(a => cleanHex(a.hex) === hex);
-        if (!a) throw Error("not in feed");
-        return a;
-      }))
-    );
-    try {
-      const a = await Promise.any([snapshot, direct]);
-      requests.abort();
-      return this.fillPlaneType(this.planeRes(a, la, lo), hex);
+    const sn = await this.snapshot();
+    let known = !!sn && Date.now() - sn.t <= SNAPSHOT_AGE;
+    const observed = sn?.m.get(hex);
+    if (known && observed && Date.now() - positionTime(observed, sn.t) <= SNAPSHOT_AGE)
+      return this.fillPlaneType(this.planeRes(observed, la, lo), hex);
+    for (const i of this.radarSources()) {
+      const feed = await this.radarFeed(i, "hex/" + hex);
+      if (!feed) continue;
+      const a = feed.ac.find(item => cleanHex(item.hex) === hex);
+      if (!a) { known = true; continue; }
+      if (Date.now() - positionTime(a, feed.at) <= SNAPSHOT_AGE)
+        return this.fillPlaneType(this.planeRes(a, la, lo), hex);
     }
-    catch (e) { return {known: any, found: false}; }
-    finally { clearTimeout(timer); requests.abort(); }
+    return {known, found: false};
   }
   async keys() {
     if (this._keys) return this._keys;
@@ -630,6 +699,8 @@ export class Sky extends DurableObject {
   async cron() {
     const d = this.day(), now = Date.now();
     this.setMeta("cron", now);
+    // Anonymná kvóta sa používa až pri otvorení radaru alebo pri hernom dopyte.
+    if (this.env.ADSB_LOL_API_KEY && this.radarLimit(0) >= 2000) await this.snapshot(RADAR_IDLE_INTERVAL);
     if (this.getMeta("cleanH") !== String(Math.floor(now / 3600e3))) {
       this.setMeta("cleanH", Math.floor(now / 3600e3)); this.cleanup(d, now);
       const S = {}; for (const r of this.sql.exec("SELECT k, n FROM sig WHERE day=?", d).toArray()) S[r.k] = r.n;
@@ -713,10 +784,13 @@ export class Sky extends DurableObject {
     this.sql.exec("DELETE FROM tracks WHERE t < ?", now - 36 * 3600e3);
     const css = this.sql.exec("SELECT cs, MIN(chk) AS c FROM tracks WHERE notified=0 GROUP BY cs ORDER BY c LIMIT 25").toArray().map(r => r.cs);
     for (const cs of css) this.sql.exec("UPDATE tracks SET chk=? WHERE cs=?", now, cs);
-    const tmo = ms => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
+    const trackedSky = this.lastRadarSnapshot();
     const found = await Promise.all(css.map(async cs => {
-      try { const r = await fetch("https://api.adsb.lol/v2/callsign/" + cs, {headers: {"User-Agent": UA}, signal: tmo(6000)}); const j = await r.json(); this.setMeta("upstream", now); return (j.ac || []).find(a => a.lat != null && a.alt_baro !== "ground") || null; }
-      catch (e) { return null; }
+      const cached = trackedSky && [...trackedSky.m.values()].find(a => cleanCs(a.flight) === cs
+        && a.alt_baro !== "ground" && Date.now() - positionTime(a, trackedSky.t) <= SNAPSHOT_AGE);
+      if (cached) return cached;
+      const feed = await this.adsb("callsign/" + cs);
+      return feed?.ac.find(a => a.alt_baro !== "ground") || null;
     }));
     for (let i = 0; i < css.length; i++) {
       const cs = css[i], ac = found[i];
@@ -811,7 +885,13 @@ export class Sky extends DurableObject {
     if (p === "/api/health") {
       const c = Number(this.getMeta("cron") || 0);
       const up = Number(this.getMeta("upstream") || 0);
-      return json({ok: now - c < 5 * 60e3, version: VERSION, lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
+      const sn = this.lastRadarSnapshot();
+      const radar = {ageSec: sn ? Math.max(0, Math.floor((now - sn.t) / 1000)) : null, provider: sn?.provider || null,
+        sources: this.radarSources().map(i => {
+          const st = this.radarStatus(i);
+          return {name: ADSB_NAMES[i], requestsToday: st.count, requestsThisWeek: st.weekCount, requestsThisMonth: st.monthCount, dailyLimit: this.radarLimit(i), status: st.status || null, retryAt: st.until || null};
+        })};
+      return json({radar, ok: now - c < 5 * 60e3, version: VERSION, lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
     }
     if (p === "/api/planes") {
       // 🛩️ lietadlá okolo hráča zo spoločnej snímky oblohy nad SR (formát ako adsb.lol) – jedna požiadavka na sieť pre všetkých
@@ -820,14 +900,25 @@ export class Sky extends DurableObject {
       const {la, lo, r} = coordinates;
       if (!this.rate("pl:" + iph, 400, 60e3)) return json({error: "rate"}, 429);
       const sn = await this.snapshot();
-      if (!sn || Date.now() - sn.t > SNAPSHOT_AGE) return json({error: "stale"}, 503);
+      const age = sn ? Date.now() - sn.t : Infinity;
+      if (age > RADAR_PREVIEW_AGE) return json({state: "unavailable", error: "stale"}, 503, {"Retry-After": "15"});
+      const stale = age > SNAPSHOT_AGE;
       const km = r * 1.852, ac = [];
-      for (const a of sn.m.values()) if (distKm(la, lo, a.lat, a.lon) <= km) {
+      for (const a of sn.m.values()) if (distKm(la, lo, a.lat, a.lon) <= km && (stale || Date.now() - positionTime(a, sn.t) <= SNAPSHOT_AGE)) {
         const meta = this._aircraftTypes?.get(cleanHex(a.hex));
         ac.push(a.dbFlags & 12 ? privateAircraft(a)
           : !normalizeType(a.t) && meta?.type && meta.until > Date.now() ? {...a, t: meta.type} : a);
       }
-      return json({ac, now: sn.t, src: "sky"}, 200, {"Cache-Control": "public, max-age=5"});
+      const body = {ac, now: sn.t, src: "sky", provider: sn.provider, state: stale ? "stale" : "live"};
+      return stale ? json(body, 503, {"Retry-After": "15"}) : json(body, 200, {"Cache-Control": "public, max-age=5"});
+    }
+    if (p === "/api/radar-flight" && req.method === "GET") {
+      const cs = qp("cs") || "";
+      if (!/^[A-Z]{3}[0-9]{1,4}[A-Z]?$/.test(cs)) return json({error: "invalid flight"}, 400);
+      if (!this.rate("radar-flight:" + iph, 18, 60e3)) return json({error: "rate"}, 429, {"Retry-After": "30"});
+      const feed = await this.adsb("callsign/" + cs);
+      return feed ? json({ac: feed.ac.filter(a => !(a.dbFlags & 12))})
+        : json({error: "unavailable"}, 503, {"Retry-After": "15"});
     }
     if (p === "/api/heat") {
       // mapa mávania za tento a minulý mesiac – len štvorce s ≥ 5 hráčmi (k-anonymita)
@@ -1122,7 +1213,7 @@ export class Sky extends DurableObject {
       for (const table of wipe) this.sql.exec("DELETE FROM " + table);
       this.sql.exec("DELETE FROM meta WHERE k NOT IN ('flags','specials','mig3','player_reset_epoch','mission_goal')");
       this.setMeta("player_reset_epoch", nextEpoch);
-      this._snap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
+      this._gameSnap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
       this.atlC={};this.cstat=new Map();this._spec=null;
       return json({ok:true,phase:"complete",epoch:nextEpoch,clearedTables:wipe.length});
       }
@@ -1618,7 +1709,7 @@ export default {
       }
       const fwd = new Request(req.url, {method: req.method, headers: h, body: payload});
       // ⚡ verejné odpovede bez osobných údajov z okrajovej cache Cloudflare (menej práce pre Durable Object)
-      const EDGE = {"/api/planes": 5, "/api/weekly": 300, "/api/heat": 600, "/api/specials": 600, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
+      const EDGE = {"/api/planes": 5, "/api/radar-flight": 8, "/api/weekly": 300, "/api/heat": 600, "/api/specials": 600, "/api/year": 600, "/api/cardstat": 300, "/api/tname": 600};
       const ttl = typeof caches !== "undefined" && caches.default && ctx && req.method === "GET" && !url.searchParams.has("id") ? EDGE[url.pathname] : 0;
       let ck = null;
       if (ttl) {
@@ -1627,16 +1718,7 @@ export default {
         ck = new Request(cu.toString()); const hit = await caches.default.match(ck).catch(() => null); if (hit) return hit;
       }
       try {
-        let r = await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd);
-        if (req.method === "GET" && url.pathname === "/api/planes" && r.status === 503) {
-          const c = radarCoordinates(url.searchParams.get("lat"), url.searchParams.get("lon"), url.searchParams.get("r"));
-          if (c) {
-            try {
-              const {ac, at} = await liveFeed(ADSB_ORIGINS[0] + `point/${c.la.toFixed(2)}/${c.lo.toFixed(2)}/${c.r}`, 2250, 8);
-              r = json({ac: ac.map(privateAircraft), now: at, src: "adsb.lol"});
-            } catch (e) {}
-          }
-        }
+        const r = await env.SKY.get(env.SKY.idFromName("slovensko")).fetch(fwd);
         if (ck && r.status === 200) { const out = new Response(r.body, r); out.headers.set("Cache-Control", "public, max-age=" + ttl); ctx.waitUntil(caches.default.put(ck, out.clone()).catch(() => {})); return out; }
         return r;
       }
@@ -1665,7 +1747,17 @@ export default {
     if (origin && !APP_ORIGINS.includes(origin)) return new Response("nepovolené", {status: 403, headers: CORS});
     let t;
     try { t = new URL(raw); } catch (e) { return new Response("zlá adresa", {status: 400, headers: CORS}); }
-    const PATHS = {"api.adsb.lol": /^\/v2\//, "api.airplanes.live": /^\/v2\//, "opendata.adsb.fi": /^\/api\/v2\//, "opensky-network.org": /^\/api\/states\/all$/, "api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/, "www.airport-data.com": /^\/api\/ac_thumb\.json$/};
+    const PATHS = {"api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/, "www.airport-data.com": /^\/api\/ac_thumb\.json$/};
+    if (t.protocol === "https:" && t.hostname === "api.adsb.lol" && !t.search && env.SKY) {
+      const point = /^\/v2\/point\/(-?[0-9.]+)\/(-?[0-9.]+)\/([0-9]+)$/.exec(t.pathname);
+      const call = /^\/v2\/callsign\/([A-Z]{3}[0-9]{1,4}[A-Z]?)$/.exec(t.pathname);
+      if (point || call) {
+        const query = new URLSearchParams(point ? {lat: point[1], lon: point[2], r: point[3]} : {cs: call[1]});
+        const path = point ? "/api/planes" : "/api/radar-flight";
+        return env.SKY.get(env.SKY.idFromName("slovensko")).fetch(new Request("https://do" + path + "?" + query,
+          {headers: {"x-cc-ip": req.headers.get("cf-connecting-ip") || ""}}));
+      }
+    }
     if (t.protocol !== "https:" || !ALLOW.includes(t.hostname) || !PATHS[t.hostname].test(t.pathname)) return new Response("nepovolené", {status: 403, headers: CORS});
     try {
       const r = await fetch(t, {redirect: "manual", signal: AbortSignal.timeout(6000), headers: {"User-Agent": "cotoleti-app (github.com/Slovakiana/cotoleti-app)"}, cf: {cacheTtl: t.hostname === "celestrak.org" ? 3600 : t.hostname === "api.adsbdb.com" || t.hostname === "www.airport-data.com" ? 86400 : t.hostname === "api.open-meteo.com" ? 900 : 8, cacheEverything: true}});
