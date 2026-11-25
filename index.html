@@ -705,8 +705,29 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 .huntHome[data-state="near"] .huntHomeKicker{color:#95ffcd}
 .huntHome[data-state="near"] .huntHomeGo{background:#176d57;color:#fff}
 .huntHome[data-state="done"]{border-color:rgba(255,207,79,.58)!important;background:radial-gradient(circle at 100% 0%,rgba(255,207,79,.2),transparent 62%),#252035}
+
+#stage{height:clamp(324px,43svh,400px);min-height:0;margin:0 12px 10px;padding-top:0;isolation:isolate}
+#stage::before{content:"";position:absolute;inset:calc(var(--top) + 50px) 0 0;border:1px solid #789eab55;border-radius:22px;background:radial-gradient(ellipse at 50% 58%,#173d48 0%,#101e2d 57%,#0b1321 100%);box-shadow:0 12px 34px #020b1480,inset 0 1px #b3f6f31e;z-index:-1}
+#sky{border-radius:22px}
+.stageTxt{top:calc(var(--top) + 63px);left:15px;right:15px;width:auto;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.stageTxt h2{font:800 clamp(14px,4.2vw,18px)/1.2 var(--body);margin:0;letter-spacing:-.02em;color:#f1fcff}
+.radarState{border:1px solid #789eab72;border-radius:20px;padding:5px 8px;color:#cedce4;font:700 11px/1 var(--body);white-space:nowrap;background:#101c29}
+.radarState[data-state="live"]{color:#9ff0d2;border-color:#7adcaa77}
+.radarState[data-state="stale"]{color:#ffd394;border-color:#ffd39466}
+.radarCaption{position:absolute;bottom:9px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;font:650 11px/1.25 var(--body);color:#dfedf2;pointer-events:none}
+#radarSelection{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#radarWaveZone{white-space:nowrap;color:#aee7d4}
+#radarWaveZone i{display:inline-block;width:8px;height:8px;margin-right:4px;border:1px solid #93ebcd;border-radius:50%;background:#2b665c}
+#hero{margin-top:0}
+#momentBar.on{top:calc(var(--top) + 54px)!important;right:8px;max-width:52%;overflow:hidden;text-overflow:ellipsis}
+#stage:has(#momentBar.on) .radarState{visibility:hidden}
+.holoWrap.reveal svg [data-level-star="earned"]:not(:has(+ [data-level-star="earned"])){animation:cardStarGlow .56s ease-out both}
+@keyframes cardStarGlow{0%{opacity:.3}45%{opacity:1;filter:drop-shadow(0 0 6px #ffdc92)}100%{opacity:1}}
+.relayProof{margin:9px 0;padding:8px 12px;border:1px solid #efc27270;border-radius:12px;color:#ffe5ae;background:#33261960;font:700 12px/1.4 var(--body)}
+@media(max-height:660px){#stage{height:292px!important;min-height:0!important}}
+@media(prefers-reduced-motion:reduce){.holoWrap.reveal svg [data-level-star]{animation:none!important}}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=91">
+<link rel="stylesheet" href="lib/journal.css?v=92">
 </head>
 <body>
 <div id="bg"></div>
@@ -741,12 +762,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 
 <!-- NEBO -->
 <main id="v-now" class="view on">
-  <section id="stage">
+  <section id="stage" aria-labelledby="radarTitle">
     <canvas id="sky" role="img" aria-label="Obloha nad tebou"></canvas>
     <button id="momentBar"></button>
     <div class="stageTxt">
-      <div class="live" id="liveLine"></div>
+      <h2 id="radarTitle">Radar oblohy</h2>
+      <span id="radarState" class="radarState" data-state="waiting">Čaká na polohu</span>
     </div>
+    <div class="radarCaption"><span id="radarSelection">Ťukni na lietadlo</span><span id="radarWaveZone"><i></i> Mávanie od 10°</span></div>
   </section>
 
   <section id="hero" class="glass">
@@ -888,6 +911,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   </details>
   <details class="more glass collectionGroup" id="community">
     <summary>Komunita <small>liga · misia · súboje</small></summary>
+    <div class="live" id="liveLine"></div>
     <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
     <div class="lookSub" id="famScore" style="text-align:center"></div>
   <section class="card glass compPulse" id="compPulse" hidden aria-label="Tvoja týždenná súťaž">
@@ -1139,26 +1163,26 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=91"></script>
-<script src="js/ui.js?v=91"></script>
-<script src="js/ar.js?v=91"></script>
-<script src="js/space.js?v=91"></script>
-<script src="js/weather.js?v=91"></script>
-<script src="js/extras.js?v=91"></script>
-<script src="js/social.js?v=91"></script>
-<script src="js/wrapped.js?v=91"></script>
-<script src="js/push.js?v=91"></script>
-<script src="js/track.js?v=91"></script>
-<script src="js/towns.js?v=91"></script>
-<script src="js/catalog.js?v=91"></script>
-<script src="js/cards.js?v=91"></script>
-<script src="js/journal.js?v=91"></script>
-<script src="js/mail.js?v=91"></script>
-<script src="js/golden.js?v=91"></script>
-<script src="js/teams.js?v=91"></script>
-<script src="js/duel.js?v=91"></script>
-<script src="js/sound.js?v=91"></script>
-<script src="js/santa.js?v=91"></script>
-<script src="js/main.js?v=91"></script>
+<script src="js/core.js?v=92"></script>
+<script src="js/ui.js?v=92"></script>
+<script src="js/ar.js?v=92"></script>
+<script src="js/space.js?v=92"></script>
+<script src="js/weather.js?v=92"></script>
+<script src="js/extras.js?v=92"></script>
+<script src="js/social.js?v=92"></script>
+<script src="js/wrapped.js?v=92"></script>
+<script src="js/push.js?v=92"></script>
+<script src="js/track.js?v=92"></script>
+<script src="js/towns.js?v=92"></script>
+<script src="js/catalog.js?v=92"></script>
+<script src="js/cards.js?v=92"></script>
+<script src="js/journal.js?v=92"></script>
+<script src="js/mail.js?v=92"></script>
+<script src="js/golden.js?v=92"></script>
+<script src="js/teams.js?v=92"></script>
+<script src="js/duel.js?v=92"></script>
+<script src="js/sound.js?v=92"></script>
+<script src="js/santa.js?v=92"></script>
+<script src="js/main.js?v=92"></script>
 </body>
 </html>

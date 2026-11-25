@@ -105,17 +105,15 @@ function paintSky(){
    Stred = ty, okraj = obzor. Vzdialenosť od stredu = výška nad obzorom (kruhy 60°/30°/10°).
    Mätová zóna = nad 10° → dá sa zamávať. Farba = vzácnosť (ako kartičky), ✦ = typ, ktorý ešte nemáš.
    Statická vrstva (kotúč, kruhy, svetové strany) sa kreslí len pri zmene veľkosti / dňa-noci / kompasu. */
-const SKY={cv:null,c:null,d:1,W:0,H:0,cx:0,cy:0,R:0,trails:new Map(),stars:[],pts:[],raf:0,
-  bg:null,bgKey:"",sw:null,sm:new Map(),vis:true,last:0,sa:-20,saT:0,fx:null,cost:4,mq:null,txR:0,txB:0,tapped:!!LS.get("ctl_radarTap",0)};
+const SKY={cv:null,c:null,d:1,W:0,H:0,cx:0,cy:0,R:0,pts:[],raf:0,
+  bg:null,bgKey:"",sw:null,sm:new Map(),vis:true,last:0,saT:0,fx:null,cost:4,mq:null,tapped:!!LS.get("ctl_radarTap",0)};
 const SKY_PLANE=typeof Path2D==="function"?new Path2D("M0-1C.09-1 .11-.86 .11-.7V-.26L.96 .2V.36L.11 .13 .08 .6 .36 .8V.93L0 .84-.36 .93V.8L-.08 .6-.11 .13-.96 .36V.2L-.11-.26V-.7C-.11-.86-.09-1 0-1Z"):null;
 function skySize(){const cv=$("sky");if(!cv)return;const d=Math.min(2,devicePixelRatio||1),r=cv.getBoundingClientRect();if(!r.width||!r.height)return;
   SKY.d=d;SKY.W=r.width;SKY.H=r.height;cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);
-  // radar sa zmestí medzi hlavičku a kartu (tá zasahuje 34 px do scény) a len okrajom (pásmo pod 10°) zasiahne text vľavo
-  const st=$("stage"),pt=st?parseFloat(getComputedStyle(st).paddingTop)||0:0,tx=document.querySelector(".stageTxt"),tr=tx?tx.getBoundingClientRect():null;
-  SKY.txR=tr?tr.right-r.left:SKY.W*.42;SKY.txB=tr?tr.bottom-r.top:0;
-  const top=pt+56,bot=46,R=Math.max(72,Math.min((SKY.H-top-bot)/2,(SKY.W-12-SKY.txR+46)/2,SKY.W*.36));
-  SKY.R=R;SKY.cx=SKY.W-12-R;SKY.cy=top+Math.max(R,(SKY.H-top-bot)/2);
-  SKY.stars=Array.from({length:70},()=>({x:Math.random()*SKY.W,y:Math.random()*SKY.H*.8,r:Math.random()*1.3+.2,p:Math.random()*6}));
+  const header=document.querySelector(".stageTxt").getBoundingClientRect(),bottom=document.querySelector(".radarCaption").getBoundingClientRect();
+  const top=header.bottom-r.top+8,end=bottom.top-r.top-7;
+  SKY.R=Math.max(32,Math.min((end-top)/2-8,SKY.W*.41,152));
+  SKY.cx=SKY.W/2;SKY.cy=(top+end)/2;
   SKY.bgKey="";SKY.sw=null;
   if(!SKY.mq&&window.matchMedia)SKY.mq=matchMedia("(prefers-reduced-motion: reduce)");
   if(!SKY.io&&"IntersectionObserver" in window){SKY.io=new IntersectionObserver(e=>{SKY.vis=e[e.length-1].isIntersecting});SKY.io.observe(cv)}}
@@ -142,7 +140,7 @@ function skyBg(){
   const r10=80/90*R,r30=60/90*R,r60=30/90*R;
   // tieň + sklenený kotúč (cez deň tmavšie sklo, aby bolo vidieť biele prvky na modrej oblohe)
   c.save();c.shadowColor="rgba(0,0,0,.35)";c.shadowBlur=24;c.shadowOffsetY=8;
-  c.fillStyle=day?"rgba(8,16,48,.40)":"rgba(255,255,255,.055)";c.beginPath();c.arc(cx,cy,R,0,7);c.fill();c.restore();
+  c.fillStyle="#0c2631";c.beginPath();c.arc(cx,cy,R,0,7);c.fill();c.restore();
   // pásmo pod 10° (príliš nízko) – jemne tmavšie a šrafované
   c.save();c.beginPath();c.arc(cx,cy,R,0,7);c.arc(cx,cy,r10,0,7,true);c.clip();
   c.fillStyle=day?"rgba(0,0,0,.16)":"rgba(0,0,0,.28)";c.fillRect(cx-R,cy-R,2*R,2*R);
@@ -154,6 +152,11 @@ function skyBg(){
   // kruhy 30° a 60°
   c.setLineDash([2,4]);c.strokeStyle=day?"rgba(255,255,255,.30)":"rgba(255,255,255,.20)";c.lineWidth=1;
   [r30,r60].forEach(r=>{c.beginPath();c.arc(cx,cy,r,0,7);c.stroke()});c.setLineDash([]);
+  c.strokeStyle="rgba(133,211,205,.20)";c.beginPath();
+  for(const az of [45,135,225,315]){
+    const a=rad(az+rot);c.moveTo(cx,cy);c.lineTo(cx+R*Math.sin(a),cy-R*Math.cos(a));
+  }
+  c.stroke();
   // obzor + ryska po 10° (otočené podľa kompasu)
   c.strokeStyle=day?"rgba(255,255,255,.55)":"rgba(255,255,255,.34)";c.lineWidth=1.2;c.beginPath();c.arc(cx,cy,R,0,7);c.stroke();
   c.beginPath();for(let az=0;az<360;az+=10){const an=rad(az+rot),l=az%90===0?0:az%30===0?5:2.5,s=Math.sin(an),k=Math.cos(an);
@@ -181,33 +184,25 @@ function skySweep(){
   c.strokeStyle=lg;c.lineWidth=1.2;c.beginPath();c.moveTo(o,o);c.lineTo(o,o-R);c.stroke();
   SKY.sw=cv;return cv;
 }
-function skyPill(c,x,y,l1,l2,col,alignLeft){
-  c.font="800 12px Inter, sans-serif";const w1=c.measureText(l1).width;c.font="600 10px Inter, sans-serif";const w2=l2?c.measureText(l2).width:0;
-  const w=Math.max(w1,w2)+16,h=l2?34:22,bx=alignLeft?x-w:x,by=y-h/2;
-  c.fillStyle="rgba(5,7,15,.62)";c.strokeStyle="rgba(255,255,255,.22)";c.lineWidth=1;c.beginPath();
-  if(c.roundRect)c.roundRect(bx,by,w,h,11);else c.rect(bx,by,w,h);c.fill();c.stroke();
-  c.textAlign="left";c.textBaseline="middle";c.fillStyle="#fff";c.font="800 12px Inter, sans-serif";c.fillText(l1,bx+8,by+(l2?11:h/2+.5));
-  if(l2){c.font="600 10px Inter, sans-serif";c.fillStyle=col;c.fillText(l2,bx+8,by+24)}
-  return {x:bx,y:by,w,h};
-}
-const skyHit=(r,L)=>L.some(q=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y);
 function skyFrame(){
   SKY.raf=requestAnimationFrame(skyFrame);
   if(S.view!=="now"||document.hidden||!SKY.vis||!SKY.c||!SKY.R)return;
   const tNow=performance.now(),rm=skyRM();
-  // 60 fps; ak je kreslenie drahé alebo mobil nestíha (starý iPhone, úsporný režim) → 30 fps; pri obmedzení pohybu stačí 2× za sekundu
-  SKY.fi=SKY.fi?SKY.fi*.95+Math.min(100,tNow-(SKY.rt||tNow))*.05:16;SKY.rt=tNow;
-  const iv=rm?500:SKY.cost>7||SKY.fi>24?33:15;if(tNow-SKY.last<iv)return;
+  const stale=skyStale(),live=!stale&&S.loaded&&!S.failN&&S.raw.length>0;
+  const iv=rm||!live?250:SKY.cost>7?66:33;
+  if(tNow-SKY.last<iv)return;
   const dt=Math.min(200,tNow-(SKY.last||tNow));SKY.last=tNow;
   const c=SKY.c,d=SKY.d,W=SKY.W,H=SKY.H,now=Date.now();
-  if(tNow-SKY.saT>2000){SKY.saT=tNow;SKY.sa=paintSky();const tx=document.querySelector(".stageTxt");if(tx){const r=tx.getBoundingClientRect(),q=SKY.cv.getBoundingClientRect();SKY.txR=r.right-q.left;SKY.txB=r.bottom-q.top}}const sa=SKY.sa;
+  if(tNow-SKY.saT>2000){SKY.saT=tNow;paintSky()}
   c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,W,H);
-  if(sa<-6){c.fillStyle="#fff";for(const s of SKY.stars){c.globalAlpha=rm?.5:.35+.35*Math.sin(now/900+s.p);c.beginPath();c.arc(s.x,s.y,s.r,0,7);c.fill()}c.globalAlpha=1}
   const {cx,cy,R}=SKY,r10=80/90*R;
   c.drawImage(skyBg(),0,0,W,H);
-  // sweep: jedna otáčka za 5 s
-  const swA=rm?null:(tNow/5000%1)*360;
-  if(swA!=null){c.save();c.beginPath();c.arc(cx,cy,R,0,7);c.clip();c.translate(cx,cy);c.rotate(rad(swA));c.drawImage(skySweep(),-R-1/d,-R-1/d,2*R+2/d,2*R+2/d);c.restore()}
+  if(live&&Math.abs(S.rawT-(SKY.rawT||0))>1000){SKY.rawT=S.rawT;SKY.sweepAt=tNow}
+  const sweep=(tNow-(SKY.sweepAt??-10000))/1000;
+  if(!rm&&live&&sweep<1){
+    c.save();c.globalAlpha=.75*(1-sweep);c.translate(cx,cy);c.rotate(sweep*2*Math.PI);
+    c.drawImage(skySweep(),-R-1/d,-R-1/d,2*R+2/d,2*R+2/d);c.restore();
+  }
   // kam sa pozeráš (len so zapnutým kompasom – mobil hore = smer pohľadu)
   if(S.heading!=null){const gg=c.createRadialGradient(cx,cy,0,cx,cy,r10);gg.addColorStop(0,"rgba(255,255,255,.22)");gg.addColorStop(1,"rgba(255,255,255,0)");
     c.fillStyle=gg;c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,r10,-Math.PI/2-rad(24),-Math.PI/2+rad(24));c.closePath();c.fill()}
@@ -217,82 +212,55 @@ function skyFrame(){
     if(big){c.font="700 10px Inter, sans-serif";c.textAlign="left";c.fillText(s.kind==="iss"?"ISS":"Tiangong",p.x+9,p.y)}c.globalAlpha=1});
   // lietadlá
   const list=enrich(now).filter(a=>a.el!=null&&a.el>-2).slice(0,45),topHex=S.top&&S.top.hex,gold=typeof goldenHex==="function"?goldenHex():null,rot=rad(skyRot());
-  const k=rm?1:1-Math.exp(-dt/320),pts=[],labels=[];
-  // ťukni sem: miesto popisov nesmie prekryť text vľavo hore
-  const txt={x:0,y:0,w:SKY.txR,h:SKY.txB};
+  const k=rm||stale?1:1-Math.exp(-dt/320),pts=[],today=dayKey();
   for(const a of list){
     const [u,v]=skyUnit(a.bear,a.el);let s=SKY.sm.get(a.hex);
     if(!s||Math.hypot(u-s.u,v-s.v)>.18){s={u,v,al:s?s.al:0,pt:0,path:null};SKY.sm.set(a.hex,s)}
     else{s.u+=(u-s.u)*k;s.v+=(v-s.v)*k}
     s.seen=now;s.al=Math.min(1,s.al+(rm?1:dt/400));
     // stopa (minulosť) a predpoveď letu – prepočet 2× za sekundu, uložené bez otočenia
-    if(now-s.pt>500){s.pt=now;const isT=a.hex===topHex,fw=isT?300:a.el>=10?60:0,P=[],F=[];
+    if(!stale&&now-s.pt>750){s.pt=now;const isT=a.hex===topHex,fw=isT?120:0,P=[],F=[];
       for(const t of isT?[-90,-60,-30]:a.el>=10?[-40,-20]:[]){const q=skyAt(a,t);if(q&&q.el>-2)P.push(skyUnit(q.az,q.el))}
       for(let t=30;t<=fw;t+=30){const q=skyAt(a,t);if(!q||q.el<-1)break;F.push(skyUnit(q.az,q.el))}
       s.P=P;s.F=F;s.du=u;s.dv=v}
     const isTop=a.hex===topHex,isGold=a.hex===gold,low=a.el<10,r=rarity(a),col=isGold?"#ffcf4f":RAR[r].col;
     const isNew=!!(a.type&&!a.santa&&typeof COL!=="undefined"&&!(COL.types[a.type]&&COL.types[a.type].n));
-    const p=skyUV(s.u,s.v);pts.push({hex:a.hex,x:p.x,y:p.y,a,s,isTop,isGold,low,col,isNew,r});
+    const waved=!!SOC.waved[today];
+    const p=skyUV(s.u,s.v);pts.push({hex:a.hex,x:p.x,y:p.y,a,s,isTop,isGold,low,col,isNew,waved});
   }
   // kresli od najnižších po vybrané (vybrané navrchu)
   pts.sort((x,y)=>(x.isTop-y.isTop)||(x.a.el-y.a.el));
   for(const q of pts){const {a,s,isTop,low,col}=q,ou=s.u-s.du,ov=s.v-s.dv;c.globalAlpha=s.al*(low&&!isTop?.5:1);
     // stopa: miznúca čiara z minulosti
-    if(s.P&&s.P.length){c.beginPath();s.P.forEach((w,i)=>{const pp=skyUV(w[0]+ou,w[1]+ov);i?c.lineTo(pp.x,pp.y):c.moveTo(pp.x,pp.y)});c.lineTo(q.x,q.y);
+    if(!stale&&isTop&&s.P?.length){c.beginPath();s.P.forEach((w,i)=>{const pp=skyUV(w[0]+ou,w[1]+ov);i?c.lineTo(pp.x,pp.y):c.moveTo(pp.x,pp.y)});c.lineTo(q.x,q.y);
       c.strokeStyle=isTop?"rgba(109,255,199,.5)":"rgba(255,255,255,.16)";c.lineWidth=isTop?2:1;c.lineCap="round";c.stroke()}
     // predpoveď: bodkovaná čiara s bodom za každú minútu
-    if(s.F&&s.F.length){c.setLineDash(isTop?[1,5]:[1,4]);c.lineCap="round";c.beginPath();c.moveTo(q.x,q.y);s.F.forEach(w=>{const pp=skyUV(w[0]+ou,w[1]+ov);c.lineTo(pp.x,pp.y)});
+    if(!stale&&s.F?.length){c.setLineDash(isTop?[1,5]:[1,4]);c.lineCap="round";c.beginPath();c.moveTo(q.x,q.y);s.F.forEach(w=>{const pp=skyUV(w[0]+ou,w[1]+ov);c.lineTo(pp.x,pp.y)});
       c.strokeStyle=isTop?"rgba(255,255,255,.85)":"rgba(255,255,255,.4)";c.lineWidth=isTop?2.2:1.3;c.stroke();c.setLineDash([]);
       if(isTop){c.fillStyle="rgba(255,255,255,.9)";s.F.forEach((w,i)=>{if(i%2)return;const pp=skyUV(w[0]+ou,w[1]+ov);c.beginPath();c.arc(pp.x,pp.y,i===s.F.length-1?2.6:1.8,0,7);c.fill()})}}
     c.globalAlpha=1}
   // zlaté lietadlo, ping sweepu, halo vybraného
   for(const q of pts){const {x,y,a,s,isTop,isGold,low}=q;c.globalAlpha=s.al;
-    if(isGold){c.fillStyle="rgba(255,207,79,.25)";c.beginPath();c.arc(x,y,20+(rm?0:4*Math.sin(now/200)),0,7);c.fill()}
-    if(swA!=null&&!low){const ang=(Math.atan2(x-cx,cy-y)*180/Math.PI+360)%360,beh=(swA-ang+360)%360;
-      if(beh<70){c.fillStyle=q.col;c.globalAlpha=s.al*.35*(1-beh/70);c.beginPath();c.arc(x,y,isTop?17:11,0,7);c.fill();c.globalAlpha=s.al}}
-    if(isTop){if(!rm){const ph=(now%1800)/1800;c.strokeStyle=`rgba(109,255,199,${(.55*(1-ph)).toFixed(3)})`;c.lineWidth=1.5;c.beginPath();c.arc(x,y,16+14*ph,0,7);c.stroke()}
+    if(isGold&&!stale){c.fillStyle="rgba(255,207,79,.25)";c.beginPath();c.arc(x,y,20+(rm?0:4*Math.sin(now/200)),0,7);c.fill()}
+    if(isTop){
       c.fillStyle="rgba(109,255,199,.16)";c.beginPath();c.arc(x,y,16,0,7);c.fill();c.strokeStyle="#6dffc7";c.lineWidth=2;c.beginPath();c.arc(x,y,16,0,7);c.stroke()}
     c.globalAlpha=1}
   // siluety lietadiel (natočené podľa kurzu a kompasu)
-  for(const q of pts){const {x,y,a,s,isTop,low,col,isNew}=q,sz=isTop?11:low?6.5:8;c.globalAlpha=s.al*(low&&!isTop?.6:1);
+  for(const q of pts){const {x,y,a,s,isTop,low,col,isNew}=q,sz=isTop?11:low?6.5:8;c.globalAlpha=s.al*(stale||q.waved&&!isTop?.53:low&&!isTop?.65:1);
     c.save();c.translate(x,y);c.rotate(rad(a.trk??0)+rot);c.scale(sz,sz);c.lineJoin="round";
     if(SKY_PLANE){c.lineWidth=(isTop?1.6:1.2)/sz;c.strokeStyle=isTop?"#fff":"rgba(0,0,0,.55)";
       if(low&&!isTop){c.strokeStyle=col;c.stroke(SKY_PLANE)}else{c.fillStyle=col;c.stroke(SKY_PLANE);c.fill(SKY_PLANE)}}
     else{c.fillStyle=col;c.beginPath();c.moveTo(0,-1);c.lineTo(.7,.85);c.lineTo(0,.5);c.lineTo(-.7,.85);c.closePath();c.fill()}
     c.restore();
     // ✦ nový typ do zbierky
-    if(isNew){const bx=x+sz*.9,by=y-sz*.9;c.fillStyle="#fff";c.shadowColor=col;c.shadowBlur=6;c.beginPath();
+    if(isNew&&!stale&&!q.waved){const bx=x+sz*.9,by=y-sz*.9;c.fillStyle="#fff";c.shadowColor=col;c.shadowBlur=6;c.beginPath();
       for(let i=0;i<8;i++){const rr=i%2?1.4:4.2,an=i*Math.PI/4;c.lineTo(bx+rr*Math.sin(an),by-rr*Math.cos(an))}c.closePath();c.fill();c.shadowBlur=0}
     c.globalAlpha=1}
-  // popisy: vybrané (s cieľom a výškou) + pár ďalších zaujímavých, bez prekrývania
-  const guessOn=$("guess").classList.contains("on"),gHex=$("guess").dataset.hex;
-  const sel=pts.find(q=>q.isTop);
-  if(sel){const a=sel.a,rt=routeOf(a),hide=guessOn&&gHex===a.hex,l1=titleOf(a)+(rt&&!hide?" → "+citySk(rt.destination.municipality||rt.destination.name):""),
-    l2=Math.round(Math.max(0,a.el))+"° "+(a.el>=10?"· dá sa zamávať 👋":"· pod 10°, ešte nízko"),cl=a.el>=10?"#6dffc7":"rgba(255,255,255,.7)";
-    c.font="800 12px Inter, sans-serif";const w1=c.measureText(l1).width;c.font="600 10px Inter, sans-serif";const w=Math.max(w1,c.measureText(l2).width)+16,h=34,X=sel.x,Y=sel.y;
-    const cand=[[X+24,Y-h/2],[X-24-w,Y-h/2],[X-w/2,Y-24-h],[X-w/2,Y+24],[X+18,Y-h-10],[X-18-w,Y-h-10],[X+18,Y+10],[X-18-w,Y+10]];
-    let bestC=cand[0],bs=1e9;for(const [bx,by] of cand){const box={x:bx,y:by,w,h};
-      let sc=(bx<4||bx+w>W-4||by<4||by+h>H-40?1000:0)+(skyHit(box,[txt])?60:0);
-      for(const o of pts)if(o!==sel&&o.x>bx-8&&o.x<bx+w+8&&o.y>by-8&&o.y<by+h+8)sc+=o.low?3:10;
-      if(cx>bx-10&&cx<bx+w+10&&cy>by-10&&cy<by+h+18)sc+=15; // „TY“ v strede
-      if(sc<bs){bs=sc;bestC=[bx,by]}if(!sc)break}
-    const rr=skyPill(c,bestC[0]+w,bestC[1]+h/2,l1,l2,cl,true);
-    labels.push(rr)}
-  const n=pts.length,extra=pts.filter(q=>!q.isTop&&!q.low).sort((x,y)=>(RORD[y.r]+(y.isNew?2:0))-(RORD[x.r]+(x.isNew?2:0))||y.a.el-x.a.el).slice(0,n<=5?5:3);
-  c.font="700 10px Inter, sans-serif";c.textBaseline="middle";c.lineWidth=3;c.lineJoin="round";c.strokeStyle="rgba(0,0,0,.5)";
-  for(const q of extra){const lab=titleOf(q.a),w=c.measureText(lab).width;let x=q.x+12,al="left";if(x+w>W-4){x=q.x-12;al="right"}
-    const box={x:al==="left"?x:x-w,y:q.y-7,w,h:14};if(skyHit(box,labels)||skyHit(box,[txt]))continue;labels.push(box);
-    c.textAlign=al;c.globalAlpha=q.s.al;c.fillStyle=q.isNew?"#fff":"rgba(255,255,255,.8)";c.strokeText(lab,x,q.y);c.fillText(lab,x,q.y);c.globalAlpha=1}
   // ťukanie: spätná väzba
-  if(SKY.fx){const f=(tNow-SKY.fx.t)/450;if(f>=1)SKY.fx=null;else{c.strokeStyle=`rgba(255,255,255,${(.8*(1-f)).toFixed(3)})`;c.lineWidth=2;c.beginPath();c.arc(SKY.fx.x,SKY.fx.y,10+26*f,0,7);c.stroke()}}
+  if(SKY.fx&&!rm){const f=(tNow-SKY.fx.t)/450;if(f>=1)SKY.fx=null;else{c.strokeStyle=`rgba(255,255,255,${(.8*(1-f)).toFixed(3)})`;c.lineWidth=2;c.beginPath();c.arc(SKY.fx.x,SKY.fx.y,10+26*f,0,7);c.stroke()}}
   // ty
   c.fillStyle="#fff";c.beginPath();c.arc(cx,cy,4,0,7);c.fill();
-  if(!rm){const ph=(now%2400)/2400;c.strokeStyle=`rgba(255,255,255,${(.45*(1-ph)).toFixed(3)})`;c.lineWidth=1.5;c.beginPath();c.arc(cx,cy,5+14*ph,0,7);c.stroke()}
-  c.font="700 9px Inter, sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillStyle="rgba(255,255,255,.85)";c.fillText("TY",cx,cy+13);
-  if(!n){c.font="600 10.5px Inter, sans-serif";c.fillStyle="rgba(255,255,255,.72)";c.fillText(S.pos?(S.loaded?"Zatiaľ ticho – radar hľadá":"Hľadám lietadlá…"):"Čakám na polohu…",cx,cy+R*.42)}
-  else if(n>1&&!SKY.tapped){const hy=cy+R*.62,hb={x:cx-48,y:hy-9,w:96,h:18};
-    if(!skyHit(hb,labels)&&!pts.some(o=>o.x>hb.x-6&&o.x<hb.x+hb.w+6&&o.y>hb.y-6&&o.y<hb.y+hb.h+6)){c.fillStyle="rgba(5,7,15,.5)";c.beginPath();if(c.roundRect)c.roundRect(hb.x,hb.y,hb.w,hb.h,9);else c.rect(hb.x,hb.y,hb.w,hb.h);c.fill();
-      c.font="600 9.5px Inter, sans-serif";c.fillStyle="rgba(255,255,255,.85)";c.fillText("👆 ťukni na lietadlo",cx,hy+.5)}}
+  c.font="700 9px Inter, sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillStyle="#d4eeef";c.fillText("TY",cx,cy+13);
   SKY.pts=pts.map(q=>({hex:q.hex,x:q.x,y:q.y}));
   // upratanie vyhladených polôh (lietadlá, ktoré zmizli)
   if(now-(SKY.gc||0)>5000){SKY.gc=now;for(const [h,s] of SKY.sm)if(now-s.seen>5000)SKY.sm.delete(h)}
@@ -301,10 +269,21 @@ function skyFrame(){
 function skyTap(ev){
   const r=$("sky").getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;
   let best=null,bd=30;for(const p of SKY.pts){const dd=Math.hypot(p.x-x,p.y-y);if(dd<bd){bd=dd;best=p}}
-  if(best){SKY.fx={x:best.x,y:best.y,t:performance.now()};if(!SKY.tapped){SKY.tapped=true;LS.set("ctl_radarTap",1)}S.pick=best.hex;haptic(12);tick(true);document.getElementById("hero").scrollIntoView({behavior:"smooth",block:"nearest"})}
-  else if(S.pick&&Math.hypot(x-SKY.cx,y-SKY.cy)<SKY.R){S.pick=null;haptic(6);tick(true)}
+  if(best){SKY.fx={x:best.x,y:best.y,t:performance.now()};if(!SKY.tapped){SKY.tapped=true;LS.set("ctl_radarTap",1)}S.pick=best.hex;haptic(12);tick(false);}
+  else if(S.pick&&Math.hypot(x-SKY.cx,y-SKY.cy)<SKY.R){S.pick=null;haptic(6);tick(false)}
 }
 
+function renderRadarHeader(a){
+  const stale=skyStale(),state=!S.pos?"waiting":stale?"stale":S.loaded&&!S.failN?"live":"waiting";
+  const badge=$("radarState");
+  const label=!S.pos?"Čaká na polohu":stale?"Posledná poloha":state==="live"?"Naživo":S.failN?"Nedostupné":"Načítavam";
+  if(badge.dataset.state!==state)badge.dataset.state=state;
+  if(badge.textContent!==label)badge.textContent=label;
+  const caption=$("radarSelection"),name=a?titleOf(a):"";
+  const text=a?name+(stale?"":SOC.waved[dayKey()+a.hex]?" · Dnes zamávané":" · "+Math.round(Math.max(0,a.el??0))+"°")
+    :state==="live"?"Zatiaľ bez lietadiel":"Stred ukazuje tvoju polohu";
+  if(caption.textContent!==text)caption.textContent=text;
+}
 /* ============ hlavná karta ============ */
 function expandRadar(){
   $("radius").value="50";
@@ -491,8 +470,9 @@ function tick(fresh){
   S.top=best;
   if(changed||fresh){renderHeroStatic(best);if(best&&!skyStale()){loadMeta(best);if(changed)announce(best,false)}}
   renderHeroLive(best);
+  renderRadarHeader(best);
   renderFirstWaveGuide(best);
-  if(fresh||now%5000<1000){const up=S.list.filter(a=>a.el>0),hi=up.filter(a=>a.el>=10).length,lab=up.length?`Radar oblohy: ${up.length} ${pl(up.length,"lietadlo","lietadlá","lietadiel")} nad obzorom, ${hi} z nich vyššie ako 10 stupňov${best&&best.el!=null?`. ${S.pick===best.hex?"Vybrané":"Najvyššie"}: ${titleOf(best)}, ${RAR[rarity(best)].n.toLowerCase()}, na ${dirL(best.bear)}, ${Math.round(best.el)} stupňov nad obzorom${best.trk!=null?", letí na "+dirL(best.trk):""}${best.el>=10?", dá sa mu zamávať":""}`:""}. Ťuknutím na lietadlo v radare ho vyberieš.`:"Radar oblohy: nad tebou je teraz prázdno";if($("sky").getAttribute("aria-label")!==lab)$("sky").setAttribute("aria-label",lab)}
+  if(fresh||now%5000<1000){const up=S.list.filter(a=>a.el>0),hi=up.filter(a=>a.el>=10).length,lab=skyStale()?"Radar oblohy: posledná známa poloha lietadiel":up.length?`Radar oblohy: ${up.length} ${pl(up.length,"lietadlo","lietadlá","lietadiel")} nad obzorom, ${hi} z nich vyššie ako 10 stupňov${best&&best.el!=null?`. ${S.pick===best.hex?"Vybrané":"Najvyššie"}: ${titleOf(best)}, ${RAR[rarity(best)].n.toLowerCase()}, na ${dirL(best.bear)}, ${Math.round(best.el)} stupňov nad obzorom${best.trk!=null?", letí na "+dirL(best.trk):""}${best.el>=10?", dá sa mu zamávať":""}`:""}. Ťuknutím na lietadlo v radare ho vyberieš.`:"Radar oblohy: nad tebou je teraz prázdno";if($("sky").getAttribute("aria-label")!==lab)$("sky").setAttribute("aria-label",lab)}
   HOOKS.live.forEach(f=>{try{f(best,fresh)}catch(e){console.error(e)}});
   if(HOOKS.list)HOOKS.list.forEach(f=>{try{f(S.list)}catch(e){console.error(e)}});
   if(fresh||now%3000<1000)renderList(S.list);

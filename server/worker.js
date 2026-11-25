@@ -157,7 +157,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v91";
+const VERSION = "v92";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -217,6 +217,9 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
       CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
       CREATE TABLE IF NOT EXISTS catches(id TEXT, hex TEXT, t INTEGER, PRIMARY KEY(id, hex));
+      CREATE TABLE IF NOT EXISTS relay_waves(id TEXT, hex TEXT, call TEXT, type TEXT, k TEXT, t INTEGER, other TEXT DEFAULT '', PRIMARY KEY(id, hex, t));
+      CREATE INDEX IF NOT EXISTS relay_match ON relay_waves(hex, call, type, t);
+      CREATE INDEX IF NOT EXISTS relay_time ON relay_waves(t);
       CREATE TABLE IF NOT EXISTS mission_weeks(week TEXT PRIMARY KEY, goal INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS mission_waves(week TEXT, id TEXT, day TEXT, hex TEXT, PRIMARY KEY(week, id, day, hex));
       CREATE TABLE IF NOT EXISTS heatp(m TEXT, cell TEXT, id TEXT, PRIMARY KEY(m, cell, id));
@@ -347,6 +350,7 @@ export class Sky extends DurableObject {
         const old = new Date(now - 8 * 86400e3).toISOString().slice(0, 10);
         this.sql.exec("DELETE FROM waves WHERE day < ?", old);
         this.sql.exec("DELETE FROM wavelog WHERE day < ?", old);
+        this.sql.exec("DELETE FROM relay_waves WHERE t < ? OR (other='' AND t < ?)", now - 30 * 86400e3, now - 35 * 60e3);
         const oldestMission = this.week(now - 14 * 86400e3);
         this.sql.exec("DELETE FROM mission_waves WHERE week < ?", oldestMission);
         this.sql.exec("DELETE FROM mission_weeks WHERE week < ?", oldestMission);
@@ -406,6 +410,26 @@ export class Sky extends DurableObject {
     const previousWeek = new Date(Date.parse(week + "T12:00:00Z") - 7 * 86400e3).toISOString().slice(0, 10);
     const previous = this.row("SELECT goal FROM mission_weeks WHERE week=?", previousWeek);
     return {...this.missionResult(week, goal, id), previous: previous ? this.missionResult(previousWeek, previous.goal, id) : null};
+  }
+  relayWave(id, hex, vp, k, now) {
+    const call = cleanCs(vp.call);
+    if (!/^[a-f0-9]{6}$/.test(hex) || !/^[A-Z]{3}[0-9]{1,4}[A-Z]?$/.test(call)
+      || !vp.type || vp.priv || vp.mil || vp.late || !Object.hasOwn(KRAJ_C,k) || this.isKid(id)) return;
+    const start = now - 35 * 60e3;
+    if (this.row("SELECT 1 AS x FROM relay_waves WHERE id=? AND hex=? AND call=? AND t>=? LIMIT 1", id, hex, call, start)) return;
+    const match = this.row(`SELECT id, k, t FROM relay_waves
+      WHERE hex=? AND call=? AND type=? AND t BETWEEN ? AND ? AND k<>? AND id<>? AND other=''
+      ORDER BY t DESC LIMIT 1`, hex, call, vp.type, start, now - 120e3, k, id);
+    if (!match) {
+      this.sql.exec("INSERT OR IGNORE INTO relay_waves(id, hex, call, type, k, t) VALUES(?, ?, ?, ?, ?, ?)", id, hex, call, vp.type, k, now);
+      return;
+    }
+    this.sql.exec("INSERT OR IGNORE INTO relay_waves(id, hex, call, type, k, t, other) VALUES(?, ?, ?, ?, ?, ?, ?)", id, hex, call, vp.type, k, now, match.k);
+    this.sql.exec("UPDATE relay_waves SET other=? WHERE id=? AND hex=? AND t=? AND other=''", k, match.id, hex, match.t);
+  }
+  relayCards(id, now) {
+    if (this.env.RELAY_PILOT !== "1" || !id || this.isKid(id)) return [];
+    return this.sql.exec("SELECT type, k, other, t FROM relay_waves WHERE id=? AND t>=? AND other<>'' ORDER BY t DESC LIMIT 24", id, now - 30 * 86400e3).toArray();
   }
   goldenNow(d) { return this.row("SELECT * FROM golden WHERE day=? ORDER BY seq DESC LIMIT 1", d); }
   async pickGolden(d, now) {
@@ -678,7 +702,7 @@ export class Sky extends DurableObject {
   }
   planeRes(a, la, lo) {
     if (a.alt_baro === "ground") return {known: true, found: true, ground: true, km: distKm(la, lo, a.lat, a.lon)};
-    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: a.dbFlags & 12 ? "" : String(a.flight || "").trim(), type: normalizeType(a.t), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: a.dbFlags & 12 ? "" : String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1)};
+    return {known: true, found: true, lat: a.lat, lon: a.lon, km: distKm(la, lo, a.lat, a.lon), call: a.dbFlags & 12 ? "" : String(a.flight || "").trim(), type: normalizeType(a.t), priv: !!(a.dbFlags & 12), alt: typeof a.alt_baro === "number" ? a.alt_baro : null, reg: a.dbFlags & 12 ? "" : String(a.r || "").toUpperCase().slice(0, 10), mil: !!(a.dbFlags & 1), emg: !!(a.emergency && a.emergency !== "none") || /^7[567]00$/.test(a.squawk || "")};
   }
   async verifyPlane(hex, la, lo) {
     const sn = await this.snapshot();
@@ -1126,6 +1150,7 @@ export class Sky extends DurableObject {
       }
       // edícia „Bol som pri tom“ – stačí overené mávnutie (aj keď typ lietadla nepoznáme); odložené mávnutie sa ráta v čase mávnutia
       if (cok) {
+        if (this.env.RELAY_PILOT === "1" && !vp.emg) this.relayWave(id, hex, vp, k, now);
         const te = vp.late ? tw : now;
         const missionWeek = this.week(te);
         if (this.ensureMissionWeek(this.week(now)) && this.row("SELECT 1 AS x FROM mission_weeks WHERE week=?", missionWeek)) {
@@ -1182,7 +1207,7 @@ export class Sky extends DurableObject {
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;
       this.sql.exec("UPDATE ids SET kid=? WHERE id=?", on, id);
-      if (on) { const pd = await this.pid(id); this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd); this.sql.exec("DELETE FROM nicks WHERE id=?", id); this.sql.exec("DELETE FROM subs WHERE id=?", id); }
+      if (on) { this.sql.exec("DELETE FROM relay_waves WHERE id=?", id); const pd = await this.pid(id); this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd); this.sql.exec("DELETE FROM nicks WHERE id=?", id); this.sql.exec("DELETE FROM subs WHERE id=?", id); }
       return json({ok: true, kid: on});
     }
     if (p === "/api/division" && req.method === "POST") {
@@ -1215,7 +1240,7 @@ export class Sky extends DurableObject {
     if (p === "/api/mydata" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), pd = await this.pid(id), out = {vytvorene: new Date((this.row("SELECT t FROM ids WHERE id=?", id) || {t: 0}).t).toISOString()};
       const q = (t, w, v) => this.sql.exec(`SELECT * FROM ${t} WHERE ${w}=?`, v).toArray().map(r => { delete r.id; delete r.iph; delete r.lc; return r; });
-      for (const t of ["wavelog", "idday", "nicks", "subs", "tracks", "mails", "tmembers", "seen", "gcand", "mission_waves"]) out[t] = q(t, "id", id);
+      for (const t of ["wavelog", "relay_waves", "idday", "nicks", "subs", "tracks", "mails", "tmembers", "seen", "gcand", "mission_waves"]) out[t] = q(t, "id", id);
       out.kamarati = (this.row("SELECT COUNT(*) AS c FROM friends WHERE a=?", pd) || {c: 0}).c;
       return json(out);
     }
@@ -1249,7 +1274,7 @@ export class Sky extends DurableObject {
         || now > Number(this.getMeta("wipe_until") || 0)) return json({error:"confirm"}, 400);
       // Všetky herné tabuľky, identity, prvé overenia, štatistiky a ligy.
       // Whitelist: žiadne dynamicky zadané SQL názvy a žiadne systémové tabuľky.
-      const wipe = ["waves","waveby","wavelog","kraje","totals","pres","nicks","subs",
+      const wipe = ["waves","waveby","wavelog","relay_waves","kraje","totals","pres","nicks","subs",
         "tracks","msgs","queue","moments","momentby","planes","towns","mails","maildel",
         "maildeliv","golden","teams","tmembers","tweek","ids","rl","friends","reminders",
         "catches","heatp","typeseq","edcatch","wavewhy","gifts","mayorhof","mayorm",
@@ -1334,7 +1359,7 @@ export class Sky extends DurableObject {
       const b = await body(), id = cleanId(b.id);
       if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
       const pd = await this.pid(id);
-      for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "mission_waves", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
+      for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
         // náhrobok: starý token sa už nedá použiť ani na samoopravu účtu
         this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, Date.now(), 1e6 + Math.floor(Math.random() * 1e6));
       this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
@@ -1587,7 +1612,7 @@ export class Sky extends DurableObject {
       let adopt = null; const ad = cleanName(qp("ad") || "", 40);
       if (ad) { const wk = this.week(now); adopt = {town: ad, d: (this.row("SELECT n FROM towns WHERE day=? AND town=?", d, ad) || {n: 0}).n || 0, w: (this.row("SELECT SUM(n) AS s FROM towns WHERE day >= ? AND town=?", wk, ad) || {s: 0}).s || 0}; }
       const hid = id.length >= 8 ? this.row("SELECT name, appeal FROM hidden WHERE id=?", id) : null;
-      return json({...G, mission, planes, friends, now, mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, myHidden: hid ? {name: hid.name, appeal: hid.appeal | 0} : null, flags: this.flags()});
+      return json({...G, mission, planes, friends, now, relay: this.relayCards(id, now), mailsIn, mailsOut, mailOn, teamsTop, myTeam, myInvites, goldMine: gw ? gw.seq : 0, goldIn, mayor, duelIn, adopt, myHidden: hid ? {name: hid.name, appeal: hid.appeal | 0} : null, flags: this.flags()});
     }
     return json({error: "not found"}, 404);
   }

@@ -58,3 +58,7 @@
 
 ## A/B test
 Každé zariadenie má natrvalo skupinu A alebo B (`ctl_ab`). Kroky lievika sa v /admin → 📊 Štatistiky → `lievik7dni` rátajú zvlášť, napr. `onboard:A` a `onboard:B`, `wave1:A` a `wave1:B`. Aktuálny pokus: text tlačidla v úvode (A „Povoliť polohu a ukázať oblohu“, B „Ukáž mi, čo letí nado mnou“). Víťaz = vyšší podiel `wave1` / `onboard`. Nový pokus: zmeň riadok pod `ABV` v js/ui.js.
+
+## Pilot Letová štafeta
+
+Pilot zapína produkčná premenná `RELAY_PILOT=1`. Dve čerstvé overené mávnutia s GPS z rôznych krajov sa môžu spojiť, ak sa zhoduje identifikátor stroja, volací znak a typ a medzi mávnutiami uplynuli 2 až 35 minút. Páry sa zobrazujú z existujúceho `/api/sky` iba účastníkom. Pilot neposiela ďalšie dopyty do ADSB.lol a označenia uchováva do 30 dní.

@@ -155,6 +155,11 @@ def main():
                     const bounds = id => $(id).getBoundingClientRect();
                     if (!ids.slice(1).every((id, i) => $(ids[i]).compareDocumentPosition($(id)) & Node.DOCUMENT_POSITION_FOLLOWING))
                         throw Error("Herné karty odsunuli zoznam lietadiel");
+                    skySize();
+                    if (Math.abs(SKY.cx - bounds("stage").width/2)>2 || SKY.R<72
+                        || bounds("radarTitle").right>bounds("radarState").left
+                        || bounds("stage").bottom>bounds("hero").top)
+                        throw Error("Radar nie je vycentrovaný alebo prekrýva kartu a stav");
                     setView("col");
                     if (!($("atlasSection").compareDocumentPosition($("community")) & Node.DOCUMENT_POSITION_FOLLOWING))
                         throw Error("Zbierka neukazuje Atlas pred Komunitou");
@@ -247,6 +252,24 @@ def main():
                 parsed.innerHTML=cardSVG("A388",null,{artHref:""});
                 if (parsed.content.querySelector("[data-level-star],[data-card-foil]"))
                     throw Error("Zamknutá kartička vyzerá ako získaná");
+                const testTiers=["A320","AT76","A388","F16","B779"];
+                for(const type of testTiers){
+                    const sample=document.createElement("div");
+                    sample.style.cssText="position:fixed;visibility:hidden;width:220px";
+                    sample.innerHTML=cardSVG(type,{n:1},{artHref:""});
+                    document.body.append(sample);
+                    const text=sample.querySelector("[data-card-tier-label]");
+                    const box=text.getBBox();
+                    if (box.x+box.width>385) throw Error("Štítok vzácnosti preteká z rámu");
+                    sample.remove();
+                }
+                const social=SOC.data;
+                SOC.data={relay:[{type:"B738",k:"TT",other:"TN",t:Date.now()}]};
+                try{
+                    parsed.innerHTML=cardSVG("B738",{...first,ver:1},{artHref:""});
+                    if (!parsed.content.querySelector("[data-relay-seal]"))
+                        throw Error("Overená štafeta v kartičke chýba");
+                }finally{SOC.data=social}
                 const svg=await cardExportSVG("B738",shownCard(first),{public:true});
                 if (!svg.includes('href="data:image/webp;base64,') || !svg.includes("Zlatá hodinka"))
                     throw Error("Export nepriložil ilustráciu zvolenej formy");

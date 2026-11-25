@@ -172,10 +172,10 @@ const TIER_ENGRAVING={
 function cardTierStamp(r,locked){
   const ink=COLLECTOR_TIER[r].hue;
   const name=(locked?"Zamknutá":RAR[r].n).toUpperCase();
-  const x=387-Math.max(115,46+name.length*10);
+  const right=389, textWidth=Math.max(59,Math.ceil(name.length*10.5)), x=right-textWidth-48;
   return `<path d="M${x+10} 376H389V410H${x}V386Z" fill="#080d19" fill-opacity=".93" stroke="${ink}" stroke-opacity="${locked?.5:.9}"/>
     <g transform="translate(${x+11} 382) scale(.9)" fill="none" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round">${TIER_MARKS[r]}</g>
-    <text x="${x+37}" y="399" fill="${ink}" font-size="15" font-weight="850" letter-spacing="1.1">${name}</text>`;
+    <text data-card-tier-label x="${x+36}" y="399" fill="${ink}" font-size="15" font-weight="800" letter-spacing=".7" textLength="${textWidth}" lengthAdjust="spacingAndGlyphs">${name}</text>`;
 }
 function cardStars(level,id){
   if(!level)return "";
@@ -221,10 +221,17 @@ function cardScene(k,v,id,form,ink,dark,metal,href,locked){
     </g><path d="M17 72H374L403 101V407L390 420H17Z" fill="none" stroke="${ink}" stroke-opacity=".57"/>
     ${locked?"":`<g fill="none" stroke="${COLLECTOR_TIER[typeTier(k)].hue}" stroke-opacity=".82">${TIER_ENGRAVING[typeTier(k)]}</g>`}`;
 }
+function cardRelay(code,v){
+  if(!v?.n||!v.ver||typeof KID==="function"&&KID())return null;
+  return SOC.data?.relay?.find(leg=>leg.type===code&&KRAJ[leg.k]&&KRAJ[leg.other])||null;
+}
+function relayMedallion(){
+  return '<g data-relay-seal=""><rect x="26" y="82" width="124" height="24" rx="5" fill="#181621" stroke="#efc272"/><circle cx="38" cy="94" r="2.5" fill="#ffe5ae"/><path d="M41 94h12" stroke="#efc272" stroke-dasharray="2 2"/><circle cx="56" cy="94" r="2.5" fill="#ffe5ae"/><text x="64" y="98" fill="#ffe5ae" font-size="11.5" font-weight="800" letter-spacing=".7">ŠTAFETA</text></g>';
+}
 function cardSVG(code,v,opt={}){
   const c=catGuess(code),key=c.code,r=typeTier(key),tier=COLLECTOR_TIER[r];
   const id="card"+(++cardRenderSerial);
-  const form=cardCoverForm(v),edition=FORM_ART[form],locked=!v;
+  const form=cardCoverForm(v),edition=FORM_ART[form],locked=!v,relay=cardRelay(key,v);
   v=v||{};
   const ink=edition?.ink||tier.hue,metal=edition?.metal||FRAME[r][1],dark=edition?.dark||tier.low;
   const custom=!opt.mini&&FRAMES_SHOP[COL.frame];
@@ -235,7 +242,7 @@ function cardSVG(code,v,opt={}){
   const size=Math.min(names.length===1?43:33,Math.floor(595/Math.max(...names.map(s=>s.length))));
   const level=v.n?cardLvl(v.n,key):0;
   const number=c.no?"№ "+String(c.no).padStart(3,"0"):key;
-  const description=[c.name,RAR[r].n,label,v.shiny?"Lesklá":"",level?"Hviezdy "+level+" zo 4":""].filter(Boolean).join(" · ");
+  const description=[c.name,RAR[r].n,label,v.shiny?"Lesklá":"",level?"Hviezdy "+level+" zo 4":"",relay?"Letová štafeta":""].filter(Boolean).join(" · ");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 588" data-card-form="${form||"classic"}" data-card-tier="${r}" data-card-level="${level}" role="img" aria-label="${SVGE(description)}" font-family="Inter,system-ui,sans-serif">
   <defs>
     <linearGradient id="metal${id}" x2=".85" y2="1"><stop stop-color="${edge}"/><stop offset=".23" stop-color="${edgeMid}"/><stop offset=".44" stop-color="${edge}"/><stop offset=".67" stop-color="${edgeMid}"/><stop offset=".88" stop-color="${edge}"/><stop offset="1" stop-color="${edgeMid}"/></linearGradient>
@@ -253,6 +260,7 @@ function cardSVG(code,v,opt={}){
   ${form?`<path d="M17 372h32l17 17v31H17Z" fill="${dark}" stroke="${edge}"/>
   <g transform="translate(26 381)" fill="none" stroke="${edge}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">${edition.mark}</g>`:""}
   ${cardTierStamp(r,locked)}
+  ${relay?relayMedallion():""}
   ${v.shiny?cardFoil(id,false):""}
   ${names.slice(0,2).map((line,i)=>`<text x="27" y="${names.length===1?481:464+i*35}" fill="#fff" font-size="${size}" font-weight="800" letter-spacing="-.75">${SVGE(line)}</text>`).join("")}
   <path d="M27 519H393" stroke="${ink}" stroke-opacity=".5"/>
@@ -265,6 +273,16 @@ if(!LS.get("ctl_onb",0))document.addEventListener("DOMContentLoaded",()=>{
   $("onbCard").innerHTML=cardSVG("B738",{n:1},{id:"intro",mini:true});
 },{once:true});
 
+HOOKS.social=HOOKS.social||[];
+HOOKS.social.push(data=>{
+  const latest=data?.relay?.[0];
+  if(!latest||!cardRelay(latest.type,COL.types[latest.type]))return;
+  const last=Number(LS.get("ctl_relaySeen",0))||0;
+  if(latest.t<=last)return;
+  LS.set("ctl_relaySeen",latest.t);
+  if(S.view==="col")renderCards();
+  toast("✦ Letová štafeta","Tomu istému preletu zamával niekto aj v inom kraji. Pozri si pečať v Zbierke.","#efc272");
+});
 const collectorFormCount=v=>Object.values((v&&v.forms)||{}).filter(Boolean).length;
 const collectorEditions=k=>Object.values(COL.ed||{}).filter(ed=>ed.ty===k);
 const collectorSpecial=(k,v)=>!!(v&&(v.shiny||(v.seq>0&&v.seq<=10)||RORD[typeTier(k)]>=2||collectorEditions(k).length||collectorFormCount(v)>=3));
@@ -470,10 +488,11 @@ function openCard(k,reveal,form){
   cardVisibleForm=hasCardForm(v,form)?form:cardCoverForm(v);
   modal.classList.remove("locked");
   const face=()=>{
-    const first=firstCatchNote(v);
+    const first=firstCatchNote(v),relay=cardRelay(k,v);
     root.innerHTML=`<h2 class="cardHeadline" tabindex="-1">${esc(catGuess(k).name)}</h2>
       <div class="holoWrap ${r} ${v.shiny?"shiny":""} ${reveal&&!RM()?"reveal":""}">${cardSVG(k,shownCard(v),{id:"b"})}</div>
       ${typeof reveal==="string"&&reveal.startsWith("Nová hviezda")?`<p class="cardLevelReward" role="status">${esc(reveal.split(" · ")[0])} · ${cardLvl(v.n,k)}/4</p>`:""}
+      ${relay?`<p class="relayProof">Letová štafeta · ${esc(KRAJ[relay.k][2])} a ${esc(KRAJ[relay.other][2])} kraj · ${new Date(relay.t).toLocaleDateString("sk-SK",{timeZone:"Europe/Bratislava"})}</p>`:""}
       ${cardFormPicker(v)}
       <p class="cardIdentity">${v.ver?"✓ Overená":v.n?"Neoverená":"Darovaná kópia"}${v.n?" · "+esc(cardProgress(k,v)):""}</p>
       ${first&&v.n?`<p class="cardFirstCatch">${esc(first)}</p>`:""}
@@ -529,6 +548,7 @@ $("cardBig").addEventListener("click",async e=>{
     const wrap=$("cardBig").querySelector(".holoWrap");
     wrap.classList.remove("reveal");
     wrap.innerHTML=cardSVG(cardK,v);
+    if(!RM())wrap.querySelector("svg").animate([{opacity:.55},{opacity:1}],{duration:240,easing:"ease-out"});
     for(const b of choice.parentElement.children)b.setAttribute("aria-pressed",String(b===choice));
     for(const tile of $("c-types").querySelectorAll(".mini[data-k]")){
       if(tile.dataset.k===cardK){
