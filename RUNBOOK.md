@@ -30,13 +30,19 @@
 - `ADMIN_KEY` – prístup na **správcovskú stránku** `https://cotoleti-app.radovan-kudela.workers.dev/admin` (kľúč sa píše do políčka, nikdy nie do adresy). Tam sú štatistiky, signály podozrivej aktivity a **vypínače** (Santa push, nedeľná vlna, šetriaci režim).
 - `TG_TOKEN`, `TG_CHAT` – týždenný súhrn na Telegram. Ak token unikne: v Telegrame @BotFather → /revoke a nový vlož sem.
 
-## 6. Zneužitie (spam, nevhodné mená)
-- Mená miznú automaticky po 3 nahláseniach. Ak treba zasiahnuť ručne, napíš Claudovi meno – pridá ho na zoznam zakázaných.
+## 6. Nahlásenia a odvolania
 
-## 7. Únik osobných údajov (GDPR)
-- Do **72 hodín** oznám Úradu na ochranu osobných údajov SR (dataprotection.gov.sk → Oznámenie porušenia). Ak ide o vysoké riziko pre ľudí, informuj aj ich (oznámenie v appke).
-- Zapíš si: čo sa stalo, kedy, aké údaje, koľko ľudí, čo si urobil. Napíš Claudovi, pomôže s textom.
-- Okamžite: vymeň `ADMIN_KEY`, prípadne `TG_TOKEN`; ak unikli tokeny používateľov, Claude zmení podpisový kľúč (všetci dostanú nové tokeny automaticky).
+- Priebežne otváraj správcu `/admin` a e-mail uvedený v pravidlách. Fronta ukáže dočasne skryté mená, odvolania aj nahlásenia čakajúce na rozhodnutie. Podnet priradíš k obsahu podľa názvu alebo prezývky.
+- Zaznamenaj rozhodnutie, dôvod a dátum. Pri e-mailovom podnete potvrď prijatie a odpovedz na adresu oznamovateľa. Dotknutému hráčovi oznám dôvod zásahu a spôsob odvolania. Nikdy nepreposielaj identitu oznamovateľa dotknutému hráčovi.
+- Zaznamenaj aj podnety, ktoré sa týkajú iného obsahu než mena. Tlačidlo v hre slúži na nahlásenie mena. Všeobecné podnety a odvolania prijíma zverejnený e-mail.
+
+## 7. Osobné údaje
+
+- Žiadosti posúď po primeranom overení vlastníka účtu. Odpovedaj bez zbytočného odkladu a spravidla do jedného mesiaca. Rozšírenie lehoty pri zložitom prípade oznám v prvom mesiaci.
+- Pri porušení ochrany osobných údajov zaznamenaj rozsah, dopad, čas zistenia a opatrenia. Úradu oznamuj bez zbytočného odkladu, podľa možností do 72 hodín od zistenia, pokiaľ nie je nepravdepodobné riziko pre dotknutých ľudí. Pri vysokom riziku informuj aj dotknutých ľudí, pokiaľ neplatí zákonná výnimka.
+- Po núdzovej obnove databázy over, že obnovou znovu nesprístupníš predtým vymazané účty. Ak sa do obnovenej databázy dostanú, odstráň ich pred sprístupnením služby.
+- Pred verejnou propagáciou založ do interných záznamov skutočné nastavenia uchovávania a prístupu, podmienky spracovateľov (najmä Cloudflare a GitHub), mechanizmy prenosu mimo EHP, licenciu konkrétneho dátového plánu a autorské práva k používaným podkladom. Doplň overené prenosy do zásad súkromia. Posúď právny základ jednotlivých funkcií vrátane GPS pre deti, potrebu posúdenia vplyvu a postavenie služby podľa DSA. Aplikácia používa lokálny PIN na nastavenia profilu.
+- Únik kľúča poskytovateľa rieš jeho rotáciou v službe poskytovateľa a aktualizáciou v Cloudflare Secrets. Po rotácii over úspešný dopyt v diagnostike.
 
 ## 8. Podozrivá aktivita (Telegram hlási sám, max. 1× za 6 h na typ)
 - `401admin` – niekto skúša admin kľúč → vymeň ho.
@@ -56,8 +62,9 @@
 - **Appka (GitHub Pages):** workflow `pages.yml` nasadí stránku až po zelených testoch. Zapnutie (raz): Settings → Pages → Source = **GitHub Actions**, potom Settings → Secrets and variables → Actions → **Variables** → `PAGES_Z_TESTOV` = `1`. Vrátenie: Source späť na „Deploy from a branch“ (main).
 - **Server (Cloudflare Builds):** nasadzuje sa pri pushi nezávisle od testov. Pred pushom zmeny servera spusti `node tests/worker.test.mjs`.
 
-## A/B test
-Každé zariadenie má natrvalo skupinu A alebo B (`ctl_ab`). Kroky lievika sa v /admin → 📊 Štatistiky → `lievik7dni` rátajú zvlášť, napr. `onboard:A` a `onboard:B`, `wave1:A` a `wave1:B`. Aktuálny pokus: text tlačidla v úvode (A „Povoliť polohu a ukázať oblohu“, B „Ukáž mi, čo letí nado mnou“). Víťaz = vyšší podiel `wave1` / `onboard`. Nový pokus: zmeň riadok pod `ABV` v js/ui.js.
+## Prevádzkové meranie
+
+A/B meranie a analytický lievik sú vypnuté. Staršie klienty dostanú pri volaní `/api/ev` úspešnú odpoveď bez zápisu. Počítadlo prevádzkových chýb ukladá kategórie `hello`, `wave`, `storage` a `runtime`.
 
 ## Pilot Letová štafeta
 

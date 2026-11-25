@@ -8,9 +8,8 @@ async function loadWx(){
   WX.loading=true;
   const lv=[400,300,250,200],hourly=lv.map(l=>"temperature_"+l+"hPa,relative_humidity_"+l+"hPa").join(",");
   const u=`https://api.open-meteo.com/v1/forecast?latitude=${S.pos.lat.toFixed(2)}&longitude=${S.pos.lon.toFixed(2)}&current=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,is_day,temperature_2m&hourly=${hourly}&forecast_days=2&timezone=auto`;
-  for(const rt of ROUTES){
-    try{const {ok,j}=await getJSON(rt.wrap(u),8000);if(ok&&j&&j.current){WX.data=j;WX.t=Date.now();WX.pos={...S.pos};break}}catch(e){}
-  }
+  try{const {ok,j}=await getJSON(ROUTES[0].wrap(u),8000);
+    if(ok&&j?.current){WX.data=j;WX.t=Date.now();WX.pos={...S.pos}}}catch(e){}
   if(Date.now()-WX.t>60e3){WX.fail=(WX.fail||0)+1;WX.next=Date.now()+Math.min(15*60e3,30e3*2**Math.min(5,WX.fail-1))}else{WX.fail=0;WX.next=0}
   WX.loading=false;
 }

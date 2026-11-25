@@ -10,7 +10,7 @@
 //  cron každú minútu → spoločný moment + blížiace sa sledované lety
 import { DurableObject } from "cloudflare:workers";
 
-const ALLOW = ["www.airport-data.com","api.adsbdb.com","celestrak.org","api.open-meteo.com"];
+const ALLOW = ["api.adsbdb.com","celestrak.org","api.open-meteo.com"];
 const API_BODY_BYTES = 4096;
 const TRANSFER_DATA_BYTES = 1_500_000;
 const TRANSFER_BODY_BYTES = 2 * TRANSFER_DATA_BYTES + 4096;
@@ -157,9 +157,13 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v92.1";
-const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
-const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
+const VERSION = "v94";
+const PLAYER_DATA_TABLES = [
+  "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
+  "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
+  "subs", "tracks", "msgs", "queue", "tmembers", "pres", "momentby", "reports",
+  "gcand", "xfer", "seen", "idday", "reminders", "streaks", "hidden", "mails"
+];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
 const lc = v => String(v || "").normalize("NFKC").trim().toLocaleLowerCase("sk");
 // IPv6: celý /64 blok je jeden človek (inak si útočník vie meniť adresu donekonečna)
@@ -213,6 +217,7 @@ export class Sky extends DurableObject {
       CREATE TABLE IF NOT EXISTS tmembers(id TEXT PRIMARY KEY, code TEXT, nick TEXT);
       CREATE TABLE IF NOT EXISTS tweek(code TEXT, wk TEXT, n INTEGER, PRIMARY KEY(code, wk));
       CREATE TABLE IF NOT EXISTS ids(id TEXT PRIMARY KEY, t INTEGER, iph TEXT);
+      CREATE TABLE IF NOT EXISTS revoked_devices(key TEXT PRIMARY KEY, proof TEXT);
       CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY, w INTEGER, n INTEGER);
       CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, PRIMARY KEY(a, b));
       CREATE TABLE IF NOT EXISTS reminders(id TEXT, at INTEGER, title TEXT, body TEXT, PRIMARY KEY(id, at));
@@ -283,6 +288,13 @@ export class Sky extends DurableObject {
     try { this.sql.exec("ALTER TABLE subs ADD COLUMN leg INTEGER DEFAULT 1"); } catch (e) {}
     this.sql.exec("CREATE TABLE IF NOT EXISTS streaks(id TEXT PRIMARY KEY, n INTEGER, day TEXT)");
     this.sql.exec("CREATE TABLE IF NOT EXISTS duelres(pid TEXT, t INTEGER, n TEXT, res TEXT)");
+    try { this.sql.exec("ALTER TABLE duelres ADD COLUMN src TEXT"); } catch (e) {}
+    try { this.sql.exec("ALTER TABLE teams ADD COLUMN owner TEXT"); } catch (e) {}
+    this.sql.exec("CREATE INDEX IF NOT EXISTS duelres_t ON duelres(t)");
+    if (!this.getMeta("privacy-v94")) {
+      this.sql.exec("DELETE FROM errs; DELETE FROM funnel");
+      this.setMeta("privacy-v94", "1");
+    }
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS typeseq_id ON typeseq(id)"); } catch (e) {}
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS typeseq_k ON typeseq(k, id)"); } catch (e) {}
   }
@@ -364,10 +376,15 @@ export class Sky extends DurableObject {
         this.sql.exec("DELETE FROM gcand WHERE day < ?", old);
         this.sql.exec("DELETE FROM msgs WHERE t < ?", now - 30 * 86400e3);
         this.sql.exec("DELETE FROM sig WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
-        // nečinné účty po 12 mesiacoch (bez upozornení a bez tímu) – podľa zásad súkromia
-        const yr = new Date(now - 365 * 86400e3).toISOString().slice(0, 10);
-        this.sql.exec("DELETE FROM nicks WHERE id IN (SELECT id FROM ids WHERE COALESCE(ls, '') < ? AND t < ?)", yr, now - 365 * 86400e3);
-        this.sql.exec("DELETE FROM ids WHERE COALESCE(ls, '') < ? AND t < ? AND id NOT IN (SELECT id FROM subs) AND id NOT IN (SELECT id FROM tmembers)", yr, now - 365 * 86400e3);
+        const yr = this.day(now - 365 * 86400e3);
+        const inactive = this.sql.exec("SELECT id, pid FROM ids WHERE pid IS NOT NULL AND COALESCE(ls, '') < ? AND t < ? LIMIT 100", yr, now - 365 * 86400e3).toArray();
+        for (const account of inactive) {
+          const erase = () => this.erasePlayerData(account.id, account.pid);
+          if (this.ctx.storage.transactionSync) this.ctx.storage.transactionSync(erase);
+          else erase();
+        }
+        this.sql.exec("DELETE FROM duelres WHERE t < ?", now - 3 * 86400e3);
+        this.sql.exec("DELETE FROM gifts WHERE used IS NULL AND t < ?", now - 14 * 86400e3);
         if (this.getMeta("catchClean") !== d) { this.setMeta("catchClean", d); this.sql.exec("DELETE FROM catches WHERE id NOT IN (SELECT id FROM ids)"); // 🏛️ uzávierka mesiaca: víťaz každého mesta ide do siene slávy a dostane odznak + upozornenie
           for (const w of this.sql.exec("SELECT m, town, id, MAX(n) AS n FROM mayorm WHERE m < ? GROUP BY m, town", d.slice(0, 7)).toArray()) {
             if (!w.n) continue; const nk = this.row("SELECT nick FROM nicks WHERE id=?", w.id), kid = this.isKid(w.id);
@@ -528,7 +545,47 @@ export class Sky extends DurableObject {
   // pozvánkový kľúč: bez neho sa nedá stať niečím kamarátom len zo znalosti verejného id
   async fk(pd, day = this.day()) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("fk:" + pd + ":" + day))).replace(/[^A-Za-z0-9]/g, "").slice(0, 10); }
   async fkOk(pd, fk) { for (const back of [0, 1, 2, 3, 4, 5, 6]) if (sameStr(await this.fk(pd, this.day(Date.now() - back * 86400e3)), String(fk || ""))) return true; return false; }
-  isKid(id) { const r = this.row("SELECT kid FROM ids WHERE id=?", id); return !!(r && r.kid); }
+  hideReportedName(name, why, now) {
+    this.sql.exec("INSERT OR IGNORE INTO banned(name, t, why, ok) VALUES(?, ?, ?, 0)", name, now, why);
+    for (const r of this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 50", name).toArray()) this.sql.exec("INSERT OR REPLACE INTO hidden(id, name, t, appeal) VALUES(?, ?, ?, 0)", r.id, name, now);
+    this.sql.exec("UPDATE nicks SET nick='Spotter', lc='spotter' WHERE lc=?", name); this.sql.exec("UPDATE tmembers SET nick='Spotter', lc='spotter' WHERE lc=?", name);
+    this.sql.exec("UPDATE mails SET nick='', lc='' WHERE lc=?", name); this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code) WHERE lc=?", name);
+    for (const r of this.sql.exec("SELECT rowid AS k, wnick AS v FROM golden").toArray()) if (lc(r.v) === name) this.sql.exec("UPDATE golden SET wnick='Spotter' WHERE rowid=?", r.k);
+  }
+  async revokedKey(id, token = "") {
+    const signed = await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("revoked:" + id + (token ? ":" + token : "")));
+    return b64u(signed);
+  }
+  erasePlayerData(id, pd) {
+    this.sql.exec("DELETE FROM maildel WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
+    this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
+    this.sql.exec("DELETE FROM gifts WHERE id=?", id);
+    this.sql.exec("UPDATE gifts SET used='deleted' WHERE used=?", id);
+    this.sql.exec("DELETE FROM duelres WHERE pid=? OR src=?", pd, id);
+    this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
+    this.sql.exec("DELETE FROM refs WHERE pid=?", pd);
+    this.sql.exec("DELETE FROM rl WHERE k LIKE ?", "%:" + id);
+    this.sql.exec("DELETE FROM meta WHERE k=? OR k LIKE ?", "sp:" + id, "la:%:" + id);
+    this.sql.exec("UPDATE golden SET wid=NULL, wnick='Spotter', wk=NULL, wtown='' WHERE wid=?", id);
+    for (const table of PLAYER_DATA_TABLES) this.sql.exec(`DELETE FROM ${table} WHERE id=?`, id);
+    this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code), owner=NULL WHERE owner=?", id);
+    this.sql.exec("DELETE FROM ids WHERE id=?", id);
+    this._div = null;
+  }
+  unsubscribePlayer(id) {
+    for (const table of ["subs", "msgs", "queue", "reminders", "tracks"]) this.sql.exec(`DELETE FROM ${table} WHERE id=?`, id);
+  }
+  enableKidMode(id, pd) {
+    this.sql.exec("UPDATE ids SET kid=1 WHERE id=?", id);
+    this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
+    this.sql.exec("DELETE FROM duelres WHERE pid=? OR src=?", pd, id);
+    this.sql.exec("UPDATE golden SET wnick='Spotter', wk=NULL, wtown='' WHERE wid=?", id);
+    this.sql.exec("UPDATE mayorhof SET nick='Spotter' WHERE id=?", id);
+    this.sql.exec("UPDATE mails SET nick='', lc='', town='', k='XX' WHERE id=?", id);
+    this.sql.exec("UPDATE gcand SET nick='Spotter', k='XX', town='' WHERE id=?", id);
+    for (const table of ["relay_waves", "nicks", "tmembers"]) this.sql.exec(`DELETE FROM ${table} WHERE id=?`, id);
+    this.unsubscribePlayer(id);
+  }
   async tokE(id, ep) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("id:" + id + (ep ? ":" + ep : "")))).slice(0, 24); }
   async tok(id) { const r = this.row("SELECT ep FROM ids WHERE id=?", id); return this.tokE(id, r ? r.ep || 0 : 0); }
   async tokOld(id) { return b64u(await crypto.subtle.sign("HMAC", await this.secret(), new TextEncoder().encode("id:" + id))).slice(0, 24); }
@@ -538,7 +595,7 @@ export class Sky extends DurableObject {
     const r = this.row("SELECT ep FROM ids WHERE id=?", id);
     if (r) return sameStr(await this.tokE(id, r.ep || 0), tok);
     // platný token, ale účet chýba v tabuľke (starší alebo stratený záznam) – zaregistrovať a pustiť ďalej
-    if (!Number(this.getMeta("player_reset_epoch") || 0) && id.length >= 16 && sameStr(await this.tokE(id, 0), tok)) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
+    if (!Number(this.getMeta("player_reset_epoch") || 0) && id.length >= 16 && sameStr(await this.tokE(id, 0), tok) && !this.row("SELECT key FROM revoked_devices WHERE key=?", await this.revokedKey(id))) { this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', 0)", id, Date.now()); return true; }
     return false;
   }
   bump(k) { try { this.sql.exec("INSERT INTO sig(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", this.day(), k); } catch (e) {} }
@@ -895,6 +952,7 @@ export class Sky extends DurableObject {
       if (Number(b.epoch||0)!==epoch) return json({error:"reset",epoch},409);
       const ex = this.row("SELECT ep FROM ids WHERE id=?", id);
       if (!ex) {
+        if (this.row("SELECT key FROM revoked_devices WHERE key=?", await this.revokedKey(id))) return json({error: "moved"}, 401);
         // starší používateľ s platným tokenom (z čias pred tabuľkou ids) – zaregistrovať bez limitu
         const legacy = epoch === 0 && !!b.tok && sameStr(await this.tokE(id, 0), b.tok);
         // limit nových zariadení na IP je vysoký: iCloud Private Relay a mobilní operátori zdieľajú IP medzi tisíckami ľudí
@@ -914,20 +972,18 @@ export class Sky extends DurableObject {
       const pd = await this.pid(id);
       this.sql.exec("UPDATE ids SET pid=? WHERE id=? AND pid IS NULL", pd, id);
       // detský režim sa z appky dá pri každom prihlásení len ZAPNÚŤ (vypnutie ide cez /api/kid)
-      if (b.kid === 1 && !this.isKid(id)) this.sql.exec("UPDATE ids SET kid=1 WHERE id=?", id);
+      if (b.kid === 1 && !this.isKid(id)) this.enableKidMode(id, pd);
       return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd),epoch});
     }
-    if (p === "/api/ev" && req.method === "POST") {
-      // anonymné počítadlo krokov (bez id, bez IP) – lievik
-      const b = await body(), st = String(b.step || ""), v = /^[AB]$/.test(b.v || "") ? ":" + b.v : "";
-      const beta = BETA_STEPS.includes(st);
-      if ((!beta && !EVS.includes(st)) || !this.rate("ev:" + iph, 60, 3600e3)) return json({ok: true});
-      this.sql.exec("INSERT INTO funnel(day, step, n) VALUES(?, ?, 1) ON CONFLICT(day, step) DO UPDATE SET n = n + 1", d, beta ? st : st + v);
-      return json({ok: true});
-    }
+    if (p === "/api/ev" && req.method === "POST") return json({ok: true});
     if (p === "/api/err" && req.method === "POST") {
-      const b = await body(), msg = String(b.m || "").replace(/https?:\/\/\S+/g, "").slice(0, 160);
-      if (msg && this.rate("err:" + iph, 20, 3600e3)) this.sql.exec("INSERT INTO errs(day, msg, n) VALUES(?, ?, 1) ON CONFLICT(day, msg) DO UPDATE SET n = n + 1", d, msg);
+      const message = (await body()).m;
+      if (typeof message !== "string" || !message || !this.rate("err:" + iph, 20, 3600e3)) return json({ok: true});
+      let kind = "runtime";
+      if (/^hello\b/i.test(message)) kind = "hello";
+      if (/^wave fail\b/i.test(message)) kind = "wave";
+      if (/^quota\b/i.test(message)) kind = "storage";
+      this.sql.exec("INSERT INTO errs(day, msg, n) VALUES(?, ?, 1) ON CONFLICT(day, msg) DO UPDATE SET n = n + 1", d, kind);
       return json({ok: true});
     }
     if (p === "/api/xclaim" && req.method === "POST") {
@@ -948,7 +1004,7 @@ export class Sky extends DurableObject {
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {
       if (!this.rate("post:" + iph, 1500, 60e3)) { this.bump("429:post"); return json({error: "rate"}, 429); }
       const b = await body();
-      if (!(await this.authed(cleanId(b.id), b.tok))) { this.bump("401"); return json({error: "auth"}, 401); }
+      if (p !== "/api/forget" && !(await this.authed(cleanId(b.id), b.tok))) { this.bump("401"); return json({error: "auth"}, 401); }
     }
     // parametre z tela (POST) alebo z adresy (staré verzie appky)
     const B = req.method === "POST" ? await body() : {};
@@ -1117,7 +1173,7 @@ export class Sky extends DurableObject {
       const trusted = !acc || now - (acc.t || 0) > 600e3 || (sb && now - sb.t < 300e3 && sb.h.has(hex));
       const league = trusted && fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 5000, 86400e3);
       const k = fair && dd ? dd.k : "XX";
-      const nk = this.nm(b.nick);
+      const nk = this.isKid(id) ? "" : this.nm(b.nick);
       if (nk) this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
       if (nk) this.sql.exec("DELETE FROM hidden WHERE id=?", id); // nové (alebo vrátené) meno platí – oznam o skrytí zmizne
       // zápis prvý (atomicky) – dve rýchle mávnutia sa nezapočítajú dvakrát
@@ -1207,8 +1263,8 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;
-      this.sql.exec("UPDATE ids SET kid=? WHERE id=?", on, id);
-      if (on) { this.sql.exec("DELETE FROM relay_waves WHERE id=?", id); const pd = await this.pid(id); this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd); this.sql.exec("DELETE FROM nicks WHERE id=?", id); this.sql.exec("DELETE FROM subs WHERE id=?", id); }
+      if (on) this.enableKidMode(id, await this.pid(id));
+      else this.sql.exec("UPDATE ids SET kid=0 WHERE id=?", id);
       return json({ok: true, kid: on});
     }
     if (p === "/api/division" && req.method === "POST") {
@@ -1239,10 +1295,19 @@ export class Sky extends DurableObject {
       return json({friends: out, me: wk(pd), meC: cc(cleanId(b.id))});
     }
     if (p === "/api/mydata" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), pd = await this.pid(id), out = {vytvorene: new Date((this.row("SELECT t FROM ids WHERE id=?", id) || {t: 0}).t).toISOString()};
-      const q = (t, w, v) => this.sql.exec(`SELECT * FROM ${t} WHERE ${w}=?`, v).toArray().map(r => { delete r.id; delete r.iph; delete r.lc; return r; });
-      for (const t of ["wavelog", "relay_waves", "idday", "nicks", "subs", "tracks", "mails", "tmembers", "seen", "gcand", "mission_waves"]) out[t] = q(t, "id", id);
+      const b = await body(), id = cleanId(b.id), pd = await this.pid(id);
+      const account = this.row("SELECT t, ls, kid FROM ids WHERE id=?", id);
+      const out = {vytvorene: new Date(account.t).toISOString(), poslednaAktivita: account.ls, detskyRezim: !!account.kid};
+      for (const table of PLAYER_DATA_TABLES) {
+        if (table === "xfer") continue; // jednorazový prístupový kód
+        out[table] = this.sql.exec(`SELECT * FROM ${table} WHERE id=?`, id).toArray().map(({id, lc, sub, other, ...row}) => row);
+      }
       out.kamarati = (this.row("SELECT COUNT(*) AS c FROM friends WHERE a=?", pd) || {c: 0}).c;
+      out.pozvanky = (this.row("SELECT n FROM refs WHERE pid=?", pd) || {n: 0}).n;
+      out.gifts = this.sql.exec("SELECT type, t, CASE WHEN id=? THEN 'sent' ELSE 'received' END AS direction FROM gifts WHERE id=? OR used=?", id, id, id).toArray();
+      out.duelres = this.sql.exec("SELECT t, res, CASE WHEN src=? THEN 'sent' ELSE 'received' END AS direction FROM duelres WHERE pid=? OR src=?", id, pd, id).toArray();
+      out.teams = this.sql.exec("SELECT name, t FROM teams WHERE owner=?", id).toArray();
+      out.golden = this.sql.exec("SELECT day, seq, type, wnick, wk, wtown, wt FROM golden WHERE wid=?", id).toArray();
       return json(out);
     }
     if (p === "/api/xfer" && req.method === "POST") {
@@ -1306,14 +1371,21 @@ export class Sky extends DurableObject {
           const f = l.match(/^(\d{4}-\d{2}-\d{2})\s+([A-Z0-9]{3,8})$/); if (f) fi.push({d: f[1], call: f[2], txt}); else if (/^[A-Z0-9-]{3,8}$/.test(l)) lv[l] = txt; }
         this.setMeta("specials", JSON.stringify({lv, fi})); this._spec = null;
       }
-      if (b.unban) { this.sql.exec("DELETE FROM banned WHERE name=?", lc(b.unban)); this.sql.exec("UPDATE hidden SET appeal=3 WHERE name=?", lc(b.unban)); } // 3 = meno vrátené (appka ho ukáže)
+      if (b.unban) { this.sql.exec("DELETE FROM banned WHERE name=?", lc(b.unban)); this.sql.exec("DELETE FROM reports WHERE name=?", lc(b.unban)); this.sql.exec("UPDATE hidden SET appeal=3 WHERE name=?", lc(b.unban)); } // 3 = meno vrátené (appka ho ukáže)
+      if (b.hideReport) {
+        const name = lc(b.hideReport);
+        const report = this.row("SELECT why FROM reports WHERE name=? ORDER BY t DESC LIMIT 1", name);
+        if (report) this.hideReportedName(name, report.why || "ine", now);
+      }
+      if (b.dismissReport) this.sql.exec("DELETE FROM reports WHERE name=?", lc(b.dismissReport));
       if (b.confirm) { this.sql.exec("UPDATE banned SET ok=1, appeal=0 WHERE name=?", lc(b.confirm)); this.sql.exec("UPDATE hidden SET appeal=2 WHERE name=?", lc(b.confirm)); } // 2 = zamietnuté
       const sig = this.sql.exec("SELECT day, k, n FROM sig WHERE day >= ? ORDER BY day DESC, n DESC", this.day(now - 3 * 86400e3)).toArray();
       const fronta = this.sql.exec("SELECT name, why || CASE WHEN COALESCE(appeal, 0)=1 THEN ' · ✋ ODVOLANIE' ELSE '' END AS why, t FROM banned WHERE COALESCE(ok, 0)=0 OR COALESCE(appeal, 0)=1 ORDER BY COALESCE(appeal, 0) DESC, t DESC LIMIT 30").toArray();
+      const pending = this.sql.exec("SELECT name, MAX(t) AS t, COUNT(*) AS count FROM reports WHERE name NOT IN (SELECT name FROM banned) GROUP BY name ORDER BY t DESC LIMIT 30").toArray();
       let overenie = null;
       if (b.nick) { const ids = this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 3", lc(String(b.nick))).toArray().map(r => r.id);
         overenie = ids.map(i => ({karticky: (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE id=?", i) || {c: 0}).c, mavnutia: this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 15", i).toArray()})); }
-      return json({flags: this.flags(), naKontrolu: fronta, signaly: sig, overenie, specials: JSON.parse(this.getMeta("specials") || '{"lv":{},"fi":[]}')});
+      return json({flags: this.flags(), naKontrolu: fronta, podnety: pending, signaly: sig, overenie, specials: JSON.parse(this.getMeta("specials") || '{"lv":{},"fi":[]}')});
     }
     if (p === "/api/appeal" && req.method === "POST") {
       // ✋ odvolanie: hráč, ktorému sme skryli meno, požiada o ľudskú kontrolu (raz)
@@ -1326,31 +1398,28 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/report" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), name = lc(b.name).slice(0, 24);
-      if (!name || name === "spotter") return json({ok: true});
+      if (!name || name === "spotter") return json({error: "name"}, 400);
       if (!this.rate("rep:" + id, 10, 86400e3) || !this.rate("repip:" + iph, 100, 86400e3)) return json({error: "rate"}, 429);
       const acct = this.row("SELECT t FROM ids WHERE id=?", id), days = (this.row("SELECT COUNT(*) AS c FROM seen WHERE id=?", id) || {c: 0}).c;
-      if (!acct || now - acct.t < 86400e3 || days < 2) return json({ok: true}); // nové účty sa nerátajú
+      const trusted = acct && now - acct.t >= 86400e3 && days >= 2;
       const exists = ["nicks", "teams", "mails", "tmembers"].some(t => this.row(`SELECT 1 AS x FROM ${t} WHERE lc=? LIMIT 1`, name));
-      if (!exists) return json({ok: true});
+      if (!exists) return json({error: "gone"}, 404);
       const why = ["urazlive", "sikana", "osobne", "sex", "ine"].includes(b.why) ? b.why : "ine";
       this.sql.exec("INSERT OR IGNORE INTO reports(name, id, t, why) VALUES(?, ?, ?, ?)", name, id, now, why);
-      const n = (this.row("SELECT COUNT(*) AS c FROM reports WHERE name=?", name) || {c: 0}).c;
+      const n = (this.row("SELECT COUNT(*) AS c FROM reports r JOIN ids i ON i.id=r.id WHERE r.name=? AND i.t <= ? AND (SELECT COUNT(*) FROM seen s WHERE s.id=i.id) >= 2", name, now - 86400e3) || {c: 0}).c;
       const serious = why === "osobne" || why === "sex";
-      if (n >= 3 || serious) { // vážne (osobné údaje, sexuálny obsah) skryjeme hneď, inak po 3 nahláseniach – a rozhodne človek v /admin
-        this.sql.exec("INSERT OR IGNORE INTO banned(name, t, why, ok) VALUES(?, ?, ?, 0)", name, now, why);
-        for (const r of this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 50", name).toArray()) this.sql.exec("INSERT OR REPLACE INTO hidden(id, name, t, appeal) VALUES(?, ?, ?, 0)", r.id, name, now);
-        this.sql.exec("UPDATE nicks SET nick='Spotter', lc='spotter' WHERE lc=?", name); this.sql.exec("UPDATE tmembers SET nick='Spotter', lc='spotter' WHERE lc=?", name);
-        this.sql.exec("UPDATE mails SET nick='', lc='' WHERE lc=?", name); this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code) WHERE lc=?", name);
-        for (const r of this.sql.exec("SELECT rowid AS k, wnick AS v FROM golden").toArray()) if (lc(r.v) === name) this.sql.exec("UPDATE golden SET wnick='Spotter' WHERE rowid=?", r.k);
-        this.bump("ban"); this.alert("ban", `🚩 Skryté meno „${name}“ (${why}) – potvrď alebo zruš v /admin`);
+      const hidden = n >= 3 || (serious && !!trusted);
+      if (hidden) {
+        this.hideReportedName(name, why, now);
+        this.bump("ban"); this.alert("ban", "🚩 Meno čaká na kontrolu v /admin");
       }
-      return json({ok: true});
+      return json({ok: true, hidden});
     }
     if (p === "/api/friend" && req.method === "POST") {
       const b = await body(), me = await this.pid(cleanId(b.id)), other = String(b.pid || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16);
       if (other.length !== 16 || other === me) return json({error: "bad"}, 400);
       if (!(await this.fkOk(other, b.fk))) return json({error: "expired"}, 400);
-      if (this.isKid(cleanId(b.id))) return json({error: "kid"}, 403);
+      if (this.isKid(cleanId(b.id)) || this.row("SELECT 1 AS x FROM ids WHERE pid=? AND kid=1", other)) return json({error: "kid"}, 403);
       if (!this.rate("friend:" + iph, 500, 86400e3)) return json({error: "rate"}, 429);
       this.sql.exec("INSERT OR IGNORE INTO friends(a, b) VALUES(?, ?)", me, other);
       this.sql.exec("INSERT OR IGNORE INTO friends(a, b) VALUES(?, ?)", other, me);
@@ -1358,19 +1427,19 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/forget" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
+      if (id.length < 8 || typeof b.tok !== "string" || !b.tok) return json({error: "auth"}, 401);
+      const revokedKey = await this.revokedKey(id);
+      const proof = await this.revokedKey(id, b.tok);
+      const revoked = this.row("SELECT proof FROM revoked_devices WHERE key=?", revokedKey);
+      if (revoked) return sameStr(revoked.proof || "", proof) ? json({ok: true}) : json({error: "auth"}, 401);
       if (!(await this.authed(id, b.tok))) return json({error: "auth"}, 401);
       const pd = await this.pid(id);
-      for (const t of ["wavewhy", "typeseq", "edcatch", "gifts", "catches", "mayorm", "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks", "subs", "tracks", "msgs", "tmembers", "pres", "momentby", "ids"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
-        // náhrobok: starý token sa už nedá použiť ani na samoopravu účtu
-        this.sql.exec("INSERT OR IGNORE INTO ids(id, t, iph, ep) VALUES(?, ?, '', ?)", id, Date.now(), 1e6 + Math.floor(Math.random() * 1e6));
-      this.sql.exec("DELETE FROM maildeliv WHERE mid IN (SELECT mid FROM mails WHERE id=?)", id);
-      this.sql.exec("DELETE FROM mails WHERE id=?", id);
-      this.sql.exec("DELETE FROM friends WHERE a=? OR b=?", pd, pd);
-      this.sql.exec("UPDATE golden SET wid=NULL, wnick='Spotter', wtown='' WHERE wid=?", id);
-      this.sql.exec("DELETE FROM seen WHERE id=?", id);
-      this.sql.exec("DELETE FROM idday WHERE id=?", id);
-      for (const t of ["reports", "queue", "gcand", "xfer"]) this.sql.exec(`DELETE FROM ${t} WHERE id=?`, id);
-      this.sql.exec("DELETE FROM refs WHERE pid=?", pd);
+      const erase = () => {
+        this.sql.exec("INSERT OR IGNORE INTO revoked_devices(key, proof) VALUES(?, ?)", revokedKey, proof);
+        this.erasePlayerData(id, pd);
+      };
+      if (this.ctx.storage.transactionSync) this.ctx.storage.transactionSync(erase);
+      else erase();
       return json({ok: true});
     }
     if (p === "/api/mail" && req.method === "POST") {
@@ -1392,12 +1461,12 @@ export class Sky extends DurableObject {
     if (p === "/api/team" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), nick = this.nm(b.nick) || "Spotter";
       if (id.length < 8) return json({error: "bad"}, 400);
-      if (this.isKid(id) && b.action === "create") return json({error: "kid"}, 403); // deti sa môžu pridať do tímu, ale nezakladajú verejný názov
+      if (this.isKid(id) && b.action !== "leave") return json({error: "kid"}, 403);
       if (b.action === "create") {
         const name = this.nm(b.name, 24); if (!name) return json({error: "name"}, 400);
         if (!this.rate("team:" + iph, 40, 86400e3)) return json({error: "rate"}, 429);
         let code; do { code = Array.from({length: 6}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join(""); } while (this.row("SELECT 1 AS x FROM teams WHERE code=?", code));
-        this.sql.exec("INSERT INTO teams(code, name, t, lc) VALUES(?, ?, ?, ?)", code, name, now, lc(name));
+        this.sql.exec("INSERT INTO teams(code, name, t, lc, owner) VALUES(?, ?, ?, ?, ?)", code, name, now, lc(name), id);
         this.sql.exec("INSERT INTO tmembers(id, code, nick, lc, jt) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET code=excluded.code, nick=excluded.nick, lc=excluded.lc, jt=CASE WHEN tmembers.code=excluded.code THEN tmembers.jt ELSE excluded.jt END", id, code, nick, lc(nick), now);
         return json({ok: true, code, name});
       }
@@ -1442,11 +1511,15 @@ export class Sky extends DurableObject {
     if (p === "/api/duelres" && req.method === "POST") {
       // ⚔️ výsledok súboja kartičiek pre vyzývateľa (v appke + upozornenie)
       const b = await body(), id = cleanId(b.id), to = String(b.to || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16), res = String(b.res || "").replace(/[^0-9:]/g, "").slice(0, 5);
-      if (!to || !res || this.isKid(id) || !this.rate("dres:" + id, 20, 86400e3)) return json({ok: false});
+      if (!to || !res || this.isKid(id) || this.row("SELECT 1 AS x FROM ids WHERE pid=? AND kid=1", to) || !this.rate("dres:" + id, 20, 86400e3)) return json({ok: false});
       const nk = (this.row("SELECT nick FROM nicks WHERE id=?", id) || {}).nick || "Kamarát";
-      this.sql.exec("INSERT INTO duelres(pid, t, n, res) VALUES(?, ?, ?, ?)", to, now, nk, res);
+      this.sql.exec("INSERT INTO duelres(pid, t, n, res, src) VALUES(?, ?, ?, ?, ?)", to, now, nk, res, id);
       const wid = (this.row("SELECT id FROM wavelog WHERE pid=? LIMIT 1", to) || {}).id;
       if (wid && this.row("SELECT 1 AS x FROM subs WHERE id=?", wid)) { const [a1, b1] = res.split(":").map(Number); this.notify(wid, "⚔️ " + nk + (a1 > b1 ? " ťa porazil(a) " : a1 < b1 ? " prehral(a) s tebou " : " remizoval(a) ") + res, "Súboj kartičiek – daj si odvetu!", "./"); }
+      return json({ok: true});
+    }
+    if (p === "/api/unsub" && req.method === "POST") {
+      this.unsubscribePlayer(cleanId((await body()).id));
       return json({ok: true});
     }
     if (p === "/api/subopt" && req.method === "POST") {
@@ -1505,6 +1578,7 @@ export class Sky extends DurableObject {
       const b = await body(), id = cleanId(b.id), cs = cleanCs(b.cs);
       if (id.length < 8) return json({error: "bad"}, 400);
       if (!cs || b.off) { this.sql.exec("DELETE FROM tracks WHERE id=?" + (cs ? " AND cs=?" : ""), ...(cs ? [id, cs] : [id])); return json({ok: true}); }
+      if (this.isKid(id)) return json({error: "kid"}, 403);
       if ((this.row("SELECT COUNT(*) AS c FROM tracks WHERE id=? AND cs<>?", id, cs) || {c: 0}).c >= 5) return json({error: "limit"}, 429);
       if (!/^[A-Z]{2,3}[0-9][0-9A-Z]{0,4}$|^[A-Z0-9]{3,8}$/.test(cs) || !this.rate("trk:" + iph, 400, 86400e3)) return json({error: "limit"}, 429);
       this.sql.exec("INSERT INTO tracks(id, cs, label, lat, lon, notified, t) VALUES(?, ?, ?, ?, ?, 0, ?) ON CONFLICT(id, cs) DO UPDATE SET label=excluded.label, lat=excluded.lat, lon=excluded.lon, notified=0, t=excluded.t",
@@ -1677,7 +1751,7 @@ $("missionSave").onclick=async()=>{
     else status.textContent="Tento týždeň: "+j.currentGoal+" mávnutí. Od pondelka: "+j.missionGoal+" mávnutí.";
   }catch(e){status.textContent="Spojenie so serverom zlyhalo."}
 };
-const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});if(!(j.naKontrolu||[]).length)qb.textContent="Nič na kontrolu 👍"};
+const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});for(const z of j.podnety||[]){const d=document.createElement("div");d.style.padding="10px";d.textContent=z.name+" · nahlásenia: "+z.count+" ";const no=document.createElement("button");no.textContent="Uzavrieť podnet";no.onclick=()=>Q({dismissReport:z.name});const hide=document.createElement("button");hide.textContent="Skryť meno";hide.onclick=()=>Q({hideReport:z.name});d.append(hide,no);qb.append(d)}if(!qb.hasChildNodes())qb.textContent="Nič na kontrolu 👍"};
 $("q").onclick=()=>Q();
 $("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx").value});const s=j.specials||{lv:{},fi:[]};o.textContent="Uložené: "+Object.keys(s.lv).length+" náterov, "+s.fi.length+" prvých letov"};
 let wipeNonce="";
@@ -1746,7 +1820,6 @@ async function sharePage(url, env, ctx) {
   // obrázok s mestom pre veľké mestá (pripravené v og/m/)
   { const m = cleanName(url.searchParams.get("m"), 24) || ""; if ((kind === "santa" || kind === "p") && BIG_TOWNS.includes(m)) img = "m/" + (kind === "santa" ? "santa-" : "let-") + m.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]+/g, "-"); }
   const r = /^[A-Za-z0-9]{16}$/.test(url.searchParams.get("r") || "") ? url.searchParams.get("r") : "";
-  if (env.SKY && ctx && ctx.waitUntil) ctx.waitUntil(env.SKY.get(env.SKY.idFromName("slovensko")).fetch(new Request("https://do/api/ev", {method: "POST", body: JSON.stringify({step: "click"})})).catch(() => {}));
   const to = APP_URL + (r ? "?r=" + r : "") + (hash ? "#" + hash : "");
   const html = `<!doctype html><html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${he(title)}</title>
 <meta property="og:title" content="${he(title)}"><meta property="og:description" content="${he(desc)}"><meta property="og:image" content="${OGI + img}.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -1820,7 +1893,7 @@ export default {
     if (origin && !APP_ORIGINS.includes(origin)) return new Response("nepovolené", {status: 403, headers: CORS});
     let t;
     try { t = new URL(raw); } catch (e) { return new Response("zlá adresa", {status: 400, headers: CORS}); }
-    const PATHS = {"api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/, "www.airport-data.com": /^\/api\/ac_thumb\.json$/};
+    const PATHS = {"api.adsbdb.com": /^\/v0\//, "celestrak.org": /^\/NORAD\/elements\/gp\.php$/, "api.open-meteo.com": /^\/v1\/forecast$/};
     if (t.protocol === "https:" && t.hostname === "api.adsb.lol" && !t.search && env.SKY) {
       const point = /^\/v2\/point\/(-?[0-9.]+)\/(-?[0-9.]+)\/([0-9]+)$/.exec(t.pathname);
       const call = /^\/v2\/callsign\/([A-Z]{3}[0-9]{1,4}[A-Z]?)$/.exec(t.pathname);

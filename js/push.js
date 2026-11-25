@@ -7,7 +7,7 @@ const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigat
 const u8=s=>{s=s.replace(/-/g,"+").replace(/_/g,"/");s+="===".slice((s.length+3)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
 async function swTell(){try{const r=await navigator.serviceWorker.ready;await ensureTok();(r.active||navigator.serviceWorker.controller)?.postMessage({cid:SOC.cid,api:SOC.api,tok:TOK})}catch(e){}}
 async function enablePush(silent){
-  if(!SOC.api)return false;
+  if(!SOC.api||KID())return false;
   if(!pushSupported()){
     if(!silent)toast(isIOS()&&!isStandalone()?"📲 Najprv si pridaj appku na plochu":"Upozornenia tu nefungujú",isIOS()&&!isStandalone()?"Ťukni Zdieľať ⬆️ → Pridať na plochu, potom ju otvor z plochy":"Skús iný prehliadač");
     return false;
@@ -19,12 +19,29 @@ async function enablePush(silent){
     const {key}=await fetch(SOC.api+"/api/vapid").then(r=>r.json());
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
-    await apiPost("/api/sub",{sub:{endpoint:sub.toJSON().endpoint},...posR(),moment:PUSH.moment});
+    const response=await apiPost("/api/sub",{sub:{endpoint:sub.toJSON().endpoint},...posR(),moment:PUSH.moment});
+    if(!response.ok)throw Error("subscription");
     PUSH.on=true;LS.set("ctl_push",true);LS.set("ctl_pushT",Date.now());swTell();syncPushUI();
     return true;
   }catch(e){if(!silent)toast("Upozornenia sa nepodarilo zapnúť","Skontroluj, či máš appku pridanú na plochu, a skús znova.");return false}
 }
+$("b-push-off").onclick=async()=>{
+  try{
+    const response=await apiPost("/api/unsub",{});
+    if(!response.ok)throw Error("subscription");
+  }catch(e){toast("Upozornenia sa nepodarilo vypnúť","Skús znova, keď budeš online.");return}
+  PUSH.on=false;LS.set("ctl_push",false);syncPushUI();
+  try{
+    const registration=await navigator.serviceWorker?.getRegistration();
+    const subscription=await registration?.pushManager?.getSubscription();
+    await subscription?.unsubscribe();
+    await caches.delete("ctl-id");
+  }catch(e){}
+  toast("Upozornenia vypnuté","Ďalšie upozornenia z hry už tento profil nedostane.");
+};
 function syncPushUI(){
+  $("pushOffRow").style.display=PUSH.on&&!KID()?"":"none";
+  $("pushOffRow").hidden=!PUSH.on||KID();
   $("t-moment").classList.toggle("on",PUSH.on&&PUSH.moment);
   $("momStat").textContent=PUSH.on&&PUSH.moment?"Zapnuté ✓ – dám ti vedieť":"Upozornenie, keď sa celé Slovensko pozrie hore";
 }
@@ -36,7 +53,7 @@ $("t-moment").onclick=async()=>{
 // ponuka (priming) – až pri 2. návšteve a len raz
 function maybeAskPush(){
   // ponúkni hneď, keď človek niečo zažil (úlovok/mávnutie), nie až pri 2. návšteve
-  if(!SOC.api||PUSH.on||LS.get("ctl_pushAsked",false)||!COL.n||document.querySelector(".modal.on"))return;
+  if(!SOC.api||KID()||PUSH.on||LS.get("ctl_pushAsked",false)||!COL.n||document.querySelector(".modal.on"))return;
   // pri sérii 2+ ponúkni upozornenia ako strážcu série (najsilnejší dôvod)
   const st=typeof streakLive==="function"?streakLive().n:0;
   if(st>=2)$("pushAskTxt").textContent=`🔥 ${st} ${pl(st,"deň","dni","dní")} v rade! Mám ti pripomenúť, keď ti séria bude chýbať? Raz denne aj spoločný moment.`+(isIOS()&&!isStandalone()?" Na iPhone najprv pridaj appku na plochu (Zdieľať ⬆️ → Pridať na plochu).":"");

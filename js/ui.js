@@ -114,7 +114,7 @@ function skySize(){const cv=$("sky");if(!cv)return;const d=Math.min(2,devicePixe
   const top=header.bottom-r.top+8,end=bottom.top-r.top-7;
   SKY.R=Math.max(32,Math.min((end-top)/2-8,SKY.W*.41,152));
   SKY.cx=SKY.W/2;SKY.cy=(top+end)/2;
-  SKY.bgKey="";SKY.sw=null;
+  SKY.bgKey="";SKY.sw=null;SKY.paintedT=0;
   if(!SKY.mq&&window.matchMedia)SKY.mq=matchMedia("(prefers-reduced-motion: reduce)");
   if(!SKY.io&&"IntersectionObserver" in window){SKY.io=new IntersectionObserver(e=>{SKY.vis=e[e.length-1].isIntersecting});SKY.io.observe(cv)}}
 const skyRot=()=>S.heading!=null?-S.heading:0;
@@ -225,7 +225,7 @@ function skyFrame(){
       s.P=P;s.F=F;s.du=u;s.dv=v}
     const isTop=a.hex===topHex,isGold=a.hex===gold,low=a.el<10,r=rarity(a),col=isGold?"#ffcf4f":RAR[r].col;
     const isNew=!!(a.type&&!a.santa&&typeof COL!=="undefined"&&!(COL.types[a.type]&&COL.types[a.type].n));
-    const waved=!!SOC.waved[today];
+    const waved=!!SOC.waved[today+a.hex];
     const p=skyUV(s.u,s.v);pts.push({hex:a.hex,x:p.x,y:p.y,a,s,isTop,isGold,low,col,isNew,waved});
   }
   // kresli od najnižších po vybrané (vybrané navrchu)
@@ -262,6 +262,7 @@ function skyFrame(){
   c.fillStyle="#fff";c.beginPath();c.arc(cx,cy,4,0,7);c.fill();
   c.font="700 9px Inter, sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillStyle="#d4eeef";c.fillText("TY",cx,cy+13);
   SKY.pts=pts.map(q=>({hex:q.hex,x:q.x,y:q.y}));
+  if(SKY.paintedT!==S.rawT){SKY.paintedT=S.rawT;renderRadarHeader(S.top)}
   // upratanie vyhladených polôh (lietadlá, ktoré zmizli)
   if(now-(SKY.gc||0)>5000){SKY.gc=now;for(const [h,s] of SKY.sm)if(now-s.seen>5000)SKY.sm.delete(h)}
   SKY.cost=SKY.cost*.9+(performance.now()-tNow)*.1;
@@ -274,7 +275,7 @@ function skyTap(ev){
 }
 
 function renderRadarHeader(a){
-  const stale=skyStale(),state=!S.pos?"waiting":stale?"stale":S.loaded&&!S.failN?"live":"waiting";
+  const stale=skyStale(),state=!S.pos?"waiting":stale?"stale":S.loaded&&!S.failN&&S.rawT>0&&SKY.paintedT===S.rawT?"live":"waiting";
   const badge=$("radarState");
   const label=!S.pos?"Čaká na polohu":stale?"Posledná poloha":state==="live"?"Naživo":S.failN?"Nedostupné":"Načítavam";
   if(badge.dataset.state!==state)badge.dataset.state=state;
@@ -317,17 +318,12 @@ function renderHeroStatic(a){
   $("h-call").textContent=rt&&!stale?"→ "+citySk(rt.destination.municipality||rt.destination.name):(al||titleOf(a));
   $("h-type").textContent=[rt&&al?al:"",typeName(a,m),rt||al?(a.priv?"":titleOf(a)):""].filter(Boolean).join(" · ");
   // núdzový kód: žiadna hra ani zdieľanie, neutrálny text
-  const emg=!!a.emg,disabled=emg||stale||!!SOC.inflight;$("b-wave").disabled=disabled;$("b-wave").style.opacity=disabled?.5:1;$("b-share").style.display=emg||a.priv||stale?"none":"";
+  const emg=!!a.emg,disabled=emg||stale||S.manual||!!SOC.inflight;$("b-wave").disabled=disabled;$("b-wave").style.opacity=disabled?.5:1;$("b-share").style.display=emg||a.priv||stale?"none":"";
   if(emg)setTimeout(()=>{if(S.top&&S.top.hex===a.hex)$("h-quip").textContent="Lietadlo hlási neobvyklý kód. Hra je pre tento let vypnutá."},0);
   $("spotLine").textContent=[a.priv?"":a.reg,a.fl!=null?"FL"+String(a.fl).padStart(3,"0"):"",a.kt!=null?a.kt+" kt":"",a.vr!=null?(a.vr>0?"+":"")+Math.round(a.vr)+" ft/min":"",a.sq&&!a.priv?"sq "+a.sq:""].filter(Boolean).join(" · ");
   if(rt&&!stale){$("r-o").textContent=rt.origin.iata_code||rt.origin.icao_code||"?";$("r-on").textContent=citySk(rt.origin.municipality||rt.origin.name);
     $("r-d").textContent=rt.destination.iata_code||rt.destination.icao_code||"?";$("r-dn").textContent=citySk(rt.destination.municipality||rt.destination.name);$("h-route").classList.add("on")}
   else $("h-route").classList.remove("on");
-  $("h-photo").classList.remove("on");
-  if(!a.priv)photoOf(a.hex).then(p=>{
-    if(!p||!S.top||S.top.hex!==a.hex)return;
-    const img=new Image();img.onload=()=>{if(S.top&&S.top.hex===a.hex){$("h-photo").style.backgroundImage="url('"+img.src.replace(/'/g,"%27")+"')";$("h-photo").classList.add("on");
-      $("h-photo").querySelector("small").innerHTML='foto © '+esc(p.by)+' · <a href="'+esc(p.link)+'" target="_blank" rel="noopener">airport-data.com</a>'}};img.onerror=()=>{if(img.src!==p.thumb){p.img=p.thumb;img.src=p.thumb}};img.src=p.img});
   $("h-quip").textContent="";
   $("hero").classList.toggle("emerg",a.sq==="7700");
   guessUI(a,rt);
@@ -338,7 +334,7 @@ function renderHeroStatic(a){
 function renderHeroLive(a){
   if(!a)return;
   const stale=skyStale()&&!a.santa;
-  const wave=$("b-wave"),disabled=stale||a.emg||!!(typeof SOC!=="undefined"&&SOC.inflight);
+  const wave=$("b-wave"),disabled=stale||S.manual||a.emg||!!(typeof SOC!=="undefined"&&SOC.inflight);
   if(wave.disabled!==disabled)wave.disabled=disabled;
   wave.style.opacity=disabled?.5:1;
   const el=Math.max(0,a.el??0);
@@ -435,12 +431,17 @@ function firstWaveNext(a){
 
 function renderFirstWaveGuide(a){
   const hint=$("firstWaveHint"),button=$("firstWaveAction");
-  const [text,label,action]=(!firstWaveGuide||firstWaveVerified)&&a&&!S.manual&&S.loaded&&!S.failN&&!skyStale()&&navigator.onLine?[]:firstWaveNext(a);
+  const needsAction=S.manual||skyStale()||S.failN||!S.pos||!navigator.onLine;
+  const [text,label,action]=(!firstWaveGuide||firstWaveVerified)&&a&&!needsAction&&S.loaded?[]:firstWaveNext(a);
+  const hasPrimary=!!label&&(S.manual||skyStale()||S.failN);
+  $("b-wave").hidden=hasPrimary;
+  $("b-ar").hidden=hasPrimary;
   if(hint.textContent!==(text||""))hint.textContent=text||"";
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
   const existingLocationChoice=!S.pos&&($("heroCities")||$("posBtns").style.display==="flex");
   button.hidden=!label||!!existingLocationChoice||(action===expandRadar&&!!$("eRad"));
+  button.dataset.primary=String(hasPrimary);
   $("waveHint").hidden=!!text;
 }
 
@@ -679,7 +680,7 @@ function welcomeGift(){if(!LS.get("ctl_ref","")||LS.get("ctl_welcome",0)||(typeo
   const pool=["A320","B738","A21N","A319","B38M","E190"].filter(k=>!(COL.types[k]&&COL.types[k].n)),k=pool[Math.floor(Math.random()*pool.length)];if(!k)return;
   COL.types[k]=COL.types[k]||{n:0,r:typeTier(k),name:catGuess(k).name,first:Date.now()};COL.types[k].gift={from:"kamarát (uvítanie)",t:Date.now()};LS.set("ctl_col",COL);
   setTimeout(()=>toast("🎁 Uvítací darček od kamaráta","Kartička "+catGuess(k).name+" 🤝 – keď takému lietadlu zamávaš, bude celá tvoja"),5000)}
-function closeOnb(){LS.set("ctl_onb",1);onbDone();setTimeout(welcomeGift,1000);$("onb").classList.add("hide");setTimeout(()=>$("onb").style.display="none",460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
+function closeOnb(){if(LS.get("ctl_kid",null)===null)LS.set("ctl_kid",$("onbKid").checked);LS.set("ctl_onb",1);kidApply();onbDone();setTimeout(welcomeGift,1000);$("onb").classList.add("hide");setTimeout(()=>$("onb").style.display="none",460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
 $("go").onclick=()=>{closeOnb();ev("onboard");LS.set("ctl_manual",false);startGps();if(S.pos)fetchPlanes(true)};
 // kompas sa pýta až keď ho treba (ťuk na kompas / Nájdi) – nie dva systémové dialógy po sebe
 /* 📍 zmena miesta jedným ťukom na pilulku hore */
@@ -766,27 +767,10 @@ setInterval(nightApply,60000);setTimeout(nightApply,3000);
 const openFriends=()=>{if(/tim=|vyzva=/.test(location.hash))$("friendsBox").open=true};
 openFriends();addEventListener("hashchange",openFriends);
 
-/* ============ 📊 anonymné meranie (bez id, bez IP) + hlásenie chýb ============ */
-// 🧪 Existujúce zariadenia si ponechajú skupinu A alebo B pre historické počítadlá; lievik v /admin ukáže kroky zvlášť (napr. wave1:A vs wave1:B)
-const ABV=(()=>{let v=LS.get("ctl_ab","");if(!/^[AB]$/.test(v)){v=Math.random()<.5?"A":"B";LS.set("ctl_ab",v)}return v})();
-const betaFirstDay=(()=>{
-  const stored=LS.get("ctl_beta_day","");
-  if(stored)return stored;
-  if(LS.get("ctl_onb",0)||LS.get("ctl_ev",{}).open)return "";
-  const today=new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Bratislava"});
-  LS.set("ctl_beta_day",today);
-  return today;
-})();
-function betaStep(step){
-  if(betaFirstDay)ev("beta_"+step);
-}
-function ev(step){
-  try{const done=LS.get("ctl_ev",{});if(done[step])return;done[step]=1;LS.set("ctl_ev",done);
-    fetch(DEFAULT_PROXY+"/api/ev",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(step.startsWith("beta_")?{step}:{step,r:LS.get("ctl_ref",""),v:ABV}),keepalive:true}).catch(()=>{})}catch(e){}
-}
-{let errN=0;const rep=m=>{if(errN++>5)return;try{navigator.sendBeacon&&navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:String(m).slice(0,200)}))}catch(e){}};
-  addEventListener("error",e=>rep((e.message||"err")+" @"+String(e.filename||"").split("/").pop()+":"+e.lineno));
-  addEventListener("unhandledrejection",e=>rep("promise: "+(e.reason&&e.reason.message||e.reason)));}
+/* Voliteľná produktová analytika je vypnutá. */
+function ev(){}
+function betaStep(){}
+const betaFirstDay="";
 // kto ma pozval (odkaz ?r=)
 {const r=new URLSearchParams(location.search).get("r");
   if(r&&/^[A-Za-z0-9]{16}$/.test(r)&&!LS.get("ctl_ref","")&&!LS.get("ctl_onb",0)){LS.set("ctl_ref",r);ev("ref_join")}
@@ -927,7 +911,7 @@ document.addEventListener("click",e=>{const m=e.target;if(m.classList&&m.classLi
 try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
 
 /* ============ 🧒 režim pre deti do 16 rokov (bez prezývky, pošty, kamarátov a upozornení) ============ */
-const KID=()=>LS.get("ctl_kid",false);
+const KID=()=>LS.get("ctl_kid",!LS.get("ctl_onb",0));
 function kidApply(){const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);$("nick").disabled=k;if(k){LS.set("ctl_nick","");$("nick").value="";LS.set("ctl_pushAsked",true)}}
 function kidSet(on){LS.set("ctl_kid",on);kidApply();if(typeof apiPost==="function")apiPost("/api/kid",{on:on?1:0}).catch(()=>{})}
 // 🔒 rodičovský PIN: chráni vypnutie detského režimu, prenos zbierky a mazanie
@@ -938,13 +922,13 @@ $("t-kid").onclick=()=>{
   if(KID()){if(LS.get("ctl_kpin","")){if(!kidPinOk("vypnúť detský režim"))return}else{const a=6+Math.floor(Math.random()*7),b=13+Math.floor(Math.random()*7),r=prompt("🔒 Len pre rodiča: koľko je "+a+" × "+b+"?\n(Rodičovský PIN nie je nastavený.)","");if(r===null)return;if(parseInt(r,10)!==a*b){toast("🔒 Nesprávne","Detský režim ostáva zapnutý – požiadaj rodiča");haptic([60,40,60]);return}}kidSet(false);LS.set("ctl_kpin","")}
   else{kidSet(true);setTimeout(kidPinSet,300)}
   haptic(6)};
-if($("onbKid"))$("onbKid").onchange=e=>{kidSet(e.target.checked);if(e.target.checked)setTimeout(kidPinSet,300)};
+if($("onbKid")){$("onbKid").checked=KID();$("onbKid").onchange=e=>kidSet(e.target.checked)};
 kidApply();
 $("b-mydata").onclick=async()=>{
-  try{const r=await apiPost("/api/mydata",{});const j=await r.json();
-    const sum=`Na serveri o tebe máme:\n• ${j.wavelog?j.wavelog.length:0} ${pl(j.wavelog?j.wavelog.length:0,"mávnutie","mávnutia","mávnutí")} (posledných 8 dní)\n• ${j.subs&&j.subs.length?"zapnuté upozornenia":"žiadne upozornenia"}\n• ${j.nicks&&j.nicks[0]?"prezývku „"+j.nicks[0].nick+"“":"žiadnu prezývku"}\n• ${j.kamarati||0} kamarátov\n\nStiahnuť všetko ako súbor?`;
+  try{const r=await apiPost("/api/mydata",{});if(!r.ok)throw Error("export");const j=await r.json();
+    const sum=`Export z tohto prehliadača môže obsahovať uloženú polohu. Uchovaj ho súkromne.\n\nNa serveri o tebe máme:\n• ${j.wavelog?j.wavelog.length:0} ${pl(j.wavelog?j.wavelog.length:0,"mávnutie","mávnutia","mávnutí")} (posledných 8 dní)\n• ${j.subs&&j.subs.length?"zapnuté upozornenia":"žiadne upozornenia"}\n• ${j.nicks&&j.nicks[0]?"prezývku „"+j.nicks[0].nick+"“":"žiadnu prezývku"}\n• ${j.kamarati||0} kamarátov\n\nStiahnuť všetko ako súbor?`;
     if(!confirm(sum))return;
-    const blob=new Blob([JSON.stringify({zariadenie:Object.fromEntries(Object.keys(localStorage).filter(k=>k.startsWith("ctl_")&&!/tok|cid|fk/.test(k)).map(k=>[k,localStorage.getItem(k)])),server:j},null,1)],{type:"application/json"});
+    const blob=new Blob([JSON.stringify({zariadenie:Object.fromEntries(Object.keys(localStorage).filter(k=>k.startsWith("ctl_")&&!/^ctl_p[A-Z]:/.test(k)&&k!=="ctl_profs"&&!/tok|cid|fk|pin|wq|push/i.test(k)).map(k=>[k,localStorage.getItem(k)])),server:j},null,1)],{type:"application/json"});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="moje-udaje-cotoleti.json";a.click();toast("📄 Údaje stiahnuté","Súbor moje-udaje-cotoleti.json");
   }catch(e){toast("Bez internetu","Skús to znova")}
 };
@@ -982,17 +966,6 @@ $("list").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const 
     if(dy>70){busyP=true;haptic(12);ptr.classList.add("spin");ptr.style.transform="translate(-50%,24px)";try{await fetchPlanes(true)}catch(e){}
       setTimeout(()=>{ptr.classList.remove("spin");ptr.style.transform="";ptr.style.rotate="";busyP=false},500)}
     else{ptr.style.transform="";ptr.style.rotate=""}},{passive:true});}
-
-/* 📷 fotka lietadla len s menom autora (autorské práva) */
-const PHOTO=new Map();
-function photoOf(hex){
-  if(PHOTO.has(hex))return PHOTO.get(hex);
-  const pr=getJSON(MYPROXY+"/?url="+encodeURIComponent("https://www.airport-data.com/api/ac_thumb.json?m="+hex.toUpperCase()+"&n=1"),6000).then(({ok,j})=>{
-    const d=ok&&j&&j.data&&j.data[0];if(!d||!d.photographer||!/^https:\/\//.test(d.image||""))return null;
-    return {img:d.image.replace("/thumbnails/","/"),thumb:d.image,by:String(d.photographer).slice(0,40),link:/^https:\/\//.test(d.link||"")?d.link:"https://www.airport-data.com/"};
-  }).catch(()=>null);
-  PHOTO.set(hex,pr);return pr;
-}
 
 /* 👀 zazreté (bez bodov) – „Včera nad tebou“; uloviť sa dá len zamávaním */
 function seenLog(list){

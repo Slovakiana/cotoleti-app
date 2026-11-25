@@ -731,8 +731,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 @media(max-height:660px){#stage{height:292px!important;min-height:0!important}}
 @media(prefers-reduced-motion:reduce){.holoWrap.reveal svg [data-level-star]{animation:none!important}}
 #map.leaflet-container{background:#121e30}
+#v-now,#top{max-width:780px;margin-inline:auto}
+#v-now{scroll-padding-bottom:calc(var(--bot) + 126px)}
+#stage{isolation:isolate}
+#radarWaveZone,#radarSelection{color:#e0f7ee}
+#firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
+#b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=93">
+<link rel="stylesheet" href="lib/journal.css?v=94">
 </head>
 <body>
 <div id="bg"></div>
@@ -749,7 +755,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
   <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
-  <label class="fine kidLbl"><input type="checkbox" id="onbKid"> <span><b>🧒 Hrá dieťa (do 16 rokov)</b><br>bez prezývky, pozdravov, kamarátov a upozornení · rodič nastaví PIN</span></label>
+  <label class="fine kidLbl"><input type="checkbox" id="onbKid" checked> <span><b>🧒 Detský režim (do 16 rokov)</b><br>Dospelý hráč ho môže odškrtnúť. Detský režim obmedzí spoločenské funkcie.</span></label>
 </div>
 
 <header id="top">
@@ -834,7 +840,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <details class="more glass" id="more">
     <summary>Detail letu <small>trasa · foto · zvuk</small></summary>
     <div class="moreIn">
-      <div class="photo" id="h-photo"><small>foto: airport-data.com</small></div>
       <div class="route" id="h-route">
         <div class="ap"><b id="r-o">—</b><span id="r-on"></span></div><div>✈️</div><div class="ap r"><b id="r-d">—</b><span id="r-dn"></span></div>
       </div>
@@ -863,7 +868,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <p class="huntHomeDetail" id="huntHomeDetail">V Atlase vyber typ lietadla, po ktorom pátraš.</p>
     <button class="huntHomeGo" type="button" id="huntHomeGo">🃏 Vyber v Atlase</button>
   </section>
-  <footer>Dáta: adsb.lol (ODbL), airplanes.live, <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>, adsbdb.com, CelesTrak, Open-Meteo (CC BY 4.0).<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie a zdroje</a></footer>
+  <footer>Dáta: <a href="rules.html#zdroje">ADSB.lol (ODbL 1.0), Open‑Meteo a ďalšie zdroje</a>.<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie</a> · <a href="rules.html">Pravidlá hry</a></footer>
 </main>
 
 <main id="v-journal" class="view">
@@ -992,6 +997,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="sr"><div>🧒 Detský režim (do 16 rokov)<small>Bez prezývky, pozdravov, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
     <div class="setH">Upozornenia a hra</div>
     <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
+    <div class="sr" id="pushOffRow" style="display:none" hidden><div>Upozornenia<small>Vypne upozornenia a sledovanie letov na tomto profile.</small></div><button class="ghost" id="b-push-off">Vypnúť</button></div>
     <div class="sr"><div>🔥 Pripomienka série<small>Hodinu pred tvojím obvyklým mávaním, keď máš sériu 3+ dni</small></div><button class="tog" id="t-streakp" role="switch" aria-label="Pripomienka série"></button></div>
     <div class="sr"><div>♛ Vzácne lietadlo pri mne<small>Upozornenie max. 1× denne, keď blízko letí epické alebo legendárne lietadlo</small></div><button class="tog" id="t-leg" role="switch" aria-label="Vzácne lietadlo pri mne"></button></div>
     <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess" role="switch" aria-label="Tipovačka"></button></div>
@@ -1098,18 +1104,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 <div class="modal" id="privM" role="dialog" aria-modal="true" aria-label="Súkromie a zdroje"><div class="mcard">
   <div class="lbl"><span>🔒 Súkromie a zdroje</span></div>
   <div class="lookSub" style="margin-top:12px;line-height:1.55;color:var(--txt)">
-  <b>Kto appku prevádzkuje.</b> Čo to letí? je nekomerčný projekt. Kontakt a žiadosti o údaje: <a href="https://github.com/Slovakiana/cotoleti-app/issues" target="_blank" rel="noopener">github.com/Slovakiana/cotoleti-app</a>.<br><br>
-  <b>Čo appka zbiera.</b> Presná poloha zostáva v mobile. Na náš server (Cloudflare) posielame len: náhodné id zariadenia, polohu zaokrúhlenú na ~1 km (na výpočet kraja a mesta, kontrolu lietadla nad tebou a pri upozorneniach), prezývku, ak si ju zadáš, tvoje mávnutia, pozdravy, tím, kamarátov a sledované lety. Z IP adresy server zistí krajinu a približnú oblasť (na ochranu súťaží) – IP adresu ani jej odtlačok k tvojmu účtu neukladáme, na obmedzenie počtu požiadaviek používame odtlačok, ktorý sa každý deň mení a do 24 h maže. Anonymne (bez id a IP) počítame, koľko ľudí prešlo jednotlivými krokmi appky a aké chyby nastali.<br><br>
-  <b>Na čo a na akom základe.</b> Aby fungovalo mávanie, rebríčky, pošta a ochrana súťaží (oprávnený záujem a poskytovanie služby), upozornenia len s tvojím súhlasom (dá sa kedykoľvek vypnúť).<br><br>
-  <b>Ako dlho.</b> Mávnutia, pozdravy a denné rebríčky 8 dní · denné mesto a kraj do polnoci · záznam o návštevách 35 dní · upozornenia 90 dní od poslednej obnovy · správy upozornení 30 dní · sledovaný let 36 hodín · nahlásenia 30 dní · id zariadenia a prezývka do 12 mesiacov nečinnosti · tím, kým ho neopustíš. Body a zbierka sú len v tvojom mobile.<br><br>
-  <b>Deti.</b> Ak máš menej ako 16 rokov, zapni v nastaveniach „Detský režim (do 16 rokov)“ – appka potom nepoužíva prezývku, pozdravy, kamarátov ani upozornenia.<br><br>
-  <b>Kamaráti a pozdravy.</b> Kamarátom sa stanete len cez pozvánku platnú 7 dní a obaja to potvrdíte; v záložke Ja ho kedykoľvek odoberieš. Pozdravy od cudzích ukazujú len kraj odosielateľa, deti ich nedostávajú.<br><br>
-  <b>Tvoje práva.</b> V nastaveniach si údaje stiahneš („Moje údaje“) alebo zmažeš („Zmazať moje údaje“ – zo servera aj z mobilu, token prestane platiť). Sťažnosť môžeš podať Úradu na ochranu osobných údajov SR.<br><br>
-  <b>Komu sa dáta dostanú.</b> Cloudflare (server a databáza), GitHub (hosting appky), Apple/Google/Mozilla (doručenie upozornení, len ak ich zapneš), Google Fonts a CDN unpkg/jsDelivr/cdnjs (písmo a knižnice mapy a satelitov – vidia tvoju IP pri stiahnutí). Niektorí sídlia v USA (EU-US Data Privacy Framework). Dáta o lietadlách sťahuje náš server bez tvojich údajov.<br><br>
-  <b>Pravidlá.</b> Nepoužívaj skutočné meno, školu ani triedu. Nikomu nesľubuj stretnutie. Všetko podozrivé nahlás 🚩. Prezývka ani názov tímu nesmú byť urážlivé ani obsahovať cudzie osobné údaje – nevhodné mená server odmieta a po nahlásení skryje. Zlaté lietadlo sa žrebuje zo všetkých, ktorí mu zamávali – odmenou sú len body v hre, žiadne ceny; pri podozrení z podvodu body neuznáme. Údaje o lietadlách sú orientačné, nie na navigáciu ani bezpečnosť. Názvy aerolinkí sú ochranné známky ich vlastníkov, appka s nimi nie je spojená.<br><br>
-  <b>Zdroje dát.</b> Mapa pasu: <a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noopener">Natural Earth</a> · logá: <a href="https://www.bts.aero/kontakty/pre-cestujucich/letecke-spolocnosti/" target="_blank" rel="noopener">Letisko Bratislava</a>, <a href="https://github.com/imgmongelli/airlines-logos-dataset" target="_blank" rel="noopener">Airline Logos Dataset</a> a <a href="https://github.com/Jxck-S/airline-logos" target="_blank" rel="noopener">Airline and Operator Logos</a> · údaje o značkách: <a href="https://soaringsymbols.org/" target="_blank" rel="noopener">Soaring Symbols</a> ·  Lietadlá: adsb.lol (ODbL 1.0), airplanes.live, adsb.fi, The OpenSky Network, adsbdb.com · fotky lietadiel: airport-data.com, © autori · satelity: CelesTrak, výpočet satellite.js · počasie: Open-Meteo.com (CC BY 4.0) · mapa: Natural Earth.
-  </div>
-  <div class="acts"><button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
+  <p>Hru prevádzkuje Radovan Kúdela, súkromná osoba. Otázky k údajom posielaj na <a href="mailto:radovan.kudela@icloud.com">radovan.kudela@icloud.com</a>.</p>
+  <p><a href="privacy.html">Súkromie a práva hráča</a> · <a href="rules.html">Pravidlá hry</a> · <a href="rules.html#nahlasenie">Nahlásenie obsahu</a> · <a href="rules.html#zdroje">Zdroje a licencie</a></p>
+  <button class="ghost" id="privClose" style="flex:1">Zavrieť</button></div>
 </div></div>
 <div class="modal" id="instM" role="dialog" aria-modal="true" aria-label="Pridať na plochu"><div class="mcard">
   <div class="lbl"><span>📲 Pridaj si appku na plochu</span></div>
@@ -1127,7 +1124,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </div></div>
 <div class="modal" id="repM" role="dialog" aria-modal="true" aria-label="Nahlásiť meno"><div class="mcard">
   <div class="lbl"><span>🚩 Nahlásiť <b id="repName"></b></span></div>
-  <div class="lookSub" style="margin:8px 0 12px">Prečo? Pri osobných údajoch alebo sexuálnom obsahu meno hneď skryjeme. Každé nahlásenie skontroluje človek do 24 hodín.</div>
+  <div class="lookSub" style="margin:8px 0 12px">Vyber dôvod. Nahlásenie posúdime. Obsah môže byť počas kontroly skrytý. Ďalšie podnety môžeš poslať cez <a href="rules.html#nahlasenie">kontaktné údaje v pravidlách</a>.</div>
   <div class="repOpts">
     <button data-why="urazlive">🤬 Urážlivé alebo vulgárne</button>
     <button data-why="sikana">😢 Šikanovanie</button>
@@ -1177,26 +1174,26 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=93"></script>
-<script src="js/ui.js?v=93"></script>
-<script src="js/ar.js?v=93"></script>
-<script src="js/space.js?v=93"></script>
-<script src="js/weather.js?v=93"></script>
-<script src="js/extras.js?v=93"></script>
-<script src="js/social.js?v=93"></script>
-<script src="js/wrapped.js?v=93"></script>
-<script src="js/push.js?v=93"></script>
-<script src="js/track.js?v=93"></script>
-<script src="js/towns.js?v=93"></script>
-<script src="js/catalog.js?v=93"></script>
-<script src="js/cards.js?v=93"></script>
-<script src="js/journal.js?v=93"></script>
-<script src="js/mail.js?v=93"></script>
-<script src="js/golden.js?v=93"></script>
-<script src="js/teams.js?v=93"></script>
-<script src="js/duel.js?v=93"></script>
-<script src="js/sound.js?v=93"></script>
-<script src="js/santa.js?v=93"></script>
-<script src="js/main.js?v=93"></script>
+<script src="js/core.js?v=94"></script>
+<script src="js/ui.js?v=94"></script>
+<script src="js/ar.js?v=94"></script>
+<script src="js/space.js?v=94"></script>
+<script src="js/weather.js?v=94"></script>
+<script src="js/extras.js?v=94"></script>
+<script src="js/social.js?v=94"></script>
+<script src="js/wrapped.js?v=94"></script>
+<script src="js/push.js?v=94"></script>
+<script src="js/track.js?v=94"></script>
+<script src="js/towns.js?v=94"></script>
+<script src="js/catalog.js?v=94"></script>
+<script src="js/cards.js?v=94"></script>
+<script src="js/journal.js?v=94"></script>
+<script src="js/mail.js?v=94"></script>
+<script src="js/golden.js?v=94"></script>
+<script src="js/teams.js?v=94"></script>
+<script src="js/duel.js?v=94"></script>
+<script src="js/sound.js?v=94"></script>
+<script src="js/santa.js?v=94"></script>
+<script src="js/main.js?v=94"></script>
 </body>
 </html>

@@ -398,6 +398,23 @@ await t("pripomienka preletu ISS", async () => {
   assert.equal(r.s, 200);
   const row = db.prepare("SELECT body FROM reminders WHERE id=?").get(A); assert.ok(!row.body.includes("<"));
 });
+await t("detský režim zabráni novým odberom aj pripojeniu cez pozvánku", async () => {
+  const id = "v2novydetskyprofil000001";
+  const child = (await call("/api/hello", {id, kid: 1}, "11.12.13.14")).j;
+  const post = (path, body) => call(path, {id, tok: child.tok, ...body}, "11.12.13.14");
+  assert.equal((await post("/api/team", {action: "join", code: "TEST"})).s, 403);
+  assert.equal((await post("/api/track", {cs: "WZZ321"})).s, 403);
+  assert.equal((await post("/api/sub", {sub: {endpoint: "https://fcm.googleapis.com/fcm/send/child"}})).s, 403);
+  assert.equal((await call("/api/friend", {id: A, tok: ha.tok, pid: child.pid, fk: child.fk})).s, 403);
+  const reportTarget = "Podnet na kontrolu";
+  await call("/api/team", {id: C, tok: hc.tok, action: "create", name: reportTarget}, "9.9.9.9");
+  assert.deepEqual((await post("/api/report", {name: reportTarget, why: "osobne"})).j, {ok: true, hidden: false});
+  const admin = await call("/api/admin", {key: "tajne"});
+  assert.ok(admin.j.podnety.some(row => row.name === reportTarget.toLowerCase()));
+  const dbTeam = db.prepare("SELECT code FROM teams WHERE name=?").get(reportTarget);
+  db.prepare("DELETE FROM teams WHERE code=?").run(dbTeam.code);
+  assert.equal((await post("/api/forget", {})).s, 200);
+});
 await t("nevhodné meno zmizne po 3 nahláseniach", async () => {
   await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Zlý tím"}, "9.9.9.9");
   db.exec("UPDATE ids SET t=0"); for (const x of [A, B, C]) for (const dd of ["2000-01-02", "2000-01-03"]) db.exec(`INSERT OR IGNORE INTO seen(day, id) VALUES('${dd}', '${x}')`);
@@ -417,15 +434,14 @@ await t("IPv6 z jedného bloku = jedna sieť", async () => {
   const codes = []; for (let i = 0; i < 42; i++) codes.push((await call("/api/hello", {id: "v2yyyyyyyyyyyyyyyyyyy" + String(i).padStart(2, "0")}, "2001:db8:1:2:" + (i % 9) + "::1")).s);
   assert.deepEqual(codes.slice(-2), [429, 429], codes.join(","));
 });
-await t("lievik a chyby sa počítajú anonymne", async () => {
-  await call("/api/ev", {step: "open"}); await call("/api/ev", {step: "nieco"}); await call("/api/err", {m: "TypeError x at https://a.b/c.js"});
-  assert.equal(db.prepare("SELECT n FROM funnel WHERE step='open'").get().n, 1);
-  assert.equal(db.prepare("SELECT COUNT(*) c FROM funnel").get().c, 1);
-  assert.ok(!db.prepare("SELECT msg FROM errs").get().msg.includes("https"));
-  for(const step of ["beta_open","beta_gps","beta_wave","beta_verified","beta_return"]){
-    await call("/api/ev",{step,v:"A"});
-    assert.equal(db.prepare("SELECT n FROM funnel WHERE step=?").get(step).n,1);
+await t("analytický lievik je vypnutý a diagnostika zapisuje len pevné kódy", async () => {
+  for (const step of ["open", "beta_open", "beta_verified"]) {
+    assert.equal((await call("/api/ev", {step, v: "A"})).s, 200);
   }
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM funnel").get().c, 0);
+  await call("/api/err", {m: "TypeError x at https://a.b/c.js"});
+  await call("/api/err", {m: "wave fail 503/busy"});
+  assert.deepEqual(db.prepare("SELECT msg FROM errs ORDER BY msg").all().map(r => r.msg), ["runtime", "wave"]);
 });
 await t("vážne nahlásenie skryje meno hneď, admin ho vie vrátiť", async () => {
   await call("/api/team", {id: C, tok: hc.tok, action: "create", name: "Janka Novakova"}, "9.9.9.9");
@@ -451,8 +467,7 @@ await t("štatistiky len s kľúčom", async () => {
 
   const r = await W.fetch(new Request("https://x/api/stats", {headers: {"x-admin-key": "tajne"}}), env); const j = await r.json();
   assert.equal(r.status, 200); assert.ok(j.days.length === 14);
-  assert.equal(j.lievik7dni.beta_verified,1);
-  assert.equal(j.lievik7dni["beta_verified:A"],undefined);
+  assert.deepEqual(j.lievik7dni, {});
   assert.equal((await call("/api/export")).s, 404); // export celej databázy je zrušený
 });
 await t("moje údaje sa dajú stiahnuť", async () => { const r = await call("/api/mydata", {id: C, tok: hc.tok}); assert.equal(r.s, 200); assert.ok(Array.isArray(r.j.wavelog)); assert.ok(!JSON.stringify(r.j).includes(C)); });
@@ -462,7 +477,18 @@ await t("cudzí účet nie je možné vymazať bez jeho platného tokenu", async
   assert.equal(db.prepare("SELECT COUNT(*) c FROM ids WHERE id=?").get(A).c, 1);
 });
 await t("zmazanie údajov zruší aj token", async () => {
-  await call("/api/forget", {id: A, tok: ha.tok});
+  db.prepare("INSERT OR REPLACE INTO streaks(id, n, day) VALUES(?, 8, '2026-11-25')").run(A);
+  db.prepare("INSERT INTO duelres(pid,t,n,res,src) VALUES(?,?,?,?,?)").run(hb.pid,Date.now(),"Vlastná prezývka","1:2",A);
+  const exported = await call("/api/mydata", {id: A, tok: ha.tok});
+  assert.equal(exported.j.streaks[0].n, 8);
+  assert.equal(exported.j.duelres[0].direction, "sent");
+  assert.equal((await call("/api/forget", {id: A, tok: ha.tok})).s, 200);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM ids WHERE id=?").get(A).c, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM streaks WHERE id=?").get(A).c, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM duelres WHERE src=?").get(A).c, 0);
+  assert.equal((await call("/api/hello", {id: A})).s, 401);
+  assert.equal((await call("/api/forget", {id: A, tok: ha.tok})).s, 200);
+  assert.equal((await call("/api/forget", {id: A, tok: hb.tok})).s, 401);
   assert.equal(db.prepare("SELECT COUNT(*) c FROM wavelog WHERE id=?").get(A).c, 0);
   assert.equal((await call("/api/wave", {id: A, tok: ha.tok, hex: "aabbcc", lat: 48.15, lon: 17.11})).s, 401);
 });

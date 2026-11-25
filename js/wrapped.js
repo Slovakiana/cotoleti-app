@@ -80,7 +80,8 @@ function weekModel(previous){
   for(const relay of (SOC.data?.relay||[]).filter(e=>weekContains(period,e.t)).slice(0,3))
     events.push({label:"Letová štafeta · "+catGuess(relay.type).name,priority:4,t:relay.t});
   events.sort((a,b)=>b.priority-a.priority||b.t-a.t);
-  return {period,observations:observed.length,catches,hero:catches[0]||null,moments:events.slice(0,2)};
+  const high=observed.filter(e=>e.ty).sort((a,b)=>(RORD[b.r]??0)-(RORD[a.r]??0))[0];
+  return {period,observations:observed.length,observationType:high?.ty||"",catches,hero:catches[0]||null,moments:events.slice(0,2)};
 }
 const WR={i:0,model:null,slides:[],previous:true};
 function weekCard(m){
@@ -111,10 +112,10 @@ function renderWeek(m){
   if(h)slides.push(`<article class="weekSlide"><h3>Úlovok týždňa</h3><div class="weekHeroCard">${cardSVG(h.ty,weekCard(m),{mini:true})}</div><p>${esc(h.name)} · ${esc(weekLabel.format(h.t))}</p></article>`);
   if(m.moments.length)slides.push(`<article class="weekSlide"><h3>Čo pribudlo</h3><ul>${m.moments.map(e=>`<li>${esc(e.label)}</li>`).join("")}</ul></article>`);
   if(m.observations||!slides.length)slides.push(`<article class="weekSlide weekOverview"><h3>${m.observations?"Pozorovania":"Obloha čaká"}</h3>${m.observations?
-    `<strong>${nf(m.observations)}</strong><p>Zaznamenané pozorovania nad obzorom počas otvoreného Lovu.</p>`:
+    `<strong>${nf(m.observations)}</strong><p>Zaznamenané pozorovania počas otvoreného Lovu.</p>${m.observationType?`<p>Zaznamenaný typ · ${esc(catGuess(m.observationType).name)}</p>`:""}`:
     "<p>V tomto týždni ešte nemáš zaznamenaný úlovok ani pozorovanie.</p>"}</article>`);
   WR.slides=slides;$("wslides").innerHTML=slides.join("");
-  $("wshare").hidden=!h&&!m.moments.length&&!m.observations;
+  $("wshare").hidden=!h&&!m.moments.length;
   wrShow(0);
 }
 function wrShow(i){

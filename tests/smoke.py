@@ -72,6 +72,13 @@ def main():
                     Object.assign(S, before);
                 }
             }""")
+            assert pg.locator("#onbKid").is_checked()
+            for slug, title in [("privacy.html", "Súkromie"), ("rules.html", "Pravidlá hry")]:
+                legal = ctx.new_page()
+                legal.goto(f"http://localhost:8799/{slug}")
+                assert legal.locator("h1").inner_text() == title
+                assert legal.locator('a[href^="mailto:radovan.kudela@icloud.com"]').first.is_visible()
+                legal.close()
             # 2) appka po úvode
             pg.evaluate("localStorage.setItem('ctl_onb','1')")
             pg.reload()
@@ -79,6 +86,10 @@ def main():
             for v in ["journal", "col", "now"]:
                 pg.click(f'nav [data-v="{v}"]', timeout=5000)
                 pg.wait_for_timeout(1200)
+            pg.wait_for_function("""() => {
+                const state = $("radarState");
+                return state.dataset.state === "live" && SKY.paintedT === S.rawT && SKY.pts.length > 0;
+            }""")
             pg.evaluate("""async () => {
                 if(radarRequest)await radarRequest.promise;
                 const saved={...S},fetchSource=tryCombo;

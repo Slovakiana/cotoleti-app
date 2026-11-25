@@ -171,22 +171,20 @@ function normReadsb(j){
 }
 const RADAR_LIVE_AGE=30e3,RADAR_PREVIEW_AGE=120e3;
 const SOURCES=[
-  {name:"Čo to letí",url:(la,lo,r)=>`${MYPROXY}/api/planes?lat=${la}&lon=${lo}&r=${Math.min(60,r)}`},
-  {name:"adsb.lol",url:(la,lo,r)=>`https://api.adsb.lol/v2/point/${la}/${lo}/${r}`}
+  {name:"Čo to letí",url:(la,lo,r)=>`${MYPROXY}/api/planes?lat=${la}&lon=${lo}&r=${Math.min(60,r)}`}
 ];
 // Vlastný sprostredkovací server (Cloudflare Worker) – najspoľahlivejšia cesta
 const DEFAULT_PROXY="https://cotoleti-app.radovan-kudela.workers.dev";
 const MYPROXY=DEFAULT_PROXY;
 // odkazy na zdieľanie idú cez server -> pekný náhľad v Messengeri/WhatsAppe, potom presmerujú do appky
 // r= kto zdieľal (anonymné verejné id) -> meriame, ako sa appka šíri
-const withRef=q=>[q,typeof PID!=="undefined"&&PID?"r="+PID:""].filter(Boolean).join("&");
-const shareUrl=(kind,data,q)=>{const w=withRef(q);return DEFAULT_PROXY+"/s/"+kind+"/"+data+(w?"?"+w:"")};
+const shareUrl=(kind,data,q="")=>DEFAULT_PROXY+"/s/"+kind+"/"+data+(q?"?"+q:"");
 const appLink=()=>shareUrl("x","");
 const APP_HOST="slovakiana.github.io/cotoleti-app",TAGS=" #čotoletí #lietadlo #slovensko";
 function planeLink(a){
   if(!a||!/^[0-9a-f]{6}$/.test(a.hex))return appLink();
-  const rt=routeOf(a),town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";
-  return shareUrl("p",a.hex,["c="+encodeURIComponent(a.call||""),rt?"d="+encodeURIComponent(citySk(rt.destination.municipality)):"",town?"m="+encodeURIComponent(town):""].filter(Boolean).join("&"));
+  const rt=routeOf(a);
+  return shareUrl("p",a.hex,["c="+encodeURIComponent(a.call||""),rt?"d="+encodeURIComponent(citySk(rt.destination.municipality)):""].filter(Boolean).join("&"));
 }
 // len vlastný server a priamy prístup – žiadne cudzie proxy, ktoré by videli polohu
 const ROUTES=[
@@ -257,12 +255,7 @@ async function refreshRadar(request,query){
   const signal=request.controller.signal;
   if(!S.loaded)setStatus("Pripájam sa…",false);
   try{
-    let result;
-    try {result=await tryCombo(0,query,signal)}
-    catch(e){
-      if(e.status!==404||signal.aborted)throw e;
-      result=await tryCombo(1,query,signal);
-    }
+    const result=await tryCombo(0,query,signal);
     if(!signal.aborted&&radarRequest===request&&S.pos&&radarPositionKey(S.pos)===query.position)gotPlanes(query,result);
   }catch(e){
     if(signal.aborted||radarRequest!==request)return;
@@ -278,15 +271,10 @@ async function refreshRadar(request,query){
   }
 }
 
-// trasa a fotka z adsbdb.com
-let metaRoute=LS.get("ctl_mroute",0)|0;
+// Identifikátor letu sa posiela zdroju cez herný server.
 async function adsbdb(path){
-  const u="https://api.adsbdb.com/v0/"+path;
-  for(let k=0;k<ROUTES.length;k++){
-    const i=(metaRoute+k)%ROUTES.length;
-    try{const {j}=await getJSON(ROUTES[i].wrap(u),6000);if(j&&"response" in j){metaRoute=i;LS.set("ctl_mroute",i);return j.response}}catch(e){}
-  }
-  return null;
+  const url="https://api.adsbdb.com/v0/"+path;
+  try{const {j}=await getJSON(ROUTES[0].wrap(url),6000);return j?.response??null}catch(e){return null}
 }
 function loadMeta(a){
   if(a.priv||!/^[0-9a-f]{6}$/i.test(a.hex))return Promise.resolve();

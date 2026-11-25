@@ -86,10 +86,6 @@ function journalPassport(entries){
 }
 
 function journalLogo(code){
-  const brand=journalAssets.brands.data?.[code];
-  const logo=brand?.image;
-  if(logo&&/^[A-Za-z0-9+/]+={0,2}$/.test(logo))
-    return `<img alt="" width="192" height="82" decoding="async" loading="lazy" src="data:image/webp;base64,${logo}">`;
   return `<span class="journalMonogram" aria-hidden="true">${esc(code)}</span>`;
 }
 function journalAirlines(entries){
@@ -105,7 +101,7 @@ function journalAirlines(entries){
     return `<li><button type="button" class="journalBrand${has?" owned":""}${entry.fresh?" fresh":""}" data-journal-entry="${entry.code}"${has?"":' aria-label="'+esc(entry.name)+', neulovená"'}><span class="journalBrandLogo">${journalLogo(entry.code)}</span>
       <span class="journalBrandCaption"><b>${esc(entry.name)}</b><small>${entry.fresh?"Nový objav":has?entry.code:"Neulovená"}</small></span></button></li>`;
   };
-  const retry=journalAssets.brands.error?'<button type="button" class="ghost" data-journal-retry="brands">Načítať logá znova</button>':"";
+  const retry=journalAssets.brands.error?'<button type="button" class="ghost" data-journal-retry="brands">Načítať údaje aeroliniek znova</button>':"";
   return `<section class="journalAirlines" aria-label="Album aeroliniek">
     <div class="journalAirHead"><div><strong>${entries.length}</strong> ${pl(entries.length,"značka","značky","značiek")}</div>
     <div class="journalToggle" role="group" aria-label="Filter aeroliniek">

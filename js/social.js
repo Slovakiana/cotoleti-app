@@ -278,10 +278,16 @@ function reportName(name,btn){
 }
 $("repM").addEventListener("click",async e=>{
   const b=e.target.closest("[data-why]");if(e.target.id==="repClose"||e.target===$("repM")){$("repM").classList.remove("on");return}
-  if(!b||!REP)return;$("repM").classList.remove("on");
-  try{await apiPost("/api/report",{name:REP.name,why:b.dataset.why})}catch(err){}
-  if(REP.btn)REP.btn.remove();
-  toast("🚩 Ďakujeme za nahlásenie",b.dataset.why==="osobne"||b.dataset.why==="sex"?"Meno sme hneď skryli, preveríme ho do 24 h":"Preveríme ho. Ak ho nahlásia viacerí, zmizne hneď");REP=null;
+  if(!b||!REP)return;
+  const report=REP;REP=null;$("repM").classList.remove("on");
+  try{
+    const response=await apiPost("/api/report",{name:report.name,why:b.dataset.why});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw Error("report");
+    report.btn?.remove();
+    toast("Nahlásenie prijaté",result.hidden?"Meno je počas kontroly skryté.":"Podnet posúdime.");
+  }catch(e){toast("Nahlásenie sa nepodarilo","Skús znova alebo použi kontakt v pravidlách hry.")}
+
 });
 $("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.more){const m=$("lgTabs").classList.toggle("more");b.setAttribute("aria-expanded",m);b.textContent=m?"×":"⋯";return}
@@ -364,6 +370,7 @@ function reportFirstWave(j){
 
 async function doWave(e){
   const a=S.top;if(!a)return;
+  if(S.manual&&!a.santa){showFirstWaveResult("Na mávnutie zapni GPS.");return}
   if(!a.santa&&skyStale()){showFirstWaveResult("Na mávnutie treba živé údaje. Obnov radar.");return}
   if(SOC.inflight||a.emg)return;
   if(!a.santa&&!a.emg)betaStep("wave");
