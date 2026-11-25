@@ -243,7 +243,7 @@ await t("typ prežije výpadok metadát iba pri zhodnej registrácii", async () 
   }
 });
 await t("pilot štafety spája len dve overené pozorovania rovnakého preletu", () => {
-  const testEnv={...sky.env,RELAY_PILOT:"1"}, relay=new mod.Sky({storage},testEnv);
+  const testEnv={...sky.env}, relay=new mod.Sky({storage},testEnv);
   const now=Date.now(), vp={type:"B738",call:"RYR123",priv:false};
   try {
     relay.relayWave(A,"aabbcc",vp,"TT",now-7*60e3);
@@ -255,7 +255,9 @@ await t("pilot štafety spája len dve overené pozorovania rovnakého preletu",
     assert.deepEqual({...relay.relayCards(B,now)[0]},{type:"B738",k:"TT",other:"TN",t:now-5*60e3});
     assert.deepEqual({...relay.relayCards(C,now)[0]},{type:"B738",k:"TN",other:"TT",t:now});
     assert.deepEqual(relay.relayCards(A,now),[]);
-    delete testEnv.RELAY_PILOT;
+    assert.equal(relay.relayEnabled(),true);
+    testEnv.RELAY_PILOT="0";
+    assert.equal(relay.relayEnabled(),false);
     assert.deepEqual(relay.relayCards(C,now),[]);
   } finally {db.exec("DELETE FROM relay_waves");}
 });

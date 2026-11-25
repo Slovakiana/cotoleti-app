@@ -61,4 +61,4 @@ Každé zariadenie má natrvalo skupinu A alebo B (`ctl_ab`). Kroky lievika sa v
 
 ## Pilot Letová štafeta
 
-Pilot zapína produkčná premenná `RELAY_PILOT=1`. Dve čerstvé overené mávnutia s GPS z rôznych krajov sa môžu spojiť, ak sa zhoduje identifikátor stroja, volací znak a typ a medzi mávnutiami uplynuli 2 až 35 minút. Páry sa zobrazujú z existujúceho `/api/sky` iba účastníkom. Pilot neposiela ďalšie dopyty do ADSB.lol a označenia uchováva do 30 dní.
+Pilot je predvolene zapnutý. Vypína ho produkčná premenná `RELAY_PILOT=0`; `/api/health` uvádza účinný stav v poli `relayPilot`. Dve čerstvé overené mávnutia s GPS z rôznych krajov sa môžu spojiť, ak sa zhoduje identifikátor stroja, volací znak a typ a medzi mávnutiami uplynuli 2 až 35 minút. Páry sa zobrazujú z existujúceho `/api/sky` iba účastníkom. Pilot neposiela ďalšie dopyty do ADSB.lol a označenia uchováva do 30 dní.

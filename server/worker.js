@@ -157,7 +157,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v92";
+const VERSION = "v92.1";
 const BETA_STEPS = ["beta_open", "beta_gps", "beta_wave", "beta_verified", "beta_return"];
 const EVS = ["open", "onboard", "gps_ok", "gps_deny", "manual", "catch1", "wave1", "push_ok", "share", "ref_join", "install", "catch5", "day2", "click"];
 const SKDAY = new Intl.DateTimeFormat("sv-SE", {timeZone: "Europe/Bratislava", year: "numeric", month: "2-digit", day: "2-digit"});
@@ -411,6 +411,7 @@ export class Sky extends DurableObject {
     const previous = this.row("SELECT goal FROM mission_weeks WHERE week=?", previousWeek);
     return {...this.missionResult(week, goal, id), previous: previous ? this.missionResult(previousWeek, previous.goal, id) : null};
   }
+  relayEnabled() { return (this.env.RELAY_PILOT ?? "1") === "1"; }
   relayWave(id, hex, vp, k, now) {
     const call = cleanCs(vp.call);
     if (!/^[a-f0-9]{6}$/.test(hex) || !/^[A-Z]{3}[0-9]{1,4}[A-Z]?$/.test(call)
@@ -428,7 +429,7 @@ export class Sky extends DurableObject {
     this.sql.exec("UPDATE relay_waves SET other=? WHERE id=? AND hex=? AND t=? AND other=''", k, match.id, hex, match.t);
   }
   relayCards(id, now) {
-    if (this.env.RELAY_PILOT !== "1" || !id || this.isKid(id)) return [];
+    if (!this.relayEnabled() || !id || this.isKid(id)) return [];
     return this.sql.exec("SELECT type, k, other, t FROM relay_waves WHERE id=? AND t>=? AND other<>'' ORDER BY t DESC LIMIT 24", id, now - 30 * 86400e3).toArray();
   }
   goldenNow(d) { return this.row("SELECT * FROM golden WHERE day=? ORDER BY seq DESC LIMIT 1", d); }
@@ -962,7 +963,7 @@ export class Sky extends DurableObject {
           const st = this.radarStatus(i);
           return {name: ADSB_NAMES[i], requestsToday: st.count, requestsThisWeek: st.weekCount, requestsThisMonth: st.monthCount, dailyLimit: this.radarLimit(i), weeklyLimit: i === 0 ? this.radarBudget(i).weekly : null, monthlyLimit: i === 0 ? this.radarBudget(i).monthly : null, estimatedBytesToday: st.dayBytes, estimatedBytesThisMonth: st.monthBytes, status: st.status || null, retryAt: st.until || null};
         })};
-      return json({radar, ok: now - c < 5 * 60e3, version: VERSION, lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
+      return json({radar, ok: now - c < 5 * 60e3, version: VERSION, relayPilot: this.relayEnabled() && this.flags().social !== "min", lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
     }
     if (p === "/api/planes") {
       // 🛩️ lietadlá okolo hráča zo spoločnej snímky oblohy nad SR (formát ako adsb.lol) – jedna požiadavka na sieť pre všetkých
@@ -1150,7 +1151,7 @@ export class Sky extends DurableObject {
       }
       // edícia „Bol som pri tom“ – stačí overené mávnutie (aj keď typ lietadla nepoznáme); odložené mávnutie sa ráta v čase mávnutia
       if (cok) {
-        if (this.env.RELAY_PILOT === "1" && !vp.emg) this.relayWave(id, hex, vp, k, now);
+        if (this.relayEnabled() && !vp.emg) this.relayWave(id, hex, vp, k, now);
         const te = vp.late ? tw : now;
         const missionWeek = this.week(te);
         if (this.ensureMissionWeek(this.week(now)) && this.row("SELECT 1 AS x FROM mission_weeks WHERE week=?", missionWeek)) {
