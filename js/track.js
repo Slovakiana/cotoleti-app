@@ -12,11 +12,11 @@ function toCallsign(inp){
 let TR=LS.get("ctl_track",null);
 const TRK={ac:null,t:0,busy:false,lostT:0};
 async function trFetch(cs){
-  try{
-    const {ok,j}=await getJSON(DEFAULT_PROXY+"/api/radar-flight?cs="+encodeURIComponent(cs),9000);
-    if(ok&&Array.isArray(j?.ac))return j.ac.find(a=>a.lat!=null)||null;
-  }catch(e){}
-  return undefined;
+  const srcs=[`https://api.adsb.lol/v2/callsign/${cs}`,`https://api.airplanes.live/v2/callsign/${cs}`];
+  for(const u of srcs)for(const rt of ROUTES.slice(0,3)){
+    try{const {ok,j}=await getJSON(rt.wrap(u),8000);if(ok&&j){const arr=(j.ac||j.aircraft||[]).filter(a=>a.lat!=null);return arr[0]||null}}catch(e){}
+  }
+  return undefined; // nevieme (výpadok)
 }
 async function trPoll(){
   if(!TR||TRK.busy)return;TRK.busy=true;

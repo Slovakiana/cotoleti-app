@@ -456,15 +456,7 @@ function showFirstWaveResult(text, verified=false){
 
 function tick(fresh){
   const now=Date.now();
-  if(S.rawT&&skyStale()){
-    if(now-S.rawT>RADAR_PREVIEW_AGE){
-      S.raw=[];S.rawT=0;S.lastKnown=false;S.failN=Math.max(1,S.failN||0);
-      setStatus("Živé dáta nedostupné",false);
-    }else{
-      S.lastKnown=true;
-      setStatus(staleSkyLabel(),false);
-    }
-  }
+  if(S.raw.length&&skyStale()&&!S.lastKnown){S.lastKnown=true;setStatus("Posledná známa obloha",false)}
   S.list=enrich(now);
   let best=null;
   if(S.pick){best=S.list.find(a=>a.hex===S.pick)||null;if(!best)S.pick=null}
@@ -1099,11 +1091,11 @@ if($("b-prof")){$("b-prof").onclick=()=>profSwitch();profRender()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-prof]");if(b){haptic(8);profSwitch(b.dataset.prof)}});
 if(LS.get("ctl_needPin",0)&&KID()){LS.set("ctl_needPin",0);setTimeout(kidPinSet,1500)}
 
-/* 📶 Stav radaru v nastaveniach */
-function srcRender(){const el=$("srcStat");if(!el)return;
-  el.textContent=S.lastKnown?staleSkyLabel():S.failN?"Živé dáta nedostupné":S.src||"Čaká na polohu";
-}
-if($("b-src"))$("b-src").onclick=()=>{haptic(8);fetchPlanes(true).then(srcRender)};
+/* 📶 stav zdrojov dát v nastaveniach + ručné prepnutie */
+function srcRender(){const el=$("srcStat");if(!el||typeof COMBOS==="undefined")return;
+  el.innerHTML=COMBOS.map((c,i)=>{const st=SRCST[i]||{},nm=c.s.name+(c.rt.name!=="priamo"?" cez "+c.rt.name:"");return `${i===comboIdx?"▶ ":""}${esc(nm)}: ${st.ok?"✓"+(st.ms?" "+st.ms+" ms":""):st.err?"✗ "+esc(st.err):"–"}`}).join("<br>")}
+if($("b-src"))$("b-src").onclick=()=>{haptic(8);const n=COMBOS.length;let k=(comboIdx+1)%n;for(let j=0;j<n;j++){const st=SRCST[(comboIdx+1+j)%n];if(!st||!st.err){k=(comboIdx+1+j)%n;break}}
+  comboIdx=k;LS.set("ctl_combo",k);toast("📶 Skúšam iný zdroj",COMBOS[k].s.name);fetchPlanes(true).then(srcRender)};
 HOOKS.view.push(v=>{if(v==="col")srcRender()});setInterval(()=>{if(S.view==="col"&&$("settings")&&$("settings").open)srcRender()},5000);
 
 // ťuk na odznak: ako ho získať / kedy si ho získal
