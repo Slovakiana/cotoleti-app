@@ -271,6 +271,8 @@ def main():
                         throw Error("Overená štafeta v kartičke chýba");
                 }finally{SOC.data=social}
                 const svg=await cardExportSVG("B738",shownCard(first),{public:true});
+                if (new DOMParser().parseFromString(svg,"image/svg+xml").querySelector("parsererror"))
+                    throw Error("Export kartičky neobsahuje platné SVG");
                 if (!svg.includes('href="data:image/webp;base64,') || !svg.includes("Zlatá hodinka"))
                     throw Error("Export nepriložil ilustráciu zvolenej formy");
                 window.savedCardAsset=null;

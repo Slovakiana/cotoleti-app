@@ -175,7 +175,7 @@ function cardTierStamp(r,locked){
   const right=389, textWidth=Math.max(59,Math.ceil(name.length*10.5)), x=right-textWidth-48;
   return `<path d="M${x+10} 376H389V410H${x}V386Z" fill="#080d19" fill-opacity=".93" stroke="${ink}" stroke-opacity="${locked?.5:.9}"/>
     <g transform="translate(${x+11} 382) scale(.9)" fill="none" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round">${TIER_MARKS[r]}</g>
-    <text data-card-tier-label x="${x+36}" y="399" fill="${ink}" font-size="15" font-weight="800" letter-spacing=".7" textLength="${textWidth}" lengthAdjust="spacingAndGlyphs">${name}</text>`;
+    <text data-card-tier-label="" x="${x+36}" y="399" fill="${ink}" font-size="15" font-weight="800" letter-spacing=".7" textLength="${textWidth}" lengthAdjust="spacingAndGlyphs">${name}</text>`;
 }
 function cardStars(level,id){
   if(!level)return "";
