@@ -4,7 +4,14 @@
 - **Strážca servera** (GitHub Actions) každých 30 min kontroluje server. Keď zlyhá, príde e-mail od GitHubu a (ak sú nastavené `TG_TOKEN` a `TG_CHAT` v GitHub → Settings → Secrets → Actions) aj správa na Telegram.
 - Rýchla kontrola v Safari: `https://cotoleti-app.radovan-kudela.workers.dev/api/health`
   - `"ok":true` – server aj minútový časovač bežia
-  - `upstreamMin` – pred koľkými minútami server naposledy dostal dáta o lietadlách (veľké číslo = výpadok zdroja adsb.lol, appka sa sama prepne na iný zdroj)
+  - `radar.ageSec` je vek uloženej regionálnej snímky. Pri neaktívnom radare môže byť vyšší. Čerstvosť pri otvorení overí požiadavka na `/api/planes?lat=48.7&lon=19.5&r=40`.
+  - `radar.sources` uvádza stav, spotrebu a termín ďalšieho pokusu pri každom zapnutom zdroji. Kód 403 vyžaduje kontrolu prístupu, pri 429 server čaká podľa poskytovateľa.
+
+### Prístupy k dátovým zdrojom
+
+- Hodnotu kľúča ADS-B.lol vlož do Cloudflare ako Secret `ADSB_LOL_API_KEY`. Pre vyšší plán nastav `ADSB_LOL_DAILY_LIMIT`, `ADSB_LOL_WEEKLY_LIMIT` a `ADSB_LOL_MONTHLY_LIMIT` s rezervou pod kvótami poskytovateľa. Ide o interné limity v kalendárnych obdobiach. Naďalej platia limity poskytovateľa vrátane prenesených dát.
+- Záložný zdroj zapni až po schválení prístupu. Pre Airplanes.live nastav `AIRPLANES_LIVE_ENABLED=1`, `AIRPLANES_LIVE_DAILY_LIMIT` a podľa dohody kľúč `AIRPLANES_LIVE_API_KEY`, ak poskytovateľ používa hlavičku `x-api-key`. Pre adsb.fi slúžia `ADSB_FI_ENABLED=1` a `ADSB_FI_DAILY_LIMIT`.
+- Bez kľúča sa regionálna snímka obnovuje na požiadanie. Pri schválenom kľúči a dennom limite aspoň 2 000 sa predhrieva aj minútovým časovačom, najskôr po 2 minútach od poslednej snímky. Pri úplnom výpadku sa náhľad zobrazuje najviac 2 minúty. Mávnutie vyžaduje čerstvé údaje.
 
 ## 2. Nová verzia niečo pokazila
 - **Server:** Cloudflare (appka alebo web) → Workers & Pages → cotoleti-app → **Deployments** → pri predchádzajúcej verzii ⋯ → **Rollback**.

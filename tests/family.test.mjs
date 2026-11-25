@@ -27,7 +27,7 @@ const W = mod.default;
 
 let plane = {hex: "aabbcc", flight: "WZZ123 ", t: "A21N", lat: 48.2, lon: 17.2, gs: 440, alt_baro: 36000};
 globalThis.fetch = async u => { u = String(u);
-  if (u.includes("/v2/point/") || u.includes("/v2/hex/")) return new Response(JSON.stringify({ac: [plane]}));
+  if (u.includes("/v2/point/") || u.includes("/v2/hex/")) return new Response(JSON.stringify({ac: [plane],now:Date.now()}));
   return new Response("{}"); };
 
 const call = async (p, b, ip = "1.2.3.4", cc = "SK") => {
