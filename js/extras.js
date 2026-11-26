@@ -292,14 +292,88 @@ $("dailyStrip").onclick=()=>openCollectionSection("dailyBox");
 /* ============ ⚔️ Výzva pre kamaráta ============ */
 const b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const b64d=s=>decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/"))));
-const nick=()=>($("nick").value||"").trim()||LS.get("ctl_nick","")||"Spotter";
+const nick=()=>LS.get("ctl_nick","")||"Spotter";
+const nickIsDefault=value=>!String(value||"").trim()||String(value).normalize("NFKC").trim().toLocaleLowerCase("sk")==="spotter";
+const nickDialog=$("nickDialog");
+let nicknameCompletion=null,nicknamePromptTimer=0;
+function renderNicknameSettings(){
+  const name=nick(),named=!nickIsDefault(name);
+  $("nickCurrent").textContent=named?name:"Spotter";
+  $("nickEdit").textContent=named?"Zmeniť":"Vybrať";
+}
+function openNicknameEditor(){
+  if(KID()||SOC.profileNickname?.kid)return Promise.resolve(false);
+  if(nickDialog.open)return nicknameCompletion;
+  const name=nick(),named=!nickIsDefault(name);
+  $("nickTitle").textContent=named?"Zmeň prezývku":"Vyber si prezývku";
+  $("nick").value=named?name:"";
+  $("nickStatus").textContent="";
+  nickDialog.returnValue="";
+  nicknameCompletion=new Promise(resolve=>{
+    nickDialog.addEventListener("close",()=>{
+      const saved=nickDialog.returnValue==="saved";
+      if(!saved&&!KID()&&nickIsDefault(nick()))LS.set("ctl_nick_prompt",Date.now());
+      resolve(saved);
+    },{once:true});
+  });
+  nickDialog.showModal();
+  return nicknameCompletion;
+}
+function scheduleNicknamePrompt(){
+  clearTimeout(nicknamePromptTimer);
+  if(!LS.get("ctl_onb",0)||document.hidden||KID()||!SOC.authVerified||!SOC.profileNickname||SOC.profileNickname.kid
+     ||!nickIsDefault(nick())||Date.now()-LS.get("ctl_nick_prompt",0)<86400000)return;
+  nicknamePromptTimer=setTimeout(()=>{
+    if(document.hidden||KID()||!SOC.authVerified||SOC.profileNickname?.kid||!nickIsDefault(nick()))return;
+    if(document.querySelector(".modal.on, dialog[open]")||$("onb").offsetHeight){scheduleNicknamePrompt();return}
+    LS.set("ctl_nick_prompt",Date.now());
+    openNicknameEditor();
+  },1600);
+}
+function syncNicknameProfile(profile){
+  SOC.profileNickname=profile;
+  if(profile&&!profile.kid&&!KID()&&!nickIsDefault(profile.name)&&(profile.managed||nickIsDefault(nick()))){
+    LS.set("ctl_nick",profile.name);
+    renderNicknameSettings();
+  }
+  scheduleNicknamePrompt();
+}
+function ensureNick(){
+  return KID()||!nickIsDefault(nick())||openNicknameEditor();
+}
+$("nickForm").onsubmit=async e=>{
+  e.preventDefault();
+  const input=$("nick"),status=$("nickStatus"),save=$("nickSave"),later=$("nickLater");
+  if(save.disabled||KID()||!nickDialog.open)return;
+  const name=input.value.normalize("NFKC").trim();
+  if([...name].length<2||name.length>20){status.textContent="Prezývka musí mať 2 až 20 znakov.";return}
+  if(nickIsDefault(name)){status.textContent="Vyber si inú prezývku ako Spotter.";return}
+  status.textContent="Ukladám…";save.disabled=true;later.disabled=true;
+  try{
+    const response=await apiPost("/api/nick",{nick:name});
+    const result=await response.json();
+    if(!response.ok||!result.ok||!result.nick){
+      status.textContent=({name:"Táto prezývka sa nedá použiť. Skús inú.",default:"Vyber si inú prezývku ako Spotter.",length:"Prezývka musí mať 2 až 20 znakov.",kid:"V detskom režime sa prezývka nepoužíva.",rate:"Prezývku si menil(a) viackrát. Skús to neskôr."})[result.error]||"Prezývku sa nepodarilo uložiť. Skús znova.";
+      return;
+    }
+    if(KID())return;
+    syncNicknameProfile({name:result.nick,managed:true,kid:false});
+    if(SOC.data)SOC.data.myHidden=null;
+    renderHidden();
+    nickDialog.close("saved");
+    toast("Prezývka uložená",result.nick);
+  }catch(e){status.textContent="Prezývku sa nepodarilo uložiť. Skontroluj pripojenie a skús znova."}
+  finally{save.disabled=false;later.disabled=false}
+};
+$("nickEdit").onclick=openNicknameEditor;
+$("nickLater").onclick=()=>nickDialog.close();
+nickDialog.addEventListener("keydown",e=>{if(e.key==="Escape")e.stopPropagation()});
+nickDialog.addEventListener("cancel",e=>{if($("nickSave").disabled)e.preventDefault()});
+document.addEventListener("visibilitychange",scheduleNicknamePrompt);
+renderNicknameSettings();
 function myScore(){return {n:nick(),p:COL.pts,t:Object.keys(COL.types).length,c:COL.n,l:lvlOf(COL.pts)+1,pid:(typeof PID!=="undefined"?PID:""),fk:(typeof FK!=="undefined"?FK:"")}}
-// pred prvou pozvánkou: nech kamarát vie, od koho to je (nie „Spotter“)
-function ensureNick(){if(typeof KID==="function"&&KID())return true;if(LS.get("ctl_nick",""))return true;
-  const n=prompt("Ako ťa kamaráti poznajú? (prezývka, nie celé meno)","");if(n===null)return false;const v=String(n).trim().slice(0,20);
-  if(v.length>=2){LS.set("ctl_nick",v);if($("nick"))$("nick").value=v;return true}toast("Prezývka musí mať aspoň 2 znaky","");return false}
 async function sendDuel(){
-  if(!ensureNick())return;
+  if(!(await ensureNick()))return;
   if(typeof ensureTok==="function")await ensureTok();
   const me=myScore(),url=shareUrl("v",b64e(JSON.stringify(me)));
   const town=typeof townOf==="function"&&S.pos?townOf(S.pos):"";const text=`👋 Mávam lietadlám${town?" ("+town+")":""} a zbieram ich kartičky ✈️ Pridaj sa – keď zamávame tomu istému lietadlu do 10 minút, máme obaja bonus. Mám ${me.t} ${pl(me.t,"kartičku","kartičky","kartičiek")}, prekonáš ma?`;
@@ -341,8 +415,6 @@ function checkDuelLink(){
 $("duelGo").onclick=()=>$("duelM").classList.remove("on");$("duelNo")&&($("duelNo").onclick=()=>$("duelM").classList.remove("on"));
 addEventListener("hashchange",()=>checkDuelLink());
 $("b-duel").onclick=sendDuel;
-$("nick").value=LS.get("ctl_nick","");
-$("nick").onchange=()=>LS.set("ctl_nick",$("nick").value.trim());
 HOOKS.view.push(v=>{if(v==="col"){renderDaily();renderDuel()}});
 
 /* ============ 📲 Inštalácia na plochu + offline ============ */

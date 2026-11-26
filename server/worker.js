@@ -157,7 +157,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v94";
+const VERSION = "v95";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
@@ -264,7 +264,7 @@ export class Sky extends DurableObject {
       DROP INDEX IF EXISTS waves_day;
       DROP INDEX IF EXISTS friends_a;`);
     for (const q of ["ALTER TABLE ids ADD COLUMN ep INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN ls TEXT", "ALTER TABLE idday ADD COLUMN la REAL", "ALTER TABLE idday ADD COLUMN lo REAL",
-      "ALTER TABLE wavelog ADD COLUMN lg INTEGER DEFAULT 0", "ALTER TABLE tmembers ADD COLUMN jt INTEGER DEFAULT 0", "ALTER TABLE nicks ADD COLUMN lc TEXT", "ALTER TABLE teams ADD COLUMN lc TEXT",
+      "ALTER TABLE wavelog ADD COLUMN lg INTEGER DEFAULT 0", "ALTER TABLE tmembers ADD COLUMN jt INTEGER DEFAULT 0", "ALTER TABLE nicks ADD COLUMN lc TEXT", "ALTER TABLE nicks ADD COLUMN edited INTEGER NOT NULL DEFAULT 0", "ALTER TABLE teams ADD COLUMN lc TEXT",
       "ALTER TABLE tmembers ADD COLUMN lc TEXT", "ALTER TABLE mails ADD COLUMN lc TEXT", "ALTER TABLE ids ADD COLUMN kid INTEGER DEFAULT 0", "ALTER TABLE reports ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN ok INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN pid TEXT", "CREATE INDEX IF NOT EXISTS ids_pid ON ids(pid)"]) { try { this.sql.exec(q); } catch (e) {} }
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS nicks_lc ON nicks(lc); CREATE INDEX IF NOT EXISTS teams_lc ON teams(lc); CREATE INDEX IF NOT EXISTS tmem_lc ON tmembers(lc); CREATE INDEX IF NOT EXISTS mails_lc ON mails(lc); CREATE INDEX IF NOT EXISTS wavelog_lg ON wavelog(day, lg); CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     // jednorazové doplnenie normalizovaných mien a vymazanie IP odtlačkov z účtov
@@ -972,8 +972,11 @@ export class Sky extends DurableObject {
       const pd = await this.pid(id);
       this.sql.exec("UPDATE ids SET pid=? WHERE id=? AND pid IS NULL", pd, id);
       // detský režim sa z appky dá pri každom prihlásení len ZAPNÚŤ (vypnutie ide cez /api/kid)
-      if (b.kid === 1 && !this.isKid(id)) this.enableKidMode(id, pd);
-      return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd),epoch});
+      const wasKid = this.isKid(id), kid = wasKid || b.kid === 1;
+      if (kid && !wasKid) this.enableKidMode(id, pd);
+      const saved = kid ? null : this.row("SELECT nick, edited FROM nicks WHERE id=?", id);
+      return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd), epoch,
+        nickname: {name: saved?.nick || "", managed: !!saved?.edited, kid}});
     }
     if (p === "/api/ev" && req.method === "POST") return json({ok: true});
     if (p === "/api/err" && req.method === "POST") {
@@ -1173,9 +1176,13 @@ export class Sky extends DurableObject {
       const trusted = !acc || now - (acc.t || 0) > 600e3 || (sb && now - sb.t < 300e3 && sb.h.has(hex));
       const league = trusted && fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 5000, 86400e3);
       const k = fair && dd ? dd.k : "XX";
-      const nk = this.isKid(id) ? "" : this.nm(b.nick);
-      if (nk) this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
-      if (nk) this.sql.exec("DELETE FROM hidden WHERE id=?", id); // nové (alebo vrátené) meno platí – oznam o skrytí zmizne
+      const kid = this.isKid(id), savedNick = kid ? null : this.row("SELECT nick, edited FROM nicks WHERE id=?", id);
+      const nk = kid ? "" : savedNick?.edited ? savedNick.nick : this.nm(b.nick);
+      // Starý klient môže priniesť prezývku v mávnutí. Výslovne uložené meno má prednosť.
+      if (nk && !savedNick?.edited && lc(nk) !== "spotter") {
+        this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
+        this.sql.exec("DELETE FROM hidden WHERE id=?", id);
+      }
       // zápis prvý (atomicky) – dve rýchle mávnutia sa nezapočítajú dvakrát
       this.sql.exec("INSERT OR IGNORE INTO wavelog(day, hex, id, t, k, pid, lg) VALUES(?, ?, ?, ?, ?, ?, ?)", d, hex, id, now, k, pdx, league ? 1 : 0);
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
@@ -1261,6 +1268,26 @@ export class Sky extends DurableObject {
       if (fresh) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty || String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 5).toUpperCase(), sel, cok ? 1 : 0, cok ? "" : why);
       return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
+    if (p === "/api/nick" && req.method === "POST") {
+      const id = cleanId(B.id);
+      if (this.isKid(id)) return json({error: "kid"}, 403);
+      const input = typeof B.nick === "string" ? B.nick.normalize("NFKC").trim() : "";
+      if (input.length > 20) return json({error: "length"}, 400);
+      const nick = this.nm(input);
+      if (nick == null) return json({error: "name"}, 400);
+      if ([...nick].length < 2) return json({error: "length"}, 400);
+      if (lc(nick) === "spotter") return json({error: "default"}, 400);
+      if (!this.rate("nick:" + id, 8, 3600e3)) return json({error: "rate"}, 429);
+      const save = () => {
+        this.sql.exec("INSERT INTO nicks(id, nick, lc, edited) VALUES(?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc, edited=1", id, nick, lc(nick));
+        this.sql.exec("UPDATE tmembers SET nick=?, lc=? WHERE id=?", nick, lc(nick), id);
+        this.sql.exec("DELETE FROM hidden WHERE id=?", id);
+      };
+      if (this.ctx.storage.transactionSync) this.ctx.storage.transactionSync(save);
+      else save();
+      this.atlC = {};
+      return json({ok: true, nick});
+    }
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;
       if (on) this.enableKidMode(id, await this.pid(id));
@@ -1300,7 +1327,7 @@ export class Sky extends DurableObject {
       const out = {vytvorene: new Date(account.t).toISOString(), poslednaAktivita: account.ls, detskyRezim: !!account.kid};
       for (const table of PLAYER_DATA_TABLES) {
         if (table === "xfer") continue; // jednorazový prístupový kód
-        out[table] = this.sql.exec(`SELECT * FROM ${table} WHERE id=?`, id).toArray().map(({id, lc, sub, other, ...row}) => row);
+        out[table] = this.sql.exec(`SELECT * FROM ${table} WHERE id=?`, id).toArray().map(({id, lc, sub, other, edited, ...row}) => row);
       }
       out.kamarati = (this.row("SELECT COUNT(*) AS c FROM friends WHERE a=?", pd) || {c: 0}).c;
       out.pozvanky = (this.row("SELECT n FROM refs WHERE pid=?", pd) || {n: 0}).n;
@@ -1459,9 +1486,11 @@ export class Sky extends DurableObject {
       return json({ok: true, on});
     }
     if (p === "/api/team" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), nick = this.nm(b.nick) || "Spotter";
+      const b = await body(), id = cleanId(b.id);
       if (id.length < 8) return json({error: "bad"}, 400);
       if (this.isKid(id) && b.action !== "leave") return json({error: "kid"}, 403);
+      const managedNick = this.row("SELECT nick FROM nicks WHERE id=? AND edited=1", id);
+      const nick = managedNick?.nick || this.nm(b.nick) || "Spotter";
       if (b.action === "create") {
         const name = this.nm(b.name, 24); if (!name) return json({error: "name"}, 400);
         if (!this.rate("team:" + iph, 40, 86400e3)) return json({error: "rate"}, 429);
@@ -1695,14 +1724,21 @@ export class Sky extends DurableObject {
 
 function adminPage() {
   const html = `<!doctype html><html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Čo to letí? – správa</title>
-<style>body{font:16px system-ui;background:#0d1430;color:#fff;margin:0;padding:18px}input,button,select{font:inherit;padding:12px;border-radius:12px;border:0;margin:4px 0;width:100%;box-sizing:border-box}button{background:#6dffc7;font-weight:700}pre{white-space:pre-wrap;background:#ffffff14;padding:12px;border-radius:12px;font-size:13px}label{display:block;margin-top:10px}</style></head>
+<style>body{font:16px system-ui;background:#0d1430;color:#fff;margin:0;padding:18px}input,button,select{font:inherit;padding:12px;border-radius:12px;border:0;margin:4px 0;width:100%;box-sizing:border-box}button{background:#6dffc7;font-weight:700}pre{white-space:pre-wrap;background:#ffffff14;padding:12px;border-radius:12px;font-size:13px}label{display:block;margin-top:10px}#statsSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:8px}#statsSummary div{background:#ffffff14;padding:12px;border-radius:12px}#statsSummary dd{margin:4px 0 0;font-size:22px;font-weight:700}#statsDetails{margin:14px 0 22px}#statsDetails summary{cursor:pointer;padding:10px 0}#statsStatus:empty,#o:empty{display:none}</style></head>
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
 <button id="s">📊 Štatistiky</button>
-<section id="betaFunnel" hidden>
-<h3>Prvé kroky v bete za 7 dní</h3>
-<p>Počty udalostí z nových prehliadačov. Každý krok sa v prehliadači ráta raz. Kroky môžu pochádzať z rôznych dní.</p>
-<dl id="betaSteps"></dl>
-</section><label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
+<p id="statsStatus" role="status">Zadaj kľúč a načítaj štatistiky.</p>
+<section id="stats" hidden aria-label="Štatistiky">
+<dl id="statsSummary">
+<div><dt>Herné účty</dt><dd id="statsUsers"></dd></div>
+<div><dt>Odbery upozornení</dt><dd id="statsPush"></dd></div>
+<div><dt>Tímy</dt><dd id="statsTeams"></dd></div>
+</dl>
+<p>Dnešné údaje sú priebežné. Zber udalostí beta lievika je vypnutý.</p>
+<div id="g"></div>
+<details id="statsDetails"><summary>Technické údaje (JSON)</summary><pre id="statsRaw"></pre></details>
+</section>
+<label>🎅 Santa push 24. 12.<select id="sp"><option value="1">zapnutý</option><option value="0">vypnutý</option></select></label>
 <label>🌊 Nedeľná vlna<select id="sw"><option value="1">zapnutá</option><option value="0">vypnutá</option></select></label><label>🫡 Vojenské lety<select id="hm"><option value="0">zobraziť</option><option value="1">skryť (napäté obdobie)</option></select></label><label>🛟 Sociálne funkcie<select id="so"><option value="full">plné</option><option value="min">šetriaci režim</option></select></label>
 <button id="f">💾 Uložiť vypínače</button>
 <label for="missionGoal">Cieľ týždennej misie Slovenska (0 = vypnutá)</label>
@@ -1716,28 +1752,30 @@ function adminPage() {
 <button id="wipePreview" style="background:#ffd9a8;color:#3b1f15">1. Skontrolovať rozsah resetu</button>
 <pre id="wipeInfo">Reset sa nespustil.</pre>
 <button id="wipeExecute" disabled style="background:#ff7183;color:#3a101a">2. Natrvalo vymazať všetkých hráčov</button>
-</section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><div id="g"></div><pre id="o">Zadaj kľúč.</pre>
+</section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><pre id="o" role="status"></pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 const bars=(t,rows,key,col)=>{const w=340,h=120,n=rows.length,mx=Math.max(1,...rows.map(r=>+r[key]||0)),bw=w/n;let sv="<svg viewBox='0 0 "+w+" "+(h+34)+"' style='width:100%;background:#ffffff0d;border-radius:12px'>";rows.forEach((r,i)=>{const v=+r[key]||0,bh=Math.round(v/mx*(h-18));sv+="<rect x='"+(i*bw+2)+"' y='"+(h-bh)+"' width='"+(bw-4)+"' height='"+bh+"' rx='3' fill='"+col+"'/><text x='"+(i*bw+bw/2)+"' y='"+(h-bh-4)+"' font-size='9' fill='#fff' text-anchor='middle'>"+v+"</text><text x='"+(i*bw+bw/2)+"' y='"+(h+14)+"' font-size='8' fill='#ffffffaa' text-anchor='middle'>"+r.day.slice(8)+"."+r.day.slice(5,7)+"</text>"});return "<h3 style='margin:14px 0 6px'>"+t+"</h3>"+sv+"</svg>"};
-const betaLabels = {beta_open:"Prvé otvorenie",beta_gps:"GPS poloha",beta_wave:"Prvý pokus o mávnutie",beta_verified:"Prvý overený úlovok",beta_return:"Prvý návrat v ďalší deň"};
-$("s").onclick=async()=>{o.textContent="Overujem prihlásenie…";$("betaFunnel").hidden=true;try{
+$("s").onclick=async()=>{
+ const status=$("statsStatus");
+ status.textContent="Overujem prihlásenie…";
+ $("stats").hidden=true;
+ $("statsDetails").open=false;
+ try{
  const key=$("k").value;
- if(!key){o.textContent="Zadaj hodnotu ADMIN_KEY, nie názov premennej.";return}
+ if(!key){status.textContent="Zadaj hodnotu ADMIN_KEY, nie názov premennej.";return}
  const r=await fetch("/api/stats",{method:"POST",headers:H(),body:JSON.stringify({key})});
  const j=await r.json();
- if(r.status===401){o.textContent=j.configured===false?"⚠️ Produkčný server nevidí ADMIN_KEY. Skontroluj, či je Secret aktívny v nasadení Workeru (nie iba uložený v Settings).":j.keyReceived===false?"⚠️ Server nedostal zadaný kľúč. Skontroluj pripojenie a aktuálne nasadenie.":"⚠️ Server ADMIN_KEY vidí, ale zadaná hodnota sa nezhoduje. Zadaj hodnotu Secret presne tak, ako bola uložená, bez ďalších medzier.";return}
- if(!r.ok){o.textContent="Server odpovedal chybou "+r.status+": "+(j.error||"neznáma");return}
+ if(r.status===401){status.textContent=j.configured===false?"⚠️ Produkčný server nevidí ADMIN_KEY. Skontroluj, či je Secret aktívny v nasadení Workeru (nie iba uložený v Settings).":j.keyReceived===false?"⚠️ Server nedostal zadaný kľúč. Skontroluj pripojenie a aktuálne nasadenie.":"⚠️ Server ADMIN_KEY vidí, ale zadaná hodnota sa nezhoduje. Zadaj hodnotu Secret presne tak, ako bola uložená, bez ďalších medzier.";return}
+ if(!r.ok){status.textContent="Server odpovedal chybou "+r.status+": "+(j.error||"neznáma");return}
  const d=(j.dni||j.days||[]).slice().reverse();$("g").innerHTML=d.length?bars("👤 Aktívni hráči za deň",d,"dau","#6dffc7")+bars("👋 Mávnutia za deň",d,"waves","#ffcf4f"):"";
  $("missionGoal").value=j.missionGoal??0;
- const betaSteps=$("betaSteps");betaSteps.replaceChildren();
- for(const [step,label] of Object.entries(betaLabels)){
-   const dt=document.createElement("dt"),dd=document.createElement("dd");
-   dt.textContent=label;dd.textContent=String(j.lievik7dni?.[step]||0);
-   betaSteps.append(dt,dd);
- }
- $("betaFunnel").hidden=false;
- o.textContent=JSON.stringify(j,null,1)
- }catch(e){o.textContent="Spojenie so serverom zlyhalo. Skús obnoviť stránku."}};
+ $("statsUsers").textContent=j.users??"–";
+ $("statsPush").textContent=j.pushSubs??"–";
+ $("statsTeams").textContent=j.teams??"–";
+ $("statsRaw").textContent=JSON.stringify(j,null,1);
+ $("stats").hidden=false;
+ status.textContent="";
+ }catch(e){status.textContent="Spojenie so serverom zlyhalo. Skús obnoviť stránku."}};
 $("f").onclick=async()=>{o.textContent="…";const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({flags:{santaPush:$("sp").value==="1",sunWave:$("sw").value==="1",social:$("so").value,hideMil:$("hm").value==="1"}})});o.textContent=JSON.stringify(await r.json(),null,1)};
 const A=async x=>{const r=await fetch("/api/admin",{method:"POST",headers:H(),body:JSON.stringify({...x,key:$("k").value})});return r.json()};
 $("missionSave").onclick=async()=>{

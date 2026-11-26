@@ -47,6 +47,7 @@ async function ensureTok(force=false){
       LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_tok0",j.tok);TOK=j.tok;LS.set("ctl_tok",TOK);
       PID=j.pid;LS.set("ctl_pid",PID);FK=j.fk||"";LS.set("ctl_fk",FK);LS.set("ctl_fkT",Date.now());
       SOC.authVerified=true;SOC.authChecked=Date.now();
+      if(typeof syncNicknameProfile==="function"&&j.nickname)syncNicknameProfile(j.nickname);
       if(was)setTimeout(()=>typeof flushWq==="function"&&flushWq(),500);
     }catch(e){fail("net")}
     return SOC.authVerified?TOK:"";

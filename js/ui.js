@@ -680,7 +680,7 @@ function welcomeGift(){if(!LS.get("ctl_ref","")||LS.get("ctl_welcome",0)||(typeo
   const pool=["A320","B738","A21N","A319","B38M","E190"].filter(k=>!(COL.types[k]&&COL.types[k].n)),k=pool[Math.floor(Math.random()*pool.length)];if(!k)return;
   COL.types[k]=COL.types[k]||{n:0,r:typeTier(k),name:catGuess(k).name,first:Date.now()};COL.types[k].gift={from:"kamarát (uvítanie)",t:Date.now()};LS.set("ctl_col",COL);
   setTimeout(()=>toast("🎁 Uvítací darček od kamaráta","Kartička "+catGuess(k).name+" 🤝 – keď takému lietadlu zamávaš, bude celá tvoja"),5000)}
-function closeOnb(){if(LS.get("ctl_kid",null)===null)LS.set("ctl_kid",$("onbKid").checked);LS.set("ctl_onb",1);kidApply();onbDone();setTimeout(welcomeGift,1000);$("onb").classList.add("hide");setTimeout(()=>$("onb").style.display="none",460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
+function closeOnb(){if(LS.get("ctl_kid",null)===null)LS.set("ctl_kid",$("onbKid").checked);LS.set("ctl_onb",1);kidApply();onbDone();setTimeout(welcomeGift,1000);$("onb").classList.add("hide");setTimeout(()=>{$("onb").style.display="none";scheduleNicknamePrompt()},460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
 $("go").onclick=()=>{closeOnb();ev("onboard");LS.set("ctl_manual",false);startGps();if(S.pos)fetchPlanes(true)};
 // kompas sa pýta až keď ho treba (ťuk na kompas / Nájdi) – nie dva systémové dialógy po sebe
 /* 📍 zmena miesta jedným ťukom na pilulku hore */
@@ -912,8 +912,18 @@ try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
 
 /* ============ 🧒 režim pre deti do 16 rokov (bez prezývky, pošty, kamarátov a upozornení) ============ */
 const KID=()=>LS.get("ctl_kid",!LS.get("ctl_onb",0));
-function kidApply(){const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);$("nick").disabled=k;if(k){LS.set("ctl_nick","");$("nick").value="";LS.set("ctl_pushAsked",true)}}
-function kidSet(on){LS.set("ctl_kid",on);kidApply();if(typeof apiPost==="function")apiPost("/api/kid",{on:on?1:0}).catch(()=>{})}
+function kidApply(){
+  const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);
+  $("nickSettings").hidden=k;
+  if(k){LS.set("ctl_nick","");$("nick").value="";$("nickDialog").close();LS.set("ctl_pushAsked",true)}
+  if(typeof renderNicknameSettings==="function")renderNicknameSettings();
+}
+function kidSet(on){
+  LS.set("ctl_kid",on);kidApply();
+  if(typeof apiPost==="function")apiPost("/api/kid",{on:on?1:0}).then(r=>{
+    if(r.ok&&SOC.profileNickname)syncNicknameProfile({...SOC.profileNickname,kid:on,name:on?"":SOC.profileNickname.name});
+  }).catch(()=>{});
+}
 // 🔒 rodičovský PIN: chráni vypnutie detského režimu, prenos zbierky a mazanie
 const pinH=p=>String(hash("cotoleti-pin:"+p));
 function kidPinSet(){if(LS.get("ctl_kpin",""))return;const p=prompt("Rodič: nastav 4-miestny PIN.\nBude treba na vypnutie detského režimu, prenos a mazanie zbierky.","");if(p&&/^\d{4}$/.test(p.trim()))LS.set("ctl_kpin",pinH(p.trim()));else if(p!==null)toast("PIN musí mať 4 číslice","Nastavíš ho pri ďalšom zapnutí")}
@@ -1049,7 +1059,7 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_collectorHunt","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp"];
+const PKEYS=["ctl_col","ctl_collectorHunt","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_nick_prompt","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp"];
 const PROF_IDS=["A","B","C"];
 function profState(){const P=LS.get("ctl_profs",{cur:"A",n:{}});P.n=Object.assign({A:"Ja",B:"Dieťa",C:"Dieťa 2"},P.n);return P}
 function profNext(P){return P.cur==="A"?"B":"A"}
