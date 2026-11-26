@@ -17,7 +17,7 @@ async function apiRequest(url,options,timeout=11000){
   try{return await fetch(url,{...options,signal:ctl.signal})}finally{clearTimeout(timer)}
 }
 async function ensureTok(force=false){
-  if(!SOC.api||SOC.resetting||SOC.moved)return "";
+  if(!SOC.api||SOC.resetting||SOC.moved||(!TOK&&!LS.get("ctl_onb",0)))return "";
   if(SOC.helloP)return SOC.helloP;
   if(!force&&TOK&&FK&&SOC.authVerified&&Date.now()-SOC.authChecked<60000)return TOK;
   if(!navigator.onLine)return "";
@@ -396,7 +396,7 @@ async function doWave(e){
   }
 }
 async function doWave1(e,a,observation){LASTWAVE=null;
-  $("wavePick").classList.remove("on");
+  setWavePicker(false);
   haptic([18,40,18]);if(!RM())flyEmoji(e,$("b-wave"));
   if(a.santa){tryCatch(a);toast("🎅 Ho-ho-ho!","Santa ti zamával späť 👋","#ff4f6d");grantAch("santa");confetti(60);return}
   const key=SKD.format(new Date(observation.time))+a.hex,already=!!SOC.waved[key];
@@ -489,13 +489,45 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   fin(j.ver?"Overený úlovok":j.why?"Neoverený úlovok: "+j.why:"Dnes zamávané");
   setTimeout(socPoll,800);
 }
-{let lp=null,long=false;const bw=$("b-wave");
-  bw.addEventListener("pointerdown",()=>{long=false;clearTimeout(lp);lp=setTimeout(()=>{if(!S.top)return;long=true;haptic(12);$("wavePick").classList.add("on")},380)});
-  ["pointerup","pointerleave","pointercancel"].forEach(t=>bw.addEventListener(t,()=>clearTimeout(lp)));
-  bw.addEventListener("contextmenu",e=>e.preventDefault());
-  bw.onclick=()=>{if(!S.top||long){long=false;return}haptic(8);$("wavePick").classList.remove("on");doWave("👋")};
-  document.addEventListener("click",e=>{if($("wavePick").classList.contains("on")&&!e.target.closest("#wavePick,#b-wave"))$("wavePick").classList.remove("on")});}
-$("wavePick").onclick=ev=>{const b=ev.target.closest("button");if(!b)return;if(b.dataset.mail){$("wavePick").classList.remove("on");if(typeof openMail==="function")openMail();return}doWave(b.textContent)};
+function setWavePicker(open,focus=false){
+  const picker=$("wavePick"),trigger=$("b-reactions");
+  if(picker.classList.contains("on")===open)return;
+  const hadFocus=picker.contains(document.activeElement);
+  picker.classList.toggle("on",open);
+  trigger.setAttribute("aria-expanded",String(open));
+  if(open&&focus)picker.querySelector("button")?.focus();
+  if(!open&&hadFocus){
+    if(!trigger.disabled&&!trigger.hidden)trigger.focus({preventScroll:true});
+    else $("statusPill").focus({preventScroll:true});
+  }
+}
+{let holdTimer,long=false;const wave=$("b-wave");
+  wave.addEventListener("pointerdown",()=>{
+    long=false;clearTimeout(holdTimer);
+    holdTimer=setTimeout(()=>{if(!S.top||wave.disabled)return;long=true;haptic(12);setWavePicker(true)},380);
+  });
+  for(const event of ["pointerup","pointerleave","pointercancel"])wave.addEventListener(event,()=>clearTimeout(holdTimer));
+  wave.addEventListener("contextmenu",e=>e.preventDefault());
+  wave.onclick=e=>{
+    const ignore=long&&e.detail!==0;long=false;
+    if(!S.top||ignore)return;
+    haptic(8);setWavePicker(false);doWave("👋");
+  };
+  $("b-reactions").onclick=()=>setWavePicker(!$("wavePick").classList.contains("on"),true);
+  document.addEventListener("click",e=>{if(!e.target.closest("#wavePick,#b-wave,#b-reactions"))setWavePicker(false)});
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&$("wavePick").classList.contains("on")&&!activeOverlay()&&!document.querySelector("dialog[open]")){
+      e.preventDefault();setWavePicker(false);
+    }
+  });
+}
+$("wavePick").onclick=e=>{
+  const button=e.target.closest("button");if(!button)return;
+  if(button.dataset.mail){
+    setWavePicker(false);$("mailM").returnFocus=$("b-reactions");openMail();return;
+  }
+  doWave(button.textContent);
+};
 if(SOC.api){(function loop(){setTimeout(async()=>{if(!document.hidden)await socPoll();loop()},(45000+Math.random()*18000-9000)*Math.min(8,SOC.back||1))})();setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}
 
 /* 👯 zoznam kamarátov s možnosťou odobrať */
@@ -629,7 +661,9 @@ setTimeout(syncCards,4000);HOOKS.view.push(v=>{if(v==="col")syncCards()});
 // vždy skontroluj generáciu na serveri (bez vymazania pri výpadku siete).
 function verifyPlayerOnResume(){
   if(document.hidden||!navigator.onLine||SOC.resetting||SOC.moved)return;
-  if(!SOC.authVerified||Date.now()-SOC.authChecked>=60000)ensureTok(true).catch(()=>{});
+  if(!SOC.authVerified||Date.now()-SOC.authChecked>=60000){
+    ensureTok(true).then(tok=>{if(tok)syncKidMode()}).catch(()=>{});
+  }
 }
 setTimeout(verifyPlayerOnResume,0);
 addEventListener("online",verifyPlayerOnResume);

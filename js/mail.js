@@ -2,9 +2,11 @@
 /* ============ ✉️ Lietadlo ako poštár ============ */
 const MAILS=["Pekný deň! ☀️","Pozdrav zo Slovenska 🇸🇰","Šťastnú cestu! ✈️","Mávam ti zdola 👋","Dobrú noc 🌙","Zdravím z oblakov ☁️","Usmej sa 😊","Si super! 🔥","Bezpečný let 🙏","Ahoj z gauča 🛋️","Pekný výhľad! 🌄","Ahoj z okna 🪟"];
 const MAIL_EMO=["☀️","🇸🇰","✈️","👋","🌙","❤️","😊","🔥","🙏","🛋️","👀","🥺"];
-const POSTQ=[];let postCur=null;
+const POSTQ=[];let postCur=null,mailHex=null;
 function openMail(){
   const a=S.top;if(!a){toast("Nad tebou práve nič neletí","Počkaj na lietadlo");return}
+  mailHex=a.hex;
+  $("mailList").hidden=false;$("mailStatus").hidden=true;$("mailClose").textContent="Zrušiť";
   const rt=routeOf(a);
   $("mailTo").textContent=`Tvoj pozdrav doručí lietadlo ${rt?"→ "+citySk(rt.destination.municipality):titleOf(a)} ľuďom, nad ktorými preletí`;
   $("mailList").innerHTML=MAILS.map((m,i)=>`<button data-i="${i}">${esc(m)}</button>`).join("");
@@ -12,7 +14,16 @@ function openMail(){
 }
 $("mailClose").onclick=()=>$("mailM").classList.remove("on");
 $("mailList").onclick=async e=>{
-  const b=e.target.closest("button");if(!b)return;const i=+b.dataset.i,a=S.top;$("mailM").classList.remove("on");if(!a)return;
+  const b=e.target.closest("button");if(!b||KID())return;
+  const a=S.list.find(plane=>plane.hex===mailHex),i=+b.dataset.i;
+  if(!a||a.emg||a.ground||skyStale()){
+    $("mailStatus").hidden=false;
+    $("mailStatus").textContent="Tento let už nie je dostupný. Zavri pozdrav a vyber iné lietadlo.";
+    $("mailClose").textContent="Zavrieť";$("mailClose").focus();
+    $("mailList").hidden=true;
+    return;
+  }
+  $("mailM").classList.remove("on");
   haptic([20,40,20]);flyEmoji("✉️",$("b-wave"));
   if(!SOC.api){toast("Pozdrav sa teraz nedá poslať","Skús to, keď budeš online");return}
   try{

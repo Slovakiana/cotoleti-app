@@ -1,51 +1,32 @@
 "use strict";
-/* ============ 👂 Shazam na lietadlá ============ */
-let shzStream=null,shzRaf=null;
-async function shazam(){
+/* ============ 👂 Pravdepodobný zdroj zvuku podľa radaru ============ */
+function shazam(){
   $("shz").classList.add("on");
-  $("shzRes").innerHTML='<div class="big" style="font-size:24px">Počúvam…</div><div class="lookSub">Drž mobil smerom k zvuku</div>';
-  const cv=$("shzWave"),c=cv.getContext("2d");let an=null,buf=null;
-  try{
-    shzStream=await navigator.mediaDevices.getUserMedia({audio:true});
-    const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaStreamSource(shzStream);
-    an=ac.createAnalyser();an.fftSize=256;src.connect(an);buf=new Uint8Array(an.frequencyBinCount);
-  }catch(e){}
-  const t0=Date.now();
-  const draw=()=>{
-    c.clearRect(0,0,cv.width,cv.height);
-    const n=48,w=cv.width/n;
-    if(an)an.getByteFrequencyData(buf);
-    for(let i=0;i<n;i++){
-      const v=an?buf[Math.floor(i*buf.length/n/1.6)]/255:(.25+.6*Math.abs(Math.sin(Date.now()/180+i*.5))*Math.random());
-      const h=Math.max(4,v*cv.height);
-      const g=c.createLinearGradient(0,cv.height,0,0);g.addColorStop(0,"#4fc3ff");g.addColorStop(1,"#ff4fd8");
-      c.fillStyle=g;c.fillRect(i*w+2,(cv.height-h)/2,w-4,h);
-    }
-    if(Date.now()-t0<3200)shzRaf=requestAnimationFrame(draw);else shzDone();
-  };
-  draw();
-}
-function shzStop(){cancelAnimationFrame(shzRaf);if(shzStream){shzStream.getTracks().forEach(x=>x.stop());shzStream=null}}
-function shzDone(){
-  shzStop();
-  const C=343; // rýchlosť zvuku m/s
-  const cands=enrich(Date.now()).filter(a=>a.alt!=null).map(a=>{const sl=Math.hypot(a.dist,a.alt);return {a,sl,score:(a.alt<3000?2.5:1)/(sl*sl)}}).filter(x=>x.sl<25000).sort((x,y)=>y.score-x.score);
-  if(!cands.length){
-    $("shzRes").innerHTML='<div class="big" style="font-size:22px">Nič blízko nelieta 🤷</div><div class="lookSub">Hučí asi diaľnica, vietor alebo sused s vysávačom. 🚗</div>';return;
+  const result=$("shzRes");
+  if(!S.pos||!S.loaded||S.failN||skyStale()){
+    result.textContent="Na odhad treba polohu a čerstvé radarové údaje.";
+    return;
   }
-  const {a,sl}=cands[0],delay=sl/C,m=S.meta.get(a.hex);
-  // kde bolo lietadlo, keď z neho vyšiel zvuk, ktorý práve počuješ
-  const back=a.spd!=null?a.spd/3.6*delay:0;
+  const candidates=enrich(Date.now()).filter(a=>a.alt!=null&&!a.ground&&!a.santa).map(a=>{
+    const distance=Math.hypot(a.dist,a.alt);
+    return {a,distance,score:(a.alt<3000?2.5:1)/(distance*distance)};
+  }).filter(x=>x.distance<25000).sort((a,b)=>b.score-a.score);
+  if(!candidates.length){
+    result.textContent="Radar nevidí v dosahu vhodné lietadlo.";
+    return;
+  }
+  const {a,distance}=candidates[0],delay=distance/343,m=S.meta.get(a.hex);
+  const travelled=a.spd!=null?a.spd/3.6*delay:null;
   grantAch("shazam");if(window.dailyEvent)dailyEvent("shazam");
-  $("shzRes").innerHTML=`<div class="lbl" style="margin-top:4px"><span>Počuješ</span></div>
+  result.innerHTML=`<div class="lbl" style="margin-top:4px"><span>Pravdepodobný zdroj podľa radaru</span></div>
     <div class="big" style="font-size:30px">${esc(titleOf(a))}</div>
     <div class="sub">${esc(typeName(a,m))}${airlineOf(a)?" · "+esc(airlineOf(a)):""}</div>
-    <div class="grid2" style="margin-top:10px"><div><b>${nf(sl/1000,1)} km</b><span>od tvojich uší</span></div><div><b>${nf(delay)} s</b><span>toľko k tebe letí zvuk</span></div></div>
-    <div class="qbox">🤯 Zvuk je pomalší ako lietadlo. Počuješ ho tam, kde bolo pred ${nf(delay)} sekundami – odvtedy preletelo ďalších ${nf(back/1000,1)} km. Pozri sa ${a.trk!=null?"viac na "+dirL(a.trk):"pred zvuk"}!</div>`;
+    <div class="grid2" style="margin-top:10px"><div><b>${nf(distance/1000,1)} km</b><span>od teba</span></div><div><b>${nf(delay)} s</b><span>odhad času šírenia zvuku</span></div></div>
+    <div class="qbox">Zvuk, ktorý k tebe dorazí teraz, vyšiel z lietadla asi pred ${nf(delay)} sekundami.${travelled!=null?" Za ten čas lietadlo preletelo približne "+nf(travelled/1000,1)+" km.":""}</div>`;
   ping("u");
 }
 $("b-shazam").onclick=shazam;
-$("shzClose").onclick=()=>{shzStop();$("shz").classList.remove("on")};
+$("shzClose").onclick=()=>$("shz").classList.remove("on");
 
 /* ============ 🗺️ Mapa trasy ============ */
 let LMAP=null,LLAYER=null,leafletLoading=null,mapLoading=null,mapRequest=0;
@@ -326,13 +307,14 @@ function scheduleNicknamePrompt(){
      ||!nickIsDefault(nick())||Date.now()-LS.get("ctl_nick_prompt",0)<86400000)return;
   nicknamePromptTimer=setTimeout(()=>{
     if(document.hidden||KID()||!SOC.authVerified||SOC.profileNickname?.kid||!nickIsDefault(nick()))return;
-    if(document.querySelector(".modal.on, dialog[open]")||$("onb").offsetHeight){scheduleNicknamePrompt();return}
+    if(activeOverlay()||document.querySelector("dialog[open]")||$("onb").offsetHeight){scheduleNicknamePrompt();return}
     LS.set("ctl_nick_prompt",Date.now());
     openNicknameEditor();
   },1600);
 }
 function syncNicknameProfile(profile){
   SOC.profileNickname=profile;
+  showKidSync();
   if(profile&&!profile.kid&&!KID()&&!nickIsDefault(profile.name)&&(profile.managed||nickIsDefault(nick()))){
     LS.set("ctl_nick",profile.name);
     renderNicknameSettings();
@@ -422,16 +404,16 @@ HOOKS.view.push(v=>{if(v==="col"){renderDaily();renderDuel()}});
 let installEvt=null;
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 const visits=(LS.get("ctl_visits",0)|0)+1;LS.set("ctl_visits",visits);
-addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)&&visits>=2){$("installBar").style.display="";$("installTxt").textContent="📲 Pridať na plochu"}});
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)&&visits>=2){$("installBar").hidden=false;$("installTxt").textContent="📲 Pridať na plochu"}});
 function installHint(){
   if(standalone()||LS.get("ctl_noinst",false)||inApp||(visits<2&&(LS.get("ctl_waveN",0)|0)<3))return;
-  if(isIOS()){$("installBar").style.display="";$("installTxt").textContent="📲 Na plochu"}
+  if(isIOS()){$("installBar").hidden=false;$("installTxt").textContent="📲 Na plochu"}
 }
-$("installBar").onclick=async()=>{
-  if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").style.display="none"}
+$("installTxt").onclick=async()=>{
+  if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").hidden=true}
   else installGuide();
 };
-$("b-installX").onclick=e=>{e.stopPropagation();LS.set("ctl_noinst",true);$("installBar").style.display="none"};
+$("b-installX").onclick=()=>{LS.set("ctl_noinst",true);$("installBar").hidden=true;$("b-track").focus({preventScroll:true})};
 // 🔄 nová verzia: pri návrate do appky sa skontroluje a keď sa prevezme, appka sa potichu obnoví (keď ju práve nepoužívaš)
 if("serviceWorker" in navigator&&location.protocol==="https:"){navigator.serviceWorker.register("sw.js").then(reg=>{
     document.addEventListener("visibilitychange",()=>{if(!document.hidden)reg.update().catch(()=>{})});setInterval(()=>reg.update().catch(()=>{}),30*60e3)}).catch(()=>{});

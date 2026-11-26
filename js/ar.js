@@ -2,6 +2,7 @@
 /* ============ AR obloha na canvase (dá sa nahrávať) ============ */
 const AR={auto:false,cd:0,maxS:30,music:null,facing:"environment",stream:null,raf:null,rec:null,chunks:[],recStart:0,cv:null,ctx:null,vid:null,d:1,hint:"",calib:LS.get("ctl_arcal",0)};
 const HFOV=52,VFOV=68;
+let arCameraRequest=0;
 
 async function openAR(){
   $("ar").classList.add("on");
@@ -15,24 +16,43 @@ async function openAR(){
 // iPhone pri prepnutí appky vypne kameru aj zvuk – po návrate ich obnovíme
 document.addEventListener("visibilitychange",()=>{
   if(!$("ar").classList.contains("on"))return;
-  if(document.hidden){if(AR.rec&&AR.rec.state==="recording")stopRec();return}
+  if(document.hidden){
+    if(AR.rec?.state==="recording")stopRec();
+    arCameraRequest++;stopARCamera();
+    return;
+  }
   const dead=!AR.stream||AR.stream.getVideoTracks().every(t=>t.readyState==="ended");
   if(dead)arCam();else AR.vid.play().catch(()=>{});
   try{AR.actx&&AR.actx.state!=="running"&&AR.actx.resume()}catch(e){}
 });
+function stopARCamera(){
+  AR.stream?.getTracks().forEach(track=>track.stop());
+  AR.stream=null;
+  if(AR.vid)AR.vid.srcObject=null;
+}
 async function arCam(){
-  if(AR.stream){AR.stream.getTracks().forEach(x=>x.stop());AR.stream=null}
+  const request=++arCameraRequest;
+  stopARCamera();
+  const status=$("arCameraStatus");
+  status.textContent="Čakám na kameru…";status.hidden=false;
   try{
-    AR.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:AR.facing},width:{ideal:1280},height:{ideal:720}},audio:false});
-    AR.vid.srcObject=AR.stream;await AR.vid.play().catch(()=>{});
-  }catch(e){toast("Kamera nie je povolená","Ukážem aspoň štítky na oblohe")}
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:AR.facing},width:{ideal:1280},height:{ideal:720}},audio:false});
+    if(request!==arCameraRequest||!$("ar").classList.contains("on")||document.hidden){
+      stream.getTracks().forEach(track=>track.stop());
+      return;
+    }
+    AR.stream=stream;AR.vid.srcObject=stream;status.hidden=true;
+    await AR.vid.play().catch(()=>{});
+  }catch(e){
+    if(request===arCameraRequest)status.textContent="Kamera je nedostupná. Zobrazujem štítky na oblohe.";
+  }
 }
 function sizeAR(){const d=Math.min(2,window.devicePixelRatio||1);AR.d=d;AR.cv.width=Math.round(innerWidth*d);AR.cv.height=Math.round(innerHeight*d)}
 addEventListener("resize",()=>{if(AR.cv&&$("ar").classList.contains("on"))sizeAR()});
 function closeAR(){
   if(AR.rec&&AR.rec.state==="recording")stopRec();
   $("ar").classList.remove("on");cancelAnimationFrame(AR.raf);if(!document.body.classList.contains("moment"))wakeOff();
-  if(AR.stream){AR.stream.getTracks().forEach(x=>x.stop());AR.stream=null}
+  arCameraRequest++;stopARCamera();
   if(S.view==="ar")setView("now");
 }
 
@@ -164,27 +184,44 @@ function arMusic(){
   }catch(e){return null}
 }
 function startRec(opt={}){
+  if(AR.rec)return;
   if(!AR.cv.captureStream||!window.MediaRecorder){toast("Nahrávanie tu nejde","Tento prehliadač ho nepodporuje – skús fotku 📷");return}
   const mime=pickMime();AR.chunks=[];AR.maxS=opt.auto?10:30;AR.recAuto=!!opt.auto;
   const st=AR.cv.captureStream(30);
   if(opt.auto){AR.music=arMusic();if(AR.music&&AR.music.track)st.addTrack(AR.music.track)}
   try{AR.rec=new MediaRecorder(st,mime?{mimeType:mime,videoBitsPerSecond:5e6}:undefined)}
   catch(e){ // niektoré prehliadače nevedia nahrať zvuk z webu – skúsime bez neho
-    try{st.getAudioTracks().forEach(t=>st.removeTrack(t));AR.rec=new MediaRecorder(st,mime?{mimeType:mime}:undefined);toast("🎵 Video bude bez hudby","Tento prehliadač nevie nahrať zvuk")}catch(e2){toast("Nahrávanie zlyhalo",e2.message);return}}
+    try{st.getAudioTracks().forEach(t=>st.removeTrack(t));AR.rec=new MediaRecorder(st,mime?{mimeType:mime}:undefined);toast("🎵 Video bude bez hudby","Tento prehliadač nevie nahrať zvuk")}catch(e2){st.getTracks().forEach(t=>t.stop());AR.music?.stop();AR.music=null;toast("Nahrávanie zlyhalo",e2.message);return}}
   AR.rec.ondataavailable=e=>{if(e.data&&e.data.size)AR.chunks.push(e.data)};
   AR.rec.onstop=()=>{
     if(AR.music){AR.music.stop();AR.music=null}
-    if(AR.auto&&AR.recAuto){AR.auto=false;$("arAuto").classList.remove("on");$("arAuto").textContent="🎯 Auto-záber"}
+    if(AR.auto&&AR.recAuto){AR.auto=false;$("arAuto").classList.remove("on");$("arAuto").textContent="🎯 Auto-záber";$("arAuto").setAttribute("aria-pressed","false")}
     const type=(AR.rec.mimeType||mime||"video/webm").split(";")[0],blob=new Blob(AR.chunks,{type});
+    AR.rec=null;st.getTracks().forEach(track=>track.stop());setARRecording(false);
     if(!blob.size){toast("Video je prázdne","Skús to znova");return}
     // auto-záber len keď video naozaj natočil automat
     if(AR.recAuto)grantAch("autoshot");grantAch("video");
     shareBlob(blob,"co-to-leti."+(type.includes("mp4")?"mp4":"webm"),"Pozri, čo mi letelo nad hlavou ✈️ "+(S.top?planeLink(S.top):appLink())+TAGS);
   };
-  AR.rec.start(500);AR.recStart=Date.now();$("arRec").classList.add("on");
+  try{AR.rec.start(500)}catch(e){
+    AR.rec=null;st.getTracks().forEach(track=>track.stop());
+    AR.music?.stop();AR.music=null;
+    toast("Nahrávanie zlyhalo","Skús fotku alebo spusti video znova.");
+    return;
+  }
+  AR.recStart=Date.now();setARRecording(true);
   if(navigator.vibrate)navigator.vibrate(40);
 }
-function stopRec(){try{if(AR.rec&&AR.rec.state==="recording")AR.rec.stop()}catch(e){}$("arRec").classList.remove("on")}
+function setARRecording(on){
+  const button=$("arRec");
+  button.classList.toggle("on",on);
+  button.setAttribute("aria-pressed",String(on));
+  button.setAttribute("aria-label",on?"Zastaviť nahrávanie":"Nahrávať video");
+}
+function stopRec(){
+  try{if(AR.rec?.state==="recording")AR.rec.stop()}catch(e){}
+  setARRecording(false);
+}
 function snapAR(){AR.cv.toBlob(b=>b&&shareBlob(b,"co-to-leti.png","Pozri, čo mi letí nad hlavou ✈️ "+(S.top?planeLink(S.top):appLink())+TAGS),"image/png")}
 
 // 🔗 Instagram pri zdieľaní obrázka zahodí text – ponúkni odkaz do schránky (ťuk = povolené kopírovanie)
@@ -192,23 +229,37 @@ function linkCopyOffer(text){const m=String(text||"").match(/https?:\/\/\S+/);if
   if(!el){el=document.createElement("button");el.id="linkCopy";el.className="pill glass";document.body.appendChild(el)}
   el.textContent="🔗 Skopírovať odkaz (na Instagram ako nálepku Odkaz)";el.hidden=false;clearTimeout(el._t);el._t=setTimeout(()=>el.hidden=true,9000);
   el.onclick=async()=>{try{await navigator.clipboard.writeText(m[0]);toast("🔗 Odkaz je v schránke","V Instagrame ho vlož ako nálepku „Odkaz“")}catch(e){prompt("Skopíruj odkaz:",m[0])}el.hidden=true}}
+let sharePreviewUrl;
+function releaseSharePreview(){
+  if(!sharePreviewUrl)return;
+  URL.revokeObjectURL(sharePreviewUrl);sharePreviewUrl=null;
+  $("shareImg").removeAttribute("src");$("shareVid").removeAttribute("src");$("shareDl").removeAttribute("href");
+}
 async function shareBlob(blob,name,text){
+  const returnFocus=document.activeElement;
   const file=new File([blob],name,{type:blob.type});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text});linkCopyOffer(text);return}}catch(e){if(e.name==="AbortError")return}
-  const url=URL.createObjectURL(blob),isV=blob.type.startsWith("video");
+  releaseSharePreview();
+  const url=sharePreviewUrl=URL.createObjectURL(blob),isV=blob.type.startsWith("video");
   $("shareImg").style.display=isV?"none":"";$("shareVid").style.display=isV?"":"none";
   if(isV){$("shareVid").src=url;$("shareVid").play().catch(()=>{})}else $("shareImg").src=url;
   $("shareDl").href=url;$("shareDl").download=name;
   $("shareTxt").textContent=isV?"Video je hotové. Stiahni si ho a pridaj na TikTok alebo do Reels.":"Podrž prst na obrázku a ulož ho, alebo ho stiahni.";
   $("shareDl").style.display="";
   if(typeof inApp!=="undefined"&&inApp){$("shareDl").style.display="none";$("shareTxt").textContent=isV?"Video ulož cez Safari/Chrome: ⋯ → Otvoriť v prehliadači.":"Podrž prst na obrázku → Uložiť obrázok."}
+  $("shareM").returnFocus=returnFocus;
   $("shareM").classList.add("on");
 }
 
 $("arRec").onclick=()=>{if(AR.rec&&AR.rec.state==="recording")stopRec();else startRec()};
 $("arSnap").onclick=snapAR;
 // kalibrácia: namier na najbližšie lietadlo/ISS v strede a ťukni
-$("arFlip").onclick=()=>{AR.facing=AR.facing==="user"?"environment":"user";haptic(10);arCam()};
+function setARFacing(facing){
+  AR.facing=facing;
+  $("arFlip").setAttribute("aria-label",facing==="user"?"Prepnúť na zadnú kameru":"Prepnúť na prednú kameru");
+  arCam();
+}
+$("arFlip").onclick=()=>{haptic(10);setARFacing(AR.facing==="user"?"environment":"user")};
 if($("arCal"))$("arCal").onclick=()=>{
   if(S.camHead==null){toast("Kompas ešte nebeží","Pohni mobilom do osmičky");return}
   const target=S.top||null;
@@ -240,9 +291,10 @@ function selfieSticker(c,W,H,now){
 $("arAuto").onclick=()=>{
   // zvuk musí vzniknúť priamo pri ťuknutí, inak ho iPhone zablokuje
   try{AR.actx=AR.actx||new (window.AudioContext||window.webkitAudioContext)();unlockAudio(AR.actx)}catch(e){}
-  if(AR.facing==="user"){AR.facing="environment";arCam()}
+  if(AR.facing==="user")setARFacing("environment");
   AR.auto=!AR.auto;AR.cd=0;haptic(10);
   $("arAuto").textContent=AR.auto?"🎯 Auto: čakám…":"🎯 Auto-záber";
+  $("arAuto").setAttribute("aria-pressed",String(AR.auto));
   if(AR.auto)toast("🎯 Auto-záber zapnutý","Namier mobil hore. Keď bude lietadlo nad tebou, sám natočí 10 s aj s hudbou 🎵");
 };
 ACH.push({id:"autoshot",i:"🎥",n:"Auto-záber",h:"V AR kamere zapni 🎯 Auto-záber a nechaj ho natočiť lietadlo",c:()=>false});

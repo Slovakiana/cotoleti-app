@@ -268,6 +268,7 @@ function skyFrame(){
   SKY.cost=SKY.cost*.9+(performance.now()-tNow)*.1;
 }
 function skyTap(ev){
+  if(SKY.paintedT!==S.rawT)return;
   const r=$("sky").getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;
   let best=null,bd=30;for(const p of SKY.pts){const dd=Math.hypot(p.x-x,p.y-y);if(dd<bd){bd=dd;best=p}}
   if(best){SKY.fx={x:best.x,y:best.y,t:performance.now()};if(!SKY.tapped){SKY.tapped=true;LS.set("ctl_radarTap",1)}S.pick=best.hex;haptic(12);tick(false);}
@@ -275,7 +276,7 @@ function skyTap(ev){
 }
 
 function renderRadarHeader(a){
-  const stale=skyStale(),state=!S.pos?"waiting":stale?"stale":S.loaded&&!S.failN&&S.rawT>0&&SKY.paintedT===S.rawT?"live":"waiting";
+  const stale=skyStale(),state=!S.pos?"waiting":stale?"stale":S.loaded&&!S.failN&&S.rawT>0?"live":"waiting";
   const badge=$("radarState");
   const label=!S.pos?"Čaká na polohu":stale?"Posledná poloha":state==="live"?"Naživo":S.failN?"Nedostupné":"Načítavam";
   if(badge.dataset.state!==state)badge.dataset.state=state;
@@ -293,6 +294,16 @@ function expandRadar(){
 }
 function heroEmpty(){
   $("h-position-age").hidden=true;
+  $("h-eta").classList.remove("on");
+  for(const id of ["h-position-age","h-eta","spotLine","r-on","r-dn"])$(id).textContent="";
+  for(const id of ["r-o","r-d","g-spd","g-trk","g-alt","g-dist"])$(id).textContent="—";
+  $("g-spdC").textContent="rýchlosť";$("g-trkC").textContent="letí smerom";$("g-altC").textContent="výška";
+  $("flightDetailStatus").hidden=false;
+  $("flightDetailStatus").textContent="Podrobnosti letu sa zobrazia, keď bude na radare lietadlo.";
+  $("b-map").disabled=true;
+  $("b-share").disabled=true;$("b-share").hidden=true;
+  $("b-reactions").disabled=true;
+  $("waveLbl").textContent="👋 Mávni";$("b-wave").classList.remove("waved");
   $("guess").classList.remove("on");
   $("h-lbl").textContent=t("now");$("h-rar").style.display="none";
   $("h-call").textContent=S.pos?t("empty"):"Pozri hore";
@@ -318,7 +329,7 @@ function renderHeroStatic(a){
   $("h-call").textContent=rt&&!stale?"→ "+citySk(rt.destination.municipality||rt.destination.name):(al||titleOf(a));
   $("h-type").textContent=[rt&&al?al:"",typeName(a,m),rt||al?(a.priv?"":titleOf(a)):""].filter(Boolean).join(" · ");
   // núdzový kód: žiadna hra ani zdieľanie, neutrálny text
-  const emg=!!a.emg,disabled=emg||stale||S.manual||!!SOC.inflight;$("b-wave").disabled=disabled;$("b-wave").style.opacity=disabled?.5:1;$("b-share").style.display=emg||a.priv||stale?"none":"";
+  const emg=!!a.emg,disabled=emg||stale||S.manual||!!SOC.inflight;$("b-wave").disabled=disabled;$("b-wave").style.opacity=disabled?.5:1;
   if(emg)setTimeout(()=>{if(S.top&&S.top.hex===a.hex)$("h-quip").textContent="Lietadlo hlási neobvyklý kód. Hra je pre tento let vypnutá."},0);
   $("spotLine").textContent=[a.priv?"":a.reg,a.fl!=null?"FL"+String(a.fl).padStart(3,"0"):"",a.kt!=null?a.kt+" kt":"",a.vr!=null?(a.vr>0?"+":"")+Math.round(a.vr)+" ft/min":"",a.sq&&!a.priv?"sq "+a.sq:""].filter(Boolean).join(" · ");
   if(rt&&!stale){$("r-o").textContent=rt.origin.iata_code||rt.origin.icao_code||"?";$("r-on").textContent=citySk(rt.origin.municipality||rt.origin.name);
@@ -336,6 +347,11 @@ function renderHeroLive(a){
   if(!a)return;
   const stale=skyStale()&&!a.santa;
   const wave=$("b-wave"),disabled=stale||S.manual||a.emg||!!(typeof SOC!=="undefined"&&SOC.inflight);
+  const shareButton=$("b-share"),shareable=!stale&&!a.emg&&!a.priv;
+  shareButton.disabled=!shareable;shareButton.hidden=!shareable;
+  $("b-map").disabled=false;
+  $("b-reactions").disabled=disabled;
+  if(disabled&&typeof setWavePicker==="function")setWavePicker(false);
   if(wave.disabled!==disabled)wave.disabled=disabled;
   wave.style.opacity=disabled?.5:1;
   const el=Math.max(0,a.el??0);
@@ -355,7 +371,8 @@ function renderHeroLive(a){
   if(stale){
     const age=Math.max(0,Math.floor((Date.now()-(a.positionAt||S.rawT))/1000));
     notice.textContent="Posledná známa poloha · pred "+age+" s";
-    $("b-share").style.display="none";
+    $("flightDetailStatus").hidden=false;
+    $("flightDetailStatus").textContent=notice.textContent;
     if(!wasStale){
       $("h-call").textContent=airlineOf(a)||titleOf(a);
       $("h-route").classList.remove("on");
@@ -365,14 +382,15 @@ function renderHeroLive(a){
     eta.classList.remove("on");eta.style.display="none";
     return;
   }
+  $("flightDetailStatus").hidden=true;
   const ap=approach(a);eta.style.display="";
   if(ap&&ap.t>3&&ap.t<900&&ap.el!=null&&ap.el>=20){const mm=Math.floor(ap.t/60),ss=Math.floor(ap.t%60);eta.innerHTML=`⏱ Najbližšie k tebe o <b>${mm?mm+" min ":""}${ss} s</b> · ${nf(ap.el)}° nad obzorom`;eta.classList.add("on")}
   else if(ap&&ap.t<=3&&ap.t>-60&&el>=40){eta.innerHTML="🎯 Práve je najbližšie k tebe!";eta.classList.add("on")}
   else eta.classList.remove("on");
 }
 function renderList(list){
-  const rest=list.filter(a=>!S.top||a.hex!==S.top.hex).slice(0,12);
-  $("radarCnt").textContent=list.filter(a=>a.el>0).length+" nad obzorom";
+  const others=list.filter(a=>a.hex!==S.top?.hex),rest=others.slice(0,12);
+  $("radarCnt").textContent=others.length>rest.length?rest.length+" z "+others.length+" ďalších":others.filter(a=>a.el>0).length+" nad obzorom";
   const today=dayKey();
   const wavedLabel="Dnes zamávané";
   const root=$("list"),focus=root.contains(document.activeElement)?document.activeElement.dataset.hex:null;
@@ -438,6 +456,7 @@ function renderFirstWaveGuide(a){
   const hasPrimary=!!label&&(S.manual||skyStale()||S.failN);
   $("b-wave").hidden=hasPrimary;
   $("b-ar").hidden=hasPrimary;
+  $("b-reactions").hidden=hasPrimary||!a;
   if(hint.textContent!==(text||""))hint.textContent=text||"";
   hint.hidden=!text;
   if(button.textContent!==(label||"")){button.textContent=label||"";button.onclick=action||null}
@@ -471,6 +490,7 @@ function tick(fresh){
     if(best&&S.top){const cur=S.list.find(a=>a.hex===S.top.hex);if(cur&&cur.el!=null&&best.el-cur.el<2)best=cur}}
   const changed=(best&&best.hex)!==(S.top&&S.top.hex);
   S.top=best;
+  if(changed&&typeof setWavePicker==="function")setWavePicker(false);
   if(changed||fresh){renderHeroStatic(best);if(best&&!skyStale()){loadMeta(best);if(changed)announce(best,false)}}
   renderHeroLive(best);
   renderRadarHeader(best);
@@ -640,8 +660,13 @@ function setView(v){
   if(v==="now")requestAnimationFrame(skySize);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{haptic(8);if(document.startViewTransition&&S.view!==b.dataset.v&&!(typeof RM==="function"&&RM()))document.startViewTransition(()=>setView(b.dataset.v));else setView(b.dataset.v)});
-$("b-ar").onclick=()=>{haptic(10);openAR()};$("arClose").onclick=()=>closeAR();
-$("b-share").onclick=share;$("shareClose").onclick=()=>{$("shareM").classList.remove("on");try{$("shareVid").pause()}catch(e){}};
+$("b-ar").onclick=()=>{haptic(10);$("ar").returnFocus=$("b-ar");openAR()};$("arClose").onclick=()=>closeAR();
+$("b-share").onclick=share;
+$("shareClose").onclick=()=>{
+  $("shareM").classList.remove("on");
+  $("shareVid").pause();
+  if(typeof releaseSharePreview==="function")releaseSharePreview();
+};
 function syncToggles(){$("t-voice").classList.toggle("on",S.voice);$("t-vib").classList.toggle("on",S.vib);$("t-vych").classList.toggle("on",S.vych);$("b-voice").innerHTML=(S.voice?"<i>🔊</i>Čítam nahlas":"<i>🔈</i>Čítaj nahlas")}
 // prepínače hlásia stav čítačkám (VoiceOver)
 new MutationObserver(ms=>ms.forEach(m=>{const t=m.target;if(t.classList&&t.classList.contains("tog"))t.setAttribute("aria-checked",String(t.classList.contains("on")))})).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
@@ -682,7 +707,17 @@ function welcomeGift(){if(!LS.get("ctl_ref","")||LS.get("ctl_welcome",0)||(typeo
   const pool=["A320","B738","A21N","A319","B38M","E190"].filter(k=>!(COL.types[k]&&COL.types[k].n)),k=pool[Math.floor(Math.random()*pool.length)];if(!k)return;
   COL.types[k]=COL.types[k]||{n:0,r:typeTier(k),name:catGuess(k).name,first:Date.now()};COL.types[k].gift={from:"kamarát (uvítanie)",t:Date.now()};LS.set("ctl_col",COL);
   setTimeout(()=>toast("🎁 Uvítací darček od kamaráta","Kartička "+catGuess(k).name+" 🤝 – keď takému lietadlu zamávaš, bude celá tvoja"),5000)}
-function closeOnb(){if(LS.get("ctl_kid",null)===null)LS.set("ctl_kid",$("onbKid").checked);LS.set("ctl_onb",1);kidApply();onbDone();setTimeout(welcomeGift,1000);$("onb").classList.add("hide");setTimeout(()=>{$("onb").style.display="none";scheduleNicknamePrompt()},460);try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}bindOri()}
+function closeOnb(){
+  const onb=$("onb");
+  LS.set("ctl_kid",$("onbKid").checked);LS.set("ctl_onb",1);
+  kidApply();onbDone();setTimeout(welcomeGift,1000);
+  onb.classList.remove("active");onb.classList.add("hide");onb.inert=true;
+  focusHome();
+  setTimeout(()=>{onb.style.display="none";scheduleNicknamePrompt()},460);
+  verifyPlayerOnResume();
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  bindOri();
+}
 $("go").onclick=()=>{closeOnb();ev("onboard");LS.set("ctl_manual",false);startGps();if(S.pos)fetchPlanes(true)};
 // kompas sa pýta až keď ho treba (ťuk na kompas / Nájdi) – nie dva systémové dialógy po sebe
 /* 📍 zmena miesta jedným ťukom na pilulku hore */
@@ -738,7 +773,10 @@ $("t-guess").classList.toggle("on",S.guess);
 $("t-guess").onclick=()=>{S.guess=!S.guess;LS.set("ctl_guess",S.guess);$("t-guess").classList.toggle("on",S.guess);if(S.top)renderHeroStatic(S.top)};
 
 /* ============ 🔒 súkromie a zmazanie údajov ============ */
-const openPriv=e=>{if(e)e.preventDefault();$("privM").classList.add("on")};
+const openPriv=e=>{
+  if(e){e.preventDefault();$("privM").returnFocus=e.currentTarget}
+  $("privM").classList.add("on");
+};
 $("b-privacy").onclick=openPriv;$("f-privacy").onclick=openPriv;$("onb-privacy").onclick=openPriv;$("privClose").onclick=()=>$("privM").classList.remove("on");
 let forgetArm=0;
 $("b-forget").onclick=async()=>{
@@ -886,23 +924,56 @@ function installGuide(){
 $("instClose").onclick=()=>$("instM").classList.remove("on");
 $("instCopy").onclick=()=>{$("instM").classList.remove("on");xferMake()};
 // modálne okná: zatvorenie klávesom Esc a návrat zamerania
-function closeModal(m){if(!m)return;if(m.id==="shz"){const c=m.querySelector("#shzClose,[data-close],.ghost");if(c){c.click();return}}m.classList.remove("on");if(m.id==="ar"&&typeof closeAR==="function")closeAR();if(m.id==="cdM"&&typeof CD!=="undefined")CD=null}
+const ACTIVE_OVERLAYS=".modal.on,[data-overlay].on,#onb.active";
+const FOCUSABLE='button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),video[controls],[tabindex]:not([tabindex="-1"])';
+function activeOverlay(){
+  let top=null,layer=-1;
+  for(const panel of document.querySelectorAll(ACTIVE_OVERLAYS)){
+    const z=Number(getComputedStyle(panel).zIndex)||0;
+    if(z>=layer){top=panel;layer=z}
+  }
+  return top;
+}
+function closeModal(m){
+  if(!m||m.id==="onb")return;
+  if(m.id==="ar"){closeAR();return}
+  if(m.id==="shareM"){$("shareClose").click();return}
+  m.classList.remove("on");
+  if(m.id==="cdM"&&typeof CD!=="undefined")CD=null;
+}
 addEventListener("keydown",e=>{
-  const top=[...document.querySelectorAll(".modal.on")].pop();if(!top)return;
-  if(e.key==="Escape"){closeModal(top);return}
-  // Tab zostáva v okne (VoiceOver / klávesnica)
-  if(e.key!=="Tab")return;const f=[...top.querySelectorAll(FOCUSABLE)].filter(x=>x.offsetParent!==null);if(!f.length)return;
+  if(e.defaultPrevented||document.querySelector("dialog[open]"))return;
+  const top=activeOverlay();if(!top)return;
+  if(e.key==="Escape"){e.preventDefault();closeModal(top);return}
+  if(e.key!=="Tab")return;
+  const f=[...top.querySelectorAll(FOCUSABLE)].filter(x=>x.offsetParent!==null&&!x.closest("[hidden],[inert]")&&getComputedStyle(x).visibility!=="hidden");
+  if(!f.length)return;
   const i=f.indexOf(document.activeElement);
-  if(e.shiftKey&&(i<=0)){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&(i===-1||i===f.length-1)){e.preventDefault();f[0].focus()}});
-// fokus: pri otvorení okna na jeho prvý prvok, po zatvorení späť na tlačidlo, ktoré ho otvorilo
-const FOCUSABLE='button:not([disabled]),[href],input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])';
+  if(e.shiftKey&&i<=0){e.preventDefault();f.at(-1).focus()}
+  else if(!e.shiftKey&&(i===-1||i===f.length-1)){e.preventDefault();f[0].focus()}
+});
 {const ret=new Map();
-  const mo=new MutationObserver(ms=>{for(const m of ms){const el=m.target;if(!el.classList||!el.classList.contains("modal"))continue;
-    const on=el.classList.contains("on");
-    if(on&&!ret.has(el)){ret.set(el,el.returnFocus||document.activeElement);el.returnFocus=null;el.setAttribute("role",el.getAttribute("role")||"dialog");el.setAttribute("aria-modal","true");
-      setTimeout(()=>{if(!el.classList.contains("on")||el.contains(document.activeElement))return;const t=el.querySelector("h2,h3,.mcard")||el;if(!t.hasAttribute("tabindex"))t.setAttribute("tabindex","-1");try{t.focus({preventScroll:true})}catch(e){}},60)}
-    else if(!on&&ret.has(el)){const r=ret.get(el);ret.delete(el);if(r&&r.focus&&document.contains(r)&&!document.querySelector(".modal.on"))try{r.focus({preventScroll:true})}catch(e){}}}});
-  document.querySelectorAll(".modal").forEach(el=>mo.observe(el,{attributes:true,attributeFilter:["class"]}))}
+  const mo=new MutationObserver(ms=>{
+    for(const {target:el} of ms){
+      const on=el.classList.contains("on");
+      if(on&&!ret.has(el)){
+        ret.set(el,el.returnFocus||document.activeElement);el.returnFocus=null;
+        el.setAttribute("role",el.getAttribute("role")||"dialog");el.setAttribute("aria-modal","true");
+        setTimeout(()=>{
+          if(activeOverlay()!==el||el.contains(document.activeElement)||document.querySelector("dialog[open]"))return;
+          const target=el.querySelector("[data-overlay-focus],h2,h3,.mcard")||el;
+          if(!target.matches(FOCUSABLE))target.tabIndex=-1;
+          target.focus({preventScroll:true});
+        },60);
+      }else if(!on&&ret.has(el)){
+        const target=ret.get(el);ret.delete(el);
+        const top=activeOverlay();
+        if(target?.isConnected&&(!top||top.contains(target))&&!document.querySelector("dialog[open]"))target.focus({preventScroll:true});
+      }
+    }
+  });
+  document.querySelectorAll(".modal,[data-overlay]").forEach(el=>mo.observe(el,{attributes:true,attributeFilter:["class"]}));
+}
 // zatvorenie ťuknutím vedľa (na tmavé pozadie)
 document.addEventListener("click",e=>{const m=e.target;if(m.classList&&m.classList.contains("modal")&&m.classList.contains("on"))closeModal(m)});
 // zatvorenie potiahnutím okna nadol (za úchyt), keď je obsah na vrchu
@@ -923,21 +994,98 @@ function kidApply(){
   if(typeof renderAccountSettings==="function")renderAccountSettings();
   if(typeof renderSpotterIdentity==="function")renderSpotterIdentity();
 }
-function kidSet(on){
-  LS.set("ctl_kid",on);kidApply();
-  if(typeof apiPost==="function")apiPost("/api/kid",{on:on?1:0}).then(r=>{
-    if(r.ok&&SOC.profileNickname)syncNicknameProfile({...SOC.profileNickname,kid:on,name:on?"":SOC.profileNickname.name});
-  }).catch(()=>{});
+let kidSyncRequest=null,kidSyncTimer,kidSyncFailures=0,kidMismatchShown=false;
+function pendingKidSync(){
+  const pending=LS.get("ctl_kid_pending",null);
+  return typeof SOC!=="undefined"&&pending?.id===SOC.cid?pending:null;
 }
+function showKidSync(){
+  const pending=pendingKidSync();
+  const remote=typeof SOC==="undefined"?null:SOC.profileNickname;
+  const mismatch=typeof remote?.kid==="boolean"&&remote.kid!==KID();
+  if(mismatch&&!pending&&!kidMismatchShown&&LS.get("ctl_onb",0)){
+    kidMismatchShown=true;
+    toast("Detský režim potrebuje potvrdenie","Rozdiel môžeš opraviť v Nastaveniach.");
+  }
+  $("kidSyncNotice").hidden=!pending&&!mismatch;
+  $("kidSyncRetry").disabled=!!kidSyncRequest;
+  $("kidSyncStatus").textContent=pending?
+    (kidSyncFailures?"Detský režim na tomto zariadení je uložený. Server ho zatiaľ nepotvrdil.":"Ukladám detský režim na server…"):
+    (mismatch?"Detský režim na serveri sa líši od nastavenia v tomto zariadení.":"");
+}
+function syncKidMode(){
+  const pending=pendingKidSync();
+  if(!pending||kidSyncRequest||!LS.get("ctl_onb",0)||SOC.resetting||SOC.moved)return;
+  clearTimeout(kidSyncTimer);
+  kidSyncRequest=(async()=>{
+    const response=await apiPost("/api/kid",{on:pending.on?1:0});
+    const result=await response.json();
+    if(!response.ok||result.ok!==true||Number(result.kid)!==Number(pending.on))throw Error("kid_sync");
+    if(SOC.cid!==pending.id||SOC.resetting||SOC.moved)return;
+    kidSyncFailures=0;
+    const latest=pendingKidSync();
+    if(latest?.on===pending.on){
+      LS.set("ctl_kid_pending",null);
+      if(SOC.profileNickname)syncNicknameProfile({...SOC.profileNickname,kid:pending.on,name:pending.on?"":SOC.profileNickname.name});
+    }
+  })().catch(()=>{
+    if(SOC.cid!==pending.id||SOC.moved||SOC.resetting)return;
+    if(++kidSyncFailures===1)toast("Detský režim čaká na synchronizáciu","Zopakovať ju môžeš v Nastaveniach.");
+    kidSyncTimer=setTimeout(syncKidMode,Math.min(60000,15000*kidSyncFailures));
+  }).finally(()=>{
+    kidSyncRequest=null;
+    showKidSync();
+    const latest=pendingKidSync();
+    if(latest&&latest.on!==pending.on)syncKidMode();
+  });
+  showKidSync();
+}
+function kidSet(on){
+  LS.set("ctl_kid",on);
+  LS.set("ctl_kid_pending",{id:SOC.cid,on});
+  kidSyncFailures=0;
+  kidApply();
+  syncKidMode();
+}
+setTimeout(()=>{showKidSync();syncKidMode()},0);
+addEventListener("online",syncKidMode);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncKidMode()});
 // 🔒 rodičovský PIN: chráni vypnutie detského režimu, prenos zbierky a mazanie
 const pinH=p=>String(hash("cotoleti-pin:"+p));
 function kidPinSet(){if(LS.get("ctl_kpin",""))return;const p=prompt("Rodič: nastav 4-miestny PIN.\nBude treba na vypnutie detského režimu, prenos a mazanie zbierky.","");if(p&&/^\d{4}$/.test(p.trim()))LS.set("ctl_kpin",pinH(p.trim()));else if(p!==null)toast("PIN musí mať 4 číslice","Nastavíš ho pri ďalšom zapnutí")}
-function kidPinOk(what){const h=LS.get("ctl_kpin","");if(!KID()||!h)return true;const p=prompt("🔒 Rodičovský PIN ("+what+"):","");if(p===null)return false;if(pinH(String(p).trim())===h)return true;toast("🔒 Nesprávny PIN","Požiadaj rodiča");haptic([60,40,60]);return false}
+function kidPinOk(what,force=false){
+  const h=LS.get("ctl_kpin","");
+  if((!KID()&&!force)||!h)return true;
+  const p=prompt("🔒 Rodičovský PIN ("+what+"):","");
+  if(p===null)return false;
+  if(pinH(String(p).trim())===h)return true;
+  toast("🔒 Nesprávny PIN","Požiadaj rodiča");haptic([60,40,60]);return false;
+}
+function authorizeKidDisable(){
+  if(LS.get("ctl_kpin",""))return kidPinOk("vypnúť detský režim",true);
+  const a=6+Math.floor(Math.random()*7),b=13+Math.floor(Math.random()*7);
+  const answer=prompt("🔒 Len pre rodiča: koľko je "+a+" × "+b+"?\n(Rodičovský PIN nie je nastavený.)","");
+  if(answer===null)return false;
+  if(parseInt(answer,10)===a*b)return true;
+  toast("🔒 Nesprávne","Detský režim ostáva zapnutý – požiadaj rodiča");
+  return false;
+}
 $("t-kid").onclick=()=>{
-  if(KID()){if(LS.get("ctl_kpin","")){if(!kidPinOk("vypnúť detský režim"))return}else{const a=6+Math.floor(Math.random()*7),b=13+Math.floor(Math.random()*7),r=prompt("🔒 Len pre rodiča: koľko je "+a+" × "+b+"?\n(Rodičovský PIN nie je nastavený.)","");if(r===null)return;if(parseInt(r,10)!==a*b){toast("🔒 Nesprávne","Detský režim ostáva zapnutý – požiadaj rodiča");haptic([60,40,60]);return}}kidSet(false);LS.set("ctl_kpin","")}
-  else{kidSet(true);setTimeout(kidPinSet,300)}
-  haptic(6)};
-if($("onbKid")){$("onbKid").checked=KID();$("onbKid").onchange=e=>kidSet(e.target.checked)};
+  if(KID()){
+    if(!authorizeKidDisable())return;
+    kidSet(false);LS.set("ctl_kpin","");
+  }else{
+    kidSet(true);setTimeout(kidPinSet,300);
+  }
+  haptic(6);
+};
+$("kidSyncRetry").onclick=()=>{
+  if(pendingKidSync()){syncKidMode();return}
+  if(!KID()&&!authorizeKidDisable())return;
+  kidSet(KID());
+};
+$("onbKid").checked=KID();
+
 kidApply();
 $("b-mydata").onclick=async()=>{
   try{const r=await apiPost("/api/mydata",{});if(!r.ok)throw Error("export");const j=await r.json();
@@ -959,8 +1107,16 @@ function heroCities(){
   $("heroCities").onclick=e=>{const b=e.target.closest("button");if(!b)return;const c=CITIES.find(x=>x[0]===b.dataset.c);if(c){box.innerHTML="";setManual(c[1],c[2],c[0])}};
 }
 
-function onbModal(){const onb=$("onb");if(!onb||LS.get("ctl_onb",0))return;const Q="main,nav,#top,header,#fabWave,#momentBar";onb.setAttribute("role","dialog");onb.setAttribute("aria-modal","true");document.querySelectorAll(Q).forEach(e=>e.inert=true);
-  const rel=()=>document.querySelectorAll(Q).forEach(e=>e.inert=false);new MutationObserver(()=>{if(onb.style.display==="none"||onb.classList.contains("hide"))rel()}).observe(onb,{attributes:true});}
+const onboardingBackground="main,nav,#top,#fabWave";
+function onbModal(){
+  $("onb").classList.add("active");
+  document.querySelectorAll(onboardingBackground).forEach(el=>el.inert=true);
+  $("onbTitle").focus();
+}
+function focusHome(){
+  document.querySelectorAll(onboardingBackground).forEach(el=>el.inert=false);
+  if(S.view==="now")$("statusPill").focus({preventScroll:true});
+}
 $("list").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const r=e.target.closest(".row");if(r){e.preventDefault();r.click()}}});
 
 /* ============ 👋 plávajúce Mávni (keď karta lietadla zmizne pri scrolle) ============ */
@@ -975,7 +1131,7 @@ $("list").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){const 
 
 /* ============ ↓ potiahni nadol = nové lietadlá ============ */
 {const ptr=$("ptr");let y0=null,dy=0,busyP=false;
-  addEventListener("touchstart",e=>{if(S.view!=="now"||scrollY>0||document.querySelector(".modal.on")||busyP)return;y0=e.touches[0].clientY;dy=0},{passive:true});
+  addEventListener("touchstart",e=>{if(S.view!=="now"||scrollY>0||activeOverlay()||document.querySelector("dialog[open]")||busyP)return;y0=e.touches[0].clientY;dy=0},{passive:true});
   addEventListener("touchmove",e=>{if(y0==null)return;dy=Math.max(0,e.touches[0].clientY-y0);ptr.style.transform=`translate(-50%,${Math.min(dy,90)-60}px)`;ptr.style.rotate=(dy*3)+"deg"},{passive:true});
   addEventListener("touchend",async()=>{if(y0==null)return;y0=null;
     if(dy>70){busyP=true;haptic(12);ptr.classList.add("spin");ptr.style.transform="translate(-50%,24px)";try{await fetchPlanes(true)}catch(e){}

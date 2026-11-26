@@ -302,7 +302,6 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 .modal{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;padding:12px 12px calc(var(--bot) + 12px)}
 .modal.on{display:flex;animation:fade .25s}
 .mcard{width:100%;max-width:440px;max-height:88vh;overflow:auto;padding:18px;background:rgba(16,22,48,.92);border:1px solid var(--gline);border-radius:30px;box-shadow:var(--gshadow);min-width:0}
-#shzWave{width:100%;height:80px;margin:10px 0;display:block}
 #map{width:100%;height:55vh;background:#111;border-radius:22px}
 #duelM{z-index:85}
 #shareM{position:fixed;inset:0;z-index:72;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
@@ -330,6 +329,7 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 /* AR */
 #ar{position:fixed;inset:0;z-index:60;background:#000;display:none}
 #ar.on{display:block}
+#arCameraStatus{position:absolute;top:calc(var(--top) + 68px);left:14px;right:14px;padding:7px 12px;margin:0 auto;width:fit-content;max-width:calc(100% - 28px);border-radius:12px;background:#101b2f;color:#f3f7ff;text-align:center}
 #ar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #arCanvas{position:absolute;inset:0;width:100%;height:100%}
 .arTop{position:absolute;left:0;right:0;top:0;padding:calc(var(--top) + 12px) 14px 30px;background:linear-gradient(#000a,transparent);display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -538,7 +538,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 @keyframes stPulse{50%{box-shadow:0 0 0 4px rgba(255,120,60,.25)}}@media (prefers-reduced-motion:reduce){.streakChip.pend{animation:none}}
 #momentBar{white-space:nowrap!important;padding:7px 14px;font-size:calc(12.5px*var(--fs,1));font-variant-numeric:tabular-nums;animation:none}
 #momentBar::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#fff;margin-right:6px;vertical-align:middle;animation:pulse 1.2s infinite}
-body:has(#onb:not(.hide)) #toast{visibility:hidden}
+body:has(#onb.active) #toast{visibility:hidden}
 .btn .n,.kr .v,.st3 b,.yBig,.grid2 b{font-variant-numeric:tabular-nums}
 .modal{-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .setSlots{display:none;grid-column:1/-1;width:100%;flex-wrap:wrap;gap:6px;margin-top:8px}.setRow{flex-wrap:wrap;cursor:pointer}.setRow.open .setSlots{display:flex}
@@ -621,7 +621,10 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #list .row .l div{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 #list .nearWaved{display:inline-block;margin-top:4px;padding:2px 6px;border-radius:6px;background:rgba(109,255,199,.12);color:#b6ffdf;font-size:calc(12px*var(--fs,1));font-weight:700;line-height:1.35}
 #momentBar{position:absolute}
-#hero .acts>#b-wave{flex:1 1 100%}#hero .acts>#b-ar{flex:1}
+#hero .acts>#b-wave{flex:1 1 100%}#hero .acts>#b-ar,#hero .acts>#b-reactions{flex:1}
+#b-reactions[hidden],#installBar[hidden],#b-share[hidden],#trNotify[hidden]{display:none!important}
+#installBar{display:inline-flex;gap:2px}#b-installX{min-width:44px}
+#shareDl{text-align:center}#trNotify[aria-disabled="true"]{opacity:.55}
 .photo small{left:10px;text-align:right;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:8px;opacity:1}.photo small a{color:#fff}
 @media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}}
 
@@ -765,20 +768,20 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=99">
-<link rel="stylesheet" href="lib/experience.css?v=99">
-<link rel="stylesheet" href="lib/brand.css?v=99">
+<link rel="stylesheet" href="lib/journal.css?v=100">
+<link rel="stylesheet" href="lib/experience.css?v=100">
+<link rel="stylesheet" href="lib/brand.css?v=100">
 </head>
 <body>
 <div id="bg"></div>
 <div id="fx"></div>
 
 <!-- ONBOARDING (len prvýkrát) -->
-<div id="onb" style="display:none">
+<div id="onb" role="dialog" aria-modal="true" aria-labelledby="onbTitle" style="display:none">
   <div class="onbBrand">
     <div class="onbStory">
       <div class="brandLockup"><span class="brandMark" aria-hidden="true"></span><strong>Čo to letí?</strong></div>
-      <h1 id="onbTitle">Pozri hore.</h1>
+      <h1 id="onbTitle" tabindex="-1">Pozri hore.</h1>
       <p>Zamávaj skutočnému lietadlu a pridaj jeho kartičku do svojej zbierky.</p>
     </div>
     <div class="onbArtwork" aria-hidden="true">
@@ -828,12 +831,13 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div id="guess"><div class="gOpts" id="gOpts"></div><button class="gSkip" id="gSkip">Neviem, ukáž cieľ</button></div>
 
     <div class="acts">
-      <button class="btn pri" id="b-wave" aria-label="Mávni lietadlu (podrž pre výber reakcie)"><span id="waveLbl">👋 Mávni</span> <span class="n" id="waveN" style="display:none">0</span></button>
+      <button class="btn pri" id="b-wave" disabled><span id="waveLbl">👋 Mávni</span> <span class="n" id="waveN" style="display:none">0</span></button>
       <button class="btn sec" id="b-ar">🔭 Nájdi</button>
+      <button class="btn sec" id="b-reactions" type="button" aria-controls="wavePick" aria-expanded="false" disabled>Reakcie</button>
     </div>
     <p id="atlasOpportunity" hidden></p>
     <button type="button" class="atlas-entry" id="atlasQuick"><span><strong>🇸🇰 Atlas SR</strong><small id="atlasQuickPlace">Získaj svoje miesto v rebríčku</small></span><span aria-hidden="true">›</span></button>
-    <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
+    <div class="wavePick" id="wavePick" role="group" aria-label="Reakcie na lietadlo"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
     <p class="firstWaveHint" id="firstWaveHint" hidden></p>
     <button class="ghost firstWaveAction" id="firstWaveAction" type="button" hidden></button>
     <div class="waveFeedback">
@@ -844,13 +848,13 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <button class="ghost firstWaveAction" id="waveJournalResult" type="button" hidden></button>
     </div>
     <div class="cardHint" id="cardHint"></div>
-      <div class="waveHint" id="waveHint">Podrž tlačidlo Mávni pre ďalšie reakcie.</div>
+      <div class="waveHint" id="waveHint">Ďalší pozdrav vyber cez Reakcie alebo podrž tlačidlo Mávni.</div>
     <div class="waveInfo" id="waveInfo"></div>
     <div class="quip" id="h-quip"></div>
     <div class="dir" id="h-dir">
-      <div class="compass" id="compass" role="button" tabindex="0" aria-label="Zapnúť kompas – šípka ukáže smer k lietadlu"><span class="n" id="compN" aria-hidden="true">S</span>
+      <button type="button" class="compass" id="compass" aria-label="Zapnúť kompas – šípka ukáže smer k lietadlu"><span class="n" id="compN" aria-hidden="true">S</span>
         <svg viewBox="0 0 84 84" id="arrow" aria-hidden="true"><defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6dffc7"/><stop offset="1" stop-color="#4fc3ff"/></linearGradient></defs><path d="M42 12 L56 52 L42 44 L28 52 Z" fill="url(#ag)"/></svg>
-      </div>
+      </button>
       <div class="dirT"><b id="h-look">—</b><span id="h-lookSub"></span><div class="gauge"><i id="h-gauge"></i></div></div>
     </div>
     <div class="eta" id="h-eta"></div>
@@ -873,7 +877,10 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <button class="chip glass gold" id="santaChip" style="display:none"></button>
       <button class="chip glass" id="b-track">✈️ Sleduj let</button>
       <button class="chip glass" id="dailyStrip"><span id="dailyTxt">🎯 Výzvy 0/3</span></button>
-      <button class="chip glass" id="installBar" style="display:none"><span id="installTxt">📲 Na plochu</span><span class="x" id="b-installX">✕</span></button>
+      <div id="installBar" role="group" aria-label="Inštalácia" hidden>
+        <button class="chip glass" type="button" id="installTxt">📲 Na plochu</button>
+        <button class="chip glass" type="button" id="b-installX" aria-label="Zavrieť ponuku inštalácie">✕</button>
+      </div>
     </div>
 
   <section class="glass" id="trackCard">
@@ -883,11 +890,13 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="trEta" id="trEta"></div>
     <div class="frLine" id="trWaves"></div>
     <div class="trActs"><button class="p" id="trNotify">🔔 Upozorni ma</button><button id="trShare">📤 Pošli odkaz</button></div>
+    <p class="lookSub" id="trStatus" role="status" hidden></p>
   </section>
 
   <details class="more glass" id="more">
     <summary>Detail letu <small>trasa · mapa · zvuk</small></summary>
     <div class="moreIn">
+      <p class="lookSub" id="flightDetailStatus" hidden></p>
       <div class="route" id="h-route">
         <div class="ap"><b id="r-o">—</b><span id="r-on"></span></div><div>✈️</div><div class="ap r"><b id="r-d">—</b><span id="r-dn"></span></div>
       </div>
@@ -897,12 +906,12 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
         <div><b id="g-trk">—</b><span id="g-trkC">letí smerom</span></div>
       </div>
       <div class="row3">
-        <button class="btn" id="b-map"><i>🗺️</i>Mapa letu</button>
+        <button class="btn" id="b-map" disabled><i>🗺️</i>Mapa letu</button>
         <button class="btn" id="b-shazam"><i>👂</i>Čo to hučí?</button>
         <button class="btn" id="b-voice"><i>🔇</i>Hlas</button>
       </div>
       <button class="btn wideB" id="b-sound">🎵 Počúvaj oblohu</button>
-      <button class="btn ico" id="b-share" aria-label="Zdieľať"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
+      <button class="btn ico" id="b-share" aria-label="Zdieľať" disabled hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
       <div class="spotLine" id="spotLine"></div>
       <div class="links" id="h-links"></div>
     </div>
@@ -1070,6 +1079,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="sr" id="nickSettings"><div>😎 Prezývka<small id="nickCurrent">Spotter</small></div><button class="ghost" type="button" id="nickEdit">Vybrať</button></div>
     <div class="sr"><div>🔠 Väčšie písmo<small>Riadi sa aj veľkosťou textu v nastaveniach iPhonu</small></div><button class="tog" id="t-big" role="switch" aria-label="Väčšie písmo"></button></div>
     <div class="sr"><div>🧒 Detský režim (do 16 rokov)<small>Bez prezývky, pozdravov, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
+    <div id="kidSyncNotice" hidden><p id="kidSyncStatus" class="fine" role="status"></p><button class="ghost" type="button" id="kidSyncRetry">Zopakovať synchronizáciu</button></div>
     <div class="setH">Upozornenia a hra</div>
     <div class="sr"><div>🔔 Spoločný moment<small id="momStat">Upozornenie, keď sa celé Slovensko pozrie hore</small></div><button class="tog" id="t-moment" role="switch" aria-label="Spoločný moment"></button></div>
     <div class="sr" id="pushOffRow" style="display:none" hidden><div>Upozornenia<small>Vypne upozornenia a sledovanie letov na tomto profile.</small></div><button class="ghost" id="b-push-off">Vypnúť</button></div>
@@ -1109,12 +1119,13 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </nav>
 
 <!-- AR -->
-<div id="ar">
+<div id="ar" role="dialog" aria-modal="true" aria-label="Nájdi lietadlo" data-overlay>
   <video id="arVid" playsinline muted autoplay></video>
   <canvas id="arCanvas"></canvas>
-  <div class="arTop"><button class="ghost" id="arAuto">🎯 Auto-záber</button><button class="ghost" id="arClose">✕ Zavrieť</button></div>
+  <div class="arTop"><button class="ghost" id="arAuto" aria-pressed="false">🎯 Auto-záber</button><button class="ghost" id="arClose" data-overlay-focus>✕ Zavrieť</button></div>
   <div class="arHint" id="arHint">Namier mobil na oblohu</div>
-  <div class="arCtl"><button class="ghost" id="arSnap" aria-label="Odfotiť">📷</button><button id="arRec" aria-label="Nahrávať video" class="rec"><i></i></button><button class="ghost" id="arFlip" aria-label="Prepnúť kameru">🤳</button></div>
+  <p id="arCameraStatus" role="status" hidden></p>
+  <div class="arCtl"><button class="ghost" id="arSnap" aria-label="Odfotiť">📷</button><button id="arRec" aria-label="Nahrávať video" aria-pressed="false" class="rec"><i></i></button><button class="ghost" id="arFlip" aria-label="Prepnúť na prednú kameru">🤳</button></div>
 </div>
 
 <!-- MOJA OBLOHA -->
@@ -1169,6 +1180,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="lbl"><span>✉️ Pošli pozdrav lietadlom</span></div>
   <div class="trTitle" style="margin-top:10px" id="mailTo">Tvoj pozdrav doručí lietadlo ľuďom, nad ktorými preletí</div>
   <div class="mailList" id="mailList"></div>
+  <p class="lookSub" id="mailStatus" role="status" hidden></p>
   <div class="acts"><button class="ghost" id="mailClose" style="flex:1">Zrušiť</button></div>
 </div></div>
 <div class="modal" id="postM" role="dialog" aria-modal="true" aria-label="Prijatý pozdrav" style="align-items:center"><div style="width:100%;max-width:420px">
@@ -1215,15 +1227,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 <div id="nightTint" aria-hidden="true"></div>
 <div id="toast" class="glass" role="status" aria-live="polite"><b id="toastT"></b><span id="toastS"></span></div>
 
-<div id="shareM">
+<div id="shareM" role="dialog" aria-modal="true" aria-label="Zdieľanie" data-overlay>
   <img id="shareImg" alt="Kartička na zdieľanie"><video id="shareVid" controls playsinline loop style="display:none"></video>
   <p id="shareTxt">Podrž prst na obrázku a ulož ho.</p>
-  <div class="acts" style="width:100%;max-width:340px"><a id="shareDl" download="co-to-leti.png" style="flex:1"><button class="solid" style="width:100%">⬇️ Stiahnuť</button></a><button class="ghost" id="shareClose">Zavrieť</button></div>
+  <div class="acts" style="width:100%;max-width:340px"><a class="solid" id="shareDl" download="co-to-leti.png" style="flex:1">⬇️ Stiahnuť</a><button class="ghost" id="shareClose" data-overlay-focus>Zavrieť</button></div>
 </div>
 <div class="modal" id="shz" role="dialog" aria-modal="true" aria-label="Čo to hučí?"><div class="mcard">
   <div class="lbl"><span>👂 Čo to hučí?</span></div>
-  <canvas id="shzWave" width="600" height="160"></canvas>
-  <div id="shzRes"></div>
+  <div id="shzRes" role="status"></div>
   <div class="acts"><button class="ghost" id="shzClose" style="flex:1">Zavrieť</button></div>
 </div></div>
 <div class="modal" id="qrM" role="dialog" aria-modal="true" aria-labelledby="qrT"><div class="mcard" style="text-align:center">
@@ -1293,29 +1304,29 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=99"></script>
-<script src="js/ui.js?v=99"></script>
-<script src="js/ar.js?v=99"></script>
-<script src="js/space.js?v=99"></script>
-<script src="js/weather.js?v=99"></script>
-<script src="js/extras.js?v=99"></script>
-<script src="js/account.js?v=99"></script>
-<script src="js/social.js?v=99"></script>
-<script src="js/atlas.js?v=99"></script>
-<script src="js/wrapped.js?v=99"></script>
-<script src="js/push.js?v=99"></script>
-<script src="js/track.js?v=99"></script>
-<script src="js/towns.js?v=99"></script>
-<script src="js/catalog.js?v=99"></script>
-<script src="js/cards.js?v=99"></script>
-<script src="js/journal.js?v=99"></script>
-<script src="js/mail.js?v=99"></script>
-<script src="js/golden.js?v=99"></script>
-<script src="js/teams.js?v=99"></script>
-<script src="js/duel.js?v=99"></script>
-<script src="js/sound.js?v=99"></script>
-<script src="js/santa.js?v=99"></script>
-<script src="js/brand.js?v=99"></script>
-<script src="js/main.js?v=99"></script>
+<script src="js/core.js?v=100"></script>
+<script src="js/ui.js?v=100"></script>
+<script src="js/ar.js?v=100"></script>
+<script src="js/space.js?v=100"></script>
+<script src="js/weather.js?v=100"></script>
+<script src="js/extras.js?v=100"></script>
+<script src="js/account.js?v=100"></script>
+<script src="js/social.js?v=100"></script>
+<script src="js/atlas.js?v=100"></script>
+<script src="js/wrapped.js?v=100"></script>
+<script src="js/push.js?v=100"></script>
+<script src="js/track.js?v=100"></script>
+<script src="js/towns.js?v=100"></script>
+<script src="js/catalog.js?v=100"></script>
+<script src="js/cards.js?v=100"></script>
+<script src="js/journal.js?v=100"></script>
+<script src="js/mail.js?v=100"></script>
+<script src="js/golden.js?v=100"></script>
+<script src="js/teams.js?v=100"></script>
+<script src="js/duel.js?v=100"></script>
+<script src="js/sound.js?v=100"></script>
+<script src="js/santa.js?v=100"></script>
+<script src="js/brand.js?v=100"></script>
+<script src="js/main.js?v=100"></script>
 </body>
 </html>

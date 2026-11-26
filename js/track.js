@@ -10,7 +10,8 @@ function toCallsign(inp){
   return null;
 }
 let TR=LS.get("ctl_track",null);
-const TRK={ac:null,t:0,busy:false,lostT:0};
+const TRK={ac:null,t:0,busy:null};
+const TR_NOTICE={track:null,pending:false,text:""};
 async function trFetch(cs){
   try{
     const {ok,j}=await getJSON(DEFAULT_PROXY+"/api/radar-flight?cs="+encodeURIComponent(cs),9000);
@@ -19,16 +20,22 @@ async function trFetch(cs){
   return undefined;
 }
 async function trPoll(){
-  if(!TR||TRK.busy)return;TRK.busy=true;
-  const ac=await trFetch(TR.cs);TRK.busy=false;
+  const track=TR;
+  if(!track||TRK.busy===track)return;
+  TRK.busy=track;
+  const ac=await trFetch(track.cs);
+  if(TRK.busy===track)TRK.busy=null;
+  if(TR!==track)return;
   if(ac===undefined){trRender();return}
   if(ac&&ac.alt_baro!=="ground"){
     TRK.ac=normReadsb({ac:[ac]})[0];TRK.t=Date.now();
-    if(!TR.seen){TR.seen=Date.now();}
-    TR.hex=TRK.ac.hex;TR.lastSeen=Date.now();TR.landed=false;LS.set("ctl_track",TR);
+    if(!track.seen)track.seen=Date.now();
+    track.hex=TRK.ac.hex;track.lastSeen=Date.now();track.landed=false;LS.set("ctl_track",track);
   }else{
     TRK.ac=null;
-    if(TR.seen&&!TR.landed&&(ac&&ac.alt_baro==="ground"||Date.now()-(TR.lastSeen||0)>20*60e3)){TR.landed=Date.now();LS.set("ctl_track",TR);trLanded()}
+    if(track.seen&&!track.landed&&(ac&&ac.alt_baro==="ground"||Date.now()-(track.lastSeen||0)>20*60e3)){
+      track.landed=Date.now();LS.set("ctl_track",track);trLanded();
+    }
   }
   trRender();
 }
@@ -49,7 +56,13 @@ function trRender(){
   $("trTitle").textContent=(TR.me?"Ja · ":TR.label?TR.label+" · ":"")+(TR.disp||TR.cs);
   const w=TR.hex&&typeof planeWaves==="function"?planeWaves(TR.hex).total:0;
   $("trWaves").textContent=w?`👋 ${TR.me?"Tebe":"Tomuto lietadlu"} dnes ${zam(w)} ${nf(w)} ${ludia(w)} zo Slovenska`:(TR.me?"Pošli odkaz kamarátom, nech ti zamávajú, keď budeš nad nimi 👋":"");
-  $("trNotify").style.display=TR.me||(PUSH.on&&TR.srv)?"none":"";
+  const notify=$("trNotify"),hideNotify=TR.me||(PUSH.on&&TR.notifyConfirmed);
+  if(hideNotify&&document.activeElement===notify)$("trShare").focus({preventScroll:true});
+  notify.hidden=!!hideNotify;
+  notify.setAttribute("aria-disabled",String(TR_NOTICE.track===TR&&TR_NOTICE.pending));
+  const notice=TR_NOTICE.track===TR?TR_NOTICE.text:"";
+  $("trStatus").textContent=notice;
+  $("trStatus").hidden=!notice;
   $("trShare").textContent=TR.me?"📤 Zamávajte mi!":"📤 Pošli odkaz";
   if(TR.landed){
     $("trLine").textContent="🛬 Lietadlo pristálo.";
@@ -74,14 +87,46 @@ function trLanded(){
   const w=TR.hex&&typeof planeWaves==="function"?planeWaves(TR.hex).total:0;
   toast(`🛬 ${TR.me?"Si na zemi":trName()+" je na zemi"}!`,w?`Počas letu ${zam(w)} ${nf(w)} ${ludia(w)} 👋`:"Šťastný návrat","#6dffc7");
 }
-async function trServer(){
-  if(!SOC.api||!TR||TR.me)return;
-  try{await apiPost("/api/track",{cs:TR.cs,label:TR.label||"",...posR()});TR.srv=1;LS.set("ctl_track",TR)}catch(e){}
+function trUnregister(cs){
+  return apiPost("/api/track",{cs,off:1}).catch(()=>{});
+}
+async function trServer(track=TR,requestPermission=false){
+  if(!SOC.api||!track||track.me||KID()||TR_NOTICE.track===track&&TR_NOTICE.pending)return;
+  Object.assign(TR_NOTICE,{track,pending:true,text:"Nastavujem upozornenie…"});
+  trRender();
+  try{
+    if(requestPermission&&!await enablePush()){
+      if(TR===track)TR_NOTICE.text="Upozornenie ešte nie je zapnuté. Skontroluj povolenia prehliadača.";
+      return;
+    }
+    if(TR!==track)return;
+    if(!S.pos)throw Error("position");
+    const response=await apiPost("/api/track",{cs:track.cs,label:track.label||"",...posR()});
+    const result=await response.json();
+    if(!response.ok||result.ok!==true)throw Error("registration");
+    if(TR!==track){
+      if(TR?.cs!==track.cs)await trUnregister(track.cs);
+      return;
+    }
+    track.notifyConfirmed=true;delete track.srv;LS.set("ctl_track",track);
+    TR_NOTICE.text="Upozornenie je zapnuté. Dáme ti vedieť, keď bude let blízko.";
+  }catch(error){
+    if(TR!==track&&TR?.cs!==track.cs){await trUnregister(track.cs)}
+    else if(TR===track){
+      delete track.notifyConfirmed;LS.set("ctl_track",track);
+      TR_NOTICE.text=error.message==="position"?
+        "Na upozornenie treba polohu. Vyber miesto a skús znova.":
+        "Upozornenie sa nepodarilo nastaviť. Skús znova.";
+    }
+  }finally{
+    if(TR_NOTICE.track===track)TR_NOTICE.pending=false;
+    if(TR===track)trRender();
+  }
 }
 function trStart(cs,disp,label,me){
   TR={cs,disp,label:label||"",me:!!me,t:Date.now()};LS.set("ctl_track",TR);TRK.ac=null;
   $("trackM").classList.remove("on");trRender();trPoll();
-  if(!me&&PUSH.on)trServer();
+  if(!me&&PUSH.on)trServer(TR);
   setView("now");setTimeout(()=>$("trackCard").scrollIntoView({behavior:"smooth",block:"center"}),300);
 }
 function trOpen(){$("trErr").textContent="";$("trackM").classList.add("on");setTimeout(()=>$("trInput").focus(),200)}
@@ -102,8 +147,12 @@ async function trShareLink(){
 $("b-track").onclick=()=>{haptic(8);if(TR&&!TR.landed){$("trackCard").scrollIntoView({behavior:"smooth",block:"center"});return}trOpen()};
 $("trFriend").onclick=()=>trSubmit(false);$("trMe").onclick=()=>trSubmit(true);$("trCancel").onclick=()=>$("trackM").classList.remove("on");
 $("trShare").onclick=trShareLink;
-$("trNotify").onclick=async()=>{if(await enablePush()){await trServer();toast("🔔 Dám ti vedieť","Keď bude "+trName()+" blízko, príde upozornenie");trRender()}};
-$("trClose").onclick=()=>{if(TR&&SOC.api&&TR.srv)apiPost("/api/track",{id:SOC.cid,cs:TR.cs,off:1}).catch(()=>{});TR=null;LS.set("ctl_track",null);trRender()};
+$("trNotify").onclick=()=>trServer(TR,!PUSH.on);
+$("trClose").onclick=()=>{
+  const track=TR;TR=null;TRK.ac=null;
+  LS.set("ctl_track",null);trRender();
+  if((track?.notifyConfirmed||track?.srv)&&SOC.api)trUnregister(track.cs);
+};
 // odkaz #let=…
 function trFromHash(){
   const m=location.hash.match(/let=([A-Za-z0-9]+)/);if(!m)return;

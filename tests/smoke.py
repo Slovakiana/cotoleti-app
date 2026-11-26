@@ -32,6 +32,184 @@ def stub(route):
         return route.fulfill(status=200, content_type="application/json", headers=h, body='{"ok":true}')
     return route.fulfill(status=200, content_type="application/json", headers=h, body="{}")
 
+def home_regressions(browser, errors):
+    headers = {"access-control-allow-origin": "*"}
+    received = {"hello": [], "kid": [], "mail": []}
+    switches = {"empty": False, "kid_fail": True}
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
+                              geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
+    ctx.route("**/*", stub)
+
+    def hello(route):
+        request = json.loads(route.request.post_data)
+        received["hello"].append(request["kid"])
+        route.fulfill(headers=headers, json={"tok": "test-token", "pid": "tester", "fk": "test-key", "epoch": 0,
+                                              "nickname": {"name": "Skúšobný pilot", "kid": bool(request["kid"])}})
+
+    def kid_mode(route):
+        choice = json.loads(route.request.post_data)["on"]
+        received["kid"].append(choice)
+        code = 503 if switches["kid_fail"] else 200
+        route.fulfill(headers=headers, status=code, json={"ok": code == 200, "kid": choice})
+
+    def planes(route):
+        route.fulfill(headers=headers, json={"ac": [] if switches["empty"] else PLANES["ac"],
+                                              "now": int(time.time() * 1000), "src": "sky"})
+
+    def mail(route):
+        received["mail"].append(json.loads(route.request.post_data)["hex"])
+        route.fulfill(headers=headers, json={"ok": True})
+
+    ctx.route("**/api/account/status", lambda route: route.fulfill(headers=headers, json={"rollout": "off"}))
+    ctx.route("**/api/hello", hello)
+    ctx.route("**/api/kid", kid_mode)
+    ctx.route("**/api/planes?*", planes)
+    ctx.route("**/api/mail", mail)
+    page = ctx.new_page()
+    page.on("pageerror", lambda e: errors.append("PAGEERROR Lov " + str(e)))
+    try:
+        page.goto("http://localhost:8799/index.html")
+        page.wait_for_function("() => document.activeElement === $('onbTitle')")
+        page.wait_for_timeout(500)
+        assert not received["hello"]
+        page.locator("#onb-privacy").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => $('privM').contains(document.activeElement)")
+        page.keyboard.press("Escape")
+        assert page.evaluate("document.activeElement.id") == "onb-privacy"
+        page.locator("#onbKid").uncheck()
+        page.locator("#go").click()
+        page.wait_for_function("() => SOC.authVerified && S.loaded && S.top && !$('onb').offsetHeight")
+        assert received["hello"] == [0]
+        assert not received["kid"]
+        assert not page.evaluate("SOC.profileNickname.kid")
+
+        page.evaluate("() => kidSet(true)")
+        page.wait_for_function("() => kidSyncFailures === 1 && !kidSyncRequest")
+        assert page.locator("#kidSyncStatus").text_content().endswith("Server ho zatiaľ nepotvrdil.")
+        assert page.evaluate("pendingKidSync().on && KID()")
+        switches["kid_fail"] = False
+        page.evaluate("() => $('kidSyncRetry').click()")
+        page.wait_for_function("() => !pendingKidSync() && SOC.profileNickname.kid")
+        assert received["kid"] == [1, 1]
+        page.evaluate("() => kidSet(false)")
+        page.wait_for_function("() => !pendingKidSync() && !SOC.profileNickname.kid")
+        page.reload()
+        page.wait_for_function("() => S.loaded && S.top && SOC.authVerified")
+        page.evaluate("() => toast('Kontrola oznámenia','Po návrate do Lovu')")
+        page.wait_for_function("""() => $('toastT').textContent === 'Kontrola oznámenia' &&
+          $('toast').classList.contains('on') && getComputedStyle($('toast')).visibility === 'visible'""")
+
+        page.evaluate("() => { window.compassCalls=0; enableCompass=()=>{window.compassCalls++}; }")
+        page.locator("#compass").focus()
+        page.keyboard.press("Enter")
+        page.keyboard.press("Space")
+        assert page.evaluate("compassCalls") == 2
+        page.locator("#b-reactions").focus()
+        page.keyboard.press("Enter")
+        assert page.locator("#b-reactions").get_attribute("aria-expanded") == "true"
+        assert page.evaluate("document.activeElement.parentNode.id") == "wavePick"
+        page.keyboard.press("Escape")
+        assert page.evaluate("document.activeElement.id") == "b-reactions"
+        page.dispatch_event("body", "beforeinstallprompt", {"bubbles": True})
+        page.locator("#b-installX").focus()
+        page.keyboard.press("Enter")
+        assert page.locator("#installBar").is_hidden()
+        assert page.evaluate("document.activeElement.id") == "b-track"
+
+        page.evaluate("""() => {
+          window.cameraRequests=[];window.stopped=[];
+          navigator.mediaDevices.getUserMedia=(options)=>new Promise(resolve=>cameraRequests.push({options,resolve}));
+          window.finishCamera=(i)=>{
+            const stream=new MediaStream();
+            stream.getTracks=()=>[{stop(){stopped.push(i)}}];
+            cameraRequests[i].resolve(stream);
+          };
+          HTMLMediaElement.prototype.play=()=>Promise.resolve();
+        }""")
+        page.locator("#b-ar").focus()
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => cameraRequests.length === 1 && document.activeElement === $('arClose')")
+        page.keyboard.press("Escape")
+        page.evaluate("finishCamera(0)")
+        page.wait_for_function("() => stopped.includes(0)")
+        assert page.evaluate("AR.stream === null && $('arVid').srcObject === null")
+        assert page.evaluate("document.activeElement.id") == "b-ar"
+        page.keyboard.press("Enter")
+        page.wait_for_function("() => cameraRequests.length === 2")
+        page.locator("#arFlip").click()
+        page.wait_for_function("() => cameraRequests.length === 3")
+        page.evaluate("finishCamera(2); finishCamera(1)")
+        page.wait_for_function("() => !!AR.stream && stopped.includes(1)")
+        assert page.evaluate("cameraRequests[2].options.video.facingMode.ideal") == "user"
+        page.locator("#arClose").click()
+        assert page.evaluate("stopped.includes(2) && AR.stream === null")
+
+        page.locator("#more summary").click()
+        page.locator("#b-shazam").click()
+        assert "podľa radaru" in page.locator("#shzRes").inner_text().lower()
+        assert page.evaluate("cameraRequests.length") == 3
+        page.keyboard.press("Escape")
+        page.locator("#b-reactions").click()
+        page.locator("#wavePick [data-mail]").click()
+        original = page.evaluate("S.top.hex")
+        page.evaluate("() => { S.pick=S.list.find(a=>a.hex!==S.top.hex).hex; tick(true); }")
+        page.locator("#mailList button").first.click()
+        page.wait_for_function("() => COL.ach.mail")
+        assert received["mail"] == [original]
+        page.locator("#b-share").focus()
+        page.evaluate("""() => {
+            Object.defineProperty(navigator,"canShare",{configurable:true,value:()=>false});
+            return shareBlob(new Blob(["preview"],{type:"image/png"}),"test.png","");
+        }""")
+        page.wait_for_function("() => document.activeElement === $('shareClose')")
+        page.keyboard.press("Escape")
+        assert page.locator("#shareM").is_hidden()
+        assert page.evaluate("document.activeElement.id === 'b-share' && !$('shareDl').hasAttribute('href')")
+        page.evaluate("() => openMail()")
+
+        switches["empty"] = True
+        page.evaluate("() => fetchPlanes(true)")
+        page.wait_for_function("() => S.loaded && !S.top")
+        page.locator("#mailList button").first.click()
+        assert "už nie je dostupný" in page.locator("#mailStatus").inner_text()
+        assert received["mail"] == [original]
+        page.keyboard.press("Escape")
+        assert page.locator("#b-map").is_disabled()
+        assert page.locator("#b-share").is_hidden()
+        assert [page.locator("#" + item).text_content() for item in ["g-spd", "g-trk", "spotLine"]] == ["—", "—", ""]
+        assert page.locator("#radarState").text_content() == "Naživo"
+
+        page.evaluate("""() => {
+          PUSH.on=true;
+          window.trackRequests=[];
+          const send=apiPost;
+          apiPost=(path,data)=>path !== '/api/track' ? send(path,data) :
+            new Promise(resolve=>trackRequests.push({data,resolve}));
+          window.finishTrack=(index,ok)=>trackRequests[index].resolve({
+            ok, json:async()=>({ok})
+          });
+        }""")
+        page.locator("#b-track").click()
+        page.locator("#trInput").fill("FR1234")
+        page.locator("#trFriend").click()
+        page.wait_for_function("() => trackRequests.length === 1")
+        page.evaluate("finishTrack(0,false)")
+        page.wait_for_function("() => $('trStatus').textContent.includes('nepodarilo')")
+        assert page.locator("#trNotify").is_enabled()
+        assert not page.evaluate("TR.notifyConfirmed")
+        page.locator("#trNotify").click()
+        page.wait_for_function("() => trackRequests.length === 2")
+        page.locator("#trClose").click()
+        page.evaluate("finishTrack(1,true)")
+        page.wait_for_function("() => trackRequests[2]?.data.off === 1")
+        assert page.evaluate("TR === null && trackRequests[2].data.cs === 'RYR1234'")
+        page.evaluate("finishTrack(2,true)")
+        print("✓ regresie Lovu: úvod a účet, oznámenie, klávesnica, kamera, odhad zvuku, pozdrav, prázdny detail a sledovanie")
+    finally:
+        ctx.close()
+
+
 def main():
     srv = subprocess.Popen([sys.executable, "-m", "http.server", "8799", "-d", ROOT], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
@@ -797,6 +975,7 @@ def main():
             assert brand_page.locator("#spotterIdentityName").inner_text() == "Môj profil"
             brand_ctx.close()
             print("✓ značka pri vstupe, profilová kartička, predvolené súkromie, PNG a detský režim")
+            home_regressions(b, errs)
             b.close()
     finally:
         srv.terminate()

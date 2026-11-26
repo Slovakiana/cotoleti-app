@@ -43,7 +43,7 @@ function visibility(a){
 HOOKS.fresh.push(loadWx);
 HOOKS.live.push(a=>{
   const el=$("h-wx");
-  if(!a||!WX.data){if(el.innerHTML)el.innerHTML="";return}
+  if(!a||!WX.data||skyStale()){if(el._h){el.innerHTML="";el._h=""}return}
   const ct=contrail(a.alt),vis=visibility(a);
   const html=(vis?`<div>${vis}</div>`:"")+(ct?`<div>✈️💨 Biela čiara za ním: <b>${ct.p} %</b> · ${ct.t}${ct.T!=null?`<div class="lookSub">Tam hore je ${nf(ct.T)} °C`+(ct.RHi!=null?` a vlhkosť voči ľadu ${nf(ct.RHi)} %`:"")+`</div>`:""}<div class="cbar"><i style="width:${ct.p}%"></i></div></div>`:"");
   if(el._h!==html){el.innerHTML=html;el._h=html}
