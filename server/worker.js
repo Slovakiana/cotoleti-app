@@ -14,6 +14,20 @@ const ALLOW = ["api.adsbdb.com","celestrak.org","api.open-meteo.com"];
 const API_BODY_BYTES = 4096;
 const TRANSFER_DATA_BYTES = 1_500_000;
 const TRANSFER_BODY_BYTES = 2 * TRANSFER_DATA_BYTES + 4096;
+const ACCOUNT_CODE_MS = 10 * 60e3;
+const ACCOUNT_BACKUP_KEYS = new Set([
+  "ctl_col", "ctl_collectorHunt", "ctl_daily", "ctl_season", "ctl_waved", "ctl_waveN",
+  "ctl_nick", "ctl_seen", "ctl_log", "ctl_famScore", "ctl_kdDone", "ctl_kdDay",
+  "ctl_gstreak", "ctl_gday", "ctl_streakp", "ctl_adopt", "ctl_momJoined", "ctl_momPts",
+  "ctl_goldWon", "ctl_mayor", "ctl_wanted", "ctl_wantedK", "ctl_inv", "ctl_invSeen",
+  "ctl_wpd", "ctl_mpd", "ctl_rival", "ctl_hidSeen", "ctl_guessed", "ctl_moment", "ctl_legp"
+]);
+function accountBackup(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  if (!value.ctl_col || typeof value.ctl_col !== "object" || Array.isArray(value.ctl_col)) return null;
+  const data = JSON.stringify(Object.fromEntries(Object.entries(value).filter(([key]) => ACCOUNT_BACKUP_KEYS.has(key))));
+  return TEXT_ENCODER.encode(data).byteLength <= TRANSFER_DATA_BYTES ? data : null;
+}
 const TEXT_ENCODER = new TextEncoder();
 const boundedBody = async (req, limit) => {
   if (Number(req.headers.get("content-length") || 0) > limit) return null;
@@ -157,7 +171,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v95";
+const VERSION = "v96";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
@@ -255,6 +269,9 @@ export class Sky extends DurableObject {
       CREATE INDEX IF NOT EXISTS ids_t ON ids(t);
       CREATE TABLE IF NOT EXISTS gcand(day TEXT, seq INTEGER, id TEXT, nick TEXT, k TEXT, town TEXT, t INTEGER, PRIMARY KEY(day, seq, id));
       CREATE TABLE IF NOT EXISTS xfer(code TEXT PRIMARY KEY, id TEXT, data TEXT, t INTEGER);
+      CREATE TABLE IF NOT EXISTS player_accounts(id TEXT PRIMARY KEY, email_key TEXT NOT NULL UNIQUE, backup TEXT NOT NULL, rev INTEGER NOT NULL DEFAULT 1);
+      CREATE TABLE IF NOT EXISTS account_codes(challenge TEXT PRIMARY KEY, email_key TEXT NOT NULL, id TEXT NOT NULL, mode TEXT NOT NULL, proof TEXT NOT NULL, expires INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0);
+      CREATE INDEX IF NOT EXISTS account_codes_expiry ON account_codes(expires);
       CREATE TABLE IF NOT EXISTS sig(day TEXT, k TEXT, n INTEGER, PRIMARY KEY(day, k));
       CREATE INDEX IF NOT EXISTS seen_id ON seen(id);
       CREATE INDEX IF NOT EXISTS friends_b ON friends(b);
@@ -373,6 +390,7 @@ export class Sky extends DurableObject {
         const mm = (this.row("SELECT MIN(mid) AS m FROM mails") || {}).m; const mmin = mm == null ? 1e15 : mm;
         this.sql.exec("DELETE FROM maildel WHERE mid < ?", mmin); this.sql.exec("DELETE FROM maildeliv WHERE mid < ?", mmin);
         this.sql.exec("DELETE FROM xfer WHERE t < ?", now - 10 * 60e3);
+        this.sql.exec("DELETE FROM account_codes WHERE expires<=?", now);
         this.sql.exec("DELETE FROM gcand WHERE day < ?", old);
         this.sql.exec("DELETE FROM msgs WHERE t < ?", now - 30 * 86400e3);
         this.sql.exec("DELETE FROM sig WHERE day < ?", new Date(now - 14 * 86400e3).toISOString().slice(0, 10));
@@ -569,6 +587,8 @@ export class Sky extends DurableObject {
     this.sql.exec("UPDATE golden SET wid=NULL, wnick='Spotter', wk=NULL, wtown='' WHERE wid=?", id);
     for (const table of PLAYER_DATA_TABLES) this.sql.exec(`DELETE FROM ${table} WHERE id=?`, id);
     this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code), owner=NULL WHERE owner=?", id);
+    this.sql.exec("DELETE FROM account_codes WHERE id=? OR email_key IN (SELECT email_key FROM player_accounts WHERE id=?)", id, id);
+    this.sql.exec("DELETE FROM player_accounts WHERE id=?", id);
     this.sql.exec("DELETE FROM ids WHERE id=?", id);
     this._div = null;
   }
@@ -938,6 +958,107 @@ export class Sky extends DurableObject {
     }
     if (this.row("SELECT 1 AS x FROM queue LIMIT 1")) await this.kick();
   }
+  accountRollout() {
+    if (!this.env.ACCOUNT_FROM || !this.env.RESEND_API_KEY) return "off";
+    if (this.env.ACCOUNT_ROLLOUT === "public") return "public";
+    return this.env.ACCOUNT_ROLLOUT === "pilot" && this.env.ACCOUNT_PILOT_EMAILS ? "pilot" : "off";
+  }
+  async accountDigest(message) {
+    return b64u(await crypto.subtle.sign("HMAC", await this.secret(), TEXT_ENCODER.encode(message)));
+  }
+  async sendAccountCode(email, code) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {Authorization: "Bearer " + this.env.RESEND_API_KEY, "Content-Type": "application/json"},
+      body: JSON.stringify({
+        from: this.env.ACCOUNT_FROM, to: [email], subject: "Prihlasovací kód do Čo to letí?",
+        text: "Tvoj kód je " + code + ". Platí 10 minút a môžeš ho použiť iba raz. Ak si ho nevyžiadal(a), správu môžeš ignorovať."
+      }),
+      signal: AbortSignal.timeout(8000)
+    });
+    return response.ok;
+  }
+  async accountRequest(path, req, body, iph, now) {
+    const rollout = this.accountRollout();
+    if (path === "/api/account/status" && req.method === "GET") return json({rollout});
+    if (rollout === "off") return json({error: "disabled"}, 503);
+    if (req.method !== "POST") return json({error: "method"}, 405);
+    const {id: rawId, tok, mode} = body;
+    const id = cleanId(rawId);
+    if (path === "/api/account/backup") {
+      if (!await this.authed(id, tok)) return json({error: "auth"}, 401);
+      const current = this.row("SELECT rev, backup FROM player_accounts WHERE id=?", id);
+      if (!current || this.isKid(id)) return json({error: "unlinked"}, 403);
+      if (body.rev !== current.rev) return json({error: "conflict"}, 409);
+      const backup = accountBackup(body.backup);
+      if (!backup) return json({error: "backup"}, 400);
+      if (current.backup === backup) return json({rev: current.rev});
+      if (!this.rate("acct-backup:" + id, 60, 3600e3)) return json({error: "rate"}, 429);
+      this.sql.exec("UPDATE player_accounts SET backup=?, rev=rev+1 WHERE id=? AND rev=?", backup, id, current.rev);
+      return json({rev: current.rev + 1});
+    }
+
+    if (!["link", "login"].includes(mode)) return json({error: "mode"}, 400);
+    if (mode === "link" && (!await this.authed(id, tok) || this.isKid(id))) return json({error: "auth"}, 403);
+    if (path === "/api/account/start") {
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({error: "email"}, 400);
+      if (rollout === "pilot" && !String(this.env.ACCOUNT_PILOT_EMAILS).toLowerCase().split(/[\s,]+/).includes(email))
+        return json({error: "pilot"}, 403);
+      const emailKey = await this.accountDigest("acct-email:" + email);
+      if (!this.rate("acct-send-ip:" + iph, 15, 3600e3) || !this.rate("acct-send-email:" + emailKey, 4, 3600e3))
+        return json({error: "rate"}, 429);
+      const challenge = b64u(crypto.getRandomValues(new Uint8Array(24)));
+      const random = crypto.getRandomValues(new Uint32Array(1))[0];
+      const code = String(random % 100_000_000).padStart(8, "0");
+      const proof = await this.accountDigest("acct-code:" + challenge + ":" + code);
+      this.sql.exec("DELETE FROM account_codes WHERE expires<=? OR (email_key=? AND mode=? AND id=?)", now, emailKey, mode, mode === "link" ? id : "");
+      this.sql.exec("INSERT INTO account_codes(challenge,email_key,id,mode,proof,expires) VALUES(?,?,?,?,?,?)",
+        challenge, emailKey, mode === "link" ? id : "", mode, proof, now + ACCOUNT_CODE_MS);
+      try {
+        if (await this.sendAccountCode(email, code)) return json({challenge});
+      } catch (e) {}
+      this.sql.exec("DELETE FROM account_codes WHERE challenge=?", challenge);
+      return json({error: "delivery"}, 503);
+    }
+
+    if (path !== "/api/account/finish") return json({error: "route"}, 404);
+    const {challenge, code} = body;
+    if (typeof challenge !== "string" || !/^[A-Za-z0-9_-]{32}$/.test(challenge) || typeof code !== "string" || !/^\d{8}$/.test(code))
+      return json({error: "code"}, 400);
+    if (!this.rate("acct-verify-ip:" + iph, 45, 3600e3)) return json({error: "rate"}, 429);
+    const proof = await this.accountDigest("acct-code:" + challenge + ":" + code);
+    const pending = this.row("SELECT * FROM account_codes WHERE challenge=?", challenge);
+    if (!pending || pending.expires <= Date.now() || pending.attempts >= 5 || pending.mode !== mode || (mode === "link" && pending.id !== id))
+      return json({error: "code"}, 400);
+    if (!sameStr(proof, pending.proof)) {
+      this.sql.exec("UPDATE account_codes SET attempts=attempts+1 WHERE challenge=?", challenge);
+      return json({error: "code"}, 400);
+    }
+    const existing = this.row("SELECT a.id, a.backup, a.rev FROM player_accounts a JOIN ids i ON a.id=i.id WHERE a.email_key=? AND i.kid=0", pending.email_key);
+    if (mode === "link") {
+      const backup = accountBackup(body.backup);
+      if (!backup) return json({error: "backup"}, 400);
+      if (existing && existing.id !== id) return json({error: "already_linked"}, 409);
+      const linked = this.row("SELECT email_key, rev FROM player_accounts WHERE id=?", id);
+      if (linked && linked.email_key !== pending.email_key) return json({error: "already_linked"}, 409);
+      if (this.isKid(id) || !this.row("SELECT id FROM ids WHERE id=?", id)) return json({error: "auth"}, 403);
+      if (linked) {
+        this.sql.exec("DELETE FROM account_codes WHERE challenge=?", challenge);
+        // A lost response can be retried without replacing the confirmed backup.
+        return json({rev: linked.rev, restored: true});
+      }
+      this.sql.exec("INSERT INTO player_accounts(id,email_key,backup) VALUES(?,?,?)", id, pending.email_key, backup);
+    }
+    this.sql.exec("DELETE FROM account_codes WHERE challenge=?", challenge);
+    if (mode === "link") return json({rev: 1});
+    if (!existing) return json({error: "unlinked"}, 404);
+    const accountId = existing.id, pid = await this.pid(accountId), token = await this.tok(accountId), fk = await this.fk(pid);
+    if (this.isKid(accountId) || !this.row("SELECT id FROM player_accounts WHERE id=? AND email_key=?", accountId, pending.email_key))
+      return json({error: "unlinked"}, 404);
+    return json({id: accountId, tok: token, pid, fk, epoch: Number(this.getMeta("player_reset_epoch") || 0),
+      rev: existing.rev, backup: JSON.parse(existing.backup)});
+  }
   async fetch(req) {
     const u = new URL(req.url), d = this.day(), now = Date.now(), p = u.pathname;
     let _b = null;
@@ -945,6 +1066,7 @@ export class Sky extends DurableObject {
     const ip = req.headers.get("x-cc-ip") || "", country = req.headers.get("x-cc-country") || "", ipLat = num(req.headers.get("x-cc-lat")), ipLon = num(req.headers.get("x-cc-lon"));
     const iph = await this.iph(ip);
     const ipFar = (la, lo) => ipLat != null && la != null && distKm(la, lo, ipLat, ipLon) > 650;
+    if (p.startsWith("/api/account/")) return this.accountRequest(p, req, await body(), iph, now);
     if (p === "/api/hello" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
       if (id.length < 16) return json({error: "bad"}, 400);
@@ -1329,6 +1451,8 @@ export class Sky extends DurableObject {
         if (table === "xfer") continue; // jednorazový prístupový kód
         out[table] = this.sql.exec(`SELECT * FROM ${table} WHERE id=?`, id).toArray().map(({id, lc, sub, other, edited, ...row}) => row);
       }
+      const synced = this.row("SELECT backup FROM player_accounts WHERE id=?", id);
+      if (synced) out.zalohaZbierky = JSON.parse(synced.backup);
       out.kamarati = (this.row("SELECT COUNT(*) AS c FROM friends WHERE a=?", pd) || {c: 0}).c;
       out.pozvanky = (this.row("SELECT n FROM refs WHERE pid=?", pd) || {n: 0}).n;
       out.gifts = this.sql.exec("SELECT type, t, CASE WHEN id=? THEN 'sent' ELSE 'received' END AS direction FROM gifts WHERE id=? OR used=?", id, id, id).toArray();
@@ -1372,7 +1496,7 @@ export class Sky extends DurableObject {
         "maildeliv","golden","teams","tmembers","tweek","ids","rl","friends","reminders",
         "catches","heatp","typeseq","edcatch","wavewhy","gifts","mayorhof","mayorm",
         "yagg","yplane","seen","reports","banned","idday","funnel","refs","errs",
-        "gcand","xfer","sig","hidden","streaks","duelres","mission_waves","mission_weeks"];
+        "gcand","xfer","player_accounts","account_codes","sig","hidden","streaks","duelres","mission_waves","mission_weeks"];
       const nextEpoch = Number(this.getMeta("player_reset_epoch")||0) + 1;
       // Durable Object serializuje operácie; reset celého DB sa vykoná synchronne.
       for (const table of wipe) this.sql.exec("DELETE FROM " + table);
@@ -1885,7 +2009,8 @@ export default {
       if (req.cf && req.cf.latitude) { h.set("x-cc-lat", String(req.cf.latitude)); h.set("x-cc-lon", String(req.cf.longitude)); }
       let payload;
       if (req.method === "POST") {
-        try { payload = await boundedBody(req, url.pathname === "/api/xfer" ? TRANSFER_BODY_BYTES : API_BODY_BYTES); }
+        const large = ["/api/xfer", "/api/account/finish", "/api/account/backup"].includes(url.pathname);
+        try { payload = await boundedBody(req, large ? TRANSFER_BODY_BYTES : API_BODY_BYTES); }
         catch (e) { return json({error: "bad"}, 400); }
         if (payload === null) return json({error: "big"}, 413);
         if (!objectJSON(payload)) return json({error: "bad"}, 400);

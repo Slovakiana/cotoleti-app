@@ -69,3 +69,11 @@ A/B meranie a analytický lievik sú vypnuté. Staršie klienty dostanú pri vol
 ## Pilot Letová štafeta
 
 Pilot je predvolene zapnutý. Vypína ho produkčná premenná `RELAY_PILOT=0`; `/api/health` uvádza účinný stav v poli `relayPilot`. Dve čerstvé overené mávnutia s GPS z rôznych krajov sa môžu spojiť, ak sa zhoduje identifikátor stroja, volací znak a typ a medzi mávnutiami uplynuli 2 až 35 minút. Páry sa zobrazujú z existujúceho `/api/sky` iba účastníkom. Pilot neposiela ďalšie dopyty do ADSB.lol a označenia uchováva do 30 dní.
+
+## Pilot e-mailového prihlásenia
+
+- V Resend over odosielaciu doménu a vytvor kľúč s oprávnením na odosielanie z tejto domény.
+- V produkčnom Workerovi ulož kľúč ako Secret `RESEND_API_KEY`. Do premenných daj overeného odosielateľa `ACCOUNT_FROM`, hodnotu `ACCOUNT_ROLLOUT=pilot` a do `ACCOUNT_PILOT_EMAILS` zadaj schválené adresy oddelené čiarkou. Kľúč a zoznam adries nepatria do repozitára.
+- `/api/account/status` má vrátiť `{"rollout":"pilot"}`. V pôvodnom prehliadači pripoj existujúcu dospelú zbierku, potom v druhom otvor zdieľaný odkaz a prihlás sa. Skontroluj kartičky, históriu, body, míle aj pôvodný prehliadač.
+- Pri súčasnej hre v dvoch prehliadačoch sa staršia záloha odmietne a lokálny pokrok zostane uložený. Pripájanie detských profilov k rodičovskému účtu a zlúčenie dvoch samostatných zbierok nie sú súčasťou pilotu.
+- Na pozastavenie nastav `ACCOUNT_ROLLOUT=off`. Pripojenia a uložené zálohy zostanú v databáze. Pred verejným otvorením over skutočné doručenie aj vstup z WhatsAppu na iPhone a Androide.

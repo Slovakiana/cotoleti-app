@@ -21,6 +21,11 @@ async function ensureTok(force=false){
   if(SOC.helloP)return SOC.helloP;
   if(!force&&TOK&&FK&&SOC.authVerified&&Date.now()-SOC.authChecked<60000)return TOK;
   if(!navigator.onLine)return "";
+  if(!TOK&&typeof refreshAccountStatus==="function"){
+    await refreshAccountStatus();
+    if(accountNeedsChoice())return "";
+    if(SOC.helloP)return SOC.helloP;
+  }
   if(SOC.helloNext&&Date.now()<SOC.helloNext)return "";
   SOC.helloP=(async()=>{
     const fail=er=>{SOC.helloErr=er;SOC.helloFail=(SOC.helloFail||0)+1;SOC.helloNext=Date.now()+Math.min(120e3,10e3*SOC.helloFail);SOC.authVerified=false;try{navigator.sendBeacon(DEFAULT_PROXY+"/api/err",JSON.stringify({m:"hello "+er}))}catch(x){}};
@@ -57,7 +62,7 @@ async function ensureTok(force=false){
 async function apiPost(path,obj){
   const tok=await ensureTok();
   if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved)throw Error("auth_pending");
-  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})},path==="/api/xfer"?30000:11000);
+  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})},path==="/api/xfer"||path.startsWith("/api/account/")?30000:11000);
   if(r.status===401){SOC.authVerified=false;SOC.authChecked=0;SOC.helloNext=0}
   return r;
 }
@@ -374,13 +379,18 @@ async function doWave(e){
   if(S.manual&&!a.santa){showFirstWaveResult("Na mávnutie zapni GPS.");return}
   if(!a.santa&&skyStale()){showFirstWaveResult("Na mávnutie treba živé údaje. Obnov radar.");return}
   if(SOC.inflight||a.emg)return;
+  if(typeof accountMayNeedChoice==="function"&&accountMayNeedChoice()&&!await accountBeforeWave())return;
+  if(SOC.inflight)return;
   if(!a.santa&&!a.emg)betaStep("wave");
   const observation={time:Date.now(),pos:posR(),gps:!S.manual};
   SOC.inflight=a.hex;SOC.waveHex=a.hex;
   renderHeroLive(a);
   $("waveResultCard").hidden=true;
   journalWaveReward();
-  try{return await doWave1(e,{...a},observation)}finally{SOC.inflight=null;renderHeroLive(S.top)}
+  try{return await doWave1(e,{...a},observation)}finally{
+    SOC.inflight=null;renderHeroLive(S.top);
+    if(typeof accountAfterWave==="function")accountAfterWave();
+  }
 }
 async function doWave1(e,a,observation){LASTWAVE=null;
   $("wavePick").classList.remove("on");
