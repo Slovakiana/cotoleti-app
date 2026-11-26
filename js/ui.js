@@ -407,6 +407,7 @@ function renderCol(){
     $("c-achN").textContent=got.length+"/"+L.length}
   const order={l:0,r:1,u:2,c:3};
   if(typeof renderCards==="function")renderCards();
+  if(typeof renderSpotterIdentity==="function")renderSpotterIdentity();
   const pf=LS.get("ctl_profs",null);
   if(pf&&pf.n){const P=profState();const label=`👨‍👩‍👧 Hrá <b>${esc(P.n[P.cur])}</b> · `+["A","B","C"].filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}">→ ${esc(P.n[x])}</button>`).join(" ");if($("meSub").innerHTML!==label)$("meSub").innerHTML=label}
   if(typeof spotterType==="function"){const st=spotterType();$("c-type").textContent="Tento týždeň: "+st.e+" "+st.n;$("c-type").hidden=/Začínajúci/.test(st.n)}
@@ -920,6 +921,7 @@ function kidApply(){
   if(k){LS.set("ctl_nick","");$("nick").value="";$("nickDialog").close();LS.set("ctl_pushAsked",true)}
   if(typeof renderNicknameSettings==="function")renderNicknameSettings();
   if(typeof renderAccountSettings==="function")renderAccountSettings();
+  if(typeof renderSpotterIdentity==="function")renderSpotterIdentity();
 }
 function kidSet(on){
   LS.set("ctl_kid",on);kidApply();

@@ -277,9 +277,6 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 /* onboarding */
 #onb{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;justify-content:flex-end;padding:calc(var(--top) + 20px) 22px calc(var(--bot) + 26px);background:radial-gradient(120% 70% at 50% 18%,#1b2a6b 0%,#0a0f24 55%,#05070f 100%);overflow:hidden}
 #onb.hide{opacity:0;pointer-events:none;transition:opacity .45s}
-#onb .sky{position:absolute;inset:0 0 40% 0}
-#onb .pl{position:absolute;font-size:calc(44px*var(--fs,1));animation:cross 7s linear infinite;filter:drop-shadow(0 0 12px rgba(255,255,255,.5))}
-@keyframes cross{from{transform:translate(-20vw,30vh) rotate(-28deg)}to{transform:translate(110vw,-6vh) rotate(-28deg)}}
 #onb h1{font:900 clamp(36px,11vw,50px)/1 var(--disp);letter-spacing:-.04em;margin:0 0 14px}
 #onb h1 span{background:linear-gradient(90deg,var(--mint),var(--sky),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
 #onb p{color:var(--mut);font-size:calc(17px*var(--fs,1));margin:0 0 18px;max-width:420px}
@@ -503,7 +500,6 @@ details summary small{color:var(--mut2);font-weight:500;margin-left:6px;font-siz
 
 /* vlna 4: persony, deti, spotteri */
 .modal{z-index:90}
-#onb .sky{pointer-events:none;z-index:0}#onb>:not(.sky){position:relative;z-index:1}#onb .pl{opacity:.55}
 #onb{overflow-y:auto;justify-content:safe flex-end}
 .acts{flex-wrap:wrap}
 #momentBar{white-space:normal}
@@ -627,7 +623,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #momentBar{position:absolute}
 #hero .acts>#b-wave{flex:1 1 100%}#hero .acts>#b-ar{flex:1}
 .photo small{left:10px;text-align:right;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:8px;opacity:1}.photo small a{color:#fff}
-@media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}#onb .sky{inset:0 0 70% 0}}
+@media (max-height:600px){#stage{min-height:220px!important;height:34vh!important}.big{font-size:calc(22px*var(--fs,1))!important}#onb .vals{display:none}}
 
 /* ===== KLENOTNICA V63 · zberateľský zážitok ===== */
 .atTabs{flex-wrap:wrap;justify-content:center}
@@ -769,8 +765,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=98">
-<link rel="stylesheet" href="lib/experience.css?v=98">
+<link rel="stylesheet" href="lib/journal.css?v=99">
+<link rel="stylesheet" href="lib/experience.css?v=99">
+<link rel="stylesheet" href="lib/brand.css?v=99">
 </head>
 <body>
 <div id="bg"></div>
@@ -778,21 +775,27 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 
 <!-- ONBOARDING (len prvýkrát) -->
 <div id="onb" style="display:none">
-  <div class="sky"><div class="pl">✈️</div></div>
-  <h1 id="onbTitle"><span>Zamávaj skutočnému lietadlu. Získaj jeho kartičku.</span></h1>
-  <p>Pri lietadle na radare ťukni na Mávni. Úlovky nájdeš vo svojej zbierke.</p>
-  <div class="onbSample" id="onbCard" aria-hidden="true"></div>
+  <div class="onbBrand">
+    <div class="onbStory">
+      <div class="brandLockup"><span class="brandMark" aria-hidden="true"></span><strong>Čo to letí?</strong></div>
+      <h1 id="onbTitle">Pozri hore.</h1>
+      <p>Zamávaj skutočnému lietadlu a pridaj jeho kartičku do svojej zbierky.</p>
+    </div>
+    <div class="onbArtwork" aria-hidden="true">
+      <div class="onbSample" id="onbCard"></div>
+    </div>
+  </div>
   <div class="onbLive" id="onbLive"></div>
-  <button class="cta" id="go">Nájsť lietadlá v okolí</button>
+  <button class="cta" id="go">Otvoriť radar</button>
   <button class="linkBtn" type="button" id="accountOnboarding" hidden>Mám účet</button>
   <button class="linkBtn" id="noGps">Nechcem polohu – vyberiem mesto</button>
   <div class="cities" id="cities"></div>
-  <div class="fine">Prehliadač sa ťa o sekundu spýta na polohu – ťukni <b>Povoliť</b>. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
+  <div class="fine">Po otvorení radaru ťa prehliadač požiada o polohu. Presná poloha zostane v mobile, server dostane len približnú (~1 km). <a href="#" id="onb-privacy">Súkromie</a></div>
   <label class="fine kidLbl"><input type="checkbox" id="onbKid" checked> <span><b>🧒 Detský režim (do 16 rokov)</b><br>Dospelý hráč ho môže odškrtnúť. Detský režim obmedzí spoločenské funkcie.</span></label>
 </div>
 
 <header id="top">
-  <div class="logo" id="logo">Čo to letí?</div>
+  <div class="brandLockup"><span class="brandMark" aria-hidden="true"></span><div class="logo" id="logo">Čo to letí?</div></div>
   <div class="hdR"><button class="pill glass streakChip" id="streakChip" hidden aria-label="Séria dní"></button><button class="pill glass" id="statusPill" aria-label="Zmeniť miesto" aria-describedby="status"><span id="dot" class="dot"></span><span id="status">Štartujem…</span></button></div>
 </header>
 <div class="modal" id="placeM" role="dialog" aria-modal="true" aria-labelledby="placeT"><div class="mcard">
@@ -937,6 +940,17 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 <!-- JA -->
 <main id="v-col" class="view">
   <div class="pageHead"><button class="gearBtn glass" id="b-gear" aria-label="Nastavenia">⚙️</button><h1 id="meName">Zbierka</h1><p id="meSub"></p></div>
+  <section class="spotterIdentity" aria-labelledby="spotterIdentityName">
+    <div class="spotterIdentityName"><span class="brandMark" aria-hidden="true"></span>
+      <div><h2 id="spotterIdentityName">Môj profil</h2><p id="spotterIdentityTitle"></p></div>
+    </div>
+    <dl class="spotterStats">
+      <div><dt>Overené typy</dt><dd id="spotterTypes">0</dd></div>
+      <div><dt>Pečiatky krajín</dt><dd id="spotterCountries">0</dd></div>
+      <div><dt>Odznaky</dt><dd id="spotterBadges">0</dd></div>
+    </dl>
+    <button id="spotterOpen" class="ghost" type="button" aria-haspopup="dialog" aria-controls="spotterDialog" hidden>Profilová kartička</button>
+  </section>
   <div class="collectionLayout">
   <section class="card glass" id="atlasSection">
     <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
@@ -1246,6 +1260,18 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="acts"><button class="btn pri" id="nickSave" type="submit">Uložiť</button><button class="btn ghost" id="nickLater" type="button">Teraz nie</button></div>
   </form>
 </dialog>
+<dialog id="spotterDialog" aria-labelledby="spotterDialogTitle">
+  <div class="spotterDialogHead"><h2 id="spotterDialogTitle">Profilová kartička</h2><button class="ghost" type="button" id="spotterClose">Zavrieť</button></div>
+  <div class="spotterPreview">
+    <div class="brandLockup"><span class="brandMark" aria-hidden="true"></span><strong>Čo to letí?</strong></div>
+    <h3 id="spotterPreviewName"></h3>
+    <p id="spotterPreviewTitle"></p>
+    <p id="spotterPreviewStats"></p>
+  </div>
+  <label id="spotterShareNameRow"><input type="checkbox" id="spotterShareName"> Pridať moju prezývku</label>
+  <button class="btn pri" id="spotterShare" type="button">Zdieľať kartičku</button>
+  <p id="spotterShareStatus" role="status"></p>
+</dialog>
 <dialog id="atlasRankDialog" aria-labelledby="atlasRankTitle">
   <div class="atlas-rank-head"><h2 id="atlasRankTitle">🇸🇰 Atlas Slovenska</h2><button class="ghost" id="atlasRankClose" type="button">Zavrieť</button></div>
   <p id="atlasRankStatus" role="status"></p>
@@ -1267,28 +1293,29 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=98"></script>
-<script src="js/ui.js?v=98"></script>
-<script src="js/ar.js?v=98"></script>
-<script src="js/space.js?v=98"></script>
-<script src="js/weather.js?v=98"></script>
-<script src="js/extras.js?v=98"></script>
-<script src="js/account.js?v=98"></script>
-<script src="js/social.js?v=98"></script>
-<script src="js/atlas.js?v=98"></script>
-<script src="js/wrapped.js?v=98"></script>
-<script src="js/push.js?v=98"></script>
-<script src="js/track.js?v=98"></script>
-<script src="js/towns.js?v=98"></script>
-<script src="js/catalog.js?v=98"></script>
-<script src="js/cards.js?v=98"></script>
-<script src="js/journal.js?v=98"></script>
-<script src="js/mail.js?v=98"></script>
-<script src="js/golden.js?v=98"></script>
-<script src="js/teams.js?v=98"></script>
-<script src="js/duel.js?v=98"></script>
-<script src="js/sound.js?v=98"></script>
-<script src="js/santa.js?v=98"></script>
-<script src="js/main.js?v=98"></script>
+<script src="js/core.js?v=99"></script>
+<script src="js/ui.js?v=99"></script>
+<script src="js/ar.js?v=99"></script>
+<script src="js/space.js?v=99"></script>
+<script src="js/weather.js?v=99"></script>
+<script src="js/extras.js?v=99"></script>
+<script src="js/account.js?v=99"></script>
+<script src="js/social.js?v=99"></script>
+<script src="js/atlas.js?v=99"></script>
+<script src="js/wrapped.js?v=99"></script>
+<script src="js/push.js?v=99"></script>
+<script src="js/track.js?v=99"></script>
+<script src="js/towns.js?v=99"></script>
+<script src="js/catalog.js?v=99"></script>
+<script src="js/cards.js?v=99"></script>
+<script src="js/journal.js?v=99"></script>
+<script src="js/mail.js?v=99"></script>
+<script src="js/golden.js?v=99"></script>
+<script src="js/teams.js?v=99"></script>
+<script src="js/duel.js?v=99"></script>
+<script src="js/sound.js?v=99"></script>
+<script src="js/santa.js?v=99"></script>
+<script src="js/brand.js?v=99"></script>
+<script src="js/main.js?v=99"></script>
 </body>
 </html>
