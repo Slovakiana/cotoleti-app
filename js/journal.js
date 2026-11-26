@@ -113,7 +113,32 @@ function journalAirlines(entries){
   </section>`;
 }
 
+const recentObservationTime=new Intl.DateTimeFormat("sk-SK",{
+  timeZone:"Europe/Bratislava", day:"numeric", month:"numeric", hour:"2-digit", minute:"2-digit"
+});
+function renderRecentObservations(){
+  const now=Date.now();
+  const rows=LOG.filter(entry=>{
+    const time=entry&&observationTime(entry);
+    return Number.isFinite(time)&&time>0&&time<=now;
+  })
+    .slice(-3).reverse().map(entry=>{
+      const item=document.createElement("li");
+      const title=document.createElement("span");
+      const time=document.createElement("time");
+      const date=new Date(observationTime(entry));
+      title.textContent=entry.ty?catGuess(entry.ty).name:"Neznámy typ lietadla";
+      time.dateTime=date.toISOString();
+      time.textContent=recentObservationTime.format(date);
+      item.append(title,time);
+      return item;
+    });
+  $("journalRecent").replaceChildren(...rows);
+  $("journalRecentEmpty").hidden=!!rows.length;
+}
+
 function renderJournal(focus){
+  renderRecentObservations();
   const host=$("journalAlbum");
   const wasOpen=host.querySelector(".albumExtras")?.open,stampsOpen=host.querySelector("[data-journal-stamps]")?.open;
   const entries=journalEntries(journalMode);

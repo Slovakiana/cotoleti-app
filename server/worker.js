@@ -171,7 +171,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v97";
+const VERSION = "v98";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
