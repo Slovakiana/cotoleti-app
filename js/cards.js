@@ -475,6 +475,7 @@ function cardFormPicker(v){
 function shownCard(v){return {...v,coverForm:cardVisibleForm||"-"}}
 function openCard(k,reveal,form){
   const v=COL.types[k];if(!v)return;
+  if(typeof renderAtlasCardResult==="function")renderAtlasCardResult(k);
   const modal=$("cardM"),root=$("cardBig"),video=$("cardVideo"),share=$("cardShare"),r=typeTier(k);
   if(!modal.classList.contains("on"))modal.returnFocus=document.activeElement;
   $("cardCollection").hidden=!reveal;

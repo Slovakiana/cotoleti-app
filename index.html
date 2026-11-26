@@ -674,6 +674,22 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 @media(max-width:350px){.vaultGoals{grid-template-columns:1fr}.vaultGoal{display:flex;align-items:center;gap:12px;text-align:left}.vaultGoal>span{margin:0}}
 @media(prefers-reduced-motion:reduce){.revealScene::before,.revealScene .cardBack{animation:none!important}}
 
+/* Celoslovenský Atlas */
+.atlas-entry{display:flex;width:100%;min-height:44px;align-items:center;justify-content:space-between;gap:12px;text-align:left;margin:8px 0;padding:9px 12px;border:1px solid #6a5f39;border-radius:12px;background:#24283c;color:#fff}
+.atlas-entry small{display:block;margin-top:2px;color:#edd9a0;font-size:.85em}
+.atlas-entry[hidden],#atlasOpportunity[hidden],#atlasMine[hidden]{display:none}
+#atlasOpportunity{color:#bcebd9;margin:6px 0;font-size:13px}
+#atlasRankDialog{width:min(94vw,500px);max-height:88dvh;box-sizing:border-box;padding:16px;border:1px solid #6a5f39;border-radius:18px;background:#12223a;color:#f0f6ff}
+#atlasRankDialog::backdrop{background:#040d1bbd}
+#atlasRankDialog h2,#atlasRankDialog h3{margin:0 0 8px}
+.atlas-rank-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atlas-rank-head button{min-height:44px}
+.atlas-rank-list{list-style:none;padding:0;margin:0 0 16px}
+.atlas-rank-list li{display:flex;align-items:center;gap:9px;padding:8px 6px;border-bottom:1px solid #ffffff20}
+.atlas-rank-list li[data-me]{border-radius:8px;background:#a9f0cc18;font-weight:700}
+.atlas-rank-list .atlas-rank-points{margin-left:auto;white-space:nowrap}
+.atlas-rank-list .atlas-rank-name{overflow-wrap:anywhere}
+#atlasRankStatus:empty{display:none}
 /* Súťažný Atlas: jasná voľba regiónu alebo celého Slovenska */
 .lgAtlasScope{margin:13px 0 10px;padding:12px;border-radius:16px;background:linear-gradient(135deg,rgba(79,195,255,.08),rgba(181,107,255,.08));border:1px solid rgba(255,255,255,.12)}
 .lgAtlasScope[hidden]{display:none!important}
@@ -755,7 +771,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=96">
+<link rel="stylesheet" href="lib/journal.css?v=97">
 </head>
 <body>
 <div id="bg"></div>
@@ -812,6 +828,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <button class="btn pri" id="b-wave" aria-label="Mávni lietadlu (podrž pre výber reakcie)"><span id="waveLbl">👋 Mávni</span> <span class="n" id="waveN" style="display:none">0</span></button>
       <button class="btn sec" id="b-ar">🔭 Nájdi</button>
     </div>
+    <p id="atlasOpportunity" hidden></p>
+    <button type="button" class="atlas-entry" id="atlasQuick"><span><strong>🇸🇰 Atlas SR</strong><small id="atlasQuickPlace">Získaj svoje miesto v rebríčku</small></span><span aria-hidden="true">›</span></button>
+    <button type="button" class="atlas-entry" id="atlasWaveResult" hidden><span id="atlasWaveText"></span><span aria-hidden="true">›</span></button>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
     <p class="firstWaveHint" id="firstWaveHint" hidden></p>
     <button class="ghost firstWaveAction" id="firstWaveAction" type="button" hidden></button>
@@ -910,6 +929,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="pageHead"><button class="gearBtn glass" id="b-gear" aria-label="Nastavenia">⚙️</button><h1 id="meName">Zbierka</h1><p id="meSub"></p></div>
   <section class="card glass" id="atlasSection">
     <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
+    <button type="button" class="atlas-entry" id="atlasCollection"><span><strong>🇸🇰 Rebríček Atlasu</strong><small id="atlasCollectionPlace">Celé Slovensko</small></span><span aria-hidden="true">›</span></button>
     <div class="shelf" id="showcase" hidden></div>
     <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
@@ -1095,6 +1115,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </div></div>
 <div class="modal" id="cardM" role="dialog" aria-modal="true" aria-label="Zberateľská kartička"><div style="width:100%;max-width:420px">
   <div id="cardBig"></div>
+  <button type="button" class="atlas-entry" id="atlasCardResult" hidden><span id="atlasCardText"></span><span aria-hidden="true">›</span></button>
   <div class="acts" style="max-width:330px;margin:16px auto 0"><button class="btn sec" id="cardCollection" type="button" hidden>Do zbierky</button><button class="btn pri" id="cardShare">Zdieľať</button><button class="btn ico" id="cardVideo" aria-label="Video s odhalením kartičky" style="flex:0 0 60px" hidden>🎬</button><button class="btn ico" id="cardClose" aria-label="Zavrieť" style="flex:0 0 60px">✕</button></div>
 </div></div>
 
@@ -1205,6 +1226,13 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="acts"><button class="btn pri" id="nickSave" type="submit">Uložiť</button><button class="btn ghost" id="nickLater" type="button">Teraz nie</button></div>
   </form>
 </dialog>
+<dialog id="atlasRankDialog" aria-labelledby="atlasRankTitle">
+  <div class="atlas-rank-head"><h2 id="atlasRankTitle">🇸🇰 Atlas Slovenska</h2><button class="ghost" id="atlasRankClose" type="button">Zavrieť</button></div>
+  <p id="atlasRankStatus" role="status"></p>
+  <section id="atlasLeaders" hidden><h3>Prví na Slovensku</h3><ol class="atlas-rank-list" id="atlasPodium"></ol></section>
+  <section id="atlasMine" hidden><h3>Moje miesto</h3><p id="atlasMineText"></p><ol class="atlas-rank-list" id="atlasNearby"></ol></section>
+  <details id="atlasAll" hidden><summary>Ďalšie miesta</summary><ol class="atlas-rank-list" id="atlasRest"></ol></details>
+</dialog>
 <dialog id="accountDialog" aria-labelledby="accountTitle">
   <h2 id="accountTitle"></h2>
   <div id="accountChoices" class="acts" hidden>
@@ -1219,27 +1247,28 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=96"></script>
-<script src="js/ui.js?v=96"></script>
-<script src="js/ar.js?v=96"></script>
-<script src="js/space.js?v=96"></script>
-<script src="js/weather.js?v=96"></script>
-<script src="js/extras.js?v=96"></script>
-<script src="js/account.js?v=96"></script>
-<script src="js/social.js?v=96"></script>
-<script src="js/wrapped.js?v=96"></script>
-<script src="js/push.js?v=96"></script>
-<script src="js/track.js?v=96"></script>
-<script src="js/towns.js?v=96"></script>
-<script src="js/catalog.js?v=96"></script>
-<script src="js/cards.js?v=96"></script>
-<script src="js/journal.js?v=96"></script>
-<script src="js/mail.js?v=96"></script>
-<script src="js/golden.js?v=96"></script>
-<script src="js/teams.js?v=96"></script>
-<script src="js/duel.js?v=96"></script>
-<script src="js/sound.js?v=96"></script>
-<script src="js/santa.js?v=96"></script>
-<script src="js/main.js?v=96"></script>
+<script src="js/core.js?v=97"></script>
+<script src="js/ui.js?v=97"></script>
+<script src="js/ar.js?v=97"></script>
+<script src="js/space.js?v=97"></script>
+<script src="js/weather.js?v=97"></script>
+<script src="js/extras.js?v=97"></script>
+<script src="js/account.js?v=97"></script>
+<script src="js/social.js?v=97"></script>
+<script src="js/atlas.js?v=97"></script>
+<script src="js/wrapped.js?v=97"></script>
+<script src="js/push.js?v=97"></script>
+<script src="js/track.js?v=97"></script>
+<script src="js/towns.js?v=97"></script>
+<script src="js/catalog.js?v=97"></script>
+<script src="js/cards.js?v=97"></script>
+<script src="js/journal.js?v=97"></script>
+<script src="js/mail.js?v=97"></script>
+<script src="js/golden.js?v=97"></script>
+<script src="js/teams.js?v=97"></script>
+<script src="js/duel.js?v=97"></script>
+<script src="js/sound.js?v=97"></script>
+<script src="js/santa.js?v=97"></script>
+<script src="js/main.js?v=97"></script>
 </body>
 </html>

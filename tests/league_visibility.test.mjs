@@ -14,5 +14,5 @@ assert.doesNotMatch(social,/\(j\.top\|\|\[\]\)\.slice\(0,10\)/,"rebríček nie j
 assert.match(social,/25 započítaných mávnutí denne od jedného hráča/,"týždenná liga vysvetľuje limit na hráča");
 assert.match(social,/nie 25 na celý kraj/,"denná liga odstraňuje nejasnosť");
 assert.match(worker,/dd\.n < 25/,"zachovaná serverová ochrana ligy");
-assert.match(worker,/return json\(\{top: this\.atlC\[key\]\.v\.slice\(0, 20\)/,"bez zmeny zmluvy serverového API");
+assert.match(worker,/r\.position<=20 AS leader/,"server vracia prvých 20 zberateľov");
 console.log("✓ atlas: kraj/SR, všetky vrátené pozície a jasný limit na hráča");
