@@ -157,7 +157,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v94";
+const VERSION = "v95";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
@@ -264,7 +264,7 @@ export class Sky extends DurableObject {
       DROP INDEX IF EXISTS waves_day;
       DROP INDEX IF EXISTS friends_a;`);
     for (const q of ["ALTER TABLE ids ADD COLUMN ep INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN ls TEXT", "ALTER TABLE idday ADD COLUMN la REAL", "ALTER TABLE idday ADD COLUMN lo REAL",
-      "ALTER TABLE wavelog ADD COLUMN lg INTEGER DEFAULT 0", "ALTER TABLE tmembers ADD COLUMN jt INTEGER DEFAULT 0", "ALTER TABLE nicks ADD COLUMN lc TEXT", "ALTER TABLE teams ADD COLUMN lc TEXT",
+      "ALTER TABLE wavelog ADD COLUMN lg INTEGER DEFAULT 0", "ALTER TABLE tmembers ADD COLUMN jt INTEGER DEFAULT 0", "ALTER TABLE nicks ADD COLUMN lc TEXT", "ALTER TABLE nicks ADD COLUMN edited INTEGER NOT NULL DEFAULT 0", "ALTER TABLE teams ADD COLUMN lc TEXT",
       "ALTER TABLE tmembers ADD COLUMN lc TEXT", "ALTER TABLE mails ADD COLUMN lc TEXT", "ALTER TABLE ids ADD COLUMN kid INTEGER DEFAULT 0", "ALTER TABLE reports ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN why TEXT", "ALTER TABLE banned ADD COLUMN ok INTEGER DEFAULT 0", "ALTER TABLE ids ADD COLUMN pid TEXT", "CREATE INDEX IF NOT EXISTS ids_pid ON ids(pid)"]) { try { this.sql.exec(q); } catch (e) {} }
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS nicks_lc ON nicks(lc); CREATE INDEX IF NOT EXISTS teams_lc ON teams(lc); CREATE INDEX IF NOT EXISTS tmem_lc ON tmembers(lc); CREATE INDEX IF NOT EXISTS mails_lc ON mails(lc); CREATE INDEX IF NOT EXISTS wavelog_lg ON wavelog(day, lg); CREATE INDEX IF NOT EXISTS tracks_nc ON tracks(notified, chk)"); } catch (e) {}
     // jednorazové doplnenie normalizovaných mien a vymazanie IP odtlačkov z účtov
@@ -972,8 +972,11 @@ export class Sky extends DurableObject {
       const pd = await this.pid(id);
       this.sql.exec("UPDATE ids SET pid=? WHERE id=? AND pid IS NULL", pd, id);
       // detský režim sa z appky dá pri každom prihlásení len ZAPNÚŤ (vypnutie ide cez /api/kid)
-      if (b.kid === 1 && !this.isKid(id)) this.enableKidMode(id, pd);
-      return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd),epoch});
+      const wasKid = this.isKid(id), kid = wasKid || b.kid === 1;
+      if (kid && !wasKid) this.enableKidMode(id, pd);
+      const saved = kid ? null : this.row("SELECT nick, edited FROM nicks WHERE id=?", id);
+      return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd), epoch,
+        nickname: {name: saved?.nick || "", managed: !!saved?.edited, kid}});
     }
     if (p === "/api/ev" && req.method === "POST") return json({ok: true});
     if (p === "/api/err" && req.method === "POST") {
@@ -1173,9 +1176,13 @@ export class Sky extends DurableObject {
       const trusted = !acc || now - (acc.t || 0) > 600e3 || (sb && now - sb.t < 300e3 && sb.h.has(hex));
       const league = trusted && fair && dd && near && vp.known && vp.found && vp.km <= 60 && dd.n < 25 && this.rate("lg:" + iph, 5000, 86400e3);
       const k = fair && dd ? dd.k : "XX";
-      const nk = this.isKid(id) ? "" : this.nm(b.nick);
-      if (nk) this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
-      if (nk) this.sql.exec("DELETE FROM hidden WHERE id=?", id); // nové (alebo vrátené) meno platí – oznam o skrytí zmizne
+      const kid = this.isKid(id), savedNick = kid ? null : this.row("SELECT nick, edited FROM nicks WHERE id=?", id);
+      const nk = kid ? "" : savedNick?.edited ? savedNick.nick : this.nm(b.nick);
+      // Starý klient môže priniesť prezývku v mávnutí. Výslovne uložené meno má prednosť.
+      if (nk && !savedNick?.edited && lc(nk) !== "spotter") {
+        this.sql.exec("INSERT INTO nicks(id, nick, lc) VALUES(?, ?, ?) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc WHERE nicks.nick IS NOT excluded.nick", id, nk, lc(nk));
+        this.sql.exec("DELETE FROM hidden WHERE id=?", id);
+      }
       // zápis prvý (atomicky) – dve rýchle mávnutia sa nezapočítajú dvakrát
       this.sql.exec("INSERT OR IGNORE INTO wavelog(day, hex, id, t, k, pid, lg) VALUES(?, ?, ?, ?, ?, ?, ?)", d, hex, id, now, k, pdx, league ? 1 : 0);
       const seen = !(this.row("SELECT changes() AS c") || {c: 0}).c;
@@ -1261,6 +1268,26 @@ export class Sky extends DurableObject {
       if (fresh) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty || String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 5).toUpperCase(), sel, cok ? 1 : 0, cok ? "" : why);
       return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
+    if (p === "/api/nick" && req.method === "POST") {
+      const id = cleanId(B.id);
+      if (this.isKid(id)) return json({error: "kid"}, 403);
+      const input = typeof B.nick === "string" ? B.nick.normalize("NFKC").trim() : "";
+      if (input.length > 20) return json({error: "length"}, 400);
+      const nick = this.nm(input);
+      if (nick == null) return json({error: "name"}, 400);
+      if ([...nick].length < 2) return json({error: "length"}, 400);
+      if (lc(nick) === "spotter") return json({error: "default"}, 400);
+      if (!this.rate("nick:" + id, 8, 3600e3)) return json({error: "rate"}, 429);
+      const save = () => {
+        this.sql.exec("INSERT INTO nicks(id, nick, lc, edited) VALUES(?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET nick=excluded.nick, lc=excluded.lc, edited=1", id, nick, lc(nick));
+        this.sql.exec("UPDATE tmembers SET nick=?, lc=? WHERE id=?", nick, lc(nick), id);
+        this.sql.exec("DELETE FROM hidden WHERE id=?", id);
+      };
+      if (this.ctx.storage.transactionSync) this.ctx.storage.transactionSync(save);
+      else save();
+      this.atlC = {};
+      return json({ok: true, nick});
+    }
     if (p === "/api/kid" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id), on = b.on ? 1 : 0;
       if (on) this.enableKidMode(id, await this.pid(id));
@@ -1300,7 +1327,7 @@ export class Sky extends DurableObject {
       const out = {vytvorene: new Date(account.t).toISOString(), poslednaAktivita: account.ls, detskyRezim: !!account.kid};
       for (const table of PLAYER_DATA_TABLES) {
         if (table === "xfer") continue; // jednorazový prístupový kód
-        out[table] = this.sql.exec(`SELECT * FROM ${table} WHERE id=?`, id).toArray().map(({id, lc, sub, other, ...row}) => row);
+        out[table] = this.sql.exec(`SELECT * FROM ${table} WHERE id=?`, id).toArray().map(({id, lc, sub, other, edited, ...row}) => row);
       }
       out.kamarati = (this.row("SELECT COUNT(*) AS c FROM friends WHERE a=?", pd) || {c: 0}).c;
       out.pozvanky = (this.row("SELECT n FROM refs WHERE pid=?", pd) || {n: 0}).n;
@@ -1459,9 +1486,11 @@ export class Sky extends DurableObject {
       return json({ok: true, on});
     }
     if (p === "/api/team" && req.method === "POST") {
-      const b = await body(), id = cleanId(b.id), nick = this.nm(b.nick) || "Spotter";
+      const b = await body(), id = cleanId(b.id);
       if (id.length < 8) return json({error: "bad"}, 400);
       if (this.isKid(id) && b.action !== "leave") return json({error: "kid"}, 403);
+      const managedNick = this.row("SELECT nick FROM nicks WHERE id=? AND edited=1", id);
+      const nick = managedNick?.nick || this.nm(b.nick) || "Spotter";
       if (b.action === "create") {
         const name = this.nm(b.name, 24); if (!name) return json({error: "name"}, 400);
         if (!this.rate("team:" + iph, 40, 86400e3)) return json({error: "rate"}, 429);

@@ -582,6 +582,58 @@ def main():
             }""")
             if not ok:
                 errs.append("písmo Inter sa nenačítalo z appky")
+            # Prezývka sa ukladá samostatne, ešte pred prvým mávnutím.
+            nick_ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
+                                     geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
+            nick_ctx.route("**/*", stub)
+            profile = {"name": "Spotter", "managed": False, "kid": False}
+            nick_ctx.route("**/api/hello", lambda route: route.fulfill(json={
+                "tok": "test-nick-token", "pid": "test-profile", "fk": "test-key", "epoch": 0, "nickname": profile
+            }, headers={"access-control-allow-origin": "*"}))
+            def save_nickname(route):
+                body = json.loads(route.request.post_data)
+                assert body["tok"] == "test-nick-token"
+                profile.update(name=body["nick"], managed=True)
+                route.fulfill(json={"ok": True, "nick": profile["name"]}, headers={"access-control-allow-origin": "*"})
+            nick_ctx.route("**/api/nick", save_nickname)
+            nick_page = nick_ctx.new_page()
+            nick_page.on("pageerror", lambda e: errs.append("PAGEERROR prezývka " + str(e)))
+            nick_page.add_init_script("localStorage.setItem('ctl_onb','1')")
+            nick_page.goto("http://localhost:8799/index.html")
+            nickname_dialog = nick_page.locator("#nickDialog")
+            nickname_dialog.wait_for(state="visible")
+            nick_page.locator("#nickLater").click()
+            assert not nickname_dialog.is_visible()
+            nick_page.evaluate("() => lsFlush()")
+            nick_page.reload()
+            nick_page.wait_for_function("() => SOC.authVerified")
+            nick_page.wait_for_timeout(1700)
+            assert not nickname_dialog.is_visible()
+            nick_page.evaluate("() => { LS.set('ctl_nick_prompt',0); scheduleNicknamePrompt(); }")
+            nickname_dialog.wait_for(state="visible")
+            nick_page.locator("#nick").fill("  sPoTtEr  ")
+            nick_page.locator("#nickSave").click()
+            assert "inú prezývku" in nick_page.locator("#nickStatus").inner_text()
+            nick_page.locator("#nick").fill("Vetronár")
+            nick_page.locator("#nickSave").click()
+            nickname_dialog.wait_for(state="hidden")
+            assert nick_page.evaluate("() => LS.get('ctl_nick','')") == "Vetronár"
+            nick_page.evaluate("() => { LS.set('ctl_nick',''); lsFlush(); }")
+            nick_page.reload()
+            nick_page.wait_for_function("() => LS.get('ctl_nick','') === 'Vetronár'")
+            assert not nickname_dialog.is_visible()
+            nick_page.evaluate("() => { setView('col'); $('settings').open=true; }")
+            nick_page.locator("#nickEdit").click()
+            assert nick_page.locator("#nick").input_value() == "Vetronár"
+            nick_page.locator("#nickLater").click()
+            profile.update(name="", managed=False, kid=True)
+            nick_page.evaluate("() => { LS.set('ctl_kid',true); lsFlush(); }")
+            nick_page.reload()
+            nick_page.wait_for_function("() => SOC.profileNickname?.kid")
+            assert not nickname_dialog.is_visible()
+            assert nick_page.locator("#nickSettings").is_hidden()
+            nick_ctx.close()
+            print("✓ výzva pre Spotter, uloženie a zmena prezývky, obnovenie zo servera a detský režim")
             b.close()
     finally:
         srv.terminate()

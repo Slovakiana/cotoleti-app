@@ -43,6 +43,16 @@
 .huntActs{display:flex;gap:7px;flex-wrap:wrap}
 .huntActs button{min-height:44px;flex:1;font-size:12px}
 @media(prefers-reduced-motion:reduce){.mini.owned::after{animation:none!important}}
+
+#nickSettings[hidden]{display:none}
+#nickDialog{width:min(92%,420px);max-height:88dvh;box-sizing:border-box;padding:20px;border:1px solid #48617b;border-radius:20px;background:#12223a;color:#f0f6ff;box-shadow:0 18px 56px #030b17b0}
+#nickDialog::backdrop{background:#040d1bbd}
+#nickDialog h2{margin:0;font-size:21px}
+#nickDialog p{margin:8px 0 14px}
+#nickDialog label{display:block;font-weight:700;margin-bottom:6px}
+#nick{width:100%;min-height:44px;box-sizing:border-box;padding:10px 12px;border:1px solid #7895b3;border-radius:12px;background:#0d192c;color:#f0f6ff;font:inherit;font-size:max(16px,1em)}
+#nickStatus{color:#ffd28c}
+#nickStatus:empty{display:none}
 </style>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="splash/1320x2868.png">
@@ -738,7 +748,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=94">
+<link rel="stylesheet" href="lib/journal.css?v=95">
 </head>
 <body>
 <div id="bg"></div>
@@ -992,7 +1002,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <summary>⚙️ Nastavenia</summary>
     <div class="setH">Profil</div>
     <div id="hidBox" class="mayor" hidden></div>
-    <div class="sr"><div>😎 Prezývka<small>Uvidia ju ostatní. Nepíš svoje skutočné meno.</small></div><input id="nick" aria-label="Prezývka" maxlength="20" placeholder="Spotter" style="width:140px"></div>
+    <div class="sr" id="nickSettings"><div>😎 Prezývka<small id="nickCurrent">Spotter</small></div><button class="ghost" type="button" id="nickEdit">Vybrať</button></div>
     <div class="sr"><div>🔠 Väčšie písmo<small>Riadi sa aj veľkosťou textu v nastaveniach iPhonu</small></div><button class="tog" id="t-big" role="switch" aria-label="Väčšie písmo"></button></div>
     <div class="sr"><div>🧒 Detský režim (do 16 rokov)<small>Bez prezývky, pozdravov, kamarátov a upozornení</small></div><button class="tog" id="t-kid" role="switch" aria-label="Režim pre deti"></button></div>
     <div class="setH">Upozornenia a hra</div>
@@ -1174,26 +1184,36 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <div class="fine" id="duelFine" style="margin-top:8px">Kamaráti navzájom vidia, ktorým lietadlám dnes mávali. Nikdy nie polohu.</div>
 </div></div>
 
-<script src="js/core.js?v=94"></script>
-<script src="js/ui.js?v=94"></script>
-<script src="js/ar.js?v=94"></script>
-<script src="js/space.js?v=94"></script>
-<script src="js/weather.js?v=94"></script>
-<script src="js/extras.js?v=94"></script>
-<script src="js/social.js?v=94"></script>
-<script src="js/wrapped.js?v=94"></script>
-<script src="js/push.js?v=94"></script>
-<script src="js/track.js?v=94"></script>
-<script src="js/towns.js?v=94"></script>
-<script src="js/catalog.js?v=94"></script>
-<script src="js/cards.js?v=94"></script>
-<script src="js/journal.js?v=94"></script>
-<script src="js/mail.js?v=94"></script>
-<script src="js/golden.js?v=94"></script>
-<script src="js/teams.js?v=94"></script>
-<script src="js/duel.js?v=94"></script>
-<script src="js/sound.js?v=94"></script>
-<script src="js/santa.js?v=94"></script>
-<script src="js/main.js?v=94"></script>
+<dialog id="nickDialog" aria-labelledby="nickTitle" aria-describedby="nickHelp">
+  <form id="nickForm" novalidate>
+    <h2 id="nickTitle" tabindex="-1" autofocus>Vyber si prezývku</h2>
+    <p id="nickHelp">Uvidia ju ostatní hráči. Použi prezývku, ktorú máš rád, bez celého mena, školy alebo adresy.</p>
+    <label for="nick">Prezývka</label>
+    <input id="nick" name="nick" maxlength="20" autocomplete="off" placeholder="Napríklad Vetronár">
+    <p id="nickStatus" role="status"></p>
+    <div class="acts"><button class="btn pri" id="nickSave" type="submit">Uložiť</button><button class="btn ghost" id="nickLater" type="button">Teraz nie</button></div>
+  </form>
+</dialog>
+<script src="js/core.js?v=95"></script>
+<script src="js/ui.js?v=95"></script>
+<script src="js/ar.js?v=95"></script>
+<script src="js/space.js?v=95"></script>
+<script src="js/weather.js?v=95"></script>
+<script src="js/extras.js?v=95"></script>
+<script src="js/social.js?v=95"></script>
+<script src="js/wrapped.js?v=95"></script>
+<script src="js/push.js?v=95"></script>
+<script src="js/track.js?v=95"></script>
+<script src="js/towns.js?v=95"></script>
+<script src="js/catalog.js?v=95"></script>
+<script src="js/cards.js?v=95"></script>
+<script src="js/journal.js?v=95"></script>
+<script src="js/mail.js?v=95"></script>
+<script src="js/golden.js?v=95"></script>
+<script src="js/teams.js?v=95"></script>
+<script src="js/duel.js?v=95"></script>
+<script src="js/sound.js?v=95"></script>
+<script src="js/santa.js?v=95"></script>
+<script src="js/main.js?v=95"></script>
 </body>
 </html>

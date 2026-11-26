@@ -67,6 +67,8 @@ await t("zlatá posádka sa uzavrie po 40 minútach (bez žrebu)", async () => {
   const g = db.prepare("SELECT state, crew FROM golden").get(); assert.equal(g.state, 1); assert.equal(g.crew, 1);
 });
 Date.now = realNow;
+sky._radarSnapRetryAt = 0;
+db.exec("DELETE FROM meta WHERE k LIKE 'radar:%'");
 await t("kraj počíta server", () => assert.deepEqual(db.prepare("SELECT k FROM kraje").all().map(r => r.k), ["BA"]));
 await t("obloha: jedna požiadavka na prehľad pre viac mávnutí; výpadok sietí = zopakovať", async () => {
   const of = globalThis.fetch; let n = 0;
@@ -683,6 +685,29 @@ await t("týždenná misia: overenie, jedinečné príspevky a hranica týždňa
     Date.now = oldNow;
     Object.assign(plane, oldPlane);
   }
+});
+await t("prezývka sa uloží ihneď, ostane pri starom mávnutí a detský profil ju nemôže uložiť", async () => {
+  const id = "v2testnickname00000000001", ip = "11.12.13.61";
+  const hello = (await call("/api/hello", {id}, ip)).j;
+  const identity = {id, tok: hello.tok};
+  const save = nick => call("/api/nick", {...identity, nick}, ip);
+  assert.deepEqual(hello.nickname, {name: "", managed: false, kid: false});
+  assert.equal((await call("/api/nick", {id, nick:"Vetronár"}, ip)).s, 401);
+  assert.equal((await save(" ＳＰＯＴＴＥＲ ")).j.error, "default");
+  assert.equal((await save("A")).j.error, "length");
+  assert.equal((await save("x".repeat(21))).j.error, "length");
+  db.prepare("INSERT INTO banned(name, t) VALUES(?, ?)").run("blokovanémeno", Date.now());
+  assert.equal((await save("BlokovanéMeno")).j.error, "name");
+  assert.equal((await call("/api/team", {...identity, action:"create", name:"Veterný tím"}, ip)).s, 200);
+  assert.deepEqual((await save("  Veľký  Vetronár  ")).j, {ok:true, nick:"Veľký Vetronár"});
+  assert.equal(db.prepare("SELECT nick FROM tmembers WHERE id=?").get(id).nick, "Veľký Vetronár");
+  const legacy = await call("/api/wave", {...identity, nick:"Staré Meno", hex:plane.hex, lat:48.15, lon:17.11}, ip);
+  assert.equal(legacy.s, 200);
+  assert.equal(db.prepare("SELECT nick FROM nicks WHERE id=?").get(id).nick, "Veľký Vetronár");
+  assert.deepEqual((await call("/api/hello", identity, ip)).j.nickname, {name:"Veľký Vetronár",managed:true,kid:false});
+  assert.equal((await call("/api/kid", {...identity, on:1}, ip)).s, 200);
+  assert.equal((await save("Vetronár")).s, 403);
+  assert.deepEqual((await call("/api/hello", identity, ip)).j.nickname, {name:"",managed:false,kid:true});
 });
 await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {
   assert.equal((await call("/api/admin",{resetAction:"prepare"})).s,401);
