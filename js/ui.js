@@ -332,6 +332,7 @@ function renderHeroStatic(a){
   HOOKS.heroStatic.forEach(f=>{try{f(a)}catch(e){console.error(e)}});
 }
 function renderHeroLive(a){
+  if(typeof renderAtlasOpportunity==="function")renderAtlasOpportunity(a);
   if(!a)return;
   const stale=skyStale()&&!a.santa;
   const wave=$("b-wave"),disabled=stale||S.manual||a.emg||!!(typeof SOC!=="undefined"&&SOC.inflight);

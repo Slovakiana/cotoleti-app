@@ -175,6 +175,7 @@ function socRender(){
     $("recBox").innerHTML=rec&&rec.n?`<div class="recBar"><i style="width:${Math.min(100,w/rec.n*100)}%"></i></div><div class="recLine">${w>rec.n?"🏆 <b>NOVÝ NÁRODNÝ REKORD!</b>":"🏆 Denný rekord: "+nf(rec.n)+" ("+new Date(rec.day).toLocaleDateString("sk-SK",{day:"numeric",month:"numeric"})+") · do rekordu chýba "+nf(Math.max(0,rec.n-w+1))+" 👋"}</div><div class="recLine">Spolu sme už zamávali ${nf(D.allTime||0)}× 🇸🇰</div>`:(D.allTime?`<div class="recLine">Spolu sme už zamávali ${nf(D.allTime)}× 🇸🇰</div>`:"");
     if(rec&&rec.n&&w>rec.n&&LS.get("ctl_recCel","")!==dayKey()){LS.set("ctl_recCel",dayKey());toast("🇸🇰 NOVÝ NÁRODNÝ REKORD!","Dnes sme zamávali už "+nf(w)+"× – viac ako kedykoľvek predtým","#ffcf4f");confetti(90)}
     renderLeague();renderMayor();renderAdopt();renderHidden();renderCompetitionPulse();
+    if(typeof refreshAtlasRank==="function"&&(S.view==="now"||S.view==="col"))refreshAtlasRank();
   }
   waveInfo(S.top);
   if(D&&HOOKS.social)HOOKS.social.forEach(f=>{try{f(D)}catch(e){console.error(e)}});
@@ -211,7 +212,7 @@ function renderLeague(){
     if(!SOC.atl||SOC.atl.k!==kk||Date.now()-SOC.atl.t>300e3){if(!SOC.atlL){SOC.atlL=1;apiPost("/api/atlasy",{k:kk}).then(r=>r.json()).then(j=>{SOC.atlL=0;if(!j||!j.top){SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague();return}SOC.atl={k:kk,t:Date.now(),j};if(LG==="a")renderLeague()}).catch(()=>{SOC.atlL=0;SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague()})}}
     if(SOC.atl&&SOC.atl.err){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Rebríček sa nepodarilo načítať. Skúsim znova o chvíľu.</div>';return}
     const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
-    const kd=typeof KID==="function"&&KID();rows=(j.top||[]).map((r,i)=>[(kd&&!r.me?"Zberateľ":r.nick)+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!kd&&!r.me&&r.nick!=="Spotter",i+1]);
+    const kd=typeof KID==="function"&&KID();rows=(j.top||[]).map((r,i)=>[(kd&&!r.me?"Zberateľ":r.nick)+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!kd&&!r.me&&r.nick!=="Spotter",r.rank||i+1]);
     if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true,false,j.me.rank||null]);
     note=`<b>${rows.length} zobrazených zberateľov</b> · ${LG_ATLAS_SCOPE==="sk"?"celé Slovensko":"tvoj kraj"}. Tu vidíš overených zberateľov, nie všetkých používateľov. ${j.me?`Ty: <b>${j.me.rank||"?"}. miesto</b> · ${j.me.gap?"k ďalšiemu ti chýba "+nf(j.me.gap)+" b":"si na čele! 👑"}${j.me.rank?lgDelta("a"+(kk||"SK"),j.me.rank):""}`:"Tvoj prvý overený úlovok ťa zaradí do rebríčka."}`;
     if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
@@ -368,6 +369,7 @@ function waveRewards(j,a){
 }
 function reportFirstWave(j){
   if(j.ver){
+    if(typeof showAtlasAward==="function")showAtlasAward(j);
     betaStep("verified");
     showFirstWaveResult("Úlovok je overený. Kartičku nájdeš v zbierke.",true);
   }
@@ -381,6 +383,7 @@ async function doWave(e){
   if(SOC.inflight||a.emg)return;
   if(typeof accountMayNeedChoice==="function"&&accountMayNeedChoice()&&!await accountBeforeWave())return;
   if(SOC.inflight)return;
+  if(typeof clearAtlasAward==="function")clearAtlasAward();
   if(!a.santa&&!a.emg)betaStep("wave");
   const observation={time:Date.now(),pos:posR(),gps:!S.manual};
   SOC.inflight=a.hex;SOC.waveHex=a.hex;
@@ -571,6 +574,7 @@ async function flushWq(){
         }
         const card=COL.types[type];
         if(j.ver){
+          if(typeof showAtlasAward==="function")showAtlasAward(j);
           betaStep("verified");
           if(card&&verifiedType===type){card.ver=1;if(j.seq&&!card.seq)card.seq=j.seq}
         }

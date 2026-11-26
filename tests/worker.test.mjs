@@ -16,7 +16,7 @@ const db = new DatabaseSync(":memory:");
 const sql = {exec(q, ...p) {
   if (!p.length && q.trim().split(";").filter(s => s.trim()).length > 1) { db.exec(q); return {toArray: () => []}; }
   const st = db.prepare(q);
-  if (/^\s*SELECT/i.test(q)) { const rows = st.all(...p); return {toArray: () => rows}; }
+  if (/^\s*(SELECT|WITH)\b/i.test(q)) { const rows = st.all(...p); return {toArray: () => rows}; }
   st.run(...p); return {toArray: () => []};
 }};
 const kv = new Map(); let alarm = null;
@@ -347,6 +347,13 @@ await t("Atlasy: rovnaké meno sa v rebríčku zobrazí len raz", async () => {
     db.prepare("INSERT INTO typeseq(type, id, seq, w, k, town, t) VALUES(?, ?, 9, ?, 'NR', '', 0)").run("ZZ" + i, id, sc); }
   sky.atlC = {}; const r = await call("/api/atlasy?k=NR", null);
   assert.equal(r.j.top.filter(x => x.nick === "Dvojník").length, 1, JSON.stringify(r.j.top));
+  const id = "v2dupedupedupedupedupedupe02";
+  const {tok} = (await call("/api/hello", {id})).j;
+  const own = (await call("/api/atlasy", {id, tok, k:"NR"})).j;
+  assert.equal(own.top.find(row => row.nick === "Dvojník").sc, 300);
+  assert.equal(own.me.sc, 200);
+  assert.ok(own.nearby.some(row => row.me && row.sc === 200));
+
 });
 await t("zdieľaná sieť: 60 nových hráčov za deň prejde, náraz za minútu sa pribrzdí", async () => {
   const codes = []; for (let i = 0; i < 22; i++) codes.push((await call("/api/hello", {id: "v2zzzzzzzzzzzzzzzzzzz" + String(i).padStart(2, "0")}, "7.7.7.7")).s);
@@ -761,6 +768,37 @@ await t("e-mail pripojí pôvodný účet, obnoví zálohu a neprenesie účty a
     for (const key of ["ACCOUNT_FROM","RESEND_API_KEY","ACCOUNT_ROLLOUT","ACCOUNT_PILOT_EMAILS"]) delete sky.env[key];
     Object.assign(sky.env, oldEnv);
     globalThis.fetch = provider;
+  }
+});
+await t("Atlas SR hneď vráti nový výsledok aj okolie hráča mimo popredia", async () => {
+  const id = "v2atlasplayer0000000000001", ip = "17.2.3.4";
+  const hello = (await call("/api/hello", {id}, ip)).j;
+  const me = {id, tok:hello.tok};
+  const insert = db.prepare("INSERT INTO typeseq(type,id,seq,w,k,town,t) VALUES(?,?,9,?,'BA','',0)");
+  for (let i = 0; i < 23; i++) insert.run("A345", "v2atlasrival" + i, 80 - i);
+  insert.run("A320", id, 3);
+  const before = (await call("/api/atlasy", me, ip)).j;
+  assert.equal(before.top.length, 20);
+  assert.ok(before.me.rank > 20 && before.me.gap > 0);
+  assert.ok(before.nearby.some(row => row.me && row.rank === before.me.rank));
+  assert.ok(before.nearby.some(row => !row.me));
+  assert.equal((await call("/api/atlasy")).j.me, null);
+  const oldPlane = {...plane};
+  try {
+    Object.assign(plane, {hex:"af0971", t:"A338", lat:48.16, lon:17.12, alt_baro:23000});
+    const wave = (await call("/api/wave", {...me, hex:plane.hex, lat:48.15, lon:17.11}, ip)).j;
+    assert.equal(wave.ver, 1);
+    assert.equal(wave.atlasPoints, 125);
+    const after = (await call("/api/atlasy", me, ip)).j;
+    assert.equal(after.me.sc, before.me.sc + wave.atlasPoints);
+    assert.ok(after.me.rank < before.me.rank);
+    plane.hex = "af0972";
+    const repeat = (await call("/api/wave", {...me, hex:plane.hex, lat:48.15, lon:17.11}, ip)).j;
+    assert.equal(repeat.ver, 1);
+    assert.equal(repeat.atlasPoints, 0);
+    assert.equal((await call("/api/atlasy", me, ip)).j.me.sc, after.me.sc);
+  } finally {
+    Object.assign(plane, oldPlane);
   }
 });
 await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {

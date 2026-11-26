@@ -171,7 +171,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v96";
+const VERSION = "v97";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
@@ -958,6 +958,53 @@ export class Sky extends DurableObject {
     }
     if (this.row("SELECT 1 AS x FROM queue LIMIT 1")) await this.kick();
   }
+  atlasLeaderboard(region, id) {
+    // Preserve the existing single entry per public nickname. An authenticated player
+    // sees their own points and position even if a legacy account uses the same name.
+    const rows = this.sql.exec(`
+      WITH scores AS (
+        SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n,
+          CASE WHEN i.kid=1 OR COALESCE(NULLIF(x.nick,''), 'Spotter')='Spotter' THEN 'Spotter' ELSE x.nick END AS nick,
+          CASE WHEN i.kid=1 OR COALESCE(NULLIF(x.nick,''), 'Spotter')='Spotter' THEN '#' || s.id
+            ELSE ':' || COALESCE(NULLIF(x.lc,''), lower(x.nick)) END AS group_name
+        FROM typeseq s
+        LEFT JOIN nicks x ON x.id = s.id
+        LEFT JOIN ids i ON i.id = s.id
+        ${region ? "WHERE s.k=?" : ""}
+        GROUP BY s.id
+      ), representatives AS (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY group_name ORDER BY sc DESC, id) AS representative
+        FROM scores
+      ), ranked AS (
+        SELECT id, sc, n, nick, RANK() OVER (ORDER BY sc DESC) AS rank,
+          ROW_NUMBER() OVER (ORDER BY sc DESC, id) AS position
+        FROM representatives WHERE representative=1
+      ), own AS (
+        SELECT s.*,
+          1 + (SELECT COUNT(*) FROM ranked WHERE sc>s.sc) AS rank,
+          1 + (SELECT COUNT(*) FROM ranked WHERE sc>s.sc OR (sc=s.sc AND id<s.id)) AS position,
+          COALESCE((SELECT MIN(sc)-s.sc FROM ranked WHERE sc>s.sc), 0) AS gap,
+          EXISTS(SELECT 1 FROM ranked WHERE sc=s.sc AND id<>s.id) AS tied
+        FROM scores s WHERE s.id=?
+      )
+      SELECT r.sc, r.n, r.nick, r.rank, r.position, r.id=o.id AS me,
+        r.position<=20 AS leader, ABS(r.position-o.position)<=2 AS nearby, o.gap, o.tied
+      FROM ranked r LEFT JOIN own o ON 1=1
+      WHERE r.position<=20 OR ABS(r.position-o.position)<=2
+      UNION ALL
+      SELECT o.sc, o.n, o.nick, o.rank, o.position, 1, 0, 1, o.gap, o.tied
+      FROM own o WHERE NOT EXISTS(SELECT 1 FROM ranked WHERE id=o.id)
+      ORDER BY position
+    `, ...(region ? [region] : []), id).toArray();
+    const publicRow = ({sc, n, nick, me, rank}) => ({sc, n, nick, me: !!me, rank});
+    const mine = rows.find(row => row.me);
+    return {
+      top: rows.filter(row => row.leader).map(publicRow),
+      nearby: rows.filter(row => row.nearby).map(publicRow),
+      me: mine ? {sc: mine.sc, n: mine.n, rank: mine.rank, gap: mine.gap, tied: !!mine.tied} : null
+    };
+  }
+
   accountRollout() {
     if (!this.env.ACCOUNT_FROM || !this.env.RESEND_API_KEY) return "off";
     if (this.env.ACCOUNT_ROLLOUT === "public") return "public";
@@ -1232,34 +1279,10 @@ export class Sky extends DurableObject {
       return json(v);
     }
     if (p === "/api/atlasy") {
-      // 🃏 rebríček zberateľov: súčet vzácnosti rôznych typov (overené serverom)
-      const bb = req.method === "POST" ? await body() : {};
-      const kk = /^[A-Z]{2}$/.test(bb.k || qp("k") || "") ? (bb.k || qp("k")) : "";
-      const key = "atl:" + kk;
-      this.atlC = this.atlC || {};
-      if (!this.atlC[key] || now - this.atlC[key].t > 600e3) {
-        const rows = this.sql.exec(`SELECT s.id, SUM(s.w) + 100 * SUM(s.seq = 1) AS sc, COUNT(*) AS n, x.nick, i.kid FROM typeseq s LEFT JOIN nicks x ON x.id = s.id LEFT JOIN ids i ON i.id = s.id ${kk ? "WHERE s.k = ?" : ""} GROUP BY s.id ORDER BY sc DESC LIMIT 80`, ...(kk ? [kk] : [])).toArray();
-        // to isté meno viackrát (staré účty z chyby identity, viac zariadení) → v rebríčku raz, s najlepším výsledkom
-        const seen = new Map(), out = [];
-        for (const r of rows) {
-          const nick = r.kid || !r.nick ? "Spotter" : r.nick, k = nick === "Spotter" ? "#" + r.id : lc(nick);
-          const g = seen.get(k);
-          if (g) { g.ids.push(r.id); continue; }
-          const row = {id: r.id, ids: [r.id], sc: r.sc, n: r.n, nick}; seen.set(k, row); out.push(row);
-        }
-        this.atlC[key] = {t: now, v: out};
-      }
-      // môj riadok v tom istom kraji ako rebríček + poradie a odstup od hráča nado mnou
-      const me = cleanId(bb.id || ""), mine = me.length >= 8 ? this.row(`SELECT SUM(w) + 100 * SUM(seq = 1) AS sc, COUNT(*) AS n FROM typeseq WHERE id=? ${kk ? "AND k=?" : ""}`, ...(kk ? [me, kk] : [me])) : null;
-      let rank = 0, gap = 0;
-      if (mine && mine.n) {
-        const sub = `SELECT SUM(w) + 100 * SUM(seq = 1) AS sc FROM typeseq ${kk ? "WHERE k=?" : ""} GROUP BY id`, args = kk ? [kk] : [];
-        rank = 1 + ((this.row(`SELECT COUNT(*) AS c FROM (${sub}) WHERE sc > ?`, ...args, mine.sc) || {c: 0}).c);
-        // poradie bez zdvojených mien (ak som v dosahu zoznamu)
-        const L = this.atlC[key].v; if (L.length && L[L.length - 1].sc <= mine.sc) rank = 1 + L.filter(r => r.sc > mine.sc && !(r.ids || []).includes(me)).length;
-        const up = this.row(`SELECT MIN(sc) AS m FROM (${sub}) WHERE sc > ?`, ...args, mine.sc); gap = up && up.m != null ? up.m - mine.sc : 0;
-      }
-      return json({top: this.atlC[key].v.slice(0, 20).map(r => ({sc: r.sc, n: r.n, nick: r.nick, me: (r.ids || [r.id]).includes(me)})), me: mine && mine.n ? {sc: mine.sc, n: mine.n, rank, gap} : null});
+      const scope = qp("k") || "";
+      const region = KRAJE.includes(scope) ? scope : "";
+      const id = req.method === "POST" ? cleanId(B.id) : "";
+      return json(this.atlasLeaderboard(region, id));
     }
     if (p === "/api/vapid") return json({key: (await this.keys()).pub});
     if (p === "/api/wave" && req.method === "POST") {
@@ -1317,7 +1340,7 @@ export class Sky extends DurableObject {
       const sel = vp.found ? elevDeg(vp.km, vp.alt) : null, ty = vp.type || "";
       const cok = fresh && vp.found && (sel == null ? vp.km <= 60 : sel >= 8) && fair && near && b.gps === true;
       const tier = tierOf(ty), shiny = vp.found && (sel == null || sel >= 8) ? (await this.shinyOf(hex, d, tier)) : false;
-      let seq = 0, firstK = false, firstT = false, ed = null;
+      let seq = 0, firstK = false, firstT = false, ed = null, atlasPoints = 0;
       // prečo úlovok nie je overený (appka to ukáže hráčovi)
       const why = !fresh ? "" : !vp.found ? (vp.known ? "lietadlo sme v dátach o letoch nenašli" : "dáta o letoch boli dočasne nedostupné") : (sel != null && sel < 8) ? "nízko nad obzorom (" + Math.round(sel) + "°)" : b.gps !== true ? "poloha bola vybraná ručne, nie z GPS" : !fair ? "si mimo Slovenska alebo máš zapnutú VPN" : !near ? "viac ako 30 km od miesta, kde si dnes začal(a)" : "";
       if (fresh && vp.found && (sel == null || sel >= 8)) this.sql.exec("INSERT INTO catches(id, hex, t, type, reg, el, ok, shiny) VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, hex) DO UPDATE SET type=excluded.type, ok=MAX(catches.ok, excluded.ok) WHERE catches.type='' AND excluded.type<>''", id, hex, now, ty, vp.reg || "", sel, cok ? 1 : 0, shiny ? 1 : 0);
@@ -1330,6 +1353,7 @@ export class Sky extends DurableObject {
           firstT = !!tw && !this.row("SELECT 1 AS x FROM typeseq WHERE type=? AND town=? LIMIT 1", ty, tw);
           seq = ((this.row("SELECT MAX(seq) AS m FROM typeseq WHERE type=?", ty) || {}).m || 0) + 1;
           this.sql.exec("INSERT OR IGNORE INTO typeseq(type, id, seq, w, k, town, t) VALUES(?, ?, ?, ?, ?, ?, ?)", ty, id, seq, TIER_W[tier], kk, tw, now);
+          if (this.row("SELECT changes() AS c")?.c) atlasPoints = TIER_W[tier] + (seq === 1 ? 100 : 0);
           if (this.cstat) this.cstat.delete(ty); this._players = null;
           if (seq === 1) this.bump("first_sk");
         }
@@ -1388,7 +1412,7 @@ export class Sky extends DurableObject {
       if (!seen) { const fw = this.row("SELECT w.id AS id FROM wavelog w JOIN friends f ON f.b = w.pid WHERE f.a=? AND w.day=? AND w.hex=? AND w.t > ? AND w.id <> ? LIMIT 1", pdx, d, hex, now - 10 * 60e3, id); if (fw) { const nk = this.row("SELECT nick FROM nicks WHERE id=?", fw.id); together = {n: (nk && nk.nick) || "Kamarát"}; } }
       // 🔎 diagnostika overenia (pre /admin, 7 dní)
       if (fresh) this.sql.exec("INSERT INTO wavewhy(id, t, hex, type, el, ok, why) VALUES(?, ?, ?, ?, ?, ?, ?)", id, now, hex, ty || String(b.type || "").replace(/[^A-Z0-9]/gi, "").slice(0, 5).toUpperCase(), sel, cok ? 1 : 0, cok ? "" : why);
-      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
+      return json({ok: true, dup: seen, golden, together, plane: this.plane(d, hex), shiny, seq, firstK, firstT, ed, atlasPoints, el: sel == null ? null : Math.round(sel), ver: cok ? 1 : 0, why: cok ? "" : why, type: ty});
     }
     if (p === "/api/nick" && req.method === "POST") {
       const id = cleanId(B.id);
@@ -1407,7 +1431,6 @@ export class Sky extends DurableObject {
       };
       if (this.ctx.storage.transactionSync) this.ctx.storage.transactionSync(save);
       else save();
-      this.atlC = {};
       return json({ok: true, nick});
     }
     if (p === "/api/kid" && req.method === "POST") {
@@ -1503,7 +1526,7 @@ export class Sky extends DurableObject {
       this.sql.exec("DELETE FROM meta WHERE k NOT IN ('flags','specials','mig3','player_reset_epoch','mission_goal')");
       this.setMeta("player_reset_epoch", nextEpoch);
       this._gameSnap=null;this._wk=null;this._div=null;this._year=null;this._players=null;
-      this.atlC={};this.cstat=new Map();this._spec=null;
+      this.cstat=new Map();this._spec=null;
       return json({ok:true,phase:"complete",epoch:nextEpoch,clearedTables:wipe.length});
       }
       if (b.missionGoal !== undefined) {

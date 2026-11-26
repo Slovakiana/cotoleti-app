@@ -682,6 +682,38 @@ def main():
             assert hellos and all(hello["id"] == old_id for hello in hellos)
             print("✓ vstup z WhatsAppu nevytvorí nový účet a obnoví pôvodnú zbierku i pozvánku")
             account_ctx.close()
+            atlas_ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
+                                      geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
+            atlas_ctx.route("**/*", stub)
+            rank = {"sc": 40, "rank": 24, "n": 8, "gap": 3}
+            def serve_atlas(route):
+                data = json.loads(route.request.post_data or "{}")
+                assert data.get("k", "") == ""
+                route.fulfill(json={"top": [{"nick": "Vetronár", "rank": 1, "sc": 500}],
+                                    "me": rank, "nearby": [
+                                        {"nick": "Súper", "rank": rank["rank"] - 1, "sc": rank["sc"] + rank["gap"]},
+                                        {**rank, "me": True}
+                                    ]}, headers={"access-control-allow-origin": "*"})
+            atlas_ctx.route("**/api/atlasy", serve_atlas)
+            atlas_page = atlas_ctx.new_page()
+            atlas_page.on("pageerror", lambda e: errs.append("PAGEERROR Atlas SR " + str(e)))
+            atlas_page.add_init_script("localStorage.setItem('ctl_onb','1')")
+            atlas_page.goto("http://localhost:8799/index.html")
+            atlas_page.wait_for_function("() => $('atlasQuickPlace').textContent.includes('24. miesto')")
+            assert "4 b" in atlas_page.locator("#atlasQuickPlace").inner_text()
+            atlas_page.locator("#atlasQuick").click()
+            atlas_page.locator("#atlasRankDialog").wait_for(state="visible")
+            assert "24." in atlas_page.locator("#atlasNearby").inner_text()
+            assert "Vetronár" in atlas_page.locator("#atlasPodium").inner_text()
+            atlas_page.locator("#atlasRankClose").click()
+            rank.update(sc=48, rank=22, n=9, gap=5)
+            atlas_page.evaluate("() => reportFirstWave({ver:1,atlasPoints:8,type:'A320'})")
+            atlas_page.wait_for_function("() => $('atlasWaveText').textContent.includes('24. → 22.')")
+            atlas_page.evaluate("() => setView('col')")
+            atlas_page.locator("#atlasCollection").click()
+            assert "22." in atlas_page.locator("#atlasMineText").inner_text()
+            atlas_ctx.close()
+            print("✓ Atlas SR z Lovu aj Zbierky, najbližší súper a okamžitý posun po overenom type")
             b.close()
     finally:
         srv.terminate()
