@@ -300,6 +300,7 @@ function renderNicknameSettings(){
   const name=nick(),named=!nickIsDefault(name);
   $("nickCurrent").textContent=named?name:"Spotter";
   $("nickEdit").textContent=named?"Zmeniť":"Vybrať";
+  if(typeof renderSpotterIdentity==="function")renderSpotterIdentity();
 }
 function openNicknameEditor(){
   if(KID()||SOC.profileNickname?.kid)return Promise.resolve(false);

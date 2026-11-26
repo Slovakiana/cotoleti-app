@@ -752,6 +752,51 @@ def main():
             assert "22." in atlas_page.locator("#atlasMineText").inner_text()
             atlas_ctx.close()
             print("✓ Atlas SR z Lovu aj Zbierky, najbližší súper a okamžitý posun po overenom type")
+            brand_ctx = b.new_context(viewport={"width": 320, "height": 660}, is_mobile=True,
+                                       geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
+            brand_ctx.route("**/*", stub)
+            brand_page = brand_ctx.new_page()
+            brand_page.on("pageerror", lambda e: errs.append("PAGEERROR značka " + str(e)))
+            brand_page.goto("http://localhost:8799/index.html")
+            brand_page.locator("#onbTitle").wait_for(state="visible")
+            assert brand_page.locator("#onbTitle").inner_text() == "Pozri hore."
+            assert brand_page.locator("#go").inner_text() == "Otvoriť radar"
+            brand_page.evaluate("localStorage.setItem('ctl_onb','1')")
+            brand_page.reload()
+            brand_page.evaluate("""() => {
+                LS.set("ctl_nick","Vetronár");
+                LS.set("ctl_kid",false);
+                COL.types.A320={n:1,ver:1,name:"Airbus A320",first:Date.now()};
+                COL.n=1;
+                setView("col");
+            }""")
+            assert brand_page.locator("#spotterIdentityName").inner_text() == "Vetronár"
+            assert brand_page.locator("#spotterTypes").inner_text() == "1"
+            brand_page.locator("#spotterOpen").click()
+            assert brand_page.locator("#spotterPreviewName").inner_text() == "Moja obloha"
+            brand_page.locator("#spotterShareName").check()
+            assert brand_page.locator("#spotterPreviewName").inner_text() == "Vetronár"
+            brand_page.locator("#spotterClose").click()
+            brand_page.locator("#spotterOpen").click()
+            assert brand_page.locator("#spotterPreviewName").inner_text() == "Moja obloha"
+            brand_page.evaluate("""() => {
+                window.testedSpotterCard = null;
+                shareBlob=async (blob,name,text)=>{
+                    const image=await createImageBitmap(blob);
+                    window.testedSpotterCard={name,text,width:image.width,height:image.height};
+                    image.close();
+                };
+            }""")
+            brand_page.locator("#spotterShare").click()
+            brand_page.wait_for_function("() => testedSpotterCard")
+            export = brand_page.evaluate("() => testedSpotterCard")
+            assert export["name"] == "moja-obloha.png" and export["width"] == 1080 and export["height"] == 1350
+            assert "Vetronár" not in export["text"] and "Pozri hore." in export["text"]
+            brand_page.evaluate("""() => { LS.set("ctl_kid",true); kidApply(); }""")
+            assert brand_page.locator("#spotterOpen").is_hidden()
+            assert brand_page.locator("#spotterIdentityName").inner_text() == "Môj profil"
+            brand_ctx.close()
+            print("✓ značka pri vstupe, profilová kartička, predvolené súkromie, PNG a detský režim")
             b.close()
     finally:
         srv.terminate()
