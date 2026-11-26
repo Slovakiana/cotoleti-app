@@ -243,6 +243,41 @@ def main():
                     setView("now");
                 }""")
                 print(f"✓ poradie kariet, šírka misie a dotykové ovládanie pri {width} px")
+            pg.set_viewport_size({"width": 1024, "height": 768})
+            pg.evaluate("""() => {
+                const box=id=>$(id).getBoundingClientRect();
+                if(box("stage").right>box("hero").left||box("nearCard").top<box("stage").bottom)
+                    throw Error("Lov nemá na širokom okne radar a detail vedľa seba");
+                setView("col");
+                if(box("atlasSection").right>box("b-wrapped").left)
+                    throw Error("Atlas a pokrok nie sú na iPade vedľa seba");
+                const report=$("b-wrapped");
+                report.focus();
+                report.click();
+                if(!$("wrap").classList.contains("on")||$("wrap").getAttribute("role")!=="dialog")
+                    throw Error("Súhrn nemá konzistentný vstup do dialógu");
+                $("wclose").click();
+                const saved=LOG;
+                try{
+                    LOG=[{t:Math.floor(Date.now()/1000),ty:"A320"}];
+                    setView("journal");
+                    if(!$("journalRecent").textContent.includes("A320"))
+                        throw Error("V Denníku chýba zaznamenané pozorovanie");
+                    if(box("journalRecent").right>document.documentElement.clientWidth)
+                        throw Error("Pozorovania presahujú displej");
+                    $("b-wrapped-journal").click();
+                    if(!$("wrap").classList.contains("on"))throw Error("Týždeň sa z Denníka neotvoril");
+                    $("wclose").click();
+                }finally{LOG=saved}
+                setView("col");
+            }""")
+            pg.set_viewport_size({"width": 390, "height": 844})
+            pg.evaluate("""() => {
+                if(S.view!=="col"||$("b-wrapped").getBoundingClientRect().top<$("atlasSection").getBoundingClientRect().bottom)
+                    throw Error("Po zúžení okna sa nezachovala záložka a poradie Zbierky");
+                setView("now");
+            }""")
+            print("✓ iPad na šírku, návrat na mobil a zdieľaný týždeň z Denníka aj Zbierky")
             pg.evaluate("""() => {
                 const [selected, waved, untouched] = ["4ca123", "49d3c1", "abc123"].map(hex=>({hex, el: 30, bear: 90, alt: 10000, type: "B738"}));
                 const oldTop = S.top;
@@ -491,8 +526,11 @@ def main():
                     setView("journal");
                     const page=$("v-journal").getBoundingClientRect();
                     const map=$("journalAlbum").querySelector(".journalMapStage").getBoundingClientRect();
-                    if(page.left<12||page.width>880||map.height>431||Math.abs(map.width-page.width)>3)
-                        throw Error("Denník alebo mapa preteká pri "+width+" px");
+                    const album=$("journalAlbum");
+                    const side=album.querySelector(".journalStampList,.journalEmpty").getBoundingClientRect();
+                    const fits=page.left>=12&&page.right<=width-12&&map.height<=431&&map.right<=page.right;
+                    const expected=width<880?Math.abs(map.width-page.width)<=3:side.left>map.right;
+                    if(!fits||!expected)throw Error("Denník alebo mapa preteká pri "+width+" px");
                     journalMode="al";
                     renderJournal();
                     const cards=$("journalAlbum").querySelectorAll(".journalBrand");

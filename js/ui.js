@@ -1044,7 +1044,7 @@ if($("t-big"))$("t-big").onclick=()=>{LS.set("ctl_big",!LS.get("ctl_big",false))
 fsApply();addEventListener("pageshow",fsApply);
 
 /* ⚙️ nastavenia jedným ťukom z hlavičky Ja */
-$("b-gear").onclick=()=>{const st=$("settings");st.open=true;haptic(8);setTimeout(()=>st.scrollIntoView({behavior:"smooth",block:"start"}),60)};
+$("b-gear").onclick=()=>{haptic(8);openCollectionSection("settings")};
 
 // prišiel si z odkazu od kamaráta? povedz to už na úvode
 // pozvánka pred úvodom: meno pozývajúceho z odkazu (ak sa dá prečítať)

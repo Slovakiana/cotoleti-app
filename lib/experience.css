@@ -1,0 +1,207 @@
+/* Shared surfaces and adaptive layouts for Lov, Denník and Zbierka. */
+:root {
+  --content-panel: #142035;
+  --content-line: #354860;
+  --content-secondary: #c5d0e2;
+  --content-gutter: clamp(12px, 2.5vw, 28px);
+  --content-width: 1160px;
+  --feedback-panel: #172b3b;
+  --feedback-line: #9ddfc7;
+}
+body.n-red {
+  --content-panel: #25161a;
+  --content-line: #62424a;
+  --content-secondary: #efd1d1;
+  --feedback-panel: #311d22;
+  --feedback-line: #dd9b9b;
+}
+body.n-warm {
+  --content-panel: #2a211a;
+  --content-line: #62503e;
+  --content-secondary: #ead8be;
+  --feedback-panel: #3a2c20;
+  --feedback-line: #e2be87;
+}
+
+#v-col {
+  max-inline-size: var(--content-width);
+  margin-inline: auto;
+  padding-inline: var(--content-gutter);
+}
+main.view { scroll-margin-block-end: calc(var(--bot) + 110px); }
+:focus-visible {
+  outline: 2px solid #a9f0cc;
+  outline-offset: 3px;
+  scroll-margin-block: 65px calc(var(--bot) + 110px);
+}
+nav.glass {
+  background: #101b2bea;
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+body.n-red nav.glass, body.n-warm nav.glass { background: var(--content-panel); }
+nav button.on {
+  background: #273d4e;
+  color: #d4ffec;
+}
+
+#v-col > .pageHead, #v-journal > .pageHead { padding-inline: 0; }
+#v-col .gearBtn { right: 0; top: calc(var(--top) + 56px); bottom: auto; }
+#v-col #meName, #v-col #meSub { padding-inline-end: 52px; overflow-wrap: anywhere; }
+.collectionLayout {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  align-items: start;
+}
+.collectionOverview { display: grid; gap: 14px; min-width: 0; }
+.collectionBlock {
+  min-width: 0;
+  border: 1px solid var(--content-line);
+  background: var(--content-panel);
+  border-radius: 17px;
+  overflow: clip;
+}
+.collectionBlock > h2 {
+  color: var(--content-secondary);
+  font: 700 calc(13px * var(--fs, 1))/1.4 var(--body);
+  margin: 0;
+  padding: 12px 15px 5px;
+}
+#v-col .collectionGroup {
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#v-col .collectionGroup > summary:focus-visible { outline-offset: -2px; border-radius: 8px; }
+.collectionGroup + .collectionGroup { border-top: 1px solid var(--content-line) !important; }
+.collectionRow,
+#v-col details > summary.collectionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  width: 100%;
+  text-align: start;
+  cursor: pointer;
+  padding: 9px 0;
+  font: 700 calc(15px * var(--fs, 1))/1.35 var(--body);
+  color: var(--txt);
+}
+button.collectionRow {
+  background: var(--content-panel);
+  border: 1px solid var(--content-line);
+  border-radius: 14px;
+  padding: 9px 14px;
+}
+.collectionRow > :first-child { grid-column: 1; overflow-wrap: anywhere; }
+.collectionRow > small {
+  grid-column: 2;
+  margin: 0;
+  color: var(--content-secondary);
+  font-size: calc(12px * var(--fs, 1));
+}
+.collectionRow > .rowStatus { color: #b8f6da; }
+.collectionRow[hidden], .collectionRow > small[hidden], #journalRecentEmpty[hidden] { display: none; }
+.collectionRow::after,
+#v-col details > summary.collectionRow::after {
+  content: "";
+  grid-column: 3;
+  inline-size: 8px;
+  block-size: 8px;
+  border: solid var(--content-secondary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(-45deg);
+}
+#v-col details > summary.collectionRow::after { transform: rotate(45deg); }
+#v-col details[open] > summary.collectionRow::after { transform: rotate(225deg); }
+#v-col .collectionGroup[open] { padding-bottom: 12px; }
+#v-col #settings { margin: 14px 0 0; }
+#atlasSection { margin: 0; min-width: 0; }
+
+#hero, #nearCard, #atlasSection, #v-col #settings,
+.journalActivity {
+  background: var(--content-panel);
+  border-color: var(--content-line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+#nearCard .lbl { gap: 8px; flex-wrap: wrap; }
+#hero .acts { align-items: stretch; }
+#hero .acts #b-wave { flex: 2; }
+#hero .acts #b-ar { flex: 1; }
+#hero .acts :is(#b-wave,#b-ar), #v-now .chips button { min-height: 44px; }
+.waveFeedback:has(#firstWaveResult:not(:empty)) {
+  margin-block: 8px;
+  padding: 8px 10px;
+  background: var(--feedback-panel);
+  border-inline-start: 2px solid var(--feedback-line);
+  border-radius: 8px;
+}
+.waveFeedback #firstWaveResult { margin: 0; }
+.waveFeedback .firstWaveAction:not([hidden]) { min-height: 44px; }
+.waveFeedback #atlasWaveResult { margin-bottom: 4px; }
+
+.journalActivity {
+  margin: 14px 0;
+  border: 1px solid var(--content-line);
+  border-radius: 17px;
+  padding: 14px;
+}
+.journalActivity > h2 { margin: 0 0 6px; font: 800 calc(17px * var(--fs, 1))/1.3 var(--body); }
+.journalRecent { list-style: none; margin: 0 0 10px; padding: 0; }
+.journalRecent:empty { display: none; }
+.journalRecent li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--content-line);
+}
+.journalRecent li > span { min-width: 0; overflow-wrap: anywhere; }
+.journalRecent time { color: var(--content-secondary); white-space: nowrap; font-size: calc(12px * var(--fs, 1)); }
+
+@media (min-width: 880px) {
+  #v-now { max-width: var(--content-width); padding-inline: var(--content-gutter); }
+  #top { max-width: var(--content-width); }
+  #v-journal { width: min(calc(100% - 2 * var(--content-gutter)), var(--content-width)); }
+  .huntLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.17fr) minmax(0, 1fr);
+    grid-template-areas: "radar flight" "near flight";
+    gap: 14px;
+    align-items: start;
+    padding-top: calc(var(--top) + 66px);
+  }
+  .huntLayout #stage {
+    grid-area: radar;
+    margin: 0;
+    border: 1px solid var(--content-line);
+    border-radius: 17px;
+    overflow: hidden;
+    padding-top: 0;
+  }
+  .huntLayout .stageTxt { top: 12px; }
+  .huntLayout #hero { grid-area: flight; margin: 0; min-width: 0; }
+  .huntLayout #nearCard { grid-area: near; margin: 0; min-width: 0; }
+  #momentBar.on { top: 12px !important; }
+  .collectionLayout { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  #journalAlbum:has(> .journalMapCard) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+  }
+  #journalAlbum > .journalMapCard { grid-row: span 2; }
+  #journalAlbum:has(> .journalMapCard) > :is(.journalStampList,.journalEmpty,.albumExtras) {
+    margin-block: 0;
+  }
+}

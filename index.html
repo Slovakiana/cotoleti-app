@@ -314,8 +314,6 @@ details.set[open]>summary::after{transform:rotate(90deg)}
 #shareM p{color:var(--mut);font-size:calc(14px*var(--fs,1));margin:0;text-align:center}
 
 /* Osobný týždeň */
-.weekEntry{width:100%;max-width:100%;min-height:48px;margin:8px 0;padding:10px 13px;display:flex;align-items:center;gap:8px;text-align:left;font-weight:750}
-.weekEntry span:first-child{flex:1}.weekEntry small{color:var(--mint);white-space:nowrap}
 .weekDialog{max-width:520px;background:linear-gradient(153deg,#152a3a,#101827 54%,#211831)}
 .weekTop{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
 .weekTop h2{margin:0;font-size:clamp(19px,5vw,25px)}.weekTop p{margin:4px 0;color:#bce2dc}
@@ -771,7 +769,8 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=97">
+<link rel="stylesheet" href="lib/journal.css?v=98">
+<link rel="stylesheet" href="lib/experience.css?v=98">
 </head>
 <body>
 <div id="bg"></div>
@@ -807,6 +806,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 
 <!-- NEBO -->
 <main id="v-now" class="view on">
+  <div class="huntLayout">
   <section id="stage" aria-labelledby="radarTitle">
     <canvas id="sky" role="img" aria-label="Obloha nad tebou"></canvas>
     <button id="momentBar"></button>
@@ -830,13 +830,16 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     </div>
     <p id="atlasOpportunity" hidden></p>
     <button type="button" class="atlas-entry" id="atlasQuick"><span><strong>🇸🇰 Atlas SR</strong><small id="atlasQuickPlace">Získaj svoje miesto v rebríčku</small></span><span aria-hidden="true">›</span></button>
-    <button type="button" class="atlas-entry" id="atlasWaveResult" hidden><span id="atlasWaveText"></span><span aria-hidden="true">›</span></button>
     <div class="wavePick" id="wavePick"><button aria-label="Zamávať">👋</button><button aria-label="Srdce">❤️</button><button aria-label="Slovensko">🇸🇰</button><button aria-label="Oheň">🔥</button><button aria-label="Smiech">😂</button><button aria-label="Pozdrav">🫡</button><button data-mail="1" aria-label="Poslať pozdrav lietadlom">✉️</button></div>
     <p class="firstWaveHint" id="firstWaveHint" hidden></p>
     <button class="ghost firstWaveAction" id="firstWaveAction" type="button" hidden></button>
+    <div class="waveFeedback">
     <div class="msg" id="firstWaveResult" role="status"></div>
+    <button type="button" class="atlas-entry" id="atlasWaveResult" hidden><span id="atlasWaveText"></span><span aria-hidden="true">›</span></button>
+
     <button class="ghost firstWaveAction" id="waveResultCard" type="button" hidden>Pozrieť kartičku</button>
     <button class="ghost firstWaveAction" id="waveJournalResult" type="button" hidden></button>
+    </div>
     <div class="cardHint" id="cardHint"></div>
       <div class="waveHint" id="waveHint">Podrž tlačidlo Mávni pre ďalšie reakcie.</div>
     <div class="waveInfo" id="waveInfo"></div>
@@ -857,6 +860,11 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="posBtns" id="posBtns"><button class="solid" id="b-pos">📍 Povoliť polohu</button><button class="ghost" id="b-man">Vybrať mesto</button></div>
   </section>
 
+  <section class="card glass" id="nearCard">
+    <div class="lbl"><span>Ďalšie lietadlá okolo teba</span><span id="radarCnt"></span></div>
+    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
+  </section>
+  </div>
   <div class="chips">
       <button class="chip glass" id="goldChip" style="display:none"></button>
       <button class="chip glass gold" id="santaChip" style="display:none"></button>
@@ -875,7 +883,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   </section>
 
   <details class="more glass" id="more">
-    <summary>Detail letu <small>trasa · foto · zvuk</small></summary>
+    <summary>Detail letu <small>trasa · mapa · zvuk</small></summary>
     <div class="moreIn">
       <div class="route" id="h-route">
         <div class="ap"><b id="r-o">—</b><span id="r-on"></span></div><div>✈️</div><div class="ap r"><b id="r-d">—</b><span id="r-dn"></span></div>
@@ -896,10 +904,6 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
       <div class="links" id="h-links"></div>
     </div>
   </details>
-  <section class="card glass" id="nearCard">
-    <div class="lbl"><span>Ďalšie lietadlá okolo teba</span><span id="radarCnt"></span></div>
-    <div id="list" style="margin-top:6px"><div class="lookSub">—</div></div>
-  </section>
   <section class="card glass huntHome" id="huntHome" data-state="empty" hidden aria-label="Osobný lov lietadla">
     <div class="huntHomeTitle" id="huntHomeTitle">Vyber si vysnívanú kartičku</div>
     <p class="huntHomeDetail" id="huntHomeDetail">V Atlase vyber typ lietadla, po ktorom pátraš.</p>
@@ -915,6 +919,12 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <button type="button" data-journal="al" aria-pressed="false" aria-controls="journalAlbum">Aerolinky <span hidden></span></button>
   </div>
   <div id="journalAlbum"></div>
+  <section class="journalActivity" aria-labelledby="journalActivityTitle">
+    <h2 id="journalActivityTitle">Pozorovania radaru</h2>
+    <ul id="journalRecent" class="journalRecent"></ul>
+    <p id="journalRecentEmpty" class="lookSub" hidden>Keď si pozrieš živú oblohu, nájdeš tu nedávne zaznamenané lietadlá.</p>
+    <button class="collectionRow" id="b-wrapped-journal" type="button" aria-haspopup="dialog" aria-controls="wrap"><span>Môj týždeň na oblohe</span><small id="weekJournalNew" class="rowStatus" hidden></small></button>
+  </section>
 </main>
 
 <dialog id="journalDetail" aria-labelledby="journalDetailTitle">
@@ -927,15 +937,19 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 <!-- JA -->
 <main id="v-col" class="view">
   <div class="pageHead"><button class="gearBtn glass" id="b-gear" aria-label="Nastavenia">⚙️</button><h1 id="meName">Zbierka</h1><p id="meSub"></p></div>
+  <div class="collectionLayout">
   <section class="card glass" id="atlasSection">
     <div class="lbl"><span>🃏 Atlas oblohy · Séria 1</span><span id="c-cardsN"></span></div>
     <button type="button" class="atlas-entry" id="atlasCollection"><span><strong>🇸🇰 Rebríček Atlasu</strong><small id="atlasCollectionPlace">Celé Slovensko</small></span><span aria-hidden="true">›</span></button>
     <div class="shelf" id="showcase" hidden></div>
     <div class="cards" id="c-types"><div class="lookSub">Zatiaľ prázdna. Pozri hore!</div></div>
   </section>
-  <button class="weekEntry glass" id="b-wrapped" type="button"><span>Môj týždeň na oblohe</span><small id="weekNew" hidden></small><span aria-hidden="true">›</span></button>
+  <div class="collectionOverview">
+  <button class="collectionRow" id="b-wrapped" type="button" aria-haspopup="dialog" aria-controls="wrap"><span>Môj týždeň na oblohe</span><small id="weekNew" class="rowStatus" hidden></small></button>
+  <section class="collectionBlock" aria-labelledby="collectionProgressTitle">
+    <h2 id="collectionProgressTitle">Môj pokrok</h2>
   <details class="more glass prof collectionGroup">
-    <summary>Profil a štatistiky</summary>
+    <summary class="collectionRow"><span>Profil a štatistiky</span></summary>
     <div class="lbl"><span>Level</span><span id="c-pts"></span></div>
     <div class="lvl" id="c-lvl">—</div>
     <div class="ptype" id="c-type">☁️ Snívač v oblakoch</div>
@@ -952,13 +966,20 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
   </details>
   <details class="more glass collectionGroup" id="dailyBox">
-    <summary>Dnešné výzvy <small id="d-streak"></small></summary>
+    <summary class="collectionRow"><span>Dnešné výzvy</span><small id="d-streak"></small></summary>
     <div id="monthlyChallenge"></div>
     <div id="stampBox"></div>
     <div id="d-list" style="margin-top:6px"></div>
   </details>
+  <details class="more glass collectionGroup" id="achBox">
+  <summary class="collectionRow"><span>Odznaky</span><small id="c-achN"></small></summary>
+  <div class="ach" id="c-ach" style="margin-top:12px"></div>
+  </details>
+  </section>
+  <section class="collectionBlock" aria-labelledby="collectionCommunityTitle">
+    <h2 id="collectionCommunityTitle">Komunita</h2>
   <details class="more glass collectionGroup" id="community">
-    <summary>Komunita <small>liga · misia · súboje</small></summary>
+    <summary class="collectionRow"><span>Liga a misia</span></summary>
     <div class="live" id="liveLine"></div>
     <div class="trActs"><button class="p" id="b-cduel">⚔️ Súboj kartičiek</button></div>
     <div class="lookSub" id="famScore" style="text-align:center"></div>
@@ -1008,12 +1029,8 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="trActs"><button class="p" id="pushYes">Zapnúť</button><button id="pushNo">Teraz nie</button></div>
   </section>
   </details>
-  <details class="more glass" id="achBox">
-  <summary>🏅 Odznaky <small id="c-achN"></small></summary>
-  <div class="ach" id="c-ach" style="margin-top:12px"></div>
-  </details>
-  <details class="more glass" id="friendsBox">
-  <summary>🤝 Hraj s kamarátmi <small>tím · výzva · kamaráti</small></summary>
+  <details class="more glass collectionGroup" id="friendsBox">
+  <summary class="collectionRow"><span>Hraj s kamarátmi</span></summary>
   <div class="lookSub" id="invCount" style="text-align:center;margin:6px 0" hidden></div>
   <section class="card"><div class="lbl"><span>👯 Moji kamaráti</span></div><div id="frList" style="margin-top:6px"><div class="lookSub">Načítavam…</div></div></section>
   <section class="card" id="teamCard">
@@ -1026,8 +1043,11 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="acts"><button class="btn pri" id="b-duel">⚔️ Vyzvi kamaráta</button></div>
   </section>
   </details>
+  </section>
+  </div>
+  </div>
   <details class="set glass" id="settings">
-    <summary>⚙️ Nastavenia</summary>
+    <summary class="collectionRow"><span>Nastavenia</span></summary>
     <div class="setH">Profil</div>
     <div id="hidBox" class="mayor" hidden></div>
     <div class="sr" id="accountSettings" hidden><div>Účet<small id="accountSettingsStatus"></small></div>
@@ -1084,7 +1104,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 </div>
 
 <!-- MOJA OBLOHA -->
-<div id="wrap" class="modal" aria-labelledby="weekTitle">
+<div id="wrap" class="modal" role="dialog" aria-modal="true" aria-labelledby="weekTitle">
   <section class="mcard weekDialog">
     <header class="weekTop">
       <div><h2 id="weekTitle">Môj týždeň na oblohe</h2><p id="weekPeriod"></p></div>
@@ -1247,28 +1267,28 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=97"></script>
-<script src="js/ui.js?v=97"></script>
-<script src="js/ar.js?v=97"></script>
-<script src="js/space.js?v=97"></script>
-<script src="js/weather.js?v=97"></script>
-<script src="js/extras.js?v=97"></script>
-<script src="js/account.js?v=97"></script>
-<script src="js/social.js?v=97"></script>
-<script src="js/atlas.js?v=97"></script>
-<script src="js/wrapped.js?v=97"></script>
-<script src="js/push.js?v=97"></script>
-<script src="js/track.js?v=97"></script>
-<script src="js/towns.js?v=97"></script>
-<script src="js/catalog.js?v=97"></script>
-<script src="js/cards.js?v=97"></script>
-<script src="js/journal.js?v=97"></script>
-<script src="js/mail.js?v=97"></script>
-<script src="js/golden.js?v=97"></script>
-<script src="js/teams.js?v=97"></script>
-<script src="js/duel.js?v=97"></script>
-<script src="js/sound.js?v=97"></script>
-<script src="js/santa.js?v=97"></script>
-<script src="js/main.js?v=97"></script>
+<script src="js/core.js?v=98"></script>
+<script src="js/ui.js?v=98"></script>
+<script src="js/ar.js?v=98"></script>
+<script src="js/space.js?v=98"></script>
+<script src="js/weather.js?v=98"></script>
+<script src="js/extras.js?v=98"></script>
+<script src="js/account.js?v=98"></script>
+<script src="js/social.js?v=98"></script>
+<script src="js/atlas.js?v=98"></script>
+<script src="js/wrapped.js?v=98"></script>
+<script src="js/push.js?v=98"></script>
+<script src="js/track.js?v=98"></script>
+<script src="js/towns.js?v=98"></script>
+<script src="js/catalog.js?v=98"></script>
+<script src="js/cards.js?v=98"></script>
+<script src="js/journal.js?v=98"></script>
+<script src="js/mail.js?v=98"></script>
+<script src="js/golden.js?v=98"></script>
+<script src="js/teams.js?v=98"></script>
+<script src="js/duel.js?v=98"></script>
+<script src="js/sound.js?v=98"></script>
+<script src="js/santa.js?v=98"></script>
+<script src="js/main.js?v=98"></script>
 </body>
 </html>

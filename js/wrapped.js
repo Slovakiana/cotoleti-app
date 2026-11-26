@@ -89,13 +89,16 @@ function weekCard(m){
   return {...v,n:h.n,coverForm:h.form||"-",shiny:h.shiny,ver:0};
 }
 function renderWeekEntry(){
-  const period=weekBounds(Date.now(),true),label=$("weekNew");
-  if(!label)return;
+  const period=weekBounds(Date.now(),true);
   const possible=LOG.some(e=>weekContains(period,observationTime(e)))||
     Object.values(COL.cx||{}).some(e=>weekContains(period,e?.t))||
     Object.values(COL.types).some(v=>v?.n&&weekContains(period,v.fp?.t||v.first));
-  label.hidden=!possible||LS.get("ctl_wrSeen","")===period.from;
-  label.textContent=label.hidden?"":"Nový súhrn";
+  const unread=possible&&LS.get("ctl_wrSeen","")!==period.from;
+  for(const id of ["weekNew","weekJournalNew"]){
+    const label=$(id);
+    label.hidden=!unread;
+    label.textContent=unread?"Nový súhrn":"";
+  }
 }
 function openWrapped(){
   const closed=weekModel(true),current=weekModel(false);
@@ -126,7 +129,7 @@ function wrShow(i){
   $("wnext").disabled=WR.i===WR.slides.length-1;
   $("weekNav").hidden=WR.slides.length<=1;
 }
-$("b-wrapped").onclick=openWrapped;
+$("b-wrapped").onclick=$("b-wrapped-journal").onclick=openWrapped;
 $("weekSwitch").onclick=()=>{WR.previous=!WR.previous;renderWeek(weekModel(WR.previous))};
 $("wnext").onclick=()=>wrShow(WR.i+1);
 $("wprev").onclick=()=>wrShow(WR.i-1);
@@ -134,7 +137,7 @@ $("wclose").onclick=()=>closeModal($("wrap"));
 $("wrap").addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();wrShow(WR.i+(e.key==="ArrowRight"?1:-1))}
 });
-HOOKS.view.push(v=>{if(v==="col")renderWeekEntry()});
+HOOKS.view.push(v=>{if(v==="col"||v==="journal")renderWeekEntry()});
 $("wshare").onclick=async()=>{
   const m=WR.model,button=$("wshare");if(!m||button.disabled)return;
   button.disabled=true;
