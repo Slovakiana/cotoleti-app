@@ -634,6 +634,54 @@ def main():
             assert nick_page.locator("#nickSettings").is_hidden()
             nick_ctx.close()
             print("✓ výzva pre Spotter, uloženie a zmena prezývky, obnovenie zo servera a detský režim")
+            # Nový prehliadač najprv načíta pozvánku bez registrácie a potom obnoví ten istý účet.
+            account_ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True,
+                                        user_agent="Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Mobile WhatsApp/2.25.2")
+            account_ctx.route("**/*", stub)
+            account_ctx.route("**/api/account/status", lambda route: route.fulfill(json={"rollout": "public"},
+                              headers={"access-control-allow-origin": "*"}))
+            old_id = "v2existingaccountfixture1234"
+            old_tok = "original-account-token"
+            starts, restores, hellos = [], [], []
+            snapshot = {"ctl_col": {"hex": {}, "types": {"A320": {"n": 1}}, "pts": 60, "mi": 21, "n": 1, "ach": {}},
+                        "ctl_log": [{"type": "A320"}], "ctl_nick": "Vetronár"}
+            def account_start(route):
+                starts.append(json.loads(route.request.post_data))
+                route.fulfill(json={"challenge": "mock-challenge"}, headers={"access-control-allow-origin": "*"})
+            def account_finish(route):
+                restores.append(json.loads(route.request.post_data))
+                route.fulfill(json={"id": old_id, "tok": old_tok, "pid": "original-profile", "fk": "test-key",
+                                    "epoch": 0, "rev": 2, "backup": snapshot},
+                              headers={"access-control-allow-origin": "*"})
+            def account_hello(route):
+                hellos.append(json.loads(route.request.post_data))
+                route.fulfill(json={"tok": old_tok, "pid": "original-profile", "fk": "test-key", "epoch": 0,
+                                    "nickname": {"name": "Vetronár", "kid": False, "managed": True}},
+                              headers={"access-control-allow-origin": "*"})
+            account_ctx.route("**/api/account/start", account_start)
+            account_ctx.route("**/api/account/finish", account_finish)
+            account_ctx.route("**/api/hello", account_hello)
+            account_page = account_ctx.new_page()
+            account_page.on("pageerror", lambda e: errs.append("PAGEERROR konto " + str(e)))
+            account_page.goto("http://localhost:8799/index.html?r=ABCDEFGHIJKLMNOP")
+            account_page.locator("#accountOnboarding").wait_for(state="visible")
+            account_page.wait_for_function("() => accountNeedsChoice()")
+            assert not hellos
+            account_page.locator("#accountOnboarding").click(force=True)
+            account_page.locator("#accountEmail").fill("pilot@example.com")
+            account_page.locator("#accountContinue").click()
+            account_page.locator("#accountCode").fill("12345678")
+            with account_page.expect_navigation():
+                account_page.locator("#accountContinue").click()
+            account_page.wait_for_function("() => SOC.authVerified && COL.pts === 60 && COL.mi === 21")
+            assert account_page.evaluate("() => LS.get('ctl_log',[])[0].type") == "A320"
+            assert account_page.evaluate("() => LS.get('ctl_ref','')") == "ABCDEFGHIJKLMNOP"
+            assert account_page.evaluate("() => LS.get('ctl_cid','')") == old_id
+            assert starts == [{"mode": "login", "email": "pilot@example.com"}]
+            assert restores == [{"mode": "login", "challenge": "mock-challenge", "code": "12345678"}]
+            assert hellos and all(hello["id"] == old_id for hello in hellos)
+            print("✓ vstup z WhatsAppu nevytvorí nový účet a obnoví pôvodnú zbierku i pozvánku")
+            account_ctx.close()
             b.close()
     finally:
         srv.terminate()

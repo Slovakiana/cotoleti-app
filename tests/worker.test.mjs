@@ -709,6 +709,60 @@ await t("prezývka sa uloží ihneď, ostane pri starom mávnutí a detský prof
   assert.equal((await save("Vetronár")).s, 403);
   assert.deepEqual((await call("/api/hello", identity, ip)).j.nickname, {name:"",managed:false,kid:true});
 });
+await t("e-mail pripojí pôvodný účet, obnoví zálohu a neprenesie účty ani kódy iných hráčov", async () => {
+  const start = "/api/account/start", finish = "/api/account/finish", backupPath = "/api/account/backup";
+  assert.deepEqual((await call("/api/account/status")).j, {rollout:"off"});
+  assert.equal((await call(start, {mode:"login",email:"pilot@example.com"})).s, 503);
+  const provider = globalThis.fetch, oldEnv = {...sky.env}, outbox = [];
+  Object.assign(sky.env, {ACCOUNT_FROM:"test@example.com",RESEND_API_KEY:"test",ACCOUNT_ROLLOUT:"pilot",ACCOUNT_PILOT_EMAILS:"pilot@example.com"});
+  globalThis.fetch = async (url, opts) => {
+    if (String(url) !== "https://api.resend.com/emails") return provider(url, opts);
+    outbox.push(JSON.parse(opts.body));
+    return new Response("{}", {status: 200});
+  };
+  try {
+    const id = "v2testaccountpilot000000001", other = "v2testaccountpilot000000002";
+    const a = (await call("/api/hello", {id}, "12.12.12.10")).j;
+    const b = (await call("/api/hello", {id:other}, "12.12.12.11")).j;
+    const email = "Pilot@example.com", ip = "12.12.12.12";
+    const ask = (mode, fields={}) => call(start, {mode,email,...fields}, ip);
+    const reply = (mode, challenge, fields={}, code=outbox.at(-1).text.match(/\d{8}/)[0]) =>
+      call(finish, {mode,challenge,code,...fields}, ip);
+    assert.equal((await ask("link", {id})).s, 403);
+    assert.equal((await ask("login", {email:"excluded@example.com"})).s, 403);
+    const linked = await ask("link", {id,tok:a.tok});
+    assert.equal(linked.s, 200);
+    assert.deepEqual(outbox[0].to, ["pilot@example.com"]);
+    const snapshot = {ctl_col:{hex:{},types:{A320:{n:1}},pts:42,mi:17,n:1,ach:{wave:1}},
+      ctl_log:[{type:"A320"}],ctl_daily:{done:true},ctl_tok:"must-not-be-backed-up"};
+    assert.equal((await reply("link", linked.j.challenge, {id:other,tok:b.tok,backup:snapshot})).s, 400);
+    assert.equal((await reply("link", linked.j.challenge, {id,tok:a.tok,backup:snapshot}, "xxxxxxxx")).s, 400);
+    assert.deepEqual((await reply("link", linked.j.challenge, {id,tok:a.tok,backup:snapshot})).j, {rev:1});
+    assert.equal((await reply("link", linked.j.challenge, {id,tok:a.tok,backup:snapshot})).s, 400);
+    assert.equal((await call("/api/mycards", {id,tok:a.tok})).s, 200);
+    const login = await ask("login");
+    assert.equal(login.s, 200);
+    const restored = await reply("login", login.j.challenge);
+    assert.equal(restored.s, 200);
+    assert.equal(restored.j.id, id);
+    assert.equal(restored.j.pid, a.pid);
+    assert.equal(restored.j.tok, a.tok);
+    assert.deepEqual(restored.j.backup.ctl_col, snapshot.ctl_col);
+    assert.deepEqual(restored.j.backup.ctl_log, snapshot.ctl_log);
+    assert.equal(restored.j.backup.ctl_tok, undefined);
+    assert.equal((await reply("login", login.j.challenge)).s, 400);
+    assert.deepEqual((await call(backupPath, {id,tok:a.tok,rev:1,backup:{...snapshot,ctl_col:{...snapshot.ctl_col,pts:43}}})).j, {rev:2});
+    assert.equal((await call(backupPath, {id,tok:a.tok,rev:1,backup:snapshot})).s, 409);
+    assert.deepEqual((await call("/api/mydata", {id,tok:a.tok})).j.zalohaZbierky.ctl_col.pts, 43);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM player_accounts WHERE id=?").get(id).n, 1);
+    await call("/api/forget", {id,tok:a.tok});
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM player_accounts WHERE id=?").get(id).n, 0);
+  } finally {
+    for (const key of ["ACCOUNT_FROM","RESEND_API_KEY","ACCOUNT_ROLLOUT","ACCOUNT_PILOT_EMAILS"]) delete sky.env[key];
+    Object.assign(sky.env, oldEnv);
+    globalThis.fetch = provider;
+  }
+});
 await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async () => {
   assert.equal((await call("/api/admin",{resetAction:"prepare"})).s,401);
   assert.equal((await call("/api/admin",{resetAction:"execute",key:"nespravny"})).s,401);
