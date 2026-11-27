@@ -77,7 +77,9 @@ def home_regressions(browser, errors):
         page.wait_for_function("() => $('privM').contains(document.activeElement)")
         page.keyboard.press("Escape")
         assert page.evaluate("document.activeElement.id") == "onb-privacy"
-        page.locator("#onbKid").uncheck()
+        assert not page.locator("#onbKid").is_checked()
+        assert page.evaluate("localStorage.getItem('ctl_kid') === null")
+        assert not page.evaluate("LS.get('ctl_pushAsked',false)")
         page.locator("#go").click()
         page.wait_for_function("() => SOC.authVerified && S.loaded && S.top && !$('onb').offsetHeight")
         assert received["hello"] == [0]
@@ -208,6 +210,43 @@ def home_regressions(browser, errors):
         print("✓ regresie Lovu: úvod a účet, oznámenie, klávesnica, kamera, odhad zvuku, pozdrav, prázdny detail a sledovanie")
     finally:
         ctx.close()
+
+
+def kid_onboarding_regressions(browser):
+    for saved_choice in (None, True):
+        ctx = browser.new_context(viewport={"width": 390, "height": 844})
+        ctx.route("**/*", stub)
+        received = []
+
+        def hello(route):
+            kid = json.loads(route.request.post_data)["kid"]
+            received.append(kid)
+            route.fulfill(headers={"access-control-allow-origin": "*"},
+                          json={"tok": "test-token", "pid": "tester", "fk": "test-key", "epoch": 0,
+                                "nickname": {"name": "", "kid": bool(kid)}})
+
+        ctx.route("**/api/hello", hello)
+        if saved_choice:
+            ctx.add_init_script("if (!localStorage.getItem('ctl_onb')) localStorage.setItem('ctl_kid','true')")
+        try:
+            page = ctx.new_page()
+            page.goto("http://localhost:8799/index.html")
+            choice = page.locator("#onbKid")
+            assert choice.is_checked() == bool(saved_choice)
+            assert not received
+            if saved_choice is None:
+                choice.check()
+            page.locator("#noGps").click()
+            page.locator('#cities [data-c="Bratislava"]').click()
+            page.wait_for_function("() => SOC.authVerified && LS.get('ctl_onb',0) === 1")
+            assert received[0] == 1
+            assert page.evaluate("LS.get('ctl_kid',false) && document.body.classList.contains('kid')")
+            page.reload()
+            page.wait_for_function("() => SOC.authVerified && KID()")
+            assert page.locator("#onb").is_hidden()
+        finally:
+            ctx.close()
+    print("✓ detský režim sa zapne výberom a predvoľba nového detského profilu sa zachová")
 
 
 def collection_regressions(browser, errors):
@@ -576,7 +615,7 @@ def main():
                     Object.assign(S, before);
                 }
             }""")
-            assert pg.locator("#onbKid").is_checked()
+            assert not pg.locator("#onbKid").is_checked()
             for slug, title in [("privacy.html", "Súkromie"), ("rules.html", "Pravidlá hry")]:
                 legal = ctx.new_page()
                 legal.goto(f"http://localhost:8799/{slug}")
@@ -1302,6 +1341,7 @@ def main():
             brand_ctx.close()
             print("✓ značka pri vstupe, profilová kartička, predvolené súkromie, PNG a detský režim")
             home_regressions(b, errs)
+            kid_onboarding_regressions(b)
             collection_regressions(b, errs)
             background_regressions(b, errs)
             b.close()

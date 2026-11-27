@@ -1075,7 +1075,7 @@ const KID=()=>LS.get("ctl_kid",!LS.get("ctl_onb",0));
 function kidApply(){
   const k=KID();document.body.classList.toggle("kid",k);$("t-kid").classList.toggle("on",k);
   $("nickSettings").hidden=k;
-  if(k){LS.set("ctl_nick","");$("nick").value="";$("nickDialog").close();LS.set("ctl_pushAsked",true)}
+  if(k&&LS.get("ctl_kid",false)===true){LS.set("ctl_nick","");$("nick").value="";$("nickDialog").close();LS.set("ctl_pushAsked",true)}
   if(typeof renderNicknameSettings==="function")renderNicknameSettings();
   if(typeof renderAccountSettings==="function")renderAccountSettings();
   if(typeof renderSpotterIdentity==="function")renderSpotterIdentity();
@@ -1170,7 +1170,8 @@ $("kidSyncRetry").onclick=()=>{
   if(!KID()&&!authorizeKidDisable())return;
   kidSet(KID());
 };
-$("onbKid").checked=KID();
+// Pred dokončením úvodu sú spoločenské funkcie skryté. Políčko vyjadruje iba uloženú voľbu.
+$("onbKid").checked=LS.get("ctl_kid",false)===true;
 
 kidApply();
 $("b-mydata").onclick=async()=>{
