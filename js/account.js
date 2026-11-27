@@ -119,27 +119,17 @@ async function restoreAccount(data) {
   const digest = await accountBackupDigest(data.backup);
   if (hasLocalAccountProgress()) throw Error("local");
   if (SOC.inflight) throw Error("wave");
-  lsFlush();
-  const writes = {...Object.fromEntries(ACCOUNT_BACKUP_KEYS.map(key => [key, data.backup[key]])),
-    ctl_cid: data.id, ctl_tok: data.tok, ctl_tok0: data.tok, ctl_pid: data.pid,
-    ctl_fk: data.fk, ctl_fkT: Date.now(), ctl_reset_epoch: data.epoch,
-    ctl_account_rev: data.rev, ctl_account_digest: digest, ctl_onb: 1, ctl_kid: false};
-  const previous = new Map(Object.keys(writes).map(key => [key, localStorage.getItem(key)]));
-  try {
-    for (const [key, value] of Object.entries(writes)) {
-      if (value === undefined) localStorage.removeItem(key);
-      else localStorage.setItem(key, JSON.stringify(value));
-    }
-  } catch (error) {
-    for (const [key, value] of previous) {
-      if (value === null) localStorage.removeItem(key);
-      else localStorage.setItem(key, value);
-    }
-    throw error;
-  }
-  LSP.clear();
-  LS.set = () => {};
-  location.reload();
+  await withCollectionStorage(()=>{
+    if(hasLocalAccountProgress())throw Error("local");
+    if(SOC.inflight)throw Error("wave");
+    if(!lsFlush())throw Error("storage_changed");
+    const writes={...Object.fromEntries(ACCOUNT_BACKUP_KEYS.map(key=>[key,data.backup[key]])),
+      ctl_cid:data.id,ctl_tok:data.tok,ctl_tok0:data.tok,ctl_pid:data.pid,
+      ctl_fk:data.fk,ctl_fkT:Date.now(),ctl_reset_epoch:data.epoch,
+      ctl_account_rev:data.rev,ctl_account_digest:digest,ctl_onb:1,ctl_kid:false};
+    storageBatch(Object.entries(writes).map(([key,value])=>[key,value===undefined?null:JSON.stringify(value)]));
+    LSP.clear();LS.set=()=>{};location.reload();
+  });
 }
 
 async function saveAccountBackup(manual = false) {

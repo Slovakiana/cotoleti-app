@@ -4,13 +4,78 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 // úložisko: plná pamäť Safari (5 MB) → orež históriu a skús znova; zbierka (ctl_col) sa zapisuje s krátkym odkladom (1 zápis namiesto 4 pri mávnutí)
 const LSP=new Map();let LST=null;
+const STORAGE_JOURNAL="ctl_storage_recovery",STORAGE_VERSION="ctl_storage_version";
+function writeStorageEntries(entries){
+  for(const [key,value] of entries){
+    if(localStorage.getItem(key)===value)continue;
+    if(value===null)localStorage.removeItem(key);
+    else localStorage.setItem(key,value);
+  }
+}
+function restoreStorageBatch(entries){
+  // Pri obnove najprv odstráň zapísané rozdiely, aby bolo miesto na pôvodné hodnoty.
+  const changed=entries.filter(([key,value])=>localStorage.getItem(key)!==value);
+  for(const [key] of changed)localStorage.removeItem(key);
+  writeStorageEntries(changed);
+  localStorage.removeItem(STORAGE_JOURNAL);
+}
+let storageRecovery=null,storageVersion=null,bootJournal=null;
+try{
+  bootJournal=localStorage.getItem(STORAGE_JOURNAL);
+  if(bootJournal)storageRecovery=JSON.parse(bootJournal);
+  storageVersion=localStorage.getItem(STORAGE_VERSION);
+}catch(e){}
+function storageCurrent(){
+  try{return !storageRecovery&&!localStorage.getItem(STORAGE_JOURNAL)&&localStorage.getItem(STORAGE_VERSION)===storageVersion}
+  catch(e){return false}
+}
+function storageBatch(writes){
+  if(!storageCurrent())throw Error("storage_changed");
+  const entries=[...writes].filter(([key,value])=>localStorage.getItem(key)!==value);
+  const version=String(Date.now())+"-"+Math.random();
+  entries.push([STORAGE_VERSION,version]);
+  const previous=entries.map(([key])=>[key,localStorage.getItem(key)]);
+  localStorage.setItem(STORAGE_JOURNAL,JSON.stringify(previous));
+  try{
+    writeStorageEntries(entries);
+    localStorage.removeItem(STORAGE_JOURNAL);
+    storageVersion=version;
+  }catch(error){
+    try{restoreStorageBatch(previous)}catch(e){storageRecovery=previous}
+    throw error;
+  }
+}
+function withCollectionStorage(action){
+  return navigator.locks?.request?navigator.locks.request("cotoleti-collection",action):Promise.resolve().then(action);
+}
+if(storageRecovery)setTimeout(()=>{
+  // Iná karta môže mať zápis práve rozpracovaný. Počkaj na ten istý zámok.
+  withCollectionStorage(()=>{
+    if(localStorage.getItem(STORAGE_JOURNAL)===bootJournal)restoreStorageBatch(storageRecovery);
+    LSP.clear();LS.set=()=>{};location.reload();
+  }).catch(()=>{toast("Zbierku zatiaľ neviem obnoviť","Uvoľni miesto v prehliadači a obnov stránku.")});
+},navigator.locks?.request?0:250);
+addEventListener("storage",event=>{
+  if((event.key!==STORAGE_VERSION&&!(event.key===STORAGE_JOURNAL&&event.newValue===null))||storageCurrent()||localStorage.getItem(STORAGE_JOURNAL))return;
+  LSP.clear();LS.set=()=>{};location.reload();
+});
+
 function lsWrite(k,s){try{localStorage.setItem(k,s);return true}catch(e){
   try{const L=JSON.parse(localStorage.getItem("ctl_log")||"[]");if(Array.isArray(L)&&L.length>50)localStorage.setItem("ctl_log",JSON.stringify(L.slice(-Math.floor(L.length/2))));localStorage.removeItem("ctl_seenT");localStorage.removeItem("ctl_seen")}catch(x){}
   try{localStorage.setItem(k,s);return true}catch(x){try{navigator.sendBeacon&&navigator.sendBeacon("https://cotoleti-app.radovan-kudela.workers.dev/api/err",JSON.stringify({m:"quota "+k+" "+s.length}))}catch(y){}
     if(!lsWrite.warned){lsWrite.warned=1;setTimeout(()=>typeof toast==="function"&&toast("⚠️ Pamäť mobilu je plná","Úlovok sa nemusel uložiť – uvoľni miesto v Safari"),500)}return false}}}
-function lsFlush(){clearTimeout(LST);LST=null;for(const [k,s] of LSP)lsWrite(k,s);LSP.clear()}
-const LS={get(k,d){if(LSP.has(k)){try{return JSON.parse(LSP.get(k))}catch(e){}}try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
-  set(k,v){let s;try{s=JSON.stringify(v)}catch(e){return}if(k==="ctl_col"){LSP.set(k,s);if(!LST)LST=setTimeout(lsFlush,300);return}lsWrite(k,s)}};
+function lsFlush(){
+  clearTimeout(LST);LST=null;
+  if(!storageCurrent()&&LSP.size)return false;
+  let saved=true;
+  for(const [key,value] of LSP){
+    if(lsWrite(key,value))LSP.delete(key);
+    else saved=false;
+  }
+  return saved;
+}
+const LS={get(k,d){if(LSP.has(k)){try{return JSON.parse(LSP.get(k))}catch(e){}}try{const prior=storageRecovery?.find(entry=>entry[0]===k);const v=prior?prior[1]:localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){if(!storageCurrent())return;let s;try{s=JSON.stringify(v)}catch(e){return}if(k==="ctl_col"){LSP.set(k,s);if(!LST)LST=setTimeout(lsFlush,300);return}lsWrite(k,s)}};
 addEventListener("pagehide",lsFlush);document.addEventListener("visibilitychange",()=>{if(document.hidden)lsFlush()});
 const FT=0.3048,KT=1.852,R=6371000,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
 const wrap180=a=>((a%360)+540)%360-180;
@@ -502,7 +567,7 @@ function tryCatch(a){
   else toast(T,Sub,RAR[r].col);
   if(r!=="c"||newAch.length||newType)confetti(r==="l"?120:r==="e"?80:40);
   ping(r);
-  HOOKS.caught.forEach(f=>{try{f(a,r)}catch(e){console.error(e)}});
+  HOOKS.caught.forEach(f=>{try{f(a,r,{upgrading,at})}catch(e){console.error(e)}});
   if(S.view==="col")renderCol();
   if(S.view==="journal")renderJournal();
 }

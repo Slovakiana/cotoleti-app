@@ -80,7 +80,7 @@ function refreshAtlasRank(force = false) {
     return data;
   }).catch(() => {
     atlasRankRetry = Date.now() + 30000;
-    if (atlasRankDialog.open) $("atlasRankStatus").textContent = "Poradie sa teraz nepodarilo obnoviť.";
+    if (atlasRankDialog.open) $("atlasRankStatus").textContent = nationalAtlas ? "Zobrazuje sa posledné uložené poradie. Obnovenie zlyhalo." : "Poradie sa teraz nepodarilo obnoviť.";
     return null;
   }).finally(() => { atlasRankRequest = null; });
   return atlasRankRequest;

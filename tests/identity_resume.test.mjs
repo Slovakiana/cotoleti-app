@@ -13,13 +13,13 @@ const store=new Map([["ctl_reset_epoch",1],["ctl_tok","existing-token"],["ctl_to
 const LS={get:(k,d)=>store.has(k)?store.get(k):d,set:(k,v)=>store.set(k,v)};
 const calls=[];
 let queue=[];
-let internet=true,hidden=false,deleted=0,reloaded=0;
+let internet=true,hidden=false,deleted=0,reloaded=0,storageReady=true;
 const SOC={api:"https://example.test",cid:store.get("ctl_cid")};
 const navigator={get onLine(){return internet},sendBeacon:()=>true};
 const localStorage=Object.fromEntries([...store].map(([k,v])=>[k,String(v)]));
 localStorage.removeItem=function(k){delete this[k];store.delete(k);deleted++};
 localStorage.getItem=k=>store.get(k)||null;
-const env={SOC,LS,LSP:new Map(),navigator,localStorage,document:{get hidden(){return hidden}},location:{reload:()=>{reloaded++}},toast:()=>{},AbortController,clearTimeout,setTimeout:()=>0,fetch:async(url,opts)=>{calls.push([url,opts]);const j=queue.shift();if(j instanceof Error)throw j;if(!j)throw Error("unexpected request");return {status:j.s,ok:j.s>=200&&j.s<300,json:async()=>j.j}} ,DEFAULT_PROXY:"https://example.test",FK:"old-fk",TOK:"existing-token",PID:"old-pid",KID:()=>false,addEventListener:()=>{},};
+const env={SOC,LS,storageCurrent:()=>storageReady,LSP:new Map(),navigator,localStorage,document:{get hidden(){return hidden}},location:{reload:()=>{reloaded++}},toast:()=>{},AbortController,clearTimeout,setTimeout:()=>0,fetch:async(url,opts)=>{calls.push([url,opts]);const j=queue.shift();if(j instanceof Error)throw j;if(!j)throw Error("unexpected request");return {status:j.s,ok:j.s>=200&&j.s<300,json:async()=>j.j}} ,DEFAULT_PROXY:"https://example.test",FK:"old-fk",TOK:"existing-token",PID:"old-pid",KID:()=>false,addEventListener:()=>{},};
 vm.createContext(env);
 vm.runInContext(fragment+"\nthis.testAuth={ensureTok,apiPost};",env);
 const {ensureTok,apiPost}=env.testAuth;
@@ -57,7 +57,9 @@ queue=[{s:409,j:{error:"reset",epoch:2}}];assert.equal(await ensureTok(true),"")
 assert.equal(store.get("ctl_reset_epoch"),2);assert.equal(SOC.resetting,true);
 assert.ok(deleted>0);
 assert.equal(reloaded,0,"reload is scheduled, not immediate");
-// Prenos zbierky zachová epoch servera po globálnom resete.
-assert.ok(worker.includes('epoch: Number(this.getMeta("player_reset_epoch")||0), data: x.data'));
-assert.ok(ui.includes('LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_onb",1)'));
+// Starý tab po prepnutí profilu nepoužije už uložený token.
+storageReady=false;SOC.resetting=false;
+assert.equal(await ensureTok(),"");
+assert.ok(worker.includes('epoch: Number(this.getMeta("player_reset_epoch") || 0)'));
+assert.ok(ui.includes('ctl_reset_epoch:result.epoch||0,ctl_onb:1'));
 console.log("✓ v69 C: offline, návrat, reset, 401, presun a prenos sezóny");

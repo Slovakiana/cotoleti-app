@@ -171,7 +171,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v100";
+const VERSION = "v101";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
@@ -269,6 +269,7 @@ export class Sky extends DurableObject {
       CREATE INDEX IF NOT EXISTS ids_t ON ids(t);
       CREATE TABLE IF NOT EXISTS gcand(day TEXT, seq INTEGER, id TEXT, nick TEXT, k TEXT, town TEXT, t INTEGER, PRIMARY KEY(day, seq, id));
       CREATE TABLE IF NOT EXISTS xfer(code TEXT PRIMARY KEY, id TEXT, data TEXT, t INTEGER);
+      CREATE TABLE IF NOT EXISTS xfer_receipts(code TEXT PRIMARY KEY, id TEXT NOT NULL, proof TEXT NOT NULL, ep INTEGER NOT NULL, t INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS player_accounts(id TEXT PRIMARY KEY, email_key TEXT NOT NULL UNIQUE, backup TEXT NOT NULL, rev INTEGER NOT NULL DEFAULT 1);
       CREATE TABLE IF NOT EXISTS account_codes(challenge TEXT PRIMARY KEY, email_key TEXT NOT NULL, id TEXT NOT NULL, mode TEXT NOT NULL, proof TEXT NOT NULL, expires INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0);
       CREATE INDEX IF NOT EXISTS account_codes_expiry ON account_codes(expires);
@@ -390,6 +391,7 @@ export class Sky extends DurableObject {
         const mm = (this.row("SELECT MIN(mid) AS m FROM mails") || {}).m; const mmin = mm == null ? 1e15 : mm;
         this.sql.exec("DELETE FROM maildel WHERE mid < ?", mmin); this.sql.exec("DELETE FROM maildeliv WHERE mid < ?", mmin);
         this.sql.exec("DELETE FROM xfer WHERE t < ?", now - 10 * 60e3);
+        this.sql.exec("DELETE FROM xfer_receipts WHERE t < ?", now - 86400e3);
         this.sql.exec("DELETE FROM account_codes WHERE expires<=?", now);
         this.sql.exec("DELETE FROM gcand WHERE day < ?", old);
         this.sql.exec("DELETE FROM msgs WHERE t < ?", now - 30 * 86400e3);
@@ -589,6 +591,7 @@ export class Sky extends DurableObject {
     this.sql.exec("UPDATE teams SET name='Tím ' || code, lc=lower('tím ' || code), owner=NULL WHERE owner=?", id);
     this.sql.exec("DELETE FROM account_codes WHERE id=? OR email_key IN (SELECT email_key FROM player_accounts WHERE id=?)", id, id);
     this.sql.exec("DELETE FROM player_accounts WHERE id=?", id);
+    this.sql.exec("DELETE FROM xfer_receipts WHERE id=?", id);
     this.sql.exec("DELETE FROM ids WHERE id=?", id);
     this._div = null;
   }
@@ -1158,19 +1161,47 @@ export class Sky extends DurableObject {
       this.sql.exec("INSERT INTO errs(day, msg, n) VALUES(?, ?, 1) ON CONFLICT(day, msg) DO UPDATE SET n = n + 1", d, kind);
       return json({ok: true});
     }
-    if (p === "/api/xclaim" && req.method === "POST") {
-      // prenos zbierky: jednorazový kód (10 min) -> nové zariadenie dostane účet, staré stratí platnosť
+    if (p === "/api/xclaim" && req.method === "POST") return json({error: "update"}, 409);
+    if ((p === "/api/xprepare" || p === "/api/xfinish") && req.method === "POST") {
       if (!this.rate("xclaim:" + iph, 60, 3600e3)) return json({error: "rate"}, 429);
-      const b = await body(), code = String(b.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
-      const x = code.length === 8 ? this.row("SELECT * FROM xfer WHERE code=?", code) : null;
-      if (!x || now - x.t > 10 * 60e3) { this.bump("xclaim_bad"); return json({error: "code"}, 404); }
-      this.sql.exec("DELETE FROM xfer WHERE code=?", code);
-      this.sql.exec("UPDATE ids SET ep = COALESCE(ep, 0) + 1 WHERE id=?", x.id);
-      this.sql.exec("DELETE FROM subs WHERE id=?", x.id);
-      this.sql.exec("DELETE FROM msgs WHERE id=?", x.id);
-      this.sql.exec("DELETE FROM queue WHERE id=?", x.id);
-      const pd = await this.pid(x.id);
-      return json({id: x.id, tok: await this.tok(x.id), pid: pd, fk: await this.fk(pd), epoch: Number(this.getMeta("player_reset_epoch")||0), data: x.data});
+      const b = await body(), code = String(b.code || "").toUpperCase();
+      const claim = String(b.claim || "");
+      if (!/^[0-9A-Z]{8}$/.test(code) || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(claim))
+        return json({error: "code"}, 404);
+      const transfer = this.row("SELECT id, data, t FROM xfer WHERE code=?", code);
+      const live = transfer && now - transfer.t <= 10 * 60e3;
+      if (p === "/api/xprepare") {
+        if (!live) return json({error: "code"}, 404);
+        const ticket = await this.revokedKey("xfer:" + code + ":" + transfer.id + ":" + transfer.t, claim);
+        return json({id: transfer.id, data: transfer.data, ticket});
+      }
+      const id = cleanId(b.id), ticket = typeof b.ticket === "string" ? b.ticket : "";
+      if (!id || !/^[A-Za-z0-9_-]{43}$/.test(ticket)) return json({error: "code"}, 404);
+      const proof = await this.revokedKey("xfer-finish:" + code + ":" + id, claim + ":" + ticket);
+      const valid = live && transfer.id === id &&
+        sameStr(await this.revokedKey("xfer:" + code + ":" + id + ":" + transfer.t, claim), ticket);
+      const finish = () => {
+        const current = this.row("SELECT ep FROM ids WHERE id=?", id);
+        if (!current) return null;
+        const ep = current.ep || 0;
+        const receipt = this.row("SELECT id, proof, ep, t FROM xfer_receipts WHERE code=?", code);
+        if (receipt) {
+          return receipt.id === id && receipt.ep === ep && now - receipt.t <= 86400e3 &&
+            sameStr(receipt.proof, proof) ? {ep} : null;
+        }
+        if (!valid || !this.row("SELECT 1 AS x FROM xfer WHERE code=? AND id=? AND t=?", code, id, transfer.t)) return null;
+        const next = ep + 1;
+        this.sql.exec("UPDATE ids SET ep=? WHERE id=?", next, id);
+        for (const table of ["subs", "msgs", "queue"]) this.sql.exec(`DELETE FROM ${table} WHERE id=?`, id);
+        this.sql.exec("INSERT INTO xfer_receipts(code, id, proof, ep, t) VALUES(?, ?, ?, ?, ?)", code, id, proof, next, now);
+        this.sql.exec("DELETE FROM xfer WHERE code=?", code);
+        return {ep: next};
+      };
+      const result = this.ctx.storage.transactionSync ? this.ctx.storage.transactionSync(finish) : finish();
+      if (!result) return json({error: "code"}, 404);
+      const pd = await this.pid(id);
+      return json({id, tok: await this.tokE(id, result.ep), pid: pd, fk: await this.fk(pd),
+        epoch: Number(this.getMeta("player_reset_epoch") || 0)});
     }
     const OPEN = ["/api/sky", "/api/msg", "/api/admin", "/api/stats"]; // /api/stats overuje ADMIN_KEY samostatne
     if (req.method === "POST" && p !== "/cron" && !OPEN.includes(p)) {
@@ -1491,7 +1522,7 @@ export class Sky extends DurableObject {
       if (TEXT_ENCODER.encode(data).byteLength > TRANSFER_DATA_BYTES) return json({error: "big"}, 413);
       let code;
       do { code = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => "0123456789ABCDEFGHJKMNPQRSTVWXYZ"[b & 31]).join(""); }
-      while (this.row("SELECT 1 AS x FROM xfer WHERE code=?", code));
+      while (this.row("SELECT 1 AS x FROM xfer WHERE code=?", code) || this.row("SELECT 1 AS x FROM xfer_receipts WHERE code=?", code));
       this.sql.exec("DELETE FROM xfer WHERE id=? OR t < ?", id, now - 10 * 60e3);
       this.sql.exec("INSERT INTO xfer(code, id, data, t) VALUES(?, ?, ?, ?)", code, id, data, now);
       return json({code, ttl: 600});
@@ -1519,7 +1550,7 @@ export class Sky extends DurableObject {
         "maildeliv","golden","teams","tmembers","tweek","ids","rl","friends","reminders",
         "catches","heatp","typeseq","edcatch","wavewhy","gifts","mayorhof","mayorm",
         "yagg","yplane","seen","reports","banned","idday","funnel","refs","errs",
-        "gcand","xfer","player_accounts","account_codes","sig","hidden","streaks","duelres","mission_waves","mission_weeks"];
+        "gcand","xfer","xfer_receipts","player_accounts","account_codes","sig","hidden","streaks","duelres","mission_waves","mission_weeks"];
       const nextEpoch = Number(this.getMeta("player_reset_epoch")||0) + 1;
       // Durable Object serializuje operácie; reset celého DB sa vykoná synchronne.
       for (const table of wipe) this.sql.exec("DELETE FROM " + table);
@@ -1700,6 +1731,7 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/subopt" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
+      if (!this.row("SELECT id FROM subs WHERE id=?", id)) return json({error: "subscription"}, 409);
       if (b.streak != null) this.sql.exec("UPDATE subs SET streak=? WHERE id=?", b.streak ? 1 : 0, id);
       if (b.leg != null) this.sql.exec("UPDATE subs SET leg=? WHERE id=?", b.leg ? 1 : 0, id);
       return json({ok: true});
@@ -1740,13 +1772,18 @@ export class Sky extends DurableObject {
       if (b.keep) { this.sql.exec("UPDATE subs SET sub=?, t=? WHERE id=?", JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), now, id); return json({ok: true}); }
       this.sql.exec("INSERT INTO subs(id, sub, lat, lon, k, moment, t) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, lat=excluded.lat, lon=excluded.lon, k=excluded.k, moment=excluded.moment, t=excluded.t",
         id, JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), round2(b.lat), round2(b.lon), krajOf(num(b.lat), num(b.lon)), b.moment ? 1 : 0, now);
+      if (b.streak != null) this.sql.exec("UPDATE subs SET streak=? WHERE id=?", b.streak ? 1 : 0, id);
+      if (b.leg != null) this.sql.exec("UPDATE subs SET leg=? WHERE id=?", b.leg ? 1 : 0, id);
       // rodinné profily na jednom mobile: jeden prehliadač = jeden odber (inak chodia upozornenia 2–3×)
       this.sql.exec("DELETE FROM subs WHERE sub=? AND id<>?", JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), id);
       return json({ok: true});
     }
     if (p === "/api/subset" && req.method === "POST") {
       const b = await body(), id = cleanId(b.id);
-      if ("moment" in b) this.sql.exec("UPDATE subs SET moment=? WHERE id=?", b.moment ? 1 : 0, id);
+      if ("moment" in b) {
+        if (!this.row("SELECT id FROM subs WHERE id=?", id)) return json({error: "subscription"}, 409);
+        this.sql.exec("UPDATE subs SET moment=? WHERE id=?", b.moment ? 1 : 0, id);
+      }
       if (b.lat != null) this.sql.exec("UPDATE subs SET lat=?, lon=? WHERE id=?", round2(b.lat), round2(b.lon), id);
       return json({ok: true});
     }

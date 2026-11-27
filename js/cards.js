@@ -383,6 +383,13 @@ const inSeries=k=>CAT[k]&&!TROPHY.has(k);
 // 🃏 malá kartička do mriežky: čitateľná silueta, názov, stupeň, úroveň ako bodky
 function cardMini(k,v){return cardSVG(k,v,{id:"mini",mini:true})}
 function renderCards(){
+  const root=$("c-types"),focused=root.contains(document.activeElement)?document.activeElement:null;
+  const choices=["data-k","data-m","data-alb","data-lk","data-hunt-open","data-hunt-clear","data-first-hunt","data-all"];
+  const attr=choices.find(key=>focused?.hasAttribute(key));
+  const focusSelector=focused?.matches(".atlasMore > summary")?".atlasMore > summary":attr?`[${attr}="${CSS.escape(focused.getAttribute(attr))}"]`:
+    (focused?.matches("summary")&&focused.parentElement.dataset.setId?`[data-set-id="${CSS.escape(focused.parentElement.dataset.setId)}"] > summary`:null);
+  const openSets=new Set([...root.querySelectorAll("details[data-set-id][open]")].map(el=>el.dataset.setId));
+  const expanded=root.querySelector(".atlasMore")?.open;
   const owned=COL.types,ownedKeys=Object.keys(owned).filter(k=>k!=="?"),inCat=ownedKeys.filter(k=>inSeries(k)&&owned[k].n).length,tot=CATALOG.filter(c=>!TROPHY.has(c[0])).length;
   const shinyN=ownedKeys.filter(k=>owned[k].shiny).length,trN=ownedKeys.filter(k=>TROPHY.has(k)).length,edN=Object.keys(COL.ed||{}).length;
   $("c-cardsN").textContent=`${inCat}/${tot}`;
@@ -400,16 +407,19 @@ function renderCards(){
   $("c-types").innerHTML=`<div class="atlasTop" style="grid-column:1/-1"><div class="xp"><i style="width:${inCat/tot*100}%"></i></div>
     <div class="lookSub"${trN||shinyN||edN?"":" hidden"}>${trN?" · 🏆 "+trN+" "+pl(trN,"trofej","trofeje","trofejí"):""}${shinyN?" · ✨ "+shinyN+" "+pl(shinyN,"lesklá","lesklé","lesklých"):""}${edN?" · 📅 "+edN+(edN===1?" edícia":edN<5?" edície":" edícií"):""}</div>
     <div class="atTabs">${tab("mine","Moje ("+ownedKeys.filter(k=>owned[k].n).length+(ownedKeys.some(k=>!owned[k].n)?" + 🤝":"")+")")}${tab("miss","Chýbajú ("+missing.length+")")}${tab("sets","Sady")}</div>
-    <details class="atlasMore" ${["vault","ed","trophy"].includes(atlasMode)?"open":""}><summary>Klenoty, edície a trofeje</summary><div class="atTabs">${tab("vault","Klenoty ("+vault.length+")")}${tab("ed","Edície")}${tab("trophy","Trofeje")}</div></details></div>`+
+    <details class="atlasMore" ${expanded||["vault","ed","trophy"].includes(atlasMode)?"open":""}><summary>Klenoty, edície a trofeje</summary><div class="atTabs">${tab("vault","Klenoty ("+vault.length+")")}${tab("ed","Edície")}${tab("trophy","Trofeje")}</div></details></div>`+
     (atlasMode==="sets"?setsHTML():atlasMode==="ed"?edHTML():"")+
     (atlasMode==="vault"?collectorVaultHTML(ownedKeys,owned):"")+
     (atlasMode==="mine"&&mine.some(k=>owned[k].n)?collectorHuntHTML():"")+
     (atlasMode==="miss"?wantedHTML():"")+
     (atlasMode==="trophy"?`<div class="lookSub" style="grid-column:1/-1">Legendy, ktoré nad Slovenskom takmer nelietajú. Bonus, nie povinnosť – nerátajú sa do 100 %.</div>`:"")+
     (atlasMode==="sets"||atlasMode==="ed"?"":list.length?list.map(k=>`<button class="mini ${owned[k]&&owned[k].shiny?"shiny":""} ${typeTier(k)} ${owned[k]?"owned":"lock"}" data-k="${esc(k)}" aria-label="${esc((CAT[k]?CAT[k].name:k)+" · "+RAR[typeTier(k)].n+(owned[k]?.shiny?" · lesklá":"")+(owned[k]?.n?" · hviezdy "+cardLvl(owned[k].n,k)+" zo 4":owned[k]?.gift?" · darovaná kópia":" · ešte nemáš"))}">${cardMini(k,owned[k])}${atlasMode==="vault"?`<b class="vaultCardBadge">${esc(collectorTitle(k,owned[k]))}</b>`:""}${atlasMode==="miss"&&seenToday(k)?'<b class="seenB">👀 dnes</b>':""}</button>`).join(""):`<div class="lookSub" style="grid-column:1/-1;padding:10px 0">${atlasMode==="mine"?'Zbierka čaká na tvoj prvý úlovok. <button class="ghost" type="button" data-first-hunt>Prejsť do Lovu</button>' :atlasMode==="vault"?"Tvoja prvá výnimočná kartička ešte len čaká. Ulov vzácny typ alebo objav špeciálnu formu.":"Máš celú sériu! 🏆"}</div>`);
-  if(more)$("c-types").insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ${pl(more,"ďalšia","ďalšie","ďalších")} ${more} ›</button>`);
+  if(more)root.insertAdjacentHTML("beforeend",`<button class="btn sec atlasAll" style="grid-column:1/-1" data-all="1">Celý atlas · ${pl(more,"ďalšia","ďalšie","ďalších")} ${more} ›</button>`);
+  for(const set of root.querySelectorAll("details[data-set-id]"))set.open=openSets.has(set.dataset.setId);
+  const next=focusSelector&&root.querySelector(focusSelector);
+  if(next)next.focus({preventScroll:true});
+  else if(focused)root.querySelector(".atTabs .on, .atTabs button")?.focus({preventScroll:true});
 }
-HOOKS.view.push(v=>{if(v==="col")renderCards()});
 let cardK=null,cardVisibleForm="";
 $("c-types").onclick=e=>{
   if(e.target.closest("[data-first-hunt]")){setView("now");return}
@@ -417,9 +427,8 @@ $("c-types").onclick=e=>{
   if(e.target.closest("[data-hunt-clear]")){LS.set("ctl_collectorHunt","");renderCards();renderCollectorHuntHome();return}
   const tb=e.target.closest("button[data-m]");if(tb){atlasMode=tb.dataset.m;atlasRare=false;renderCards();$("c-types").querySelector('.atTabs [data-m="'+atlasMode+'"]')?.focus({preventScroll:true});return}
   const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();$("c-types").querySelector('[data-alb="'+albumSel+'"]')?.focus({preventScroll:true});return}
-  if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();return}
+  if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();$("c-types").querySelectorAll(".mini")[6]?.focus();return}
   const sl=e.target.closest("[data-lk]");if(sl){const k=sl.dataset.lk;if(COL.types[k]?.n){openCard(k)}else openLocked(k);return}
-  const sr=e.target.closest(".setRow");if(sr){sr.classList.toggle("open");return}
   const m=e.target.closest(".mini");if(!m)return;const k=m.dataset.k;
   if(!COL.types[k]){openLocked(k);haptic(20);return}
   cardK=k;openCard(k);
@@ -560,7 +569,7 @@ $("cardBig").addEventListener("click",async e=>{
     renderShow();
     return;
   }
-  const pn=e.target.closest("[data-pin]");if(pn){const k=pn.dataset.pin;COL.show=COL.show||[];const i=COL.show.indexOf(k);
+  const pn=e.target.closest("[data-pin]");if(pn){const k=pn.dataset.pin;COL.show=showList();COL.showManual=true;const i=COL.show.indexOf(k);
     if(i>=0)COL.show.splice(i,1);else{if(COL.show.length>=showSlots()){toast("🏛️ Vitrína je plná","Ďalšie miesto si odomkneš za míle ✈ v obchode");return}COL.show.push(k)}
     LS.set("ctl_col",COL);pn.textContent=COL.show.includes(k)?"📌 Vo vitríne":"📌 Do vitríny";renderShow();haptic(10);return}
   const gf=e.target.closest("[data-gift]");if(gf)giftMake(gf.dataset.gift);
@@ -578,7 +587,7 @@ function bindTilt(){
 }
 /* ---- varianty pri ulovení: ✨ shiny určí server (lietadlo + deň), formy podľa oblohy, poradie v SR ---- */
 let LASTWAVE=null;
-HOOKS.caught.push(a=>{
+HOOKS.caught.push((a,r,{upgrading})=>{
   const ty=a.type||"?",v=COL.types[ty];if(!v)return;
   const W=LASTWAVE&&LASTWAVE.hex===a.hex?LASTWAVE:null;let msg=null;
   if(W&&W.shiny&&!v.shiny&&WB){WB.special="Lesklá kartička";WB.type=ty}
@@ -589,7 +598,8 @@ HOOKS.caught.push(a=>{
     if(WB){WB.special=WB.special||W.ed.n;WB.type=ty}
     msg=msg||["📅 Edícia: "+W.ed.n,"Tvoja kartička má číslo "+W.ed.no+" – bol si pri tom!"];
   }
-  // formy
+  // Dochované formy patria k pôvodnému pozorovaniu, nie k neskoršiemu dohľadaniu typu.
+  if(upgrading){LS.set("ctl_col",COL);return}
   v.forms=v.forms||{};const sa=typeof SPACE!=="undefined"?SPACE.sunAlt():null,c=COL.cx&&COL.cx[a.hex],fm=v.forms,got=[];
   const set=(k)=>{if(!fm[k]){fm[k]=Date.now();got.push(FORMS.find(f=>f[0]===k))}};
   if(sa!=null&&sa<-6&&a.el>=20)set("n");
@@ -738,8 +748,8 @@ function setRows(mode){
   const list=SETS.filter(s=>s.alb===mode);
   return `<div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets?.[s.id],hid=s.alb==="hid"&&!dn&&h===0;
     const lab=(x,i)=>s.t?(CAT[s.t[i]]?CAT[s.t[i]].name:s.t[i]):s.slots[i].l;
-    return `<div class="setRow ${dn?"done":""}" role="button" tabindex="0"><span class="si" aria-hidden="true">${hid?"✉️":s.i}</span><span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+"\u00a0b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} ›</span>
-      <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></div>`}).join("")}</div>`;
+    return `<details class="setRow ${dn?"done":""}" data-set-id="${esc(s.id)}"><summary class="setSummary"><span class="si" aria-hidden="true">${hid?"✉️":s.i}</span><span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+"\u00a0b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} <span aria-hidden="true">›</span></span></summary>
+      <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></details>`}).join("")}</div>`;
 }
 function setsCheck(a){
   COL.sets=COL.sets||{};let msg=null;
@@ -871,17 +881,28 @@ if($("cardVideo"))$("cardVideo").onclick=async()=>{
 /* 🏛️ vitrína: 3 najlepšie kartičky na profile (1 slot zadarmo, ďalšie za míle) */
 const prestige=(k,v)=>RAR[typeTier(k)].p*(v.shiny?3:1)*(v.night?1.3:1)+cardLvl(v.n||1,k)*2+(v.seq&&v.seq<=10?25:0)+(v.seq===1?100:0);
 function showSlots(){return 1+((COL.shop||{}).slot2?1:0)+((COL.shop||{}).slot3?1:0)}
-function showList(){const own=Object.keys(COL.types).filter(k=>k!=="?"&&COL.types[k].n);let L=(COL.show||[]).filter(k=>COL.types[k]);
-  if(!L.length)L=own.sort((a,b)=>prestige(b,COL.types[b])-prestige(a,COL.types[a])).slice(0,showSlots());return L.slice(0,showSlots())}
-function renderShow(){const el=$("showcase");if(!el)return;const L=showList();el.hidden=!L.length;if(!L.length)return;
-  el.innerHTML=L.map(k=>`<button data-sk="${esc(k)}" aria-label="${esc(catGuess(k).name)}">${cardMini(k,COL.types[k])}</button>`).join("")+Array.from({length:showSlots()-L.length},()=>'<button class="emp" data-empty="1" style="flex:0 0 28%">📌 voľné<br><small>vybrať</small></button>').join("")}
+function showList(){const own=Object.keys(COL.types).filter(k=>k!=="?"&&COL.types[k].n);let L=Array.isArray(COL.show)?COL.show.filter(k=>own.includes(k)):null;
+  if(!L?.length&&!COL.showManual)L=own.sort((a,b)=>prestige(b,COL.types[b])-prestige(a,COL.types[a])).slice(0,showSlots());return (L||[]).slice(0,showSlots())}
+function renderShow(){
+  const el=$("showcase"),L=showList();
+  const previous=el.contains(document.activeElement)?document.activeElement:null;
+  el.hidden=!L.length&&!Object.values(COL.types).some(v=>v.n);
+  if(el.hidden){el.replaceChildren();el.renderedHTML="";return}
+  const html=L.map(k=>`<button data-sk="${esc(k)}" aria-label="${esc(catGuess(k).name)}">${cardMini(k,COL.types[k])}</button>`).join("")+Array.from({length:showSlots()-L.length},()=>'<button class="emp" data-empty="1" style="flex:0 0 28%">📌 voľné<br><small>vybrať</small></button>').join("");
+  if(el.renderedHTML===html)return;
+  el.innerHTML=html;el.renderedHTML=html;
+  if(previous){
+    const replacement=previous.dataset.sk?el.querySelector(`[data-sk="${CSS.escape(previous.dataset.sk)}"]`):el.querySelector("[data-empty]");
+    (replacement||el.querySelector("button"))?.focus({preventScroll:true});
+  }
+}
 $("showcase")&&($("showcase").onclick=e=>{const b=e.target.closest("[data-sk]");if(b){cardK=b.dataset.sk;openCard(cardK);return}
   // 📌 prázdne miesto: ponuka 6 najcennejších kartičiek, ktoré ešte nie sú vo vitríne
-  if(e.target.closest("[data-empty]")){const inS=COL.show||[],cand=Object.keys(COL.types).filter(k=>COL.types[k].n&&!inS.includes(k)).sort((x,y)=>prestige(y,COL.types[y])-prestige(x,COL.types[x])).slice(0,6);
+  if(e.target.closest("[data-empty]")){const inS=showList(),cand=Object.keys(COL.types).filter(k=>COL.types[k].n&&!inS.includes(k)).sort((x,y)=>prestige(y,COL.types[y])-prestige(x,COL.types[x])).slice(0,6);
     if(!cand.length){toast("📌 Zatiaľ nemáš čo vystaviť","Zamávaj lietadlu a získaj kartičku");return}
     $("cdBox").innerHTML=`<div class="lbl"><span>📌 Vyber kartičku do vitríny</span></div><div class="cdPick" id="showPick">${cand.map(k=>`<button data-pk="${esc(k)}">${cardMini(k,COL.types[k])}</button>`).join("")}</div><div class="acts"><button class="btn ico" id="cdX" style="flex:1">Zrušiť</button></div>`;
     $("cdM").classList.add("on");
-    $("showPick").onclick=ev=>{const p=ev.target.closest("[data-pk]");if(!p)return;COL.show=COL.show||[];if(COL.show.length<showSlots())COL.show.push(p.dataset.pk);LS.set("ctl_col",COL);$("cdM").classList.remove("on");renderShow();haptic(10);toast("📌 Vo vitríne","Ukáž ju kamarátom v Zbierke")}}});
+    $("showPick").onclick=ev=>{const p=ev.target.closest("[data-pk]");if(!p)return;COL.show=showList();COL.showManual=true;if(COL.show.length<showSlots()&&!COL.show.includes(p.dataset.pk))COL.show.push(p.dataset.pk);LS.set("ctl_col",COL);$("cdM").classList.remove("on");renderShow();haptic(10);toast("📌 Vo vitríne","Ukáž ju kamarátom v Zbierke")}}});
 /* ✈ míle: druhá mena bez platenia – z denných bodov (prvých 60 b naplno, potom 25 %) */
 function mileSync(){
   COL.mi=COL.mi|0;if(COL.ptsSeen==null){COL.ptsSeen=COL.pts;COL.mi=Math.min(300,Math.round(COL.pts/10))}
@@ -899,16 +920,24 @@ const SHOP=[
   {id:"fr_dunaj",i:"🌊",n:"Rám Dunaj",d:"Rám na všetky tvoje kartičky (dá sa prepínať)",c:250,once:1},
   {id:"fr_noc",i:"🌃",n:"Rám Noc nad mestom",d:"Rám na všetky tvoje kartičky (dá sa prepínať)",c:400,once:1},
 ];
-function shopOpen(){mileSync();COL.shop=COL.shop||{};
+function shopOpen(){
+  const list=$("shopList"),focused=list.contains(document.activeElement)?document.activeElement:null;
+  const key=focused?.dataset.frame||focused?.dataset.buy;
+  mileSync();COL.shop=COL.shop||{};
   $("shopMi").textContent="✈ "+nf(COL.mi)+" "+pl(COL.mi,"míľa","míle","míľ");
   $("shopList").innerHTML=SHOP.map(x=>{const own=x.once&&COL.shop[x.id],can=!own&&(!x.ok||x.ok())&&COL.mi>=x.c;
     const fr=own&&x.id.startsWith("fr_"),act=fr&&COL.frame===x.id;
     return `<div class="shopRow"><span style="font-size:26px">${x.i}</span><div>${x.n}<small>${x.d}</small></div>${fr?`<button class="btn ${act?"pri":"sec"}" data-frame="${x.id}">${act?"✓ používaš":"Použiť"}</button>`:`<button class="btn ${can?"pri":"sec"}" data-buy="${x.id}" ${can?"":"disabled"}>${own?"✓ máš":"✈ "+x.c}</button>`}</div>`}).join("");
-  $("shopM").classList.add("on")}
+  $("shopM").classList.add("on");
+  if(key){
+    const target=[...list.querySelectorAll("button:not([disabled])")].find(b=>b.dataset.frame===key||b.dataset.buy===key);
+    (target||$("shopClose")).focus({preventScroll:true});
+  }
+}
 $("b-miles")&&($("b-miles").onclick=shopOpen);$("shopClose")&&($("shopClose").onclick=()=>$("shopM").classList.remove("on"));
 $("shopList")&&($("shopList").onclick=e=>{const f=e.target.closest("[data-frame]");if(f){COL.frame=COL.frame===f.dataset.frame?"":f.dataset.frame;LS.set("ctl_col",COL);haptic(10);toast(COL.frame?"🖼️ Rám nastavený":"Rám vypnutý",COL.frame?"Uvidíš ho na svojich kartičkách":"");shopOpen();return}
   const b=e.target.closest("[data-buy]");if(!b)return;const x=SHOP.find(q=>q.id===b.dataset.buy);if(!x||COL.mi<x.c)return;
-  COL.mi-=x.c;if(x.once)COL.shop[x.id]=Date.now();if(x.buy)x.buy();LS.set("ctl_col",COL);haptic(20);toast(x.i+" "+x.n,"Hotovo · zostáva ✈ "+nf(COL.mi)+" "+pl(COL.mi,"míľa","míle","míľ"));if(x.id.startsWith("fr_"))COL.frame=x.id,LS.set("ctl_col",COL);shopOpen();renderShow();if($("c-miles"))$("c-miles").textContent=nf(COL.mi)});
+  COL.mi-=x.c;if(x.once)COL.shop[x.id]=Date.now();if(x.buy)x.buy();LS.set("ctl_col",COL);haptic(20);toast(x.i+" "+x.n,"Hotovo · zostáva ✈ "+nf(COL.mi)+" "+pl(COL.mi,"míľa","míle","míľ"));if(x.id.startsWith("fr_"))COL.frame=x.id,LS.set("ctl_col",COL);shopOpen();renderShow();renderMileBalance()});
 /* 🎁 daruj kópiu – odkaz pre kamaráta (server overí duplikát) */
 async function giftMake(k){
   if(!SOC.api)return;try{const r=await apiPost("/api/gift",{type:k});const j=await r.json();
@@ -937,7 +966,11 @@ async function giftClaim(){const m=location.hash.match(/dar=([A-Za-z0-9]{6,8})/)
     toast("🎁 Máš darček! Posiela: "+j.from,catGuess(j.type).name+" – zamávaj mu a kartička bude celá tvoja");confetti(60);renderCol();
   }catch(e){try{history.replaceState(null,"",location.pathname+"#dar="+m[1])}catch(x){}toast("🎁 Darček sa zatiaľ neotvoril","Skúsim znova, keď budeš online")}}
 setTimeout(giftClaim,1500);addEventListener("hashchange",giftClaim);addEventListener("online",giftClaim);
-HOOKS.view.push(v=>{if(v==="col"){mileSync();$("c-miles")&&($("c-miles").textContent=nf(COL.mi|0),$("c-milesL")&&($("c-milesL").textContent=pl(COL.mi|0,"míľa","míle","míľ")));renderShow()}});
+function renderMileBalance(){
+  $("c-miles").textContent=nf(COL.mi|0);
+  $("c-milesL").textContent=pl(COL.mi|0,"míľa","míle","míľ");
+}
+HOOKS.view.push(v=>{if(v==="col"){mileSync();renderMileBalance()}});
 // 🛷 Santa = edícia roka
 HOOKS.caught.push(a=>{if(a.santa){COL.ed=COL.ed||{};const id="santa"+new Date().getFullYear();if(!COL.ed[id]){COL.ed[id]={n:"Santa "+new Date().getFullYear(),no:0,t:Date.now(),ty:"SLEIGH"};LS.set("ctl_col",COL)}}});
 
@@ -964,8 +997,8 @@ async function whyShow(){
 }
 
 // dlaždice na profile: ťuk → atlas (typy / vzácne)
-for(const [id,rare] of [["c-t",false],["c-r",true]]){const el=$(id)&&$(id).parentElement;if(!el)continue;el.style.cursor="pointer";el.setAttribute("role","button");
-  el.onclick=()=>{atlasMode="mine";atlasRare=rare;atlasOpen=true;renderCards();haptic(6);setTimeout(()=>$("c-types").scrollIntoView({behavior:"smooth",block:"start"}),50);if(rare)toast("💎 Tvoje vzácne typy","Vzácne, epické a legendárne")}}
+for(const [id,rare] of [["c-t",false],["c-r",true]]){const el=$(id)&&$(id).parentElement;if(!el)continue;
+  el.onclick=()=>{atlasMode="mine";atlasRare=rare;atlasOpen=true;renderCards();haptic(6);setTimeout(()=>{const atlas=$("c-types");atlas.scrollIntoView({behavior:RM()?"auto":"smooth",block:"start"});atlas.querySelector(".atTabs .on")?.focus({preventScroll:true})},50);if(rare)toast("💎 Tvoje vzácne typy","Vzácne, epické a legendárne")}}
 
 // 👀 kedy bol typ naposledy nad tebou + 🔔 strážca typu (upozorní, keď taký typ preletí nad tebou)
 function lastSeenType(k){const L=LS.get("ctl_seenT",{}),t=L[k];if(!t)return "";const d=new Date(t),today=SKD.format(new Date())===SKD.format(d);
@@ -974,7 +1007,7 @@ const typeWatched=k=>(LS.get("ctl_watchT",[])||[]).includes(k);
 $("cardBig").addEventListener("click",e=>{const w=e.target.closest("[data-watch]");if(!w)return;const k=w.dataset.watch;let L=LS.get("ctl_watchT",[]);
   if(L.includes(k))L=L.filter(x=>x!==k);else{L=[...L,k].slice(-10);toast("🔔 Dám ti vedieť","Keď "+catGuess(k).name+" poletí nad tebou a appka bude otvorená"+(typeof PUSH!=="undefined"&&PUSH.on?"":" (zapni aj upozornenia)"))}
   LS.set("ctl_watchT",L);w.textContent=L.includes(k)?"🔔 Upozorním ťa – zrušiť":"🔔 Upozorni ma, keď poletí nado mnou";w.className="btn "+(L.includes(k)?"sec":"pri");haptic(8)});
-HOOKS.live.push(()=>{if(!S.list)return;const now=Date.now(),L=LS.get("ctl_seenT",{});let ch=false;
+HOOKS.live.push(()=>{if(!S.list||!S.loaded||S.failN||skyStale()||!navigator.onLine)return;const now=Date.now(),L=LS.get("ctl_seenT",{});let ch=false;
   for(const a of S.list){if(!a.type||a.el==null||a.el<10)continue;if(!L[a.type]||now-L[a.type]>60e3){L[a.type]=now;ch=true}
     if(typeWatched(a.type)&&!(COL.types[a.type]&&COL.types[a.type].n)&&!(SOC.watchHit||{})[a.hex]){SOC.watchHit=SOC.watchHit||{};SOC.watchHit[a.hex]=1;S.pick=a.hex;try{tick(true)}catch(e){}
       toast("🔔 "+catGuess(a.type).name+" je nad tebou!","Zamávaj – kartička ti chýba 👋","#ffcf4f");haptic([60,40,60,40,200]);

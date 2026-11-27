@@ -210,6 +210,192 @@ def home_regressions(browser, errors):
         ctx.close()
 
 
+def collection_regressions(browser, errors):
+    headers = {"access-control-allow-origin": "*"}
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, timezone_id="UTC",
+                              geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
+    ctx.route("**/*", stub)
+    ctx.add_init_script("localStorage.setItem('ctl_onb','1')")
+    page = ctx.new_page()
+    page.on("pageerror", lambda e: errors.append("PAGEERROR Zbierka " + str(e)))
+    try:
+        page.goto("http://localhost:8799/index.html")
+        page.wait_for_function("() => SOC.authVerified && S.loaded")
+        page.locator('nav [data-v="col"]').click()
+        page.wait_for_function("() => S.view === 'col'")
+
+        page.locator('[data-m="sets"]').click()
+        summary = page.locator(".setRow[data-set-id] > summary").first
+        summary.focus()
+        page.keyboard.press("Enter")
+        assert summary.evaluate("(e) => e.parentElement.open")
+        page.keyboard.press("Space")
+        assert not summary.evaluate("(e) => e.parentElement.open")
+        page.evaluate("""() => {
+            COL.types={A320:{n:1,first:Date.now()},B738:{n:1,first:Date.now()-1}};
+            COL.shop={slot2:1,slot3:1};COL.show=[];atlasMode='mine';renderCol();
+        }""")
+        before = page.locator("#showcase [data-sk]").evaluate_all("(els) => els.map(e=>e.dataset.sk)")
+        assert len(before) == 2
+        page.locator("#showcase [data-empty]").click()
+        assert page.locator("#showPick").count() == 0
+        assert page.locator("#showcase [data-sk]").evaluate_all("(els) => els.map(e=>e.dataset.sk)") == before
+        page.evaluate("""() => {
+          COL.types.E190={n:1,first:Date.now()};
+          COL.show=["A320"];COL.showManual=true;renderShow();
+        }""")
+        page.locator("#showcase [data-empty]").first.click()
+        assert page.locator('#showPick [data-pk="A320"]').count() == 0
+        page.locator('#showPick [data-pk="B738"]').click()
+        assert page.locator("#showcase [data-sk]").evaluate_all("(els) => els.map(e=>e.dataset.sk)") == ["A320", "B738"]
+        page.locator("#c-types [data-k]").first.focus()
+        focused = page.evaluate("document.activeElement.dataset.k")
+        page.evaluate("""async()=>{const send=apiPost;apiPost=async()=>({ok:true,json:async()=>({cards:[['A320',2]]})});
+          try{await syncCards()}finally{apiPost=send}}""")
+        assert page.evaluate("document.activeElement.dataset.k") == focused
+        assert page.locator("#c-t").evaluate("(e) => e.parentElement.tagName") == "BUTTON"
+
+        page.evaluate("""() => {
+          const Original=Date,now=Original.parse("2026-11-29T23:30:00Z");
+          try{
+            window.Date=class extends Original {
+              constructor(...args){super(...(args.length?args:[now]))}
+              static now(){return now}
+            };
+            const days=weekDays();
+            if(days[0]!==weekBounds().from||days[6]!=="2026-12-06")throw Error("Neplatný bratislavský týždeň");
+          }finally{window.Date=Original}
+          const old=DAILY,pts=COL.pts;
+          try{
+            DAILY={date:today(),ids:["five"],done:{},prog:{five:3}};
+            const plane={hex:"abc16a",type:"",el:30};
+            tryCatch(plane);
+            if(DAILY.prog.five!==4)throw Error("Nový úlovok sa nezapočítal");
+            const after=COL.pts;
+            tryCatch({...plane,type:"M600"});
+            if(DAILY.prog.five!==4||COL.pts!==after||COL.cx[plane.hex].ty!=="M600")
+              throw Error("Doplnenie typu zmenilo dennú výzvu alebo body");
+          }finally{DAILY=old}
+        }""")
+        page.evaluate("""() => {
+          SOC.data={...SOC.data,kraje:[{k:"BA",n:1}],allTime:1};
+          $("krajeCard").style.display="";
+          $("community").open=true;
+          LG="a";LG_ATLAS_SCOPE="region";
+          window.leagueProbes=[];
+          window.savedApiPost=apiPost;
+          apiPost=(path,payload)=>path==="/api/atlasy"?new Promise(resolve=>leagueProbes.push({payload,resolve})):savedApiPost(path,payload);
+          renderLeague();
+        }""")
+        page.locator('[data-scope="sk"]').click()
+        page.wait_for_function("() => leagueProbes.length === 2")
+        page.evaluate("leagueProbes[0].resolve({ok:true,json:async()=>({top:[{nick:'Krajský pilot',rank:1,n:1,sc:3}]})})")
+        assert "Krajský pilot" not in page.locator("#kraje").inner_text()
+        page.evaluate("leagueProbes[1].resolve({ok:true,json:async()=>({top:[{nick:'Pilot Slovenska',rank:1,n:2,sc:8}]})})")
+        page.wait_for_function("() => $('kraje').textContent.includes('Pilot Slovenska')")
+        page.evaluate("""() => {
+          apiPost=(path,data)=>path==="/api/friends"||path==="/api/subset"?
+            Promise.resolve({ok:false,status:503,json:async()=>({error:"unavailable"})}):savedApiPost(path,data);
+          $("friendsBox").open=true;
+          $("settings").open=true;
+          PUSH.on=true;PUSH.moment=true;syncPushUI();
+        }""")
+        page.wait_for_function("() => $('frStatus').textContent.includes('načítať')")
+        page.evaluate("""() => {
+          $("frList").innerHTML='<button data-unf="test-friend">Odobrať</button>';
+          SOC.data.myTeam=null;teamRender();
+        }""")
+        page.locator("[data-unf]").click()
+        page.wait_for_function("() => $('frStatus').textContent.includes('nepodarilo odobrať')")
+        assert page.locator("[data-unf]").count() == 1
+        page.locator("#tmName").fill("Leteckí sokoli")
+        page.evaluate("() => teamRender()")
+        assert page.locator("#tmName").input_value() == "Leteckí sokoli"
+        page.locator("#t-moment").click()
+        page.wait_for_function("() => $('pushSettingsStatus').textContent.includes('nepodarilo potvrdiť')")
+        assert page.locator("#t-moment").get_attribute("aria-checked") == "true"
+
+        page.evaluate("""async() => {
+          const storage=Storage.prototype.setItem;
+          const oldId=LS.get("ctl_cid","");
+          LS.set("ctl_col",{hex:{},types:{A320:{n:1}},pts:120,ach:{},n:1});lsFlush();
+          localStorage.setItem("ctl_pB:ctl_col",JSON.stringify({hex:{},types:{B738:{n:1}},pts:55,ach:{},n:1}));
+          localStorage.setItem("ctl_pB:ctl_cid",JSON.stringify("fixture-b"));
+          Storage.prototype.setItem=function(key,value){
+            if(key==="ctl_cid"&&value===JSON.stringify("fixture-b"))throw new DOMException("Fixture","QuotaExceededError");
+            return storage.call(this,key,value);
+          };
+          try{
+            await profSwitch("B");
+            if(profState().cur!=="A"||LS.get("ctl_cid","")!==oldId||LS.get("ctl_col",{}).pts!==120)
+              throw Error("Neúplné prepnutie profilu");
+            if(localStorage.getItem(STORAGE_JOURNAL))throw Error("Neukončená obnova");
+          }finally{Storage.prototype.setItem=storage}
+        }""")
+        assert "nepodarilo prepnúť" in page.locator("#profStatus").inner_text()
+
+        stage_calls = []
+
+        def prepare(route):
+            stage_calls.append("prepare")
+            data = {"ctl_col": json.dumps({"hex": {}, "types": {"B738": {"n": 1}}, "pts": 55, "ach": {}, "n": 1})}
+            route.fulfill(headers=headers, json={"id": "fixture-b", "ticket": "fixture-ticket", "data": json.dumps(data)})
+
+        def finish(route):
+            call = json.loads(route.request.post_data)
+            stage_calls.append(call["ticket"])
+            code = 503 if stage_calls.count("fixture-ticket") == 1 else 200
+            route.fulfill(headers=headers, status=code, json={"id": "fixture-b", "tok": "other-token", "pid": "other-profile"})
+
+        ctx.route("**/api/xprepare", prepare)
+        ctx.route("**/api/xfinish", finish)
+        page.evaluate("""() => {
+          window.prompt=()=>"ABCD1234";window.confirm=()=>true;
+          window.writeBeforeTransfer=Storage.prototype.setItem;
+          Storage.prototype.setItem=function(key,value){
+            if(key===TRANSFER_STAGE)throw new DOMException("Fixture","QuotaExceededError");
+            return writeBeforeTransfer.call(this,key,value);
+          };
+        }""")
+        page.locator("#b-claim").click()
+        page.wait_for_function("() => $('xferStatus').textContent.includes('nedala uložiť')")
+        assert stage_calls == ["prepare"]
+        page.evaluate("() => {Storage.prototype.setItem=writeBeforeTransfer}")
+        page.locator("#b-claim").click()
+        page.wait_for_function("() => $('xferStatus').textContent.includes('po pripojení')")
+        assert page.locator("#b-claim").inner_text() == "Dokončiť prenos"
+        assert page.evaluate("LS.get(TRANSFER_STAGE,null).data !== ''")
+        page.evaluate("""() => {
+          Storage.prototype.setItem=function(key,value){
+            if(key==="ctl_cid"&&value===JSON.stringify("fixture-b"))throw new DOMException("Fixture","QuotaExceededError");
+            return writeBeforeTransfer.call(this,key,value);
+          };
+        }""")
+        page.locator("#b-claim").click()
+        page.wait_for_function("() => $('xferStatus').textContent.includes('nedala uložiť')")
+        assert page.evaluate("LS.get(TRANSFER_STAGE,null).id") == "fixture-b"
+        assert page.evaluate("LS.get('ctl_col',{}).pts") == 120
+        page.evaluate("() => {Storage.prototype.setItem=writeBeforeTransfer}")
+        with page.expect_navigation():
+            page.locator("#b-claim").click()
+        page.wait_for_function("() => typeof COL!=='undefined' && COL.pts===55")
+        assert stage_calls == ["prepare", "prepare", "fixture-ticket", "fixture-ticket", "fixture-ticket"]
+        assert page.evaluate("LS.get(TRANSFER_STAGE,null)") is None
+        page.evaluate("""() => {
+          lsFlush();
+          const saved=localStorage.getItem("ctl_col");
+          localStorage.setItem(STORAGE_JOURNAL,JSON.stringify([["ctl_col",saved]]));
+          const damaged=JSON.parse(saved);damaged.pts=777;
+          localStorage.setItem("ctl_col",JSON.stringify(damaged));
+        }""")
+        page.reload()
+        page.wait_for_function("() => typeof COL!=='undefined' && storageCurrent() && COL.pts===55")
+        assert page.evaluate("!localStorage.getItem(STORAGE_JOURNAL)")
+        print("✓ regresie Zbierky: profil, dvojfázový prenos, kalendár, výzva, liga, výpadky a klávesnica")
+    finally:
+        ctx.close()
+
+
 def main():
     srv = subprocess.Popen([sys.executable, "-m", "http.server", "8799", "-d", ROOT], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
@@ -976,6 +1162,7 @@ def main():
             brand_ctx.close()
             print("✓ značka pri vstupe, profilová kartička, predvolené súkromie, PNG a detský režim")
             home_regressions(b, errs)
+            collection_regressions(b, errs)
             b.close()
     finally:
         srv.terminate()

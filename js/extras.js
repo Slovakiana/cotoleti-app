@@ -224,7 +224,8 @@ function streakChip(){
 function dailyEvent(id){const D=dailyEnsure();if(!D.ids.includes(id)||D.done[id])return;const x=DAILY_POOL.find(q=>q.id===id);
   // výzvy s počtom (Mikuláš 6×) rátajú každé mávnutie
   if(x&&x.need){D.prog[id]=(D.prog[id]|0)+1;LS.set("ctl_daily",D);if(D.prog[id]<x.need){if(typeof renderDaily==="function")renderDaily();return}}dailyComplete(id)}
-HOOKS.caught.push(a=>{
+HOOKS.caught.push((a,r,{upgrading})=>{
+  if(upgrading)return;
   const D=dailyEnsure();
   D.ids.forEach(id=>{
     if(D.done[id])return;const x=DAILY_POOL.find(q=>q.id===id);if(!x||x.ev)return;
@@ -247,10 +248,21 @@ function renderDaily(){
   if(n===3)$("d-list").insertAdjacentHTML("beforeend",`<div class="dyk">🌅 <b>Zajtra:</b> ${tomorrowIds().map(id=>{const q=DAILY_POOL.find(x=>x.id===id);return q?q.i+" "+esc(q.n):""}).join(" · ")}${L.n?` · séria ${L.n+1} 🔥`:""}</div>`);
 }
 // 🗓️ pečiatková karta Po–Ne: 5/7 = +1 ❄️, 7/7 = darovaná nezvyčajná kartička + 100 míľ
-function weekDays(){const d=new Date(),wd=(d.getDay()+6)%7;return Array.from({length:7},(_,i)=>SKD.format(new Date(d.getTime()+(i-wd)*864e5)))}
+function weekDays(){
+  const monday=Date.parse(weekBounds().from);
+  return Array.from({length:7},(_,i)=>new Date(monday+i*WEEK_DAY).toISOString().slice(0,10));
+}
 function stampsHTML(D){const W=weekDays(),got=W.filter(x=>(D.days||[]).includes(x)).length;stampReward(D,W,got);
   return `<div class="stamps">${W.map((x,i)=>`<span class="${(D.days||[]).includes(x)?"on":x===D.date?"now":""}">${"PUSŠPSN"[i]}<b>${(D.days||[]).includes(x)?"✓":""}</b></span>`).join("")}</div><div class="lookSub" style="text-align:center;font-size:12px">Týždeň ${got}/7 · 5 dní = ❄️ · 7 dní = 🎁 kartička + 100 míľ</div>`}
-function stampReward(D,W,got){const k=W[0];D.wkRew=D.wkRew||{};const r=D.wkRew[k]||(D.wkRew[k]={});let ch=false;
+function stampReward(D,W,got){
+  const k=W[0],sunday=new Date(Date.parse(k)-WEEK_DAY).toISOString().slice(0,10);
+  D.wkRew=D.wkRew||{};
+  const r=D.wkRew[k]||(D.wkRew[k]={});let ch=false;
+  for(const legacy of [sunday,W[1]]){
+    if(!D.wkRew[legacy])continue;
+    for(const milestone of [5,7])if(D.wkRew[legacy][milestone])r[milestone]=1;
+    delete D.wkRew[legacy];ch=true;
+  }
   if(got>=5&&!r[5]){r[5]=1;ch=true;if((D.freeze|0)<3)D.freeze=(D.freeze|0)+1;setTimeout(()=>toast("🗓️ 5 dní tento týždeň!","❄️ Zmrazenie série +1"),1200)}
   if(got>=7&&!r[7]){r[7]=1;ch=true;COL.mi=(COL.mi|0)+100;const miss=CATALOG.map(c=>c[0]).filter(k=>typeTier(k)==="u"&&!(COL.types[k]&&COL.types[k].n));const g=miss[hash(k)%Math.max(1,miss.length)];
     if(g){COL.types[g]=COL.types[g]||{n:0,r:"u",name:catGuess(g).name,first:Date.now()};COL.types[g].gift={from:"Týždeň 7/7",t:Date.now()}}LS.set("ctl_col",COL);

@@ -510,9 +510,28 @@ await t("prenos zbierky: jednorazový kód, starý mobil stratí prístup", asyn
   const x = await call("/api/xfer", {id: B, tok: hb.tok, data}, "5.6.7.8");
   assert.equal(x.s,200);
   assert.equal(x.j.code.length, 8);
-  const c1 = await call("/api/xclaim", {code: x.j.code}, "8.8.8.8"); assert.equal(c1.j.id, B); assert.ok(c1.j.tok !== hb.tok); assert.equal(c1.j.epoch,0,"prenos musí obsahovať generáciu servera");
-  assert.equal(c1.j.data,data);assert.equal(db.prepare("SELECT id FROM subs WHERE id=?").get(B),undefined);
-  assert.equal((await call("/api/xclaim", {code: x.j.code}, "8.8.8.8")).s, 404); // druhýkrát nie
+  const claim=crypto.randomUUID(),code=x.j.code;
+  assert.equal((await call("/api/xclaim",{code},"8.8.8.8")).s,409,"starý klient nespustí nevratný prenos");
+  const prepared=await call("/api/xprepare",{code,claim},"8.8.8.8");
+  assert.equal(prepared.s,200);
+  assert.equal(prepared.j.id,B);
+  assert.equal(prepared.j.data,data);
+  assert.equal(prepared.j.tok,undefined);
+  assert.ok(db.prepare("SELECT id FROM subs WHERE id=?").get(B));
+  assert.ok(await sky.authed(B,hb.tok),"po príprave staré zariadenie stále funguje");
+  const finish={code,claim,id:B,ticket:prepared.j.ticket};
+  assert.equal((await call("/api/xfinish",{...finish,claim:crypto.randomUUID()},"8.8.8.8")).s,404);
+  const c1=await call("/api/xfinish",finish,"8.8.8.8");
+  assert.equal(c1.s,200);
+  assert.equal(c1.j.id,B);
+  assert.ok(c1.j.tok!==hb.tok);
+  assert.equal(c1.j.epoch,0);
+  assert.equal(db.prepare("SELECT id FROM subs WHERE id=?").get(B),undefined);
+  assert.equal((await call("/api/xprepare",{code,claim},"8.8.8.8")).s,404);
+  const replay=await call("/api/xfinish",finish,"8.8.8.8");
+  assert.equal(replay.s,200);
+  assert.equal(replay.j.tok,c1.j.tok,"stratená odpoveď sa zopakuje bez ďalšej zmeny identity");
+  assert.equal((await call("/api/xfinish",{...finish,claim:crypto.randomUUID()},"8.8.8.8")).s,404);
   assert.equal((await call("/api/wave", {id: B, tok: hb.tok, hex: "aabbcc", lat: 48.15, lon: 17.11}, "5.6.7.8")).s, 401);
   assert.equal((await call("/api/hello", {id: B}, "5.6.7.8")).s, 401); // starý mobil si nový token nevypýta
   assert.equal((await call("/api/sky", {id: B, tok: c1.j.tok, lat: 48.15, lon: 17.11, hexes: "aabbcc"})).s, 200);

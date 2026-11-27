@@ -161,8 +161,9 @@ $("wshare").onclick=async()=>{
     m.moments.forEach((e,i)=>x.fillText(e.label,540,(m.hero?1465:1050)+i*62,870));
     const blob=await new Promise(resolve=>c.toBlob(resolve,"image/png"));
     if(!blob)throw Error("export");
+    if(!$("wrap").classList.contains("on")||WR.model!==m)return;
     await shareBlob(blob,"moj-tyzden.png","Môj týždeň na oblohe "+m.period.label+" ✈️ "+appLink());
-  }catch(e){toast("Obrázok sa nepodarilo vytvoriť","Skús zdieľanie otvoriť znova")}
+  }catch(e){if($("wrap").classList.contains("on")&&WR.model===m)toast("Obrázok sa nepodarilo vytvoriť","Skús zdieľanie otvoriť znova")}
   finally{button.disabled=false}
 };
 /* 🇸🇰 Slovensko <rok> na oblohe – spoločný súhrn (december a január) */

@@ -245,7 +245,7 @@ nav button.on{background:rgba(255,255,255,.14);color:#fff}
 .xp{height:10px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:12px 0 6px}
 .xp i{display:block;height:100%;background:linear-gradient(90deg,var(--sky),var(--pink))}
 .st3b{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.st3b div{background:rgba(0,0,0,.22);border-radius:16px;padding:10px;text-align:center}
+.st3b div,.st3b .collectionStat{background:rgba(0,0,0,.22);border-radius:16px;padding:10px;text-align:center}
 .st3b b{font:800 22px var(--disp);display:block}.st3b span{font-size:calc(11px*var(--fs,1));color:var(--mut)}
 .wrapBtn{width:100%;margin-top:14px;padding:16px;border-radius:20px;font-weight:800;font-size:calc(16px*var(--fs,1));color:#fff;background:linear-gradient(135deg,#7b5cff,#ff4fd8 60%,#ff8a4f);box-shadow:0 12px 34px rgba(123,92,255,.35)}
 .dl{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid rgba(255,255,255,.08)}
@@ -470,7 +470,7 @@ nav button.on{color:var(--mint)}
 .st3 b,.grid2 b,.st3b b{font-weight:700}
 .kick,.lbl{letter-spacing:.08em;font-size:calc(11px*var(--fs,1));font-weight:600}
 /* vnorené dlaždice svetlejšie, nie ako diery */
-.st3 div,.grid2 div,.st3b div,.wx>div,.route,.dir{background:var(--tile);border:1px solid var(--divider)}
+.st3 div,.grid2 div,.st3b div,.st3b .collectionStat,.wx>div,.route,.dir{background:var(--tile);border:1px solid var(--divider)}
 /* čitateľnosť textu na oblohe */
 .stageTxt{text-shadow:0 1px 3px rgba(0,0,0,.6),0 2px 16px rgba(0,0,0,.45);width:40%}
 body.moment #liveLine{display:none}
@@ -514,6 +514,7 @@ details summary{cursor:pointer}
 .sets{grid-column:1/-1;display:grid;gap:8px;margin:4px 0 8px}
 .albums button{min-height:44px}
 .setRow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--tile);border:1px solid var(--divider)}
+.collectionStat{min-height:44px;color:inherit;font:inherit}.collectionStat b,.collectionStat span{display:block}
 .setRow .si{font-size:calc(22px*var(--fs,1))}.setRow .sn{flex:1;font-size:calc(14px*var(--fs,1));font-weight:600}.setRow .sn small{display:block;color:var(--mut2);font-weight:500;font-size:calc(12px*var(--fs,1))}
 .setRow .sp{font-weight:700;font-size:calc(13px*var(--fs,1));color:var(--mut)}.setRow.done{border-color:rgba(255,207,79,.5)}.setRow.done .sp{color:#ffcf4f}
 .mini{position:relative}.mini .stars{position:absolute;left:6px;bottom:6px;font-size:calc(10px*var(--fs,1));letter-spacing:-1px;color:#ffcf4f;text-shadow:0 1px 2px #000}
@@ -541,7 +542,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 body:has(#onb.active) #toast{visibility:hidden}
 .btn .n,.kr .v,.st3 b,.yBig,.grid2 b{font-variant-numeric:tabular-nums}
 .modal{-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
-.setSlots{display:none;grid-column:1/-1;width:100%;flex-wrap:wrap;gap:6px;margin-top:8px}.setRow{flex-wrap:wrap;cursor:pointer}.setRow.open .setSlots{display:flex}
+.setSlots{display:none;grid-column:1/-1;width:100%;flex-wrap:wrap;gap:6px;margin-top:8px}.setRow{flex-wrap:wrap;cursor:pointer}.setRow[open] .setSlots{display:flex}details.setRow{display:block}.setSummary{display:flex;align-items:center;gap:10px;min-height:24px;list-style:none}.setSummary::-webkit-details-marker{display:none}
 .setSlots button{font:inherit;font-size:calc(12px*var(--fs,1));padding:7px 10px;border-radius:12px;border:1px solid var(--gline);background:rgba(255,255,255,.06);color:inherit}.setSlots button.got{background:rgba(109,255,199,.12)}
 .atlasAll{margin-top:4px}
 .cardHint{margin:8px 2px 0;font-size:calc(13.5px*var(--fs,1));font-weight:700;color:#fff;display:flex;gap:6px;flex-wrap:wrap}.cardHint:empty{display:none}.cardHint span{padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--gline)}.cardHint .new{background:rgba(255,79,216,.22);border-color:rgba(255,79,216,.5)}.cardHint .low{background:rgba(255,180,80,.16)}
@@ -768,9 +769,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=100">
-<link rel="stylesheet" href="lib/experience.css?v=100">
-<link rel="stylesheet" href="lib/brand.css?v=100">
+<link rel="stylesheet" href="lib/journal.css?v=101">
+<link rel="stylesheet" href="lib/experience.css?v=101">
+<link rel="stylesheet" href="lib/brand.css?v=101">
 </head>
 <body>
 <div id="bg"></div>
@@ -982,8 +983,8 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="seenBox" id="c-seen" hidden></div>
     <div class="st3b">
       <div><b id="c-n">0</b><span>úlovkov</span></div>
-      <div><b id="c-t">0</b><span>typov</span></div>
-      <div><b id="c-r">0</b><span>vzácnych</span></div>
+      <button type="button" class="collectionStat" aria-label="Typy lietadiel – zobraziť v Atlase"><b id="c-t">0</b><span>typov</span></button>
+      <button type="button" class="collectionStat" aria-label="Vzácne typy – zobraziť v Atlase"><b id="c-r">0</b><span>vzácnych</span></button>
     </div>
     <button class="mileBtn" id="b-miles">✈ <b id="c-miles">0</b> <span id="c-milesL">míľ</span> · obchod</button>
     <button class="wrapBtn yearBtn" id="b-year" hidden>🇸🇰 Slovensko <span id="yearY"></span> na oblohe</button>
@@ -1055,7 +1056,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <details class="more glass collectionGroup" id="friendsBox">
   <summary class="collectionRow"><span>Hraj s kamarátmi</span></summary>
   <div class="lookSub" id="invCount" style="text-align:center;margin:6px 0" hidden></div>
-  <section class="card"><div class="lbl"><span>👯 Moji kamaráti</span></div><div id="frList" style="margin-top:6px"><div class="lookSub">Načítavam…</div></div></section>
+  <section class="card"><div class="lbl"><span>👯 Moji kamaráti</span></div><p class="lookSub" id="frStatus" role="status"></p><button class="ghost" type="button" id="frRetry" hidden>Skúsiť znova</button><div id="frList" style="margin-top:6px"><div class="lookSub">Načítavam…</div></div></section>
   <section class="card" id="teamCard">
     <div class="lbl"><span>👥 Tím</span><span id="teamRank"></span></div>
     <div id="teamBox"></div>
@@ -1088,6 +1089,7 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="sr"><div>🤔 Tipovačka „Kam letí?“<small>Pred odhalením cieľa si tipni</small></div><button class="tog" id="t-guess" role="switch" aria-label="Tipovačka"></button></div>
     <div class="sr"><div>🔊 Hlasové ohlásenie</div><button class="tog" id="t-voice" role="switch" aria-label="Hlasové ohlásenie"></button></div>
     <div class="sr"><div>📳 Vibrovať pri prelete</div><button class="tog" id="t-vib" role="switch" aria-label="Vibrovanie"></button></div>
+    <p class="lookSub" id="pushSettingsStatus" role="status"></p>
     <div class="setH">Obloha a poloha</div>
     <div class="sr"><div>📡 Okruh</div><select id="radius" aria-label="Okruh"><option value="10">18 km</option><option value="25" selected>46 km</option><option value="50">93 km</option></select></div>
     <div class="sr"><div>🧭 Kompas<small id="compStat">Šípka ukáže smer k lietadlu</small></div><button class="ghost" id="b-comp">Zapnúť</button></div>
@@ -1100,13 +1102,14 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="sr"><div>🥟 Východniarsky mód<small>Šicko po našemu</small></div><button class="tog" id="t-vych" role="switch" aria-label="Východniarsky mód"></button></div>
     <div class="setH">Údaje a súkromie</div>
     <div class="sr" style="display:block"><div>🔁 Prenos zbierky<small>Do appky na ploche alebo do nového mobilu – jednorazový kód na 10 minút</small></div>
-      <div class="acts"><button class="ghost" id="b-transfer" style="flex:1">Vytvoriť kód</button><button class="ghost" id="b-claim" style="flex:1">Mám kód</button></div></div>
+      <div class="acts"><button class="ghost" id="b-transfer" style="flex:1">Vytvoriť kód</button><button class="ghost" id="b-claim" style="flex:1">Mám kód</button></div><p class="lookSub" id="xferStatus" role="status" hidden></p></div>
     <div class="sr"><div>📄 Moje údaje<small>Stiahni si všetko, čo o tebe server má</small></div><button class="ghost" id="b-mydata">Stiahnuť</button></div>
     <div class="sr"><div>🔒 Súkromie a zdroje<small>Čo zbierame a odkiaľ sú dáta</small></div><button class="ghost" id="b-privacy">Otvoriť</button></div>
     <div class="sr"><div>📶 Zdroje dát o lietadlách<small id="srcStat">Stav radaru</small></div><button class="ghost" id="b-src">Obnoviť</button></div>
     <div class="sr"><div>👨‍👩‍👧 Rodinné profily<small id="profTxt">Každý v rodine má vlastnú zbierku na tomto mobile</small></div><button class="ghost" id="b-prof">Prepnúť</button></div>
+    <p class="lookSub" id="profStatus" role="status" hidden></p>
     <div class="setH">Nebezpečná zóna</div>
-    <div class="sr"><div>🧹 Vymazať lokálnu zbierku<small>Odstráni body, kartičky a odznaky iba v tomto prehliadači. Overené úlovky a ligové výsledky na serveri zostanú.</small></div><button class="ghost" id="b-reset">Vymazať</button></div>
+    <div class="sr"><div>🧹 Vymazať lokálnu zbierku<small>Odstráni body, kartičky a odznaky iba v tomto prehliadači. Overené kartičky sa môžu pri synchronizácii zobraziť znova. Ligové výsledky zostanú na serveri.</small></div><button class="ghost" id="b-reset">Vymazať</button></div>
     <div class="sr"><div>🗑️ Zmazať moje údaje<small>Nezvratne odstráni údaje hráča zo servera aj tohto prehliadača. Vyžaduje internet a potvrdenie.</small></div><button class="ghost danger" id="b-forget">Zmazať</button></div>
   </details>
   <footer>Čo to letí? · vyrobené na Slovensku 🇸🇰</footer>
@@ -1304,29 +1307,29 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=100"></script>
-<script src="js/ui.js?v=100"></script>
-<script src="js/ar.js?v=100"></script>
-<script src="js/space.js?v=100"></script>
-<script src="js/weather.js?v=100"></script>
-<script src="js/extras.js?v=100"></script>
-<script src="js/account.js?v=100"></script>
-<script src="js/social.js?v=100"></script>
-<script src="js/atlas.js?v=100"></script>
-<script src="js/wrapped.js?v=100"></script>
-<script src="js/push.js?v=100"></script>
-<script src="js/track.js?v=100"></script>
-<script src="js/towns.js?v=100"></script>
-<script src="js/catalog.js?v=100"></script>
-<script src="js/cards.js?v=100"></script>
-<script src="js/journal.js?v=100"></script>
-<script src="js/mail.js?v=100"></script>
-<script src="js/golden.js?v=100"></script>
-<script src="js/teams.js?v=100"></script>
-<script src="js/duel.js?v=100"></script>
-<script src="js/sound.js?v=100"></script>
-<script src="js/santa.js?v=100"></script>
-<script src="js/brand.js?v=100"></script>
-<script src="js/main.js?v=100"></script>
+<script src="js/core.js?v=101"></script>
+<script src="js/ui.js?v=101"></script>
+<script src="js/ar.js?v=101"></script>
+<script src="js/space.js?v=101"></script>
+<script src="js/weather.js?v=101"></script>
+<script src="js/extras.js?v=101"></script>
+<script src="js/account.js?v=101"></script>
+<script src="js/social.js?v=101"></script>
+<script src="js/atlas.js?v=101"></script>
+<script src="js/wrapped.js?v=101"></script>
+<script src="js/push.js?v=101"></script>
+<script src="js/track.js?v=101"></script>
+<script src="js/towns.js?v=101"></script>
+<script src="js/catalog.js?v=101"></script>
+<script src="js/cards.js?v=101"></script>
+<script src="js/journal.js?v=101"></script>
+<script src="js/mail.js?v=101"></script>
+<script src="js/golden.js?v=101"></script>
+<script src="js/teams.js?v=101"></script>
+<script src="js/duel.js?v=101"></script>
+<script src="js/sound.js?v=101"></script>
+<script src="js/santa.js?v=101"></script>
+<script src="js/brand.js?v=101"></script>
+<script src="js/main.js?v=101"></script>
 </body>
 </html>

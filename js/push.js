@@ -6,7 +6,7 @@ const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Macintosh/.test(
 const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
 const u8=s=>{s=s.replace(/-/g,"+").replace(/_/g,"/");s+="===".slice((s.length+3)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
 async function swTell(){try{const r=await navigator.serviceWorker.ready;await ensureTok();(r.active||navigator.serviceWorker.controller)?.postMessage({cid:SOC.cid,api:SOC.api,tok:TOK})}catch(e){}}
-async function enablePush(silent){
+async function enablePush(silent,options={}){
   if(!SOC.api||KID())return false;
   if(!pushSupported()){
     if(!silent)toast(isIOS()&&!isStandalone()?"📲 Najprv si pridaj appku na plochu":"Upozornenia tu nefungujú",isIOS()&&!isStandalone()?"Ťukni Zdieľať ⬆️ → Pridať na plochu, potom ju otvor z plochy":"Skús iný prehliadač");
@@ -19,17 +19,20 @@ async function enablePush(silent){
     const {key}=await fetch(SOC.api+"/api/vapid").then(r=>r.json());
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
-    const response=await apiPost("/api/sub",{sub:{endpoint:sub.toJSON().endpoint},...posR(),moment:PUSH.moment});
-    if(!response.ok)throw Error("subscription");
+    const response=await apiPost("/api/sub",{sub:{endpoint:sub.toJSON().endpoint},...posR(),moment:options.moment??PUSH.moment,
+      streak:options.streak??LS.get("ctl_streakp",true),leg:options.leg??LS.get("ctl_legp",true)});
+    if(!response.ok||(await response.json()).ok!==true)throw Error("subscription");
     PUSH.on=true;LS.set("ctl_push",true);LS.set("ctl_pushT",Date.now());swTell();syncPushUI();
     return true;
   }catch(e){if(!silent)toast("Upozornenia sa nepodarilo zapnúť","Skontroluj, či máš appku pridanú na plochu, a skús znova.");return false}
 }
 $("b-push-off").onclick=async()=>{
+  if(pushPrefBusy)return;
+  pushPrefBusy=true;
   try{
     const response=await apiPost("/api/unsub",{});
-    if(!response.ok)throw Error("subscription");
-  }catch(e){toast("Upozornenia sa nepodarilo vypnúť","Skús znova, keď budeš online.");return}
+    if(!response.ok||(await response.json()).ok!==true)throw Error("subscription");
+  }catch(e){pushPrefBusy=false;toast("Upozornenia sa nepodarilo vypnúť","Skús znova, keď budeš online.");return}
   PUSH.on=false;LS.set("ctl_push",false);syncPushUI();
   try{
     const registration=await navigator.serviceWorker?.getRegistration();
@@ -37,19 +40,45 @@ $("b-push-off").onclick=async()=>{
     await subscription?.unsubscribe();
     await caches.delete("ctl-id");
   }catch(e){}
+  pushPrefBusy=false;$("pushSettingsStatus").textContent="Upozornenia sú vypnuté.";
   toast("Upozornenia vypnuté","Ďalšie upozornenia z hry už tento profil nedostane.");
 };
+const pushPrefs={moment:["t-moment","ctl_moment"],streak:["t-streakp","ctl_streakp"],leg:["t-leg","ctl_legp"]};
+let pushPrefBusy=false;
 function syncPushUI(){
   $("pushOffRow").style.display=PUSH.on&&!KID()?"":"none";
   $("pushOffRow").hidden=!PUSH.on||KID();
-  $("t-moment").classList.toggle("on",PUSH.on&&PUSH.moment);
+  for(const [name,[id,key]] of Object.entries(pushPrefs)){
+    const on=PUSH.on&&(name==="moment"?PUSH.moment:LS.get(key,true));
+    $(id).classList.toggle("on",on);
+    $(id).setAttribute("aria-checked",String(on));
+  }
   $("momStat").textContent=PUSH.on&&PUSH.moment?"Zapnuté ✓ – dám ti vedieť":"Upozornenie, keď sa celé Slovensko pozrie hore";
 }
-$("t-moment").onclick=async()=>{
-  if(!(PUSH.on&&PUSH.moment)){PUSH.moment=true;LS.set("ctl_moment",true);if(await enablePush())toast("🔔 Spoločný moment zapnutý","Raz denne ti dám vedieť, kedy sa pozrieť hore")}
-  else{PUSH.moment=false;LS.set("ctl_moment",false);try{await apiPost("/api/subset",{id:SOC.cid,moment:false})}catch(e){}}
-  syncPushUI();
-};
+async function changePushPref(name){
+  if(pushPrefBusy||KID())return;
+  const [id,key]=pushPrefs[name],button=$(id),status=$("pushSettingsStatus");
+  const enabled=button.getAttribute("aria-checked")!=="true";
+  if(!PUSH.on&&isIOS()&&!isStandalone()){installGuide();return}
+  pushPrefBusy=true;button.setAttribute("aria-disabled","true");
+  status.textContent="Ukladám nastavenie upozornenia…";
+  try{
+    if(!PUSH.on){
+      if(!await enablePush(false,{[name]:enabled}))throw Error("push");
+    }else{
+      const r=await apiPost(name==="moment"?"/api/subset":"/api/subopt",{[name]:enabled});
+      if(r.status===409){
+        if(!await enablePush(false,{[name]:enabled}))throw Error("push");
+      }else if(!r.ok||(await r.json()).ok!==true)throw Error("push");
+    }
+    if(name==="moment")PUSH.moment=enabled;
+    LS.set(key,enabled);
+    status.textContent=enabled?"Upozornenie je zapnuté.":"Upozornenie je vypnuté.";
+  }catch(e){status.textContent="Zmenu sa nepodarilo potvrdiť. Skús znova."}
+  finally{pushPrefBusy=false;button.removeAttribute("aria-disabled");syncPushUI()}
+}
+for(const [name,[id]] of Object.entries(pushPrefs))$(id).onclick=()=>changePushPref(name);
+syncPushUI();
 // ponuka (priming) – až pri 2. návšteve a len raz
 function maybeAskPush(){
   // ponúkni hneď, keď človek niečo zažil (úlovok/mávnutie), nie až pri 2. návšteve
@@ -95,15 +124,6 @@ HOOKS.caught.push(()=>{if(COL.n===1)setTimeout(maybeAskPush,5000)});
 // Staršie upozornenia na prelet otvoria radar.
 if(location.hash==="#vesmir")history.replaceState(null,"",location.pathname+location.search);
 
-// 🔥 pripomienka série sa dá vypnúť samostatne
-// prepínač svieti len vtedy, keď upozornenia naozaj fungujú; ťuk bez povolenia rovno požiada o povolenie
-{const t=$("t-streakp");if(t){const granted=()=>PUSH.on&&typeof Notification!=="undefined"&&Notification.permission==="granted",on=()=>granted()&&LS.get("ctl_streakp",true);
-  const sync=()=>{t.classList.toggle("on",on());t.setAttribute("aria-checked",on())};sync();setTimeout(sync,3000);
-  t.onclick=async()=>{haptic(10);if(!granted()){LS.set("ctl_streakp",true);if(isIOS()&&!isStandalone()){installGuide();return}if(await enablePush())apiPost("/api/subopt",{streak:true}).catch(()=>{});sync();return}
-    LS.set("ctl_streakp",!LS.get("ctl_streakp",true));sync();if(SOC.api)apiPost("/api/subopt",{streak:on()}).catch(()=>{})}}}
-// ♛ vzácne lietadlo pri mne (max. 1× denne) – samostatný prepínač
-{const t=$("t-leg");if(t){const on=()=>LS.get("ctl_legp",true);const sync=()=>{t.classList.toggle("on",on()&&PUSH.on);t.setAttribute("aria-checked",on()&&PUSH.on)};sync();setTimeout(sync,3000);
-  t.onclick=async()=>{haptic(10);if(!PUSH.on){if(isIOS()&&!isStandalone()){installGuide();return}await enablePush()}else LS.set("ctl_legp",!on());sync();if(SOC.api)apiPost("/api/subopt",{leg:on()}).catch(()=>{})}}}
 // 👆 odkaz z upozornenia na spoločný moment (aj keď príde neskoro)
 function momentFromHash(){if(!/#moment/.test(location.hash))return;try{history.replaceState(null,"",location.pathname)}catch(e){}
   setTimeout(async()=>{try{await socPoll()}catch(e){}const mo=SOC.data&&SOC.data.moment;if(mo&&mo.live)return;

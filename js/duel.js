@@ -87,7 +87,7 @@ function cdResult(){
   // výsledok sa dozvie aj vyzývateľ (raz za súboj)
   if(!p.local&&p.pid&&/^[A-Za-z0-9]{16}$/.test(p.pid)&&!done.includes(key+"r")&&typeof apiPost==="function"){done.push(key+"r");LS.set("ctl_kdDone",done.slice(-200));apiPost("/api/duelres",{to:p.pid,res:`${me}:${them}`}).catch(()=>{})}
   // 👨‍👩‍👧 bilancia s týmto súperom tento týždeň (len v mobile)
-  const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),FS=LS.get("ctl_famScore",{}),nm=p.n;
+  const wk=weekBounds().from,FS=LS.get("ctl_famScore",{}),nm=p.n;
   if(!done.includes(key+"s")){const r=FS[nm]&&FS[nm].wk===wk?FS[nm]:{wk,w:0,l:0,d:0};if(w)r.w++;else if(draw)r.d++;else r.l++;FS[nm]=r;LS.set("ctl_famScore",FS);done.push(key+"s");LS.set("ctl_kdDone",done.slice(-200))}
   const bal=FS[nm]&&FS[nm].wk===wk?FS[nm]:null;
   cdOpen(`<div style="text-align:center;font-size:64px;margin-top:6px">${w?"🏆":draw?"🤝":"😅"}</div>
@@ -140,11 +140,11 @@ function cdFromHash(){const m=location.hash.match(/kd=([\w-]+)/);if(!m)return;if
 cdFromHash();addEventListener("hashchange",cdFromHash);
 
 // 👨‍👩‍👧 skóre súbojov tento týždeň (pod tlačidlom Súboj kartičiek)
-function famScoreRender(){const el=$("famScore");if(!el)return;const wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),FS=LS.get("ctl_famScore",{});
+function famScoreRender(){const el=$("famScore");if(!el)return;const wk=weekBounds().from,FS=LS.get("ctl_famScore",{});
   const rows=Object.entries(FS).filter(([,r])=>r.wk===wk).slice(0,4);el.innerHTML=rows.length?"Tento týždeň: "+rows.map(([n,r])=>`${esc(n)} <b>${r.w}:${r.l}</b>`).join(" · "):""}
 HOOKS.view.push(v=>{if(v==="col")famScoreRender()});
 
 // ⚔️ výsledky súbojov, ktoré dohrali tvoji súperi (zo servera)
 HOOKS.social=HOOKS.social||[];HOOKS.social.push(D=>{for(const x of (D&&D.duelIn)||[]){const [a,b]=String(x.res).split(":").map(Number);if(a<b)grantAch("cardduel");
-  const FS=LS.get("ctl_famScore",{}),wk=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)),r=FS[x.n]&&FS[x.n].wk===wk?FS[x.n]:{wk,w:0,l:0,d:0};if(a>b)r.l++;else if(a<b)r.w++;else r.d++;FS[x.n]=r;LS.set("ctl_famScore",FS);
+  const FS=LS.get("ctl_famScore",{}),wk=weekBounds().from,r=FS[x.n]&&FS[x.n].wk===wk?FS[x.n]:{wk,w:0,l:0,d:0};if(a>b)r.l++;else if(a<b)r.w++;else r.d++;FS[x.n]=r;LS.set("ctl_famScore",FS);
   toast("⚔️ "+x.n+(a>b?" ťa porazil(a) ":a<b?" prehral(a) s tebou ":" remizoval(a) ")+x.res,"Súboj kartičiek – daj si odvetu v záložke Ja");famScoreRender()}});

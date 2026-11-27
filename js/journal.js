@@ -217,17 +217,13 @@ document.querySelectorAll("[data-journal]").forEach(button=>button.onclick=()=>{
   renderJournal();
 });
 $("journalAlbum").addEventListener("click",e=>{
-  const selected=e.target.closest("[data-journal-entry],[data-journal-map],[data-journal-filter],[data-journal-retry],.setRow");
+  const selected=e.target.closest("[data-journal-entry],[data-journal-map],[data-journal-filter],[data-journal-retry]");
   if(!selected)return;
   const {journalEntry,journalMap:map,journalFilter:filter,journalRetry}=selected.dataset;
   if(journalEntry)openJournalEntry(journalEntry,selected);
   else if(map&&map!==journalMap){journalMap=map;renderJournal(`[data-journal-map="${map}"]`)}
   else if(filter&&filter!==journalFilter){journalFilter=filter;renderJournal(`[data-journal-filter="${filter}"]`)}
   else if(journalRetry){journalAssets[journalRetry].error=false;renderJournal()}
-  else if(selected.matches(".setRow"))selected.classList.toggle("open");
-});
-$("journalAlbum").addEventListener("keydown",e=>{
-  if(e.target.matches(".setRow")&&(e.key==="Enter"||e.key===" ")){e.preventDefault();e.target.click()}
 });
 $("journalDetail").querySelector(".journalClose").onclick=()=>$("journalDetail").close();
 $("journalDetail").addEventListener("click",e=>{if(e.target===$("journalDetail"))$("journalDetail").close()});

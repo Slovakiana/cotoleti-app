@@ -424,7 +424,7 @@ function renderCol(){
     $("c-ach").innerHTML=[...got,...rest].map(x=>`<button type="button" class="${COL.ach[x.id]?"got":""}" data-ach="${x.id}"><i>${x.i}</i>${esc(x.n)}${COL.ach[x.id]?"":(x.h?`<small>${esc(x.h)}</small>`:"")+prog(x)}</button>`).join("");
     $("c-achN").textContent=got.length+"/"+L.length}
   const order={l:0,r:1,u:2,c:3};
-  if(typeof renderCards==="function")renderCards();
+  if(typeof renderCards==="function"){renderCards();renderShow()}
   if(typeof renderSpotterIdentity==="function")renderSpotterIdentity();
   const pf=LS.get("ctl_profs",null);
   if(pf&&pf.n){const P=profState();const label=`👨‍👩‍👧 Hrá <b>${esc(P.n[P.cur])}</b> · `+["A","B","C"].filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}">→ ${esc(P.n[x])}</button>`).join(" ");if($("meSub").innerHTML!==label)$("meSub").innerHTML=label}
@@ -686,7 +686,7 @@ $("mset").onclick=()=>{
 };
 $("mgps").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 let resetArm=0;
-$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať lokálnu zbierku"))return;if(LS.get("ctl_account_rev",0))LS.set("ctl_account_pause",true);COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);localStorage.removeItem("ctl_season");renderCol();$("b-reset").textContent="Vymazané";toast("Lokálna zbierka vymazaná","Overené úlovky a výsledky zostávajú na serveri")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
+$("b-reset").onclick=()=>{if(Date.now()-resetArm<3000){if(!kidPinOk("vymazať lokálnu zbierku"))return;if(LS.get("ctl_account_rev",0))LS.set("ctl_account_pause",true);COL={hex:{},types:{},pts:0,ach:{},n:0};LS.set("ctl_col",COL);localStorage.removeItem("ctl_season");renderCol();$("b-reset").textContent="Vymazané";toast("Lokálna zbierka vymazaná","Overené kartičky sa pri najbližšej synchronizácii zobrazia znova")}else{resetArm=Date.now();$("b-reset").textContent="Naozaj? Ťukni znova"}};
 $("b-pos").onclick=()=>{err("");LS.set("ctl_manual",false);startGps()};
 $("b-man").onclick=()=>{showCities(true)};
 $("sky").addEventListener("click",skyTap);
@@ -863,21 +863,31 @@ function wakeOff(){WAKE.want=false;try{WAKE.l&&WAKE.l.release()}catch(e){}WAKE.l
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&WAKE.want)wakeOn()});
 
 /* ============ 🔁 prenos zbierky jednorazovým kódom (platí 10 min, starý mobil stratí prístup) ============ */
-const XKEYS={ctl_col:"object",ctl_collectorHunt:"string",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",ctl_streakp:"boolean",ctl_kid:"boolean",ctl_kpin:"string",ctl_adopt:"string"};
+const XKEYS={ctl_col:"object",ctl_collectorHunt:"string",ctl_nick:"string",ctl_daily:"object",ctl_log:"object",
+  ctl_waveN:"number",ctl_gstreak:"number",ctl_team:"object",ctl_track:"object",ctl_season:"object",
+  ctl_streakp:"boolean",ctl_kid:"boolean",ctl_kpin:"string",ctl_adopt:"string",ctl_seen:"object",
+  ctl_seenT:"object",ctl_watchT:"object",ctl_wrSeen:"string",ctl_waved:"object"};
+const TRANSFER_STAGE="ctl_transfer_pending";
+let transferBusy=false;
 async function xferMake(){
   if(typeof apiPost!=="function")return;
-  lsFlush();
-  const data={};for(const k of Object.keys(XKEYS)){const v=localStorage.getItem(k);if(v!=null)data[k]=v}
-  try{const r=await apiPost("/api/xfer",{data:JSON.stringify(data)});const j=await r.json();
+  if(!lsFlush()){toast("Zbierka sa zatiaľ neuložila","Uvoľni miesto a vytvor kód znova.");return}
+  const data={};
+  for(const key of Object.keys(XKEYS)){
+    const value=localStorage.getItem(key);
+    if(value!==null)data[key]=value;
+  }
+  try{
+    const r=await apiPost("/api/xfer",{data:JSON.stringify(data)}),j=await r.json();
     if(!r.ok||!j.code){
       toast("Kód sa nepodarilo vytvoriť",r.status===413?"Zbierka prekročila limit prenosu.":r.status===429?"Limit prenosov. Skús neskôr.":"Skús o chvíľu");return;
     }
     $("xCode").textContent=j.code.slice(0,4)+" "+j.code.slice(4);$("xM").classList.add("on");
-  }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie")}
+  }catch(e){toast("Prenos potrebuje pripojenie","Skús vytvoriť kód znova.")}
 }
 function transferEntries(raw){
   const data=JSON.parse(raw||"{}");
-  if(!data||typeof data!=="object"||Array.isArray(data))throw Error("transfer data");
+  if(!data||typeof data!=="object"||Array.isArray(data))throw Error("transfer_data");
   const entries=new Map();
   for(const [key,type] of Object.entries(XKEYS)){
     if(typeof data[key]!=="string")continue;
@@ -886,34 +896,75 @@ function transferEntries(raw){
       if(typeof value===type&&value!==null)entries.set(key,data[key]);
     }catch(e){}
   }
+  const col=JSON.parse(entries.get("ctl_col")||"null");
+  // Starší prázdny profil nemusel mať uložený žiaden stav zbierky.
+  if(entries.has("ctl_col")&&(!col?.types||Array.isArray(col.types)||!col.hex||!col.ach||!Number.isFinite(col.pts)))throw Error("transfer_data");
   return entries;
 }
-async function xferClaim(){
-  const code=(prompt("Zadaj 8-miestny kód z druhého mobilu:")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");if(code.length!==8)return;
-  if(!confirm("Prenesiem sem zbierku z druhého mobilu. Tvoja súčasná zbierka v tomto mobile sa nahradí. Pokračovať?"))return;
-  let r,j;
-  try{
-    r=await apiRequest(DEFAULT_PROXY+"/api/xclaim",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({code})});
-    j=await r.json();
-  }catch(e){toast("Bez internetu","Prenos potrebuje pripojenie");return}
-  if(r.status===404){toast("Kód je neplatný alebo vypršal","Vytvor v druhom mobile nový – platí 10 minút a len raz");return}
-  if(!r.ok||!j.id||!j.tok){toast("Prenos sa nepodaril",r.status===429?"Skús o chvíľu.":"Skontroluj pripojenie a skús znova.");return}
-  try{
-    const entries=transferEntries(j.data);
-    lsFlush();
-    const replace=[...Object.keys(XKEYS),"ctl_account_rev","ctl_account_digest","ctl_account_guest","ctl_account_offer","ctl_account_pause","ctl_wq","ctl_waved","ctl_wpd","ctl_mpd","ctl_push","ctl_pushT","ctl_pushAsked"];
-    const previous=new Map(replace.map(key=>[key,localStorage.getItem(key)]));
-    const restore=(key,value)=>{if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value)};
-    try{
-      for(const key of replace)localStorage.removeItem(key);
-      for(const [key,value] of entries)restore(key,value);
-    }catch(e){for(const key of replace)localStorage.removeItem(key);for(const [key,value] of previous)restore(key,value);throw e}
-    LS.set("ctl_cid",j.id);LS.set("ctl_tok",j.tok);LS.set("ctl_tok0",j.tok);LS.set("ctl_pid",j.pid);LS.set("ctl_fk",j.fk);LS.set("ctl_reset_epoch",j.epoch||0);LS.set("ctl_onb",1);
-    LSP.clear();LS.set=()=>{};
-    toast("🔁 Zbierka prenesená","Vitaj späť!");setTimeout(()=>location.reload(),1200);
-  }catch(e){toast("Zbierku sa nepodarilo uložiť","Skontroluj voľné miesto v prehliadači.")}
+async function requestTransfer(path,body){
+  const response=await apiRequest(DEFAULT_PROXY+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(body)},30000);
+  if(response.status===404)throw Error("transfer_code");
+  if(response.status===409)throw Error("transfer_conflict");
+  if(!response.ok)throw Error("transfer_net");
+  return response.json();
 }
-$("b-transfer").onclick=()=>{if(kidPinOk("prenos zbierky"))xferMake()};$("b-claim").onclick=()=>{if(kidPinOk("prenos zbierky"))xferClaim()};$("xClose").onclick=()=>$("xM").classList.remove("on");
+function xferStatus(message=""){
+  const pending=LS.get(TRANSFER_STAGE,null);
+  $("b-claim").textContent=pending?"Dokončiť prenos":"Mám kód";
+  $("xferStatus").textContent=message||(pending?"Prenos je rozpracovaný. Dá sa dokončiť aj po obnovení stránky.":"");
+  $("xferStatus").hidden=!$("xferStatus").textContent;
+}
+async function xferClaim(){
+  if(transferBusy||!storageCurrent())return;
+  transferBusy=true;$("b-claim").disabled=true;
+  let stage=LS.get(TRANSFER_STAGE,null);
+  try{
+    if(!stage){
+      const code=(prompt("Zadaj 8-miestny kód z druhého mobilu:")||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+      if(code.length!==8)return;
+      if(!confirm("Prenesiem sem zbierku z druhého mobilu. Súčasná zbierka v tomto profile sa nahradí. Pokračovať?"))return;
+      const claim=crypto.randomUUID();
+      const info=await requestTransfer("/api/xprepare",{code,claim});
+      if(!info.id||!info.ticket||typeof info.data!=="string")throw Error("transfer_data");
+      transferEntries(info.data);
+      if(!storageCurrent()||!lsFlush())throw Error("storage_changed");
+      stage={code,claim,ticket:info.ticket,id:info.id,data:info.data,owner:SOC.cid};
+      // Až po tomto zápise môže server zneplatniť pôvodnú reláciu.
+      localStorage.setItem(TRANSFER_STAGE,JSON.stringify(stage));
+    }
+    if(stage.owner!==SOC.cid)throw Error("storage_changed");
+    xferStatus("Dokončujem prenos…");
+    const result=await requestTransfer("/api/xfinish",{code:stage.code,claim:stage.claim,ticket:stage.ticket,id:stage.id});
+    if(result.id!==stage.id||!result.tok||!result.pid||!storageCurrent())throw Error("transfer_data");
+    await withCollectionStorage(()=>{
+      if(!lsFlush())throw Error("storage_changed");
+      const entries=transferEntries(stage.data);
+      const replace=new Set([...PKEYS,...Object.keys(XKEYS)]);
+      const values=new Map([...replace].map(key=>[key,entries.get(key)??null]));
+      const identity={ctl_cid:result.id,ctl_tok:result.tok,ctl_tok0:result.tok,ctl_pid:result.pid,ctl_fk:result.fk||"",
+        ctl_fkT:Date.now(),ctl_reset_epoch:result.epoch||0,ctl_onb:1,[TRANSFER_STAGE]:undefined};
+      for(const [key,value] of Object.entries(identity))values.set(key,value===undefined?null:JSON.stringify(value));
+      storageBatch(values);
+      LSP.clear();LS.set=()=>{};
+      location.reload();
+    });
+  }catch(e){
+    if(e.message==="transfer_code"||e.message==="transfer_conflict"){
+      if(storageCurrent()&&stage?.owner===SOC.cid)localStorage.removeItem(TRANSFER_STAGE);
+      xferStatus("Kód sa nedá použiť. Skontroluj ho alebo vytvor nový na pôvodnom zariadení.");
+    }else if(e.message==="transfer_net"||e.name==="AbortError"||e instanceof TypeError){
+      xferStatus("Prenos sa zatiaľ nepodaril. Skús ho dokončiť po pripojení.");
+    }else{
+      xferStatus("Zbierka sa nedala uložiť. Uvoľni miesto a skús prenos znova.");
+    }
+  }finally{
+    transferBusy=false;$("b-claim").disabled=false;
+  }
+}
+$("b-transfer").onclick=()=>{if(kidPinOk("prenos zbierky"))xferMake()};
+$("b-claim").onclick=()=>{if(kidPinOk("prenos zbierky"))xferClaim()};
+$("xClose").onclick=()=>$("xM").classList.remove("on");
+xferStatus();
 /* návod na pridanie na plochu */
 function installGuide(){
   const ios=/iPhone|iPod/.test(UA)||isIPad,crios=/CriOS/.test(UA);
@@ -1091,7 +1142,7 @@ $("b-mydata").onclick=async()=>{
   try{const r=await apiPost("/api/mydata",{});if(!r.ok)throw Error("export");const j=await r.json();
     const sum=`Export z tohto prehliadača môže obsahovať uloženú polohu. Uchovaj ho súkromne.\n\nNa serveri o tebe máme:\n• ${j.wavelog?j.wavelog.length:0} ${pl(j.wavelog?j.wavelog.length:0,"mávnutie","mávnutia","mávnutí")} (posledných 8 dní)\n• ${j.subs&&j.subs.length?"zapnuté upozornenia":"žiadne upozornenia"}\n• ${j.nicks&&j.nicks[0]?"prezývku „"+j.nicks[0].nick+"“":"žiadnu prezývku"}\n• ${j.kamarati||0} kamarátov\n\nStiahnuť všetko ako súbor?`;
     if(!confirm(sum))return;
-    const blob=new Blob([JSON.stringify({zariadenie:Object.fromEntries(Object.keys(localStorage).filter(k=>k.startsWith("ctl_")&&!/^ctl_p[A-Z]:/.test(k)&&k!=="ctl_profs"&&!/tok|cid|fk|pin|wq|push/i.test(k)).map(k=>[k,localStorage.getItem(k)])),server:j},null,1)],{type:"application/json"});
+    const blob=new Blob([JSON.stringify({zariadenie:Object.fromEntries(Object.keys(localStorage).filter(k=>k.startsWith("ctl_")&&!/^ctl_p[A-Z]:/.test(k)&&k!=="ctl_profs"&&!/tok|cid|fk|pin|wq|push|storage_|transfer_pending|kid_pending/i.test(k)).map(k=>[k,localStorage.getItem(k)])),server:j},null,1)],{type:"application/json"});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="moje-udaje-cotoleti.json";a.click();toast("📄 Údaje stiahnuté","Súbor moje-udaje-cotoleti.json");
   }catch(e){toast("Bez internetu","Skús to znova")}
 };
@@ -1220,7 +1271,7 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_collectorHunt","ctl_account_rev","ctl_account_digest","ctl_account_guest","ctl_account_offer","ctl_account_pause","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_nick_prompt","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp"];
+const PKEYS=["ctl_col","ctl_collectorHunt","ctl_account_rev","ctl_account_digest","ctl_account_guest","ctl_account_offer","ctl_account_pause","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_nick_prompt","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp","ctl_seenT","ctl_watchT","ctl_wrSeen","ctl_kid_pending","ctl_needPin",TRANSFER_STAGE];
 const PROF_IDS=["A","B","C"];
 function profState(){const P=LS.get("ctl_profs",{cur:"A",n:{}});P.n=Object.assign({A:"Ja",B:"Dieťa",C:"Dieťa 2"},P.n);return P}
 function profNext(P){return P.cur==="A"?"B":"A"}
@@ -1228,14 +1279,35 @@ function profRender(){const P=profState(),el=$("profTxt");if(!el)return;
   el.innerHTML=`Hrá: <b>${esc(P.n[P.cur])}</b><br>`+PROF_IDS.filter(x=>x!==P.cur).map(x=>`<button class="ghost" data-prof="${x}" style="margin:6px 6px 0 0">→ ${esc(P.n[x])}</button>`).join("");
   $("b-prof").textContent="Prepnúť na: "+P.n[profNext(P)]}
 function profSwitch(to){
-  const P=profState(),o=PROF_IDS.includes(to)&&to!==P.cur?to:profNext(P);
+  const P=profState(),next=PROF_IDS.includes(to)&&to!==P.cur?to:profNext(P);
   if(!kidPinOk("prepnúť profil"))return;
-  lsFlush(); // odložený zápis zbierky (300 ms) najprv do localStorage, inak sa uloží stará zbierka
-  for(const k of PKEYS){const v=localStorage.getItem(k);if(v==null)localStorage.removeItem("ctl_p"+P.cur+":"+k);else localStorage.setItem("ctl_p"+P.cur+":"+k,v)}
-  const fresh=!PKEYS.some(k=>localStorage.getItem("ctl_p"+o+":"+k)!=null);
-  for(const k of PKEYS){const v=localStorage.getItem("ctl_p"+o+":"+k);if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}
-  P.cur=o;if(fresh){const nm=prompt("Meno profilu (napr. Miško):",P.n[o]);if(nm&&nm.trim())P.n[o]=nm.trim().slice(0,16);if(confirm("Je to profil dieťaťa do 16 rokov? (zapne sa detský režim)")){LS.set("ctl_kid",true);const pin=PROF_IDS.map(x=>LS.get("ctl_p"+x+":ctl_kpin","")).find(Boolean);if(pin)LS.set("ctl_kpin",pin);else LS.set("ctl_needPin",1)}}
-  LS.set("ctl_profs",P);LSP.clear();LS.set=()=>{};location.reload()} // pri pagehide sa už nezapíše zbierka starého profilu
+  return withCollectionStorage(()=>{
+    if(!storageCurrent()||!lsFlush())throw Error("storage_changed");
+    const writes=new Map(),source=P.cur;
+    const fresh=!PKEYS.some(key=>localStorage.getItem("ctl_p"+next+":"+key)!==null);
+    for(const key of PKEYS){
+      writes.set("ctl_p"+source+":"+key,localStorage.getItem(key));
+      writes.set(key,localStorage.getItem("ctl_p"+next+":"+key));
+    }
+    if(fresh){
+      const name=prompt("Meno profilu (napr. Miško):",P.n[next]);
+      if(name===null)return;
+      if(name.trim())P.n[next]=name.trim().slice(0,16);
+      if(confirm("Je to profil dieťaťa do 16 rokov? (zapne sa detský režim)")){
+        writes.set("ctl_kid","true");
+        const pin=LS.get("ctl_kpin","")||PROF_IDS.map(id=>LS.get("ctl_p"+id+":ctl_kpin","")).find(Boolean);
+        if(pin)writes.set("ctl_kpin",JSON.stringify(pin));
+        else writes.set("ctl_needPin","1");
+      }
+    }
+    P.cur=next;writes.set("ctl_profs",JSON.stringify(P));
+    storageBatch(writes);
+    LSP.clear();LS.set=()=>{};location.reload();
+  }).catch(()=>{
+    $("profStatus").hidden=false;
+    $("profStatus").textContent="Profil sa nepodarilo prepnúť. Uvoľni miesto alebo obnov stránku a skús znova.";
+  });
+}
 if($("b-prof")){$("b-prof").onclick=()=>profSwitch();profRender()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-prof]");if(b){haptic(8);profSwitch(b.dataset.prof)}});
 if(LS.get("ctl_needPin",0)&&KID()){LS.set("ctl_needPin",0);setTimeout(kidPinSet,1500)}

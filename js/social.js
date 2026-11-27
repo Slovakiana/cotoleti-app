@@ -17,7 +17,7 @@ async function apiRequest(url,options,timeout=11000){
   try{return await fetch(url,{...options,signal:ctl.signal})}finally{clearTimeout(timer)}
 }
 async function ensureTok(force=false){
-  if(!SOC.api||SOC.resetting||SOC.moved||(!TOK&&!LS.get("ctl_onb",0)))return "";
+  if(!storageCurrent()||!SOC.api||SOC.resetting||SOC.moved||(!TOK&&!LS.get("ctl_onb",0)))return "";
   if(SOC.helloP)return SOC.helloP;
   if(!force&&TOK&&FK&&SOC.authVerified&&Date.now()-SOC.authChecked<60000)return TOK;
   if(!navigator.onLine)return "";
@@ -61,7 +61,7 @@ async function ensureTok(force=false){
 }
 async function apiPost(path,obj){
   const tok=await ensureTok();
-  if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved)throw Error("auth_pending");
+  if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved||!storageCurrent())throw Error("auth_pending");
   const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})},path==="/api/xfer"||path.startsWith("/api/account/")?30000:11000);
   if(r.status===401){SOC.authVerified=false;SOC.authChecked=0;SOC.helloNext=0}
   return r;
@@ -133,9 +133,10 @@ function renderCompetitionPulse(){
   $("compPulseDetail").textContent=model.detail;
   $("compPulseBar").style.width=model.pct+"%";
   if(!old||Date.now()-old.t>120e3){
-    if(!SOC.pulseLoading&&(!SOC.pulseRetry||Date.now()>SOC.pulseRetry)){
+    if(!SOC.pulseLoading&&!leagueRequests.has("division")&&(!SOC.pulseRetry||Date.now()>SOC.pulseRetry)){
       SOC.pulseLoading=true;
       apiPost("/api/division",{}).then(r=>{if(!r.ok)throw Error("division "+r.status);return r.json()}).then(j=>{
+        if(!j||!Object.hasOwn(j,"div"))throw Error("division");
         SOC.dv={t:Date.now(),j};SOC.pulseRetry=0;SOC.pulseLoading=false;
         renderCompetitionPulse();if(LG==="d")renderLeague();
       }).catch(()=>{SOC.pulseLoading=false;SOC.pulseRetry=Date.now()+120e3;
@@ -196,8 +197,36 @@ const LG_RULES={
   o:"Mávnutia kraja tento týždeň na 100 000 obyvateľov (počty obyvateľov približne podľa ŠÚ SR) – férové derby veľkých aj malých krajov.",
   t:"Overené mávnutia do ligy všetkých členov tímu tento týždeň. Nový člen sa ráta od nasledujúceho dňa."};
 // 📈 posun v poradí oproti predošlému dňu (len v mobile): „▲ 2 od včera“
-function lgDelta(key,rank){const A=LS.get("ctl_lgRank",{}),d=dayKey(),o=A[key];if(!o||o.d!==d){A[key]={d,r:rank,p:o&&(key!=="d"||o.d>=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5)))?o.r:0,l:o&&o.d===dayAgo(1)?"od včera":"od minule"};LS.set("ctl_lgRank",A)}else if(o.r!==rank){o.r=rank;LS.set("ctl_lgRank",A)}
+function lgDelta(key,rank){const A=LS.get("ctl_lgRank",{}),d=dayKey(),o=A[key];if(!o||o.d!==d){A[key]={d,r:rank,p:o&&(key!=="d"||o.d>=weekBounds().from)?o.r:0,l:o&&o.d===dayAgo(1)?"od včera":"od minule"};LS.set("ctl_lgRank",A)}else if(o.r!==rank){o.r=rank;LS.set("ctl_lgRank",A)}
   const p=A[key].p,l=A[key].l||"od včera";return !p||p===rank?"":p>rank?` · <b style="color:#7be08a">▲ ${p-rank}</b> ${l}`:` · <b style="color:#ff8a8a">▼ ${rank-p}</b> ${l}`}
+const leagueAtlas=new Map();
+const leagueAtlasKey=()=>LG_ATLAS_SCOPE==="sk"?"":krajOf(S.pos);
+const leagueRequests=new Map();
+function leagueData(key,tab,path,payload,state,save,lifetime,valid){
+  const entry=state();
+  if((!entry?.j||Date.now()-entry.t>lifetime)&&!(entry?.retry>Date.now())&&!leagueRequests.has(key)){
+    const request=apiPost(path,payload).then(async r=>{
+      const j=await r.json();
+      if(!r.ok||!valid(j))throw Error("league");
+      save({t:Date.now(),j});
+    }).catch(()=>save({...state(),retry:Date.now()+30000})).finally(()=>{
+      leagueRequests.delete(key);
+      if(LG===tab&&(tab!=="a"||key==="atlas:"+leagueAtlasKey()))renderLeague();
+    });
+    leagueRequests.set(key,request);
+  }
+  const result=state();
+  if(result?.retry>Date.now()){
+    if(!result.j){
+      $("kraje").innerHTML='<p class="lookSub" role="status">Rebríček sa nepodarilo načítať.</p><button class="ghost" type="button" id="lgRetry">Skúsiť znova</button>';
+      $("lgRetry").onclick=()=>{save({...result,retry:0});renderLeague()};
+      return null;
+    }
+    $("lgNote").textContent="Posledné uložené poradie. Obnovenie zlyhalo.";
+  }
+  if(!result?.j)$("kraje").innerHTML='<p class="lookSub" role="status">Načítavam…</p>';
+  return result?.j||null;
+}
 function renderLeague(){
   const D=SOC.data;if(!D)return;let note="";
   if($("lgNote"))$("lgNote").innerHTML="";if($("lgAtlasScope"))$("lgAtlasScope").hidden=LG!=="a";if($("recBox"))$("recBox").style.display=LG==="k"?"":"none";if($("lgHead"))$("lgHead").textContent=LG==="a"&&LG_ATLAS_SCOPE==="sk"?"🇸🇰 Zberatelia na Slovensku":LG_HEAD[LG]||LG_HEAD.k;if($("lgRules"))$("lgRules").textContent=LG_RULES[LG]||LG_RULES.k;
@@ -209,29 +238,31 @@ function renderLeague(){
     // 🃏 rebríček zberateľov v kraji: vzácnosť rôznych typov (overené serverom) + 100 b za každé prvenstvo v SR
     const kk=LG_ATLAS_SCOPE==="sk"?"":krajOf(S.pos);
     if($("lgAtlasScope"))$("lgAtlasScope").querySelectorAll("button[data-scope]").forEach(b=>{const on=b.dataset.scope===LG_ATLAS_SCOPE;b.classList.toggle("on",on);b.setAttribute("aria-pressed",String(on))});
-    if(!SOC.atl||SOC.atl.k!==kk||Date.now()-SOC.atl.t>300e3){if(!SOC.atlL){SOC.atlL=1;apiPost("/api/atlasy",{k:kk}).then(r=>r.json()).then(j=>{SOC.atlL=0;if(!j||!j.top){SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague();return}SOC.atl={k:kk,t:Date.now(),j};if(LG==="a")renderLeague()}).catch(()=>{SOC.atlL=0;SOC.atl={k:kk,t:Date.now()-270e3,err:1};if(LG==="a")renderLeague()})}}
-    if(SOC.atl&&SOC.atl.err){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Rebríček sa nepodarilo načítať. Skúsim znova o chvíľu.</div>';return}
-    const j=SOC.atl&&SOC.atl.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
+    const j=leagueData("atlas:"+kk,"a","/api/atlasy",{k:kk},()=>leagueAtlas.get(kk),value=>leagueAtlas.set(kk,value),
+      300e3,data=>Array.isArray(data?.top));
+    if(!j)return;
     const kd=typeof KID==="function"&&KID();rows=(j.top||[]).map((r,i)=>[(kd&&!r.me?"Zberateľ":r.nick)+" · "+r.n+" "+pl(r.n,"typ","typy","typov"),r.sc,r.me,!kd&&!r.me&&r.nick!=="Spotter",r.rank||i+1]);
     if(j.me&&!(j.top||[]).some(r=>r.me))rows.push(["Ty · "+j.me.n+" "+pl(j.me.n,"typ","typy","typov"),j.me.sc,true,false,j.me.rank||null]);
     note=`<b>${rows.length} zobrazených zberateľov</b> · ${LG_ATLAS_SCOPE==="sk"?"celé Slovensko":"tvoj kraj"}. Tu vidíš overených zberateľov, nie všetkých používateľov. ${j.me?`Ty: <b>${j.me.rank||"?"}. miesto</b> · ${j.me.gap?"k ďalšiemu ti chýba "+nf(j.me.gap)+" b":"si na čele! 👑"}${j.me.rank?lgDelta("a"+(kk||"SK"),j.me.rank):""}`:"Tvoj prvý overený úlovok ťa zaradí do rebríčka."}`;
-    if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nikto v tvojom kraji nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
+    if(!rows.length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ tu nikto nemá overené kartičky. Zamávaj a buď prvý 🃏'+(S.manual?'<br>⚠️ Máš ručne vybrané mesto – do súťaží sa ráta len poloha z GPS.':'')+'</div>';return}
   }
   else if(LG==="d"){
-    if(!SOC.dv||Date.now()-SOC.dv.t>120e3){if(!SOC.dvL){SOC.dvL=1;apiPost("/api/division",{}).then(r=>r.json()).then(j=>{SOC.dv={t:Date.now(),j};SOC.dvL=0;if(LG==="d")renderLeague()}).catch(()=>{SOC.dvL=0})}}
-    const j=SOC.dv&&SOC.dv.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
+    const j=leagueData("division","d","/api/division",{},()=>SOC.dv,value=>SOC.dv=value,120e3,
+      data=>data&&Object.hasOwn(data,"div"));
+    if(!j)return;
     if(!j.div){$("kraje").innerHTML=`<div class="lookSub" style="padding:8px 0">Tento týždeň ešte nemáš overené mávnutie. Zamávaj a zaradíme ťa do divízie s hráčmi, ktorí mávajú podobne ako ty 👋</div>`;return}
     {const me=(j.rows||[]).findIndex(r=>r.me),up=me>0?j.rows[me-1].w-j.rows[me].w+1:0;
     note=`🏅 Divízia ${j.div} z ${j.divs} (1 = najlepšia) · si <b>${j.rank}.</b> z ${j.of}${up?` · na ${j.rank-1}. miesto ti chýba ${up} 👋`:j.rank===1?" · vedieš 👑":""}${lgDelta("d",j.rank)}`}
     rows=(j.rows||[]).map(r=>[r.n,r.w,r.me,!r.me&&r.n!=="Spotter"]);
   }
   else if(LG==="f"){
-    if(!SOC.frw||Date.now()-SOC.frw.t>120e3){if(!SOC.frwL){SOC.frwL=1;apiPost("/api/friends",{}).then(r=>r.json()).then(j=>{SOC.frw={t:Date.now(),j};SOC.frwL=0;if(LG==="f")renderLeague()}).catch(()=>{SOC.frwL=0})}}
-    const j=SOC.frw&&SOC.frw.j;if(!j){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Načítavam…</div>';return}
+    const j=leagueData("friends","f","/api/friends",{},()=>SOC.frw,value=>SOC.frw=value,120e3,
+      data=>Array.isArray(data?.friends));
+    if(!j)return;
     if(!(j.friends||[]).length){$("kraje").innerHTML='<div class="lookSub" style="padding:8px 0">Zatiaľ nemáš kamarátov. Pošli niekomu výzvu – keď ju otvorí, budete súperiť každý týždeň 👯</div><button class="btn sec" id="lgInvite" style="width:100%;margin-top:6px">⚔️ Pozvi kamaráta</button>';$("lgInvite").onclick=()=>typeof sendDuel==="function"&&sendDuel();return}
-    const FS=LS.get("ctl_famScore",{}),wkS=SKD.format(new Date(Date.now()-((new Date().getDay()+6)%7)*864e5));
+    const FS=LS.get("ctl_famScore",{}),wkS=weekBounds().from;
     rows=[...j.friends.map(f=>[f.n+(FS[f.n]&&FS[f.n].wk===wkS?` · ⚔️ ${FS[f.n].w}:${FS[f.n].l}`:""),f.w|0,false,false]),["Ty",j.me|0,true]].sort((a,b)=>b[1]-a[1]);
-    {const i=rows.findIndex(r=>r[2]),dl=7-((new Date().getDay()+6)%7),end=dl===1?"týždeň končí dnes o polnoci":"týždeň končí o "+(dl-1)+" "+pl(dl-1,"deň","dni","dní");
+    {const i=rows.findIndex(r=>r[2]),dl=Math.round((Date.parse(weekBounds().to)-Date.parse(dayKey()))/WEEK_DAY),end=dl===1?"týždeň končí dnes o polnoci":"týždeň končí o "+(dl-1)+" "+pl(dl-1,"deň","dni","dní");
       note=i>0?`${esc(String(rows[i-1][0]).split(" · ")[0])} ti uniká o ${rows[i-1][1]-rows[i][1]+1} 👋 · ${end}`:rows.length>1?`Vedieš o ${rows[0][1]-rows[1][1]} 👋 · ${end}`:end}
   }
   else if(LG==="m"||LG==="s"){const me=typeof townOf==="function"?townOf(S.pos):"";rows=((LG==="s"?D.townsSmall:D.towns)||[]).map(x=>[x.town,x.n,x.town===me])}
@@ -239,7 +270,7 @@ function renderLeague(){
   else if(LG==="p"){const me=krajOf(S.pos);rows=(D.krajePP||[]).slice(0,8).map(x=>[(KRAJ[x.k]||KRAJ.XX)[2]+` · ${x.p} ${pl(x.p,"hráč","hráči","hráčov")}`,x.n,x.k===me])}
   else rows=(D.teamsTop||[]).map(x=>[x.name,x.n,x.me,!x.me]);
   const max=Math.max(1,...rows.map(r=>r[1]));
-  if($("lgNote"))$("lgNote").innerHTML=note;
+  if($("lgNote"))$("lgNote").insertAdjacentHTML("beforeend",($("lgNote").textContent&&note?" · ":"")+note);
   $("kraje").innerHTML=rows.length?rows.map((r,i)=>bar(r[0],r[1],max,r[2],i,r[3],r[4])).join(""):`<div class="lookSub" style="padding:8px 0">${LG==="f"?"Tento týždeň ešte nikto z vás nemával. Začni ty 👋":LG==="t"?"Tento týždeň zatiaľ žiadny tím nemával. Založ si tím v Zbierke 👥":LG==="o"||LG==="w"?"Tento týždeň ešte nikto nemával. Začni ty 👋":LG==="p"?"Kraj sa ukáže, keď v ňom dnes mávajú aspoň 3 hráči. Pozvi kamarátov z kraja 👯":"Dnes ešte nikto nemával. Začni ty 👋"}</div>`;
 }
 // 🏡 Adoptuj obec: fandi jednej obci (napr. rodnej) a sleduj, koľko sa v nej máva
@@ -300,7 +331,7 @@ $("lgTabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.more){const m=$("lgTabs").classList.toggle("more");b.setAttribute("aria-expanded",m);b.textContent=m?"×":"⋯";return}
   LG=b.dataset.t;[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x===b));renderLeague();haptic(6)};
 $("compPulseGo").onclick=()=>{openCollectionSection("community");LG="d";[...$("lgTabs").children].forEach(x=>x.classList.toggle("on",x.dataset.t==="d"));$("krajeCard").style.display="";renderLeague();$("krajeCard").scrollIntoView({behavior:typeof RM==="function"&&RM()?"auto":"smooth",block:"start"});haptic(6)};
-$("lgAtlasScope").onclick=e=>{const b=e.target.closest("button[data-scope]");if(!b||LG_ATLAS_SCOPE===b.dataset.scope)return;LG_ATLAS_SCOPE=b.dataset.scope;SOC.atl=null;renderLeague();haptic(6)};
+$("lgAtlasScope").onclick=e=>{const b=e.target.closest("button[data-scope]");if(!b||LG_ATLAS_SCOPE===b.dataset.scope)return;LG_ATLAS_SCOPE=b.dataset.scope;renderLeague();haptic(6)};
 function waveInfo(a){
   if(!SOC.api){$("waveInfo").textContent="";return}
   if(!a){$("waveInfo").textContent="";$("waveN").style.display="none";return}
@@ -531,15 +562,50 @@ $("wavePick").onclick=e=>{
 if(SOC.api){(function loop(){setTimeout(async()=>{if(!document.hidden)await socPoll();loop()},(45000+Math.random()*18000-9000)*Math.min(8,SOC.back||1))})();setTimeout(socPoll,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)socPoll()})}
 
 /* 👯 zoznam kamarátov s možnosťou odobrať */
+let friendsGeneration=0,friendRemoval=false;
 async function friendsRender(){
-  const box=$("frList");if(!box||!SOC.api)return;
-  try{const r=await apiPost("/api/friends",{});const j=await r.json();const fr=j.friends||[];
-    if(!fr.length){box.innerHTML='<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';return}
-    const all=[...fr,{n:"Ty",w:j.me|0,c:j.meC|0,me:1}].sort((a,b)=>(b.w|0)-(a.w|0));
-    box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)} · ${f.w|0}\u00a0👋<small>${f.c|0} ${pl(f.c|0,"overený úlovok","overené úlovky","overených úlovkov")} ✈️</small></div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
-  }catch(e){}
+  const box=$("frList");
+  if(!SOC.api||KID())return;
+  const generation=++friendsGeneration;
+  try{
+    const response=await apiPost("/api/friends",{}),data=await response.json();
+    if(!response.ok||!Array.isArray(data.friends))throw Error("friends");
+    if(generation!==friendsGeneration)return;
+    const fr=data.friends;
+    $("frRetry").hidden=true;
+    const focused=box.contains(document.activeElement)?document.activeElement.dataset.unf:null;
+    if(!fr.length)box.innerHTML='<div class="lookSub">Zatiaľ žiadni kamaráti. Pošli niekomu výzvu.</div>';
+    else{
+      const all=[...fr,{n:"Ty",w:data.me|0,c:data.meC|0,me:1}].sort((a,b)=>(b.w|0)-(a.w|0));
+      box.innerHTML='<div class="lookSub">Súboj týždňa · mávnutia overené serverom</div>'+all.map((f,i)=>`<div class="sr"${f.me?' style="font-weight:800"':""}><div>${["🥇","🥈","🥉"][i]||"👯"} ${esc(f.n)} · ${f.w|0} 👋<small>${f.c|0} ${pl(f.c|0,"overený úlovok","overené úlovky","overených úlovkov")} ✈️</small></div>${f.me?"":`<button class="ghost" data-unf="${esc(f.p)}">Odobrať</button>`}</div>`).join("");
+    }
+    if(focused)(box.querySelector(`[data-unf="${CSS.escape(focused)}"]`)||$("friendsBox").querySelector("summary")).focus({preventScroll:true});
+    if($("frStatus").dataset.error==="load")$("frStatus").textContent="";
+  }catch(e){
+    if(generation!==friendsGeneration)return;
+    if(!box.querySelector("[data-unf]"))box.textContent="";
+    $("frStatus").dataset.error="load";
+    $("frStatus").textContent="Kamarátov sa nepodarilo načítať.";
+    $("frRetry").hidden=false;
+  }
 }
-document.addEventListener("click",async e=>{const b=e.target.closest("[data-unf]");if(!b)return;await apiPost("/api/friends",{remove:b.dataset.unf}).catch(()=>{});toast("Kamarát odobratý","Už neuvidíte svoje mávnutia");friendsRender()});
+$("frRetry").onclick=()=>friendsRender();
+document.addEventListener("click",async e=>{
+  const button=e.target.closest("[data-unf]");
+  if(!button||friendRemoval||KID())return;
+  friendRemoval=true;button.setAttribute("aria-disabled","true");
+  const status=$("frStatus");
+  status.dataset.error="";
+  status.textContent="Odoberám kamaráta…";
+  try{
+    const response=await apiPost("/api/friends",{remove:button.dataset.unf}),data=await response.json();
+    if(!response.ok||data.ok!==true)throw Error("remove");
+    status.textContent="Kamarát odobratý.";
+    SOC.frw=null;
+    await friendsRender();
+  }catch(e){status.textContent="Kamaráta sa nepodarilo odobrať. Skús znova."}
+  finally{friendRemoval=false;button.removeAttribute("aria-disabled")}
+});
 if($("friendsBox"))$("friendsBox").addEventListener("toggle",()=>{if($("friendsBox").open)friendsRender()});
 
 /* 📴 mávnutia bez internetu: odoslať, keď sa signál vráti (server má kontrolu duplicít) */
