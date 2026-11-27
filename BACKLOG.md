@@ -1,4 +1,31 @@
-# Nedokončené odporúčania expertov (stav 22. 11. 2026, verzia 59)
+# Nedokončené odporúčania expertov (stav 27. 11. 2026, verzia 101)
+
+## ▶ Stav 27. 11. 2026 – verzia 101 (prehľad pre ďalšiu prácu)
+
+**Appka dnes:** 3 záložky – **Lov** (radar, hlavné lietadlo, osobný lov, Atlas SR, súťažný pulz s rivalom, týždenná misia Slovenska, liga a kraje, tímy), **Denník** (letecký denník a pas: krajiny, aerolinky, mapa sveta) a **Zbierka** (kartičky Collector Edition, Klenotnica, sady, edície, odznaky, profilová kartička „Moja obloha“, nastavenia, rodinné profily). Vesmír už nie je samostatná záložka. Ďalej privacy.html a rules.html.
+
+**Kód:** 24 klasických skriptov so spoločným globálnym scope (core, ui, ar, space, weather, extras, account, social, atlas, wrapped, push, track, towns, catalog, cards, journal, mail, golden, teams, duel, sound, santa, brand, main) + server `server/worker.js` (Cloudflare Worker, SQLite Durable Object „Sky“, 46 API). Knižnice v `lib/`, písma v `fonts/`.
+
+**Testy:** 15 node testov v `tests/` + Playwright `tests/smoke.py`, všetko v CI pri každom pushi (zelené). Verzia: `node tests/bump.mjs`.
+
+**Premenné servera:** ADMIN_KEY · zdroje dát ADSB_LOL_API_KEY (+ limity), AIRPLANES_LIVE_ENABLED, ADSB_FI_ENABLED · piloty RELAY_PILOT (štafeta, predvolene zapnutá) a ACCOUNT_ROLLOUT (prihlásenie a záloha zbierky, odosielanie cez Resend – podrobnosti v RUNBOOK). A/B a lievik sú vypnuté.
+
+**Pribudlo v63–v101:** Klenotnica, Collector Edition, osobný lov, Atlas liga, súťažný pulz, bezpečný reset hráčov (v68) a ochrana účtov po resete (v69), upozornenie pre WhatsApp, týždenná misia, Letecký denník a pas, kartičky aeroliniek a aeroklubov, nový radar so serverovým zdrojom, rytiny vzácnosti, štafeta, súkromie a pravidlá, výzva na prezývku, pilot účtu so zálohou, „Pozri hore“.
+
+**Overené, že zostali opravy z 22. 11.:** level (lvlB, lvlWatch), edície vrátane Adventu a Vianoc, /api/planes, Mapa mávania, QR darček, odvolanie skrytého mena, Derby krajov, 3 profily, špeciálne nátery.
+
+**Otvorené – majiteľ a testeri:**
+- PLAN-V69-V72.md: ručný test WhatsApp na iPhone a Androide · odkaz 3–5 testerom bez návodu (zamietnutá poloha, výpadok siete) · vyhodnotiť štatistiky po bete · zvoliť cieľ týždennej misie v /admin (0 = vypnutá).
+- TESTOVANIE-V66.md: scenáre pre testerov.
+- Pilot účtu: overiť odosielaciu doménu a skutočné doručenie pred otvorením.
+- Prevádzka: Workers Paid, UptimeRobot, notifikácie Cloudflare, TG_TOKEN/TG_CHAT · 2FA, ruleset, secret scanning · údaje prevádzkovateľa v súkromí, DPA · PR Santa do 5. 12., generálka 17. 12. (#santatest) · OZ, doména.
+
+**Otvorené – Claude:**
+- znova spustiť test „každý klik“ a iPhone SE / slabý signál na v101 (v r4 im došiel limit).
+- Context7, Serena a Repomix tu nejdú nainštalovať (inštalácia balíkov je vypnutá); Context7 sa dá pripojiť ako konektor na claude.ai.
+
+---
+
 
 Plná verzia s tabuľkami: dokument „Čo to letí? – nedokončené odporúčania expertov“ (https://claude.ai/artifact/6HsNcvNfy2LqKf25hJvUHT).
 
