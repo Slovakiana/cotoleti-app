@@ -38,6 +38,45 @@ for(const form of ["classic","n","g","z","h","f"]){
   assert.ok(sw.includes(file),`${file} je dostupné offline`);
   assert.equal(readFileSync(new URL("../"+file,import.meta.url)).toString("ascii",8,12),"WEBP");
 }
+const illustrations=vm.runInContext("Object.entries(CARD_ILLUSTRATIONS)",ctx);
+const illustratedForms=new Set(illustrations.map(([key])=>key.split(":")[1]));
+assert.deepEqual([...illustratedForms].sort(),["","f","g","h","n","z"]);
+ctx.CARD_ART_REV="?v=test";
+for(const [key,asset] of illustrations){
+  const [code,form]=key.split(":");
+  const file=`lib/card-art/${asset}.webp`;
+  assert.equal(vm.runInContext(`cardArtURL("${form}","${code}")`,ctx),file+"?v=test");
+  assert.ok(sw.includes(`"${file}"`),`${file} je dostupné offline`);
+  assert.equal(readFileSync(new URL("../"+file,import.meta.url)).toString("ascii",8,12),"WEBP");
+}
+assert.equal(vm.runInContext('cardArtURL("n","B738")',ctx),"lib/card-art/n.webp?v=test");
+const catalog=readFileSync(new URL("../js/catalog.js",import.meta.url),"utf8");
+ctx.TYPES={};
+vm.runInContext(catalog,ctx);
+const section=(from,to)=>src.slice(src.indexOf(from),src.indexOf(to,src.indexOf(from)));
+vm.runInContext(section("const SETS_T=","// album Chvosty"),ctx);
+vm.runInContext(section("const SET_COVERS=","function setCover("),ctx);
+vm.runInContext(section("const EDS=","// zapíše edíciu"),ctx);
+vm.runInContext(section("const EDITION_DESIGN=","function editionCard("),ctx);
+for(const [key] of illustrations){
+  const [code]=key.split(":");
+  assert.ok(vm.runInContext(`Object.hasOwn(CAT,"${code}")`,ctx),key);
+}
+for(const [id,,name] of vm.runInContext("EDS",ctx)){
+  const style=vm.runInContext(`EDITION_DESIGN["${id}"]`,ctx);
+  assert.ok(style,`Chýba návrh edície ${name}`);
+  if(style[3]){
+    const file=`lib/card-art/ed-${id}.webp`;
+    assert.ok(sw.includes(`"${file}"`),`${file} je dostupné offline`);
+    assert.equal(readFileSync(new URL("../"+file,import.meta.url)).toString("ascii",8,12),"WEBP");
+  }
+}
+for(const set of vm.runInContext("SETS_T",ctx)){
+  const cover=vm.runInContext(`SET_COVERS["${set.id}"]`,ctx);
+  assert.ok(cover&&set.t.includes(cover[0]),`Obálka ${set.n} má reprezentanta zo sady`);
+}
+const coverage=vm.runInContext(`[Object.keys(CARD_ILLUSTRATIONS).filter(k=>k.endsWith(":")).length,CATALOG.length,Object.values(EDITION_DESIGN).filter(d=>d[3]).length,EDS.length]`,ctx);
+console.log(`✓ Vlastné ilustrácie ${coverage[0]}/${coverage[1]} typov a ${coverage[2]}/${coverage[3]} edícií`);
 const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 assert.match(html,/Collector Edition v65/);
 console.log("✓ päť odlišných výtvarných motívov, poctivé odhalenia a osobný lov");

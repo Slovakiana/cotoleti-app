@@ -1,17 +1,28 @@
 "use strict";
 /* ============ Počasie: kondenzačná čiara a „uvidíš ho?“ ============ */
-const WX={data:null,t:0,loading:false,pos:null};
+const WX={data:null,t:0,loading:false,pos:null,next:0,attempted:"",fail:0};
+function weatherHere(){
+  return WX.pos&&S.pos&&Math.abs(WX.pos.lat-S.pos.lat)<=.1&&Math.abs(WX.pos.lon-S.pos.lon)<=.1?WX.data:null;
+}
 async function loadWx(){
-  if(!S.pos||WX.loading||(WX.next&&Date.now()<WX.next))return;
-  const moved=!WX.pos||Math.abs(WX.pos.lat-S.pos.lat)>.1||Math.abs(WX.pos.lon-S.pos.lon)>.1;
-  if(WX.data&&!moved&&Date.now()-WX.t<15*60e3)return;
+  if(!S.pos||WX.loading)return;
+  const requestedPos={...S.pos},key=radarPositionKey(requestedPos);
+  if(WX.attempted===key&&Date.now()<WX.next)return;
+  if(weatherHere()&&Date.now()-WX.t<15*60e3)return;
   WX.loading=true;
+  if(WX.attempted!==key)WX.fail=0;
+  WX.attempted=key;
   const lv=[400,300,250,200],hourly=lv.map(l=>"temperature_"+l+"hPa,relative_humidity_"+l+"hPa").join(",");
-  const u=`https://api.open-meteo.com/v1/forecast?latitude=${S.pos.lat.toFixed(2)}&longitude=${S.pos.lon.toFixed(2)}&current=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,is_day,temperature_2m&hourly=${hourly}&forecast_days=2&timezone=auto`;
-  try{const {ok,j}=await getJSON(ROUTES[0].wrap(u),8000);
-    if(ok&&j?.current){WX.data=j;WX.t=Date.now();WX.pos={...S.pos}}}catch(e){}
-  if(Date.now()-WX.t>60e3){WX.fail=(WX.fail||0)+1;WX.next=Date.now()+Math.min(15*60e3,30e3*2**Math.min(5,WX.fail-1))}else{WX.fail=0;WX.next=0}
-  WX.loading=false;
+  const u=`https://api.open-meteo.com/v1/forecast?latitude=${requestedPos.lat.toFixed(2)}&longitude=${requestedPos.lon.toFixed(2)}&current=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,is_day,temperature_2m&hourly=${hourly}&forecast_days=2&timezone=auto`;
+  let data;
+  try{const {ok,j}=await getJSON(ROUTES[0].wrap(u),8000);if(ok&&j?.current)data=j}catch(e){}
+  finally{WX.loading=false}
+  if(!S.pos||radarPositionKey(S.pos)!==key){WX.next=0;return}
+  if(data){
+    WX.data=data;WX.t=Date.now();WX.pos=requestedPos;WX.fail=0;WX.next=0;
+  }else{
+    WX.fail++;WX.next=Date.now()+Math.min(15*60e3,30e3*2**Math.min(5,WX.fail-1));
+  }
 }
 function wxIdx(){
   const j=WX.data;if(!j||!j.hourly||!j.current)return 0;
@@ -20,7 +31,7 @@ function wxIdx(){
 const esW=T=>6.112*Math.exp(17.62*T/(243.12+T)),esI=T=>6.112*Math.exp(22.46*T/(272.62+T));
 const LEVELS_H=[[400,7200],[300,9200],[250,10400],[200,11800]];
 function contrail(alt){
-  if(!WX.data||alt==null)return null;
+  if(!WX.data?.hourly||alt==null)return null;
   if(alt<6000)return {p:2,t:"letí príliš nízko na bielu čiaru"};
   const lv=LEVELS_H.reduce((b,x)=>Math.abs(x[1]-alt)<Math.abs(b[1]-alt)?x:b)[0],i=wxIdx(),h=WX.data.hourly;
   const T=h["temperature_"+lv+"hPa"]&&h["temperature_"+lv+"hPa"][i],RH=h["relative_humidity_"+lv+"hPa"]&&h["relative_humidity_"+lv+"hPa"][i];
@@ -43,7 +54,7 @@ function visibility(a){
 HOOKS.fresh.push(loadWx);
 HOOKS.live.push(a=>{
   const el=$("h-wx");
-  if(!a||!WX.data||skyStale()){if(el._h){el.innerHTML="";el._h=""}return}
+  if(!a||!weatherHere()||skyStale()){if(el._h){el.innerHTML="";el._h=""}return}
   const ct=contrail(a.alt),vis=visibility(a);
   const html=(vis?`<div>${vis}</div>`:"")+(ct?`<div>✈️💨 Biela čiara za ním: <b>${ct.p} %</b> · ${ct.t}${ct.T!=null?`<div class="lookSub">Tam hore je ${nf(ct.T)} °C`+(ct.RHi!=null?` a vlhkosť voči ľadu ${nf(ct.RHi)} %`:"")+`</div>`:""}<div class="cbar"><i style="width:${ct.p}%"></i></div></div>`:"");
   if(el._h!==html){el.innerHTML=html;el._h=html}

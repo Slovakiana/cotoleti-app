@@ -48,7 +48,7 @@ function objectJSON(text) {
 }
 const EMO = ["👋","❤️","🇸🇰","🔥","😂","🫡"];
 const KRAJE = ["BA","TT","TN","NR","ZA","BB","PO","KE","XX"];
-const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type, x-admin-key","Access-Control-Max-Age":"86400"};
+const CORS = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Content-Type, x-admin-key","Access-Control-Expose-Headers":"Retry-After","Access-Control-Max-Age":"86400"};
 // siete dátových centier a VPN – mávnutia z nich sa do súťaží nerátajú (AWS, Google, Azure, DigitalOcean, OVH, Hetzner, M247, Datacamp, Linode, Vultr, Contabo, Oracle, Alibaba, Scaleway, Leaseweb)
 const BIG_TOWNS = ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystrica", "Nitra", "Trnava", "Trenčín", "Martin", "Poprad"];
 const DC_ASN = new Set([16509, 14618, 15169, 396982, 8075, 14061, 16276, 24940, 9009, 60068, 63949, 20473, 51167, 31898, 45102, 12876, 60781, 212238, 136787]);
@@ -171,7 +171,7 @@ function cleanName(v, max = 20) {
   if (BAD.some(w => flat.includes(w.replace(/(.)\1+/g, "$1")))) return null;
   return s;
 }
-const VERSION = "v101";
+const VERSION = "v104";
 const PLAYER_DATA_TABLES = [
   "wavewhy", "typeseq", "edcatch", "catches", "mayorm", "mayorhof", "heatp",
   "mission_waves", "relay_waves", "wavelog", "waveby", "maildel", "nicks",
@@ -302,6 +302,21 @@ export class Sky extends DurableObject {
     try { this.sql.exec("CREATE INDEX IF NOT EXISTS wavelog_pid ON wavelog(pid, day)"); } catch (e) {}
     for (const c of ["type TEXT", "reg TEXT", "el REAL", "ok INTEGER", "shiny INTEGER"]) try { this.sql.exec("ALTER TABLE catches ADD COLUMN " + c); } catch (e) {}
     try { this.sql.exec("ALTER TABLE golden ADD COLUMN crew INTEGER"); } catch (e) {}
+    for (const column of ["title TEXT", "body TEXT", "url TEXT", "created INTEGER", "expires INTEGER", "next INTEGER DEFAULT 0", "attempts INTEGER DEFAULT 0", "sent INTEGER DEFAULT 0", "sending INTEGER DEFAULT 0"]) {
+      try { this.sql.exec("ALTER TABLE queue ADD COLUMN " + column); } catch (e) {}
+    }
+    this.sql.exec("CREATE INDEX IF NOT EXISTS queue_due ON queue(sent, next)");
+    this.sql.exec("CREATE INDEX IF NOT EXISTS queue_inbox ON queue(id, qid)");
+    if (!this.getMeta("push-queue-v102")) {
+      const migrate = () => {
+        this.sql.exec("DELETE FROM queue WHERE title IS NULL AND qid NOT IN (SELECT MAX(qid) FROM queue WHERE title IS NULL GROUP BY id)");
+        this.sql.exec("UPDATE queue SET title=(SELECT title FROM msgs WHERE msgs.id=queue.id), body=(SELECT body FROM msgs WHERE msgs.id=queue.id), url=(SELECT url FROM msgs WHERE msgs.id=queue.id), created=(SELECT t FROM msgs WHERE msgs.id=queue.id), expires=(SELECT t+900000 FROM msgs WHERE msgs.id=queue.id) WHERE title IS NULL");
+        this.sql.exec("DELETE FROM queue WHERE title IS NULL OR expires<=?", Date.now());
+        this.setMeta("push-queue-v102", "1");
+      };
+      if (this.ctx.storage.transactionSync) this.ctx.storage.transactionSync(migrate);
+      else migrate();
+    }
     try { this.sql.exec("ALTER TABLE subs ADD COLUMN streak INTEGER DEFAULT 1"); } catch (e) {}
     try { this.sql.exec("ALTER TABLE subs ADD COLUMN leg INTEGER DEFAULT 1"); } catch (e) {}
     this.sql.exec("CREATE TABLE IF NOT EXISTS streaks(id TEXT PRIMARY KEY, n INTEGER, day TEXT)");
@@ -336,13 +351,24 @@ export class Sky extends DurableObject {
     return {wk, waves, users, newUsers: fresh, kraj: kraj ? {k: kraj.k, n: kraj.s} : null, town: town ? {name: town.town, n: town.s} : null, plane: top ? {hex: top.hex, n: top.s, call: pl && pl.call, type: pl && pl.type, dest: pl && pl.dest} : null, team: team ? {name: team.name, n: team.n} : null};
   }
   async postWeekly(r) {
-    const e = this.env; if (!e.TG_TOKEN || !e.TG_CHAT) return;
+    const e = this.env; if (!e.TG_TOKEN || !e.TG_CHAT) return true;
     const KN = {BA: "Bratislavský", TT: "Trnavský", TN: "Trenčiansky", NR: "Nitriansky", ZA: "Žilinský", BB: "Banskobystrický", PO: "Prešovský", KE: "Košický"};
     const text = `✈️ Čo to letí? – týždeň od ${r.wk}\n👋 ${r.waves} mávnutí, ${r.users} spotterov (${r.newUsers} nových)` +
       (r.kraj ? `\n🏆 Najviac mával ${KN[r.kraj.k] || r.kraj.k} kraj (${r.kraj.n})` : "") + (r.town ? `\n🏙️ Mesto týždňa: ${r.town.name}` : "") +
       (r.plane ? `\n🥇 Lietadlo týždňa: ${r.plane.call || r.plane.hex}${r.plane.dest ? " → " + r.plane.dest : ""} (${r.plane.n}× zamávané)` : "") + (r.team ? `\n👥 Tím týždňa: ${r.team.name}` : "") +
       "\n\nPozri hore 👉 https://slovakiana.github.io/cotoleti-app/";
-    try { await fetch(`https://api.telegram.org/bot${e.TG_TOKEN}/sendMessage`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({chat_id: e.TG_CHAT, text, disable_web_page_preview: false})}); } catch (err) {}
+    return this.telegram(text);
+  }
+  async telegram(text) {
+    const e = this.env;
+    if (!e.TG_TOKEN || !e.TG_CHAT) return true;
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 5000);
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${e.TG_TOKEN}/sendMessage`, {method: "POST", signal: ctl.signal,
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify({chat_id: e.TG_CHAT, text})});
+      return r.ok && (await r.json()).ok === true;
+    } catch (error) { return false; }
+    finally { clearTimeout(timer); }
   }
   // spoločná časť pre všetkých – počíta sa raz za 10 s, nie pri každej požiadavke
   snap(d, now) {
@@ -424,8 +450,10 @@ export class Sky extends DurableObject {
   // upozornenie majiteľovi na Telegram (max 1× za 6 h pre daný typ)
   async alert(kind, text) {
     const e = this.env; if (!e.TG_TOKEN || !e.TG_CHAT) return;
-    const key = "al:" + kind, last = Number(this.getMeta(key) || 0); if (Date.now() - last < 6 * 3600e3) return; this.setMeta(key, Date.now());
-    try { await fetch(`https://api.telegram.org/bot${e.TG_TOKEN}/sendMessage`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({chat_id: e.TG_CHAT, text: "⚠️ Čo to letí? – " + text})}); } catch (err) {}
+    const key = "al:" + kind, last = Number(this.getMeta(key) || 0);
+    if (Date.now() - last < 6 * 3600e3) return;
+    if (await this.telegram("⚠️ Čo to letí? – " + text)) this.setMeta(key, Date.now());
+    else this.bump("telegram_fail");
   }
   week(t = Date.now()) { const d = new Date(this.day(t) + "T12:00:00Z"); const day = (d.getUTCDay() + 6) % 7; return new Date(d.getTime() - day * 86400e3).toISOString().slice(0, 10); }
   ensureMissionWeek(week) {
@@ -592,6 +620,7 @@ export class Sky extends DurableObject {
     this.sql.exec("DELETE FROM account_codes WHERE id=? OR email_key IN (SELECT email_key FROM player_accounts WHERE id=?)", id, id);
     this.sql.exec("DELETE FROM player_accounts WHERE id=?", id);
     this.sql.exec("DELETE FROM xfer_receipts WHERE id=?", id);
+    this.sql.exec("DELETE FROM queue WHERE id=?", id);
     this.sql.exec("DELETE FROM ids WHERE id=?", id);
     this._div = null;
   }
@@ -815,46 +844,116 @@ export class Sky extends DurableObject {
     this._keys = {priv, pub: k.pub};
     return this._keys;
   }
-  async sendPush(id) {
-    const s = this.row("SELECT sub FROM subs WHERE id=?", id);
-    if (!s) return;
-    let sub; try { sub = JSON.parse(s.sub); } catch (e) { return; }
-    if (!sub || !sub.endpoint) return;
-    const k = await this.keys(), aud = new URL(sub.endpoint).origin;
+  async sendPush(id, ttl) {
+    const stored = this.row("SELECT sub FROM subs WHERE id=?", id);
+    if (!stored) return {drop: true};
+    let sub;
+    try { sub = JSON.parse(stored.sub); } catch (error) { return {drop: true}; }
+    if (!sub?.endpoint) return {drop: true};
+    const endpoint = new URL(sub.endpoint), audience = endpoint.origin;
+    if (!PUSH_HOSTS.some(host => endpoint.hostname === host || endpoint.hostname.endsWith("." + host))) return {drop: true};
+    const k = await this.keys();
     const head = b64u(JSON.stringify({typ: "JWT", alg: "ES256"}));
-    const body = b64u(JSON.stringify({aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "https://slovakiana.github.io/cotoleti-app/"}));
+    const body = b64u(JSON.stringify({aud: audience, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "https://slovakiana.github.io/cotoleti-app/"}));
     const sig = await crypto.subtle.sign({name: "ECDSA", hash: "SHA-256"}, k.priv, new TextEncoder().encode(head + "." + body));
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 5000);
     try {
-      if (!PUSH_HOSTS.some(h => { const hn = new URL(sub.endpoint).hostname; return hn === h || hn.endsWith("." + h); })) return;
-      const ac = new AbortController(); setTimeout(() => ac.abort(), 5000);
-      const r = await fetch(sub.endpoint, {method: "POST", redirect: "manual", signal: ac.signal, headers: {Authorization: `vapid t=${head}.${body}.${b64u(sig)}, k=${k.pub}`, TTL: "900", Urgency: "high", "Content-Length": "0"}});
-      if (r.status === 404 || r.status === 410) this.sql.exec("DELETE FROM subs WHERE id=?", id);
-      return r.status < 300 || r.status === 404 || r.status === 410;
-    } catch (e) { return false; }
+      const response = await fetch(sub.endpoint, {method: "POST", redirect: "manual", signal: ctl.signal,
+        headers: {Authorization: `vapid t=${head}.${body}.${b64u(sig)}, k=${k.pub}`, TTL: String(ttl), Urgency: "high", "Content-Length": "0"}});
+      if (response.ok) return {sent: true};
+      if (response.status === 404 || response.status === 410) {
+        this.sql.exec("DELETE FROM subs WHERE id=? AND sub=?", id, stored.sub);
+        return {drop: true};
+      }
+      if (response.status === 429 || response.status >= 500) return {delay: retryDelay(response.headers.get("Retry-After"), Date.now())};
+      return {drop: true};
+    } catch (error) { return {}; }
+    finally { clearTimeout(timer); }
   }
-  notify(id, title, body, url = "./", force = false) {
-    // najviac 4 upozornenia denne na človeka (spoločný moment a uzávierky sa vynucujú)
-    if (!force && !this.rate("ntf:" + id, 4, 86400e3)) { this.bump("ntf_cap"); return; }
-    this.sql.exec("INSERT INTO msgs(id, title, body, url, t) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title=excluded.title, body=excluded.body, url=excluded.url, t=excluded.t", id, title, body, url, Date.now());
-    this.sql.exec("INSERT INTO queue(id) VALUES(?)", id);
+  notify(id, title, body, url = "./", force = false, expires = Date.now() + 15 * 60e3) {
+    if (!force && !this.rate("ntf:" + id, 4, 86400e3)) { this.bump("ntf_cap"); return false; }
+    const now = Date.now();
+    if (expires <= now) return false;
+    this.sql.exec("INSERT INTO queue(id, title, body, url, created, expires, next) VALUES(?, ?, ?, ?, ?, ?, ?)", id, title, body, url, now, expires, now);
+    return true;
   }
-  async kick() { const a = await this.ctx.storage.getAlarm(); if (!a) await this.ctx.storage.setAlarm(Date.now() + 200); }
+  async kick() {
+    const now = Date.now();
+    const due = this.row("SELECT MIN(next) AS at FROM queue WHERE sent=0 AND expires>?", now)?.at;
+    if (due == null) return;
+    const when = Math.max(now + 200, due), alarm = await this.ctx.storage.getAlarm();
+    if (!alarm || alarm <= now || alarm > when) await this.ctx.storage.setAlarm(when);
+  }
+  updatePushTrack(item, state) {
+    if (item.url?.startsWith("./#let=")) this.sql.exec("UPDATE tracks SET notified=? WHERE id=? AND cs=? AND notified=2",
+      state, item.id, cleanCs(item.url.slice("./#let=".length)));
+  }
   async alarm() {
     try {
-      const rows = this.sql.exec("SELECT qid, id FROM queue ORDER BY qid LIMIT 40").toArray();
-      for (const r of rows) this.sql.exec("DELETE FROM queue WHERE qid=?", r.qid);
-      const res = await Promise.allSettled(rows.map(r => this.sendPush(r.id)));
-      const bad = res.filter(x => x.status === "rejected" || x.value === false).length; if (bad) for (let i = 0; i < bad; i++) this.bump("push_fail");
-    } finally {
-      if (this.row("SELECT 1 AS x FROM queue LIMIT 1")) await this.ctx.storage.setAlarm(Date.now() + 1000);
-    }
+      const now = Date.now();
+      const expired = this.sql.exec("SELECT id, url FROM queue WHERE sent=0 AND expires<=?", now).toArray();
+      for (const item of expired) this.updatePushTrack(item, 3);
+      this.sql.exec("DELETE FROM queue WHERE expires<=?", now);
+      const rows = this.sql.exec("SELECT * FROM queue WHERE sent=0 AND next<=? ORDER BY next, qid LIMIT 40", now).toArray();
+      // Jedno prebudenie na hráča. Každá správa zostáva samostatnou položkou pre service worker.
+      const grouped = new Map();
+      for (const row of rows) {
+        if (!grouped.has(row.id)) grouped.set(row.id, []);
+        grouped.get(row.id).push(row);
+      }
+      await Promise.all([...grouped.entries()].map(async ([id, items]) => {
+        for (const item of items) this.sql.exec("UPDATE queue SET sending=1 WHERE qid=?", item.qid);
+        const latest = items.at(-1);
+        this.sql.exec("INSERT INTO msgs(id, title, body, url, t) VALUES(?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title=excluded.title, body=excluded.body, url=excluded.url, t=excluded.t WHERE excluded.t>=msgs.t",
+          id, latest.title, latest.body, latest.url, latest.created);
+        const ttl = Math.max(1, Math.min(900, Math.floor((Math.min(...items.map(item => item.expires)) - Date.now()) / 1000)));
+        let result;
+        try { result = await this.sendPush(id, ttl); } catch (error) { result = {}; }
+        for (const item of items) {
+          if (result?.sent) {
+            this.sql.exec("UPDATE queue SET sent=1, sending=0 WHERE qid=?", item.qid);
+            this.updatePushTrack(item, 1);
+            this.bump("push_accepted");
+            continue;
+          }
+          const attempts = item.attempts + 1;
+          const next = Date.now() + Math.max(result?.delay || 0, Math.min(120e3, 5000 * 2 ** (attempts - 1)));
+          if (result?.drop || attempts >= 6 || next >= item.expires) {
+            this.sql.exec("DELETE FROM queue WHERE qid=?", item.qid);
+            this.updatePushTrack(item, 3);
+            this.bump("push_drop");
+          } else {
+            this.sql.exec("UPDATE queue SET attempts=?, next=?, sending=0 WHERE qid=?", attempts, next, item.qid);
+            this.bump("push_retry");
+          }
+        }
+      }));
+    } finally { await this.kick(); }
   }
   async cron() {
+    if (this._cronRun) return this._cronRun;
+    this.setMeta("cronStart", Date.now());
+    this._cronRun = (async () => {
+      try {
+        await this.runCron();
+        await this.kick();
+        this.setMeta("cron", Date.now());
+        this.setMeta("cronError", "");
+      } catch (error) {
+        this.setMeta("cronError", String(Date.now()));
+        this.bump("cron_fail");
+        await this.kick().catch(() => {});
+        throw error;
+      }
+    })().finally(() => { this._cronRun = null; });
+    return this._cronRun;
+  }
+  async runCron() {
     const d = this.day(), now = Date.now();
-    this.setMeta("cron", now);
+    this.sql.exec("DELETE FROM queue WHERE sent=1 AND expires<=?", now);
     // Radar sa obnovuje len pri otvorení alebo pri hernom dopyte.
     if (this.getMeta("cleanH") !== String(Math.floor(now / 3600e3))) {
-      this.setMeta("cleanH", Math.floor(now / 3600e3)); this.cleanup(d, now);
+      this.cleanup(d, now); this.setMeta("cleanH", Math.floor(now / 3600e3));
       const S = {}; for (const r of this.sql.exec("SELECT k, n FROM sig WHERE day=?", d).toArray()) S[r.k] = r.n;
       const lim = {"401admin": 3, mint_block: 30, teleport: 200, vpn: 300, xclaim_bad: 50, "429:sky": 2000, "429:post": 1000, "429:wave": 300};
       for (const [k, n] of Object.entries(lim)) if ((S[k] || 0) >= n) await this.alert(k, `signál ${k}: ${S[k]}× dnes`);
@@ -921,14 +1020,19 @@ export class Sky extends DurableObject {
     // týždenný súhrn v pondelok ráno
     const wk = this.week(), prev = this.week(now - 7 * 86400e3);
     if (dt.getUTCDay() === 1 && dt.getUTCHours() >= 7 && this.getMeta("weekly") !== prev) {
-      this.setMeta("weekly", prev); const r = this.weekly(prev); this.setMeta("weeklyData", JSON.stringify(r)); await this.postWeekly(r);
+      if (Number(this.getMeta("weeklyRetry") || 0) <= now) {
+        const r = this.weekly(prev);
+        this.setMeta("weeklyData", JSON.stringify(r));
+        if (await this.postWeekly(r)) this.setMeta("weekly", prev);
+        else { this.setMeta("weeklyRetry", now + 15 * 60e3); this.bump("telegram_fail"); }
+      }
     }
     // 1) spoločný moment
     const m = this.moment(d);
     if (!m.sent && now >= m.start && now < m.start + MOMENT_MS) {
       this.sql.exec("UPDATE moments SET sent=1 WHERE day=?", d);
       for (const s of this.sql.exec("SELECT id FROM subs WHERE moment=1").toArray())
-        this.notify(s.id, "👆 Pozri hore. Teraz.", "Celé Slovensko sa práve pozerá na oblohu. Máš 3 minúty.", "./#moment", true);
+        this.notify(s.id, "👆 Pozri hore. Teraz.", "Celé Slovensko sa práve pozerá na oblohu. Máš 3 minúty.", "./#moment", true, m.start + MOMENT_MS);
     } else if (!m.sent && now >= m.start + MOMENT_MS) this.sql.exec("UPDATE moments SET sent=1 WHERE day=?", d);
     // 2) zlaté lietadlo dňa
     if (Math.floor(now / 60e3) % 5 === 0) await this.pickGolden(d, now);
@@ -953,13 +1057,13 @@ export class Sky extends DurableObject {
         const a = approachMin(ac, t.lat, t.lon), who = t.label || cs;
         const soon = (a.t != null && a.t > 0 && a.t <= 12 && a.d <= 30) || a.now <= 25;
         if (soon) {
-          this.sql.exec("UPDATE tracks SET notified=1 WHERE id=? AND cs=?", t.id, cs);
           const mins = a.t != null && a.t > 1 ? `o ~${Math.round(a.t)} min` : "práve teraz";
-          this.notify(t.id, `✈️ ${who} bude nad tebou ${mins}`, "Vybehni von a zamávaj. Ťukni a ukážeme ti, kam sa pozrieť.", "./#let=" + cs);
+          const expires = now + Math.min(15, Math.max(3, (a.t || 0) + 2)) * 60e3;
+          const queued = this.notify(t.id, `✈️ ${who} bude nad tebou ${mins}`, "Vybehni von a zamávaj. Ťukni a ukážeme ti, kam sa pozrieť.", "./#let=" + cs, false, expires);
+          this.sql.exec("UPDATE tracks SET notified=? WHERE id=? AND cs=?", queued ? 2 : 3, t.id, cs);
         }
       }
     }
-    if (this.row("SELECT 1 AS x FROM queue LIMIT 1")) await this.kick();
   }
   atlasLeaderboard(region, id) {
     // Preserve the existing single entry per public nickname. An authenticated player
@@ -1215,6 +1319,14 @@ export class Sky extends DurableObject {
     if (p === "/cron") { await this.cron(); return json({ok: true}); }
     if (p === "/api/health") {
       const c = Number(this.getMeta("cron") || 0);
+      const cronStart = Number(this.getMeta("cronStart") || c);
+      const cronError = Number(this.getMeta("cronError") || 0);
+      const queued = this.row("SELECT COUNT(*) AS n, MIN(created) AS oldest FROM queue WHERE sent=0 AND expires>?", now);
+      const awaitingDisplay = this.row("SELECT COUNT(*) AS n FROM queue WHERE sent=1 AND expires>?", now).n;
+      const delivery = Object.fromEntries(this.sql.exec("SELECT k, n FROM sig WHERE day=? AND k IN ('push_accepted', 'push_displayed', 'push_retry', 'push_drop')", d).toArray().map(row => [row.k, row.n]));
+      const push = {queued: queued.n, oldestSec: queued.oldest == null ? null : Math.max(0, Math.floor((now - queued.oldest) / 1000)),
+        awaitingDisplay, acceptedToday: delivery.push_accepted || 0, displayedToday: delivery.push_displayed || 0,
+        retriesToday: delivery.push_retry || 0, droppedToday: delivery.push_drop || 0};
       const up = Number(this.getMeta("upstream") || 0);
       const sn = this.lastRadarSnapshot();
       const radar = {ageSec: sn ? Math.max(0, Math.floor((now - sn.t) / 1000)) : null, provider: sn?.provider || null,
@@ -1222,7 +1334,7 @@ export class Sky extends DurableObject {
           const st = this.radarStatus(i);
           return {name: ADSB_NAMES[i], requestsToday: st.count, requestsThisWeek: st.weekCount, requestsThisMonth: st.monthCount, dailyLimit: this.radarLimit(i), weeklyLimit: i === 0 ? this.radarBudget(i).weekly : null, monthlyLimit: i === 0 ? this.radarBudget(i).monthly : null, estimatedBytesToday: st.dayBytes, estimatedBytesThisMonth: st.monthBytes, status: st.status || null, retryAt: st.until || null};
         })};
-      return json({radar, ok: now - c < 5 * 60e3, version: VERSION, relayPilot: this.relayEnabled() && this.flags().social !== "min", lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
+      return json({radar, ok: now - c < 5 * 60e3 && !cronError, cronStart, cronError: cronError || null, push, version: VERSION, relayPilot: this.relayEnabled() && this.flags().social !== "min", lastCron: c, behindMin: Math.round((now - c) / 60e3), upstreamMin: up ? Math.round((now - up) / 60e3) : null, active: (this.row("SELECT COUNT(*) AS c FROM pres WHERE t > ?", now - 3 * 60e3) || {c: 0}).c});
     }
     if (p === "/api/planes") {
       // 🛩️ lietadlá okolo hráča zo spoločnej snímky oblohy nad SR (formát ako adsb.lol) – jedna požiadavka na sieť pre všetkých
@@ -1769,6 +1881,7 @@ export class Sky extends DurableObject {
       if (id.length < 8 || !host || !/^https:\/\//.test(b.sub.endpoint) || !PUSH_HOSTS.some(h => host === h || host.endsWith("." + h))) return json({error: "bad"}, 400);
       if (!this.rate("sub:" + iph, 300, 86400e3)) return json({error: "rate"}, 429);
       if (this.isKid(id)) return json({error: "kid"}, 403); // detský režim: žiadne upozornenia (ani keď je na rodinnom mobile push zapnutý)
+      if (b.keep && !this.row("SELECT id FROM subs WHERE id=?", id)) return json({error: "subscription"}, 409);
       if (b.keep) { this.sql.exec("UPDATE subs SET sub=?, t=? WHERE id=?", JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), now, id); return json({ok: true}); }
       this.sql.exec("INSERT INTO subs(id, sub, lat, lon, k, moment, t) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, lat=excluded.lat, lon=excluded.lon, k=excluded.k, moment=excluded.moment, t=excluded.t",
         id, JSON.stringify({endpoint: b.sub.endpoint}).slice(0, 1000), round2(b.lat), round2(b.lon), krajOf(num(b.lat), num(b.lon)), b.moment ? 1 : 0, now);
@@ -1800,7 +1913,21 @@ export class Sky extends DurableObject {
     }
     if (p === "/api/msg") {
       const mid = cleanId(qp("id"));
-      const m = (await this.authed(mid, qp("tok"))) ? this.row("SELECT title, body, url FROM msgs WHERE id=?", mid) : null;
+      const allowed = await this.authed(mid, qp("tok"));
+      if (B.inbox || Array.isArray(B.ack)) {
+        if (!allowed) return json({error: "auth"}, 401);
+        if (Array.isArray(B.ack)) {
+          for (const id of B.ack.slice(0, 40)) {
+            if (!Number.isSafeInteger(id) || !this.row("SELECT 1 AS x FROM queue WHERE id=? AND qid=? AND (sent=1 OR sending=1)", mid, id)) continue;
+            this.sql.exec("DELETE FROM queue WHERE qid=?", id);
+            this.bump("push_displayed");
+          }
+          return json({ok: true});
+        }
+        const messages = this.sql.exec("SELECT qid, title, body, url, expires FROM queue WHERE id=? AND (sent=1 OR sending=1) AND expires>? ORDER BY qid LIMIT 40", mid, now).toArray();
+        return json({messages});
+      }
+      const m = allowed ? this.row("SELECT title, body, url FROM msgs WHERE id=? AND t>?", mid, now - 15 * 60e3) : null;
       return json(m || {title: "✈️ Nad tebou sa niečo deje", body: "Ťukni a pozri, čo to letí.", url: "./"});
     }
     if (p === "/api/moment" && req.method === "POST") {
@@ -1809,7 +1936,8 @@ export class Sky extends DurableObject {
         const was = !!this.row("SELECT 1 AS x FROM momentby WHERE day=? AND id=?", d, id);
         if (!was) { this.sql.exec("INSERT INTO momentby(day, id) VALUES(?, ?)", d, id); this.sql.exec("UPDATE moments SET n = n + 1 WHERE day=?", d); }
       }
-      return json({ok: true, n: (this.row("SELECT n FROM moments WHERE day=?", d) || {n: 0}).n});
+      const joined = !!this.row("SELECT 1 AS x FROM momentby WHERE day=? AND id=?", d, id);
+      return json({ok: true, joined, n: (this.row("SELECT n FROM moments WHERE day=?", d) || {n: 0}).n});
     }
     if (p === "/api/sky") {
       if (!this.rate("sky:" + iph, 2000, 60e3)) { this.bump("429:sky"); return json({error: "rate"}, 429); }
@@ -2141,6 +2269,9 @@ export default {
     }
   },
   async scheduled(event, env, ctx) {
-    if (env.SKY) ctx.waitUntil(env.SKY.get(env.SKY.idFromName("slovensko")).fetch("https://do/cron"));
+    if (env.SKY) ctx.waitUntil((async () => {
+      const response = await env.SKY.get(env.SKY.idFromName("slovensko")).fetch("https://do/cron");
+      if (!response.ok) throw Error("cron HTTP " + response.status);
+    })());
   }
 };

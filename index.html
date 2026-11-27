@@ -515,7 +515,8 @@ details summary{cursor:pointer}
 .albums button{min-height:44px}
 .setRow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--tile);border:1px solid var(--divider)}
 .collectionStat{min-height:44px;color:inherit;font:inherit}.collectionStat b,.collectionStat span{display:block}
-.setRow .si{font-size:calc(22px*var(--fs,1))}.setRow .sn{flex:1;font-size:calc(14px*var(--fs,1));font-weight:600}.setRow .sn small{display:block;color:var(--mut2);font-weight:500;font-size:calc(12px*var(--fs,1))}
+.setRow .si{font-size:calc(22px*var(--fs,1))}
+.setRow .sn{flex:1;font-size:calc(14px*var(--fs,1));font-weight:600}.setRow .sn small{display:block;color:var(--mut2);font-weight:500;font-size:calc(12px*var(--fs,1))}
 .setRow .sp{font-weight:700;font-size:calc(13px*var(--fs,1));color:var(--mut)}.setRow.done{border-color:rgba(255,207,79,.5)}.setRow.done .sp{color:#ffcf4f}
 .mini{position:relative}.mini .stars{position:absolute;left:6px;bottom:6px;font-size:calc(10px*var(--fs,1));letter-spacing:-1px;color:#ffcf4f;text-shadow:0 1px 2px #000}
 .monthly{grid-column:1/-1;padding:10px 12px;border-radius:16px;background:linear-gradient(135deg,rgba(255,79,216,.18),rgba(79,195,255,.14));font-size:calc(14px*var(--fs,1))}
@@ -769,9 +770,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=101">
-<link rel="stylesheet" href="lib/experience.css?v=101">
-<link rel="stylesheet" href="lib/brand.css?v=101">
+<link rel="stylesheet" href="lib/journal.css?v=104">
+<link rel="stylesheet" href="lib/experience.css?v=104">
+<link rel="stylesheet" href="lib/brand.css?v=104">
 </head>
 <body>
 <div id="bg"></div>
@@ -1286,6 +1287,13 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <button class="btn pri" id="spotterShare" type="button">Zdieľať kartičku</button>
   <p id="spotterShareStatus" role="status"></p>
 </dialog>
+<dialog id="editionDetail" class="editionDetail" aria-labelledby="editionDetailTitle" aria-describedby="editionDetailProof">
+  <form method="dialog"><button class="btn sec" type="submit">Zavrieť</button></form>
+  <h2 id="editionDetailTitle"></h2>
+  <div id="editionDetailFace"></div>
+  <p class="lookSub" id="editionDetailProof"></p>
+</dialog>
+
 <dialog id="atlasRankDialog" aria-labelledby="atlasRankTitle">
   <div class="atlas-rank-head"><h2 id="atlasRankTitle">🇸🇰 Atlas Slovenska</h2><button class="ghost" id="atlasRankClose" type="button">Zavrieť</button></div>
   <p id="atlasRankStatus" role="status"></p>
@@ -1307,29 +1315,29 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=101"></script>
-<script src="js/ui.js?v=101"></script>
-<script src="js/ar.js?v=101"></script>
-<script src="js/space.js?v=101"></script>
-<script src="js/weather.js?v=101"></script>
-<script src="js/extras.js?v=101"></script>
-<script src="js/account.js?v=101"></script>
-<script src="js/social.js?v=101"></script>
-<script src="js/atlas.js?v=101"></script>
-<script src="js/wrapped.js?v=101"></script>
-<script src="js/push.js?v=101"></script>
-<script src="js/track.js?v=101"></script>
-<script src="js/towns.js?v=101"></script>
-<script src="js/catalog.js?v=101"></script>
-<script src="js/cards.js?v=101"></script>
-<script src="js/journal.js?v=101"></script>
-<script src="js/mail.js?v=101"></script>
-<script src="js/golden.js?v=101"></script>
-<script src="js/teams.js?v=101"></script>
-<script src="js/duel.js?v=101"></script>
-<script src="js/sound.js?v=101"></script>
-<script src="js/santa.js?v=101"></script>
-<script src="js/brand.js?v=101"></script>
-<script src="js/main.js?v=101"></script>
+<script src="js/core.js?v=104"></script>
+<script src="js/ui.js?v=104"></script>
+<script src="js/ar.js?v=104"></script>
+<script src="js/space.js?v=104"></script>
+<script src="js/weather.js?v=104"></script>
+<script src="js/extras.js?v=104"></script>
+<script src="js/account.js?v=104"></script>
+<script src="js/social.js?v=104"></script>
+<script src="js/atlas.js?v=104"></script>
+<script src="js/wrapped.js?v=104"></script>
+<script src="js/push.js?v=104"></script>
+<script src="js/track.js?v=104"></script>
+<script src="js/towns.js?v=104"></script>
+<script src="js/catalog.js?v=104"></script>
+<script src="js/cards.js?v=104"></script>
+<script src="js/journal.js?v=104"></script>
+<script src="js/mail.js?v=104"></script>
+<script src="js/golden.js?v=104"></script>
+<script src="js/teams.js?v=104"></script>
+<script src="js/duel.js?v=104"></script>
+<script src="js/sound.js?v=104"></script>
+<script src="js/santa.js?v=104"></script>
+<script src="js/brand.js?v=104"></script>
+<script src="js/main.js?v=104"></script>
 </body>
 </html>

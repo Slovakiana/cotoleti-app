@@ -65,7 +65,8 @@ function sndStart(){
 }
 function sndPlanes(){return S.list.filter(a=>a.el!=null&&a.el>0).slice(0,8).map(a=>({hex:a.hex,el:a.el,alt:a.alt,bell:rarity(a)!=="c",pan:Math.max(-1,Math.min(1,Math.sin(rad(wrap180(a.bear-(S.heading||0))))))}))}
 function sndSched(){
-  const c=SND.ctx;if(!c)return;
+  const c=SND.ctx;if(!c||document.hidden)return;
+  if(SND.next<c.currentTime-.5)SND.next=c.currentTime+.05;
   while(SND.next<c.currentTime+.45){
     const ci=Math.floor(SND.step/BAR)%MUS.prog.length,t=SND.next;
     const st=SND.step%BAR,pl=sndPlanes();

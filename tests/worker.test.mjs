@@ -320,7 +320,7 @@ await t("pripomienka série s číslom hodinu pred obvyklým časom", async () =
   db.prepare("INSERT OR REPLACE INTO streaks(id, n, day) VALUES(?, 7, '2026-11-24')").run(id);
   db.prepare("INSERT INTO wavelog(day, hex, id, t, k, pid, lg) VALUES('2026-11-24', 'abc001', ?, ?, 'BA', 'p1', 1)").run(id, base - 86400e3 + 50 * 60e3);
   Date.now = () => base; try { await sky.cron(); } finally { Date.now = old; }
-  const m = db.prepare("SELECT title FROM msgs WHERE id=?").get(id);
+  const m = db.prepare("SELECT title FROM queue WHERE id=?").get(id);
   assert.ok(m && /7 dní v rade/.test(m.title), JSON.stringify(m));
 });
 await t("náhľady: kartička, darček, lietadlo s hashom; crawler bez limitu", async () => {
@@ -464,6 +464,92 @@ await t("ligy: na hráča a menšie mestá", async () => {
   assert.ok(Array.isArray(s.krajePP)); assert.ok(Array.isArray(s.townsSmall));
 });
 await t("zdravie servera", async () => assert.equal((await call("/api/health")).s, 200));
+await t("push odlíši prijatie, neplatný odber, dočasný výpadok a timeout", async () => {
+  const id="v2push-provider-test-player";
+  const endpoint="https://fcm.googleapis.com/fcm/send/example-fixture";
+  const originalFetch=globalThis.fetch,originalTimer=globalThis.setTimeout;
+  const add=()=>db.prepare("INSERT OR REPLACE INTO subs(id, sub) VALUES(?, ?)").run(id, JSON.stringify({endpoint}));
+  const stored=()=>db.prepare("SELECT id FROM subs WHERE id=?").get(id);
+  try {
+    for (const status of [202,404,410,429,503,0]) {
+      add();
+      globalThis.fetch=async (url,options)=>{
+        if(url!==endpoint)return originalFetch(url,options);
+        assert.equal(options.headers.TTL,"90");
+        if(!status)return new Promise((resolve,reject)=>options.signal.addEventListener("abort",()=>reject(options.signal.reason),{once:true}));
+        return new Response(null,{status,headers:status===429?{"Retry-After":"25"}:{}});
+      };
+      globalThis.setTimeout=(fn,ms,...args)=>originalTimer(fn,ms===5000?5:ms,...args);
+      const expected={202:{sent:true},404:{drop:true},410:{drop:true},429:{delay:25000},503:{delay:60000},0:{}}[status];
+      assert.deepEqual(await sky.sendPush(id,90),expected);
+      assert.equal(!!stored(),status!==404&&status!==410);
+    }
+  } finally {
+    globalThis.fetch=originalFetch;globalThis.setTimeout=originalTimer;
+    db.prepare("DELETE FROM subs WHERE id=?").run(id);
+  }
+});
+await t("push uchová odlišné správy, rešpektuje retry a potvrdí iba zobrazené položky", async () => {
+  const id="v2pushqueueplayerfixture1234";
+  const hello=(await call("/api/hello",{id},"21.22.23.24")).j;
+  const timestamp=Date.now();
+  const originalNow=Date.now,originalSend=sky.sendPush;
+  let time=timestamp,sent=0;
+  Date.now=()=>time;
+  try {
+    sky.notify(id,"Moment","Teraz","./#moment",true,time+180000);
+    sky.notify(id,"Sleduj let","Let A","./#let=RYR1234",true);
+    sky.sendPush=async (owner,ttl)=>{
+      if(owner!==id)return {drop:true};
+      sent++;
+      assert.ok(ttl>0&&ttl<=180);
+      if(sent===1)return {delay:20000};
+      const inbox=(await call("/api/msg",{id,tok:hello.tok,inbox:1})).j;
+      assert.deepEqual(inbox.messages.map(m=>m.title),["Moment","Sleduj let"],"rýchla notifikácia môže prísť už počas fetchu");
+      return {sent:true};
+    };
+    await sky.alarm();
+    const pending=db.prepare("SELECT title, attempts, next FROM queue WHERE id=? ORDER BY qid").all(id);
+    assert.ok(pending.every(item=>item.attempts===1&&item.next===time+20000));
+    assert.equal(pending.length,2);
+    time+=19000;await sky.alarm();assert.equal(sent,1);
+    time+=1000;await sky.alarm();assert.equal(sent,2);
+    const list=(await call("/api/msg",{id,tok:hello.tok,inbox:1})).j.messages;
+    assert.deepEqual(list.map(m=>m.url),["./#moment","./#let=RYR1234"]);
+    const before=(await call("/api/health")).j.push;
+    assert.ok(before.awaitingDisplay>=2&&before.acceptedToday>=2&&before.retriesToday>=2);
+    await call("/api/msg",{id:A,tok:ha.tok,ack:[list[0].qid]});
+    await call("/api/msg",{id,tok:hello.tok,ack:[list[0].qid]});
+    await call("/api/msg",{id,tok:hello.tok,ack:[list[0].qid]});
+    const remaining=(await call("/api/msg",{id,tok:hello.tok,inbox:1})).j.messages;
+    assert.deepEqual(remaining.map(m=>m.title),["Sleduj let"]);
+    const after=(await call("/api/health")).j.push;
+    assert.equal(after.awaitingDisplay,before.awaitingDisplay-1);
+    assert.equal(after.displayedToday,before.displayedToday+1);
+  } finally {
+    Date.now=originalNow;sky.sendPush=originalSend;
+    db.prepare("DELETE FROM queue WHERE id=?").run(id);
+  }
+});
+await t("neúspešný cron sa odlíši od posledného úspechu a scheduled odmietne HTTP 503", async () => {
+  const original=sky.runCron,prior=sky.getMeta("cron");
+  sky.runCron=async ()=>{throw Error("fixture cron")};
+  try {
+    await assert.rejects(sky.cron(),/fixture cron/);
+    const health=(await call("/api/health")).j;
+    assert.equal(health.ok,false);
+    assert.equal(health.lastCron,Number(prior||0));
+    assert.ok(health.cronError);
+  } finally {
+    sky.runCron=original;sky.setMeta("cronError","");
+  }
+  let work;
+  await W.scheduled(null,{SKY:{idFromName:()=>1,get:()=>({fetch:async()=>new Response(null,{status:503})})}},{
+    waitUntil(promise){work=promise}
+  });
+  await assert.rejects(work,/cron HTTP 503/);
+});
+
 await t("štatistiky len s kľúčom", async () => {
   assert.equal((await call("/api/stats")).s, 401);
   assert.equal((await call("/api/stats?key=tajne")).s, 401); // kľúč v adrese už neplatí

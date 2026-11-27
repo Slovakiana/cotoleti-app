@@ -4,6 +4,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 // úložisko: plná pamäť Safari (5 MB) → orež históriu a skús znova; zbierka (ctl_col) sa zapisuje s krátkym odkladom (1 zápis namiesto 4 pri mávnutí)
 const LSP=new Map();let LST=null;
+let collectionBase=null,collectionRaw=null,collectionOwner=null;
 const STORAGE_JOURNAL="ctl_storage_recovery",STORAGE_VERSION="ctl_storage_version";
 function writeStorageEntries(entries){
   for(const [key,value] of entries){
@@ -60,22 +61,72 @@ addEventListener("storage",event=>{
   LSP.clear();LS.set=()=>{};location.reload();
 });
 
-function lsWrite(k,s){try{localStorage.setItem(k,s);return true}catch(e){
+function lsWrite(k,s){if(!storageCurrent())return false;try{localStorage.setItem(k,s);return true}catch(e){
   try{const L=JSON.parse(localStorage.getItem("ctl_log")||"[]");if(Array.isArray(L)&&L.length>50)localStorage.setItem("ctl_log",JSON.stringify(L.slice(-Math.floor(L.length/2))));localStorage.removeItem("ctl_seenT");localStorage.removeItem("ctl_seen")}catch(x){}
   try{localStorage.setItem(k,s);return true}catch(x){try{navigator.sendBeacon&&navigator.sendBeacon("https://cotoleti-app.radovan-kudela.workers.dev/api/err",JSON.stringify({m:"quota "+k+" "+s.length}))}catch(y){}
     if(!lsWrite.warned){lsWrite.warned=1;setTimeout(()=>typeof toast==="function"&&toast("⚠️ Pamäť mobilu je plná","Úlovok sa nemusel uložiť – uvoľni miesto v Safari"),500)}return false}}}
+const sameCollectionValue=(a,b)=>a===b||JSON.stringify(a)===JSON.stringify(b);
+const collectionObject=value=>value!==null&&typeof value==="object"&&!Array.isArray(value);
+function mergeCollectionValue(base,local,current,path=[]){
+  if(sameCollectionValue(base,local))return current;
+  if(sameCollectionValue(base,current))return local;
+  const counter=path.length===1&&["n","pts","mi","lvlB"].includes(path[0])||
+    path.length===3&&path[0]==="types"&&["n","shinyN"].includes(path[2]);
+  if(counter&&typeof local==="number"&&typeof current==="number")return Math.max(0,current+local-(base??0));
+  if(sameCollectionValue(local,current))return local;
+  if(collectionObject(local)&&collectionObject(current)&&(base===undefined||collectionObject(base))){
+    const result=Object.create(null);
+    for(const key of new Set([...Object.keys(local),...Object.keys(current),...Object.keys(base||{})])){
+      const value=mergeCollectionValue(base?.[key],local[key],current[key],[...path,key]);
+      if(value!==undefined)result[key]=value;
+    }
+    return result;
+  }
+  if(path.length===1&&path[0]==="goldSeq"&&Array.isArray(local)&&Array.isArray(current))return [...new Set([...current,...local])].slice(-60);
+  return local;
+}
+function replaceCollectionModel(next){
+  for(const key of Object.keys(COL))if(!Object.hasOwn(next,key))delete COL[key];
+  Object.assign(COL,next);
+}
+function readCollectionStorage(){
+  const raw=localStorage.getItem("ctl_col");
+  const value=JSON.parse(raw||"{}");
+  if(!collectionObject(value))throw Error("invalid_collection");
+  return {raw,value};
+}
+function flushCollection(value){
+  const latest=readCollectionStorage();
+  const local=JSON.parse(value);
+  const merged=latest.raw===collectionRaw?local:mergeCollectionValue(collectionBase||{},local,latest.value);
+  const written=JSON.stringify(merged);
+  if(!lsWrite("ctl_col",written))return false;
+  collectionRaw=written;collectionBase=JSON.parse(written);
+  if(collectionOwner===COL&&written!==value)replaceCollectionModel(merged);
+  return true;
+}
+function adoptCurrentCollection(){
+  if(!lsFlush())return false;
+  try{
+    const latest=readCollectionStorage();
+    if(latest.raw!==null&&latest.raw!==collectionRaw){
+      replaceCollectionModel(latest.value);
+      collectionRaw=latest.raw;collectionBase=JSON.parse(latest.raw);
+    }
+    return true;
+  }catch(e){return false}
+}
 function lsFlush(){
   clearTimeout(LST);LST=null;
   if(!storageCurrent()&&LSP.size)return false;
-  let saved=true;
   for(const [key,value] of LSP){
-    if(lsWrite(key,value))LSP.delete(key);
-    else saved=false;
+    try{if(key==="ctl_col"?flushCollection(value):lsWrite(key,value))LSP.delete(key)}
+    catch(e){}
   }
-  return saved;
+  return !LSP.size;
 }
 const LS={get(k,d){if(LSP.has(k)){try{return JSON.parse(LSP.get(k))}catch(e){}}try{const prior=storageRecovery?.find(entry=>entry[0]===k);const v=prior?prior[1]:localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
-  set(k,v){if(!storageCurrent())return;let s;try{s=JSON.stringify(v)}catch(e){return}if(k==="ctl_col"){LSP.set(k,s);if(!LST)LST=setTimeout(lsFlush,300);return}lsWrite(k,s)}};
+  set(k,v){if(!storageCurrent())return;let s;try{s=JSON.stringify(v)}catch(e){return}if(k==="ctl_col"){collectionOwner=v;LSP.set(k,s);if(!LST)LST=setTimeout(()=>withCollectionStorage(lsFlush).catch(()=>{}),300);return}lsWrite(k,s)}};
 addEventListener("pagehide",lsFlush);document.addEventListener("visibilitychange",()=>{if(document.hidden)lsFlush()});
 const FT=0.3048,KT=1.852,R=6371000,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
 const wrap180=a=>((a%360)+540)%360-180;
@@ -415,6 +466,8 @@ function spdCompare(k){if(k==null)return "rýchlosť";if(k<200)return "rýchlo a
 
 /* ============ zbierka ============ */
 let COL=LS.get("ctl_col",null)||{hex:{},types:{},pts:0,ach:{},n:0};
+try{collectionRaw=readCollectionStorage().raw}catch(e){}
+collectionBase=JSON.parse(JSON.stringify(COL));
 // zlúč staré kódy typov do nových (napr. C390 → E390)
 try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o];if(!v)continue;const t=COL.types[nw];
   if(t){if(!v.srv)t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny;if(v.ver){t.ver=1;if(v.seq&&(!t.seq||v.seq<t.seq))t.seq=v.seq}}else COL.types[nw]=v;

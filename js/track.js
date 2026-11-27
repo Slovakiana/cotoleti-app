@@ -10,7 +10,8 @@ function toCallsign(inp){
   return null;
 }
 let TR=LS.get("ctl_track",null);
-const TRK={ac:null,t:0,busy:null};
+const TRK={ac:null,t:0,busy:null,next:0,failures:0};
+const TRACK_LIVE_AGE=60e3;
 const TR_NOTICE={track:null,pending:false,text:""};
 async function trFetch(cs){
   try{
@@ -21,12 +22,16 @@ async function trFetch(cs){
 }
 async function trPoll(){
   const track=TR;
-  if(!track||TRK.busy===track)return;
+  if(!track||TRK.busy===track||Date.now()<TRK.next||!navigator.onLine)return;
   TRK.busy=track;
   const ac=await trFetch(track.cs);
   if(TRK.busy===track)TRK.busy=null;
   if(TR!==track)return;
-  if(ac===undefined){trRender();return}
+  if(ac===undefined){
+    TRK.next=Date.now()+Math.min(120e3,10000*2**Math.min(4,TRK.failures++));
+    trRender();return;
+  }
+  TRK.failures=0;TRK.next=Date.now()+45000;
   if(ac&&ac.alt_baro!=="ground"){
     TRK.ac=normReadsb({ac:[ac]})[0];TRK.t=Date.now();
     if(!track.seen)track.seen=Date.now();
@@ -41,11 +46,12 @@ async function trPoll(){
 }
 function trGeom(){
   const a=TRK.ac;if(!a||!S.pos)return null;
-  const dt=(Date.now()-TRK.t)/1000;let lat=a.lat,lon=a.lon;
+  const age=Date.now()-TRK.t,stale=age>TRACK_LIVE_AGE;
+  const dt=stale?0:Math.max(0,Math.min(20,age/1000));let lat=a.lat,lon=a.lon;
   if(a.spd!=null&&a.trk!=null){const m=a.spd/3.6*dt;lat+=m*Math.cos(rad(a.trk))/111320;lon+=m*Math.sin(rad(a.trk))/(111320*Math.cos(rad(lat)))}
   const {d,b}=distBear(S.pos.lat,S.pos.lon,lat,lon);
   const g={...a,lat,lon,dist:d,bear:b,el:a.alt!=null?elev(d,a.alt,S.pos.alt):null};
-  return {g,ap:approach(g)};
+  return {g,age,stale,ap:stale?null:approach(g)};
 }
 function trName(){return TR.label||TR.disp||TR.cs}
 function trRender(){
@@ -70,7 +76,12 @@ function trRender(){
   }
   const G=trGeom();
   if(!G){$("trLine").textContent=TR.seen?"Lietadlo práve nevysiela polohu. Skúšam znova…":"Lietadlo ešte nevzlietlo alebo nevysiela polohu. Skúšam každú minútu.";$("trEta").textContent="";return}
-  const {g,ap}=G,km=g.dist/1000;
+  const {g,ap,age,stale}=G,km=g.dist/1000;
+  if(stale){
+    $("trLine").textContent=`Posledná známa poloha · pred ${Math.floor(age/60000)} min · ${nf(km)} km od teba`;
+    $("trEta").textContent="";
+    return;
+  }
   $("trLine").textContent=`${nf(km)} km od teba · ${g.alt!=null?nf(g.alt/1000,1)+" km výška":""}${g.spd?" · "+nf(g.spd)+" km/h":""}`;
   let eta="";
   if(km<30&&g.el>5)eta="🎉 Je nad tebou! Pozri na "+dirL(g.bear)+" a zamávaj 👋";
@@ -78,7 +89,7 @@ function trRender(){
   else if(ap&&ap.t<=0)eta="Už sa od teba vzďaľuje";
   $("trEta").textContent=eta;
   // je v dosahu appky → zvýrazni na oblohe
-  if(!TR.me&&TR.hex&&!TR.alerted&&S.list.find(a=>a.hex===TR.hex&&a.el>3)){
+  if(!TR.me&&TR.hex&&!TR.alerted&&!skyStale()&&S.list.find(a=>a.hex===TR.hex&&a.el>3)){
     TR.alerted=1;LS.set("ctl_track",TR);S.pick=TR.hex;tick(true);
     toast(`✈️ ${trName()} je nad tebou!`,"Zamávaj 👋 – ťukni na Mávni","#6dffc7");haptic([200,100,200,100,400]);confetti(70);
   }
@@ -124,7 +135,7 @@ async function trServer(track=TR,requestPermission=false){
   }
 }
 function trStart(cs,disp,label,me){
-  TR={cs,disp,label:label||"",me:!!me,t:Date.now()};LS.set("ctl_track",TR);TRK.ac=null;
+  TR={cs,disp,label:label||"",me:!!me,t:Date.now()};LS.set("ctl_track",TR);TRK.ac=null;TRK.t=0;TRK.next=0;TRK.failures=0;
   $("trackM").classList.remove("on");trRender();trPoll();
   if(!me&&PUSH.on)trServer(TR);
   setView("now");setTimeout(()=>$("trackCard").scrollIntoView({behavior:"smooth",block:"center"}),300);
@@ -164,6 +175,8 @@ function trFromHash(){
   toast("👀 Sleduješ let "+(n?decodeURIComponent(n):cs),"Ťukni na „Upozorni ma“ a dám ti vedieť, keď bude nad tebou");
   try{history.replaceState(null,"",location.pathname)}catch(e){}
 }
-setInterval(()=>{if(TR&&!document.hidden){if(Date.now()-TRK.t>45000)trPoll();else trRender()}},5000);
+setInterval(()=>{if(TR&&!document.hidden){trRender();trPoll()}},5000);
+document.addEventListener("visibilitychange",()=>{if(TR&&!document.hidden){trRender();trPoll()}});
+addEventListener("online",()=>{if(TR&&!document.hidden){TRK.next=0;trPoll()}});
 setTimeout(()=>{trFromHash();if(TR)trPoll()},1200);
 addEventListener("hashchange",trFromHash);

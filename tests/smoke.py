@@ -391,7 +391,147 @@ def collection_regressions(browser, errors):
         page.reload()
         page.wait_for_function("() => typeof COL!=='undefined' && storageCurrent() && COL.pts===55")
         assert page.evaluate("!localStorage.getItem(STORAGE_JOURNAL)")
+        page.evaluate("""() => {
+            COL.ed={advent2026:{n:"Prvá adventná nedeľa 2026",no:42,t:Date.now(),ty:"A320"}};
+            setView("col");atlasMode="ed";renderCards();
+        }""")
+        assert page.locator(".editionTile").count() == page.evaluate("EDS.length")
+        first_edition = page.locator('[data-open-edition="advent2026"]')
+        first_edition.click()
+        assert page.locator("#editionDetail").is_visible()
+        assert "42" in page.locator("#editionDetailFace").inner_text()
+        assert "Airbus A320" in page.locator("#editionDetailProof").inner_text()
+        assert page.locator("#editionDetailFace img").get_attribute("src").split("?")[0].endswith("ed-advent2026.webp")
+        page.keyboard.press("Escape")
+        assert page.locator("#editionDetail").is_hidden()
+        assert first_edition.evaluate("(button) => document.activeElement === button")
+        page.evaluate("""() => {atlasMode="sets";albumSel="typ";renderCards()}""")
+        assert page.locator(".setSummary .setCover").count() == page.evaluate("SETS_T.length")
         print("✓ regresie Zbierky: profil, dvojfázový prenos, kalendár, výzva, liga, výpadky a klávesnica")
+    finally:
+        ctx.close()
+
+
+def background_regressions(browser, errors):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844},
+                              geolocation={"latitude": 48.15, "longitude": 17.11},
+                              permissions=["geolocation"], service_workers="block")
+    ctx.route("**/*", stub)
+    ctx.add_init_script("localStorage.setItem('ctl_onb','1');localStorage.setItem('ctl_kid','false')")
+    url = "http://localhost:8799/index.html"
+
+    def open_page():
+        page = ctx.new_page()
+        page.on("pageerror", lambda e: errors.append("PAGEERROR " + str(e)))
+        page.goto(url)
+        page.wait_for_function("() => SOC.authVerified && S.loaded")
+        return page
+
+    try:
+        page = open_page()
+        other = open_page()
+        for tab, aircraft_type in ((page, "A20N"), (other, "B77W")):
+            assert tab.evaluate("""type => {
+                COL.types[type]={n:1};LS.set("ctl_col",COL);
+                return withCollectionStorage(lsFlush);
+            }""", aircraft_type)
+        other.reload()
+        other.wait_for_function("() => COL.types.A20N?.n === 1 && COL.types.B77W?.n === 1")
+        other.close()
+
+        assert page.evaluate("""async () => {
+            let finish,released=0;
+            Object.defineProperty(navigator,"wakeLock",{value:{request:()=>new Promise(resolve=>finish=resolve)}});
+            const request=wakeOn();wakeOff();
+            finish({addEventListener(){},release(){released++}});
+            await request;
+            return !WAKE.want&&!WAKE.l&&released===1;
+        }""")
+        assert page.evaluate("""() => {
+            const dialog=document.createElement("dialog");document.body.append(dialog);
+            dialog.showModal();
+            const blocked=!canReloadApp();
+            dialog.close();dialog.remove();
+            return blocked&&canReloadApp();
+        }""")
+        assert page.evaluate("""async () => {
+            let old,watch;
+            navigator.geolocation.getCurrentPosition=cb=>{old=cb};
+            navigator.geolocation.watchPosition=cb=>{watch=cb;return 77};
+            navigator.geolocation.clearWatch=()=>{};
+            const refresh=fetchPlanes;fetchPlanes=()=>Promise.resolve();
+            startGps();
+            const sample=(latitude,longitude,timestamp)=>({coords:{latitude,longitude},timestamp});
+            watch(sample(48.7,21.2,Date.now()));
+            old(sample(48.15,17.11,Date.now()-90000));
+            fetchPlanes=refresh;
+            if(S.pos.lat!==48.7||S.pos.lon!==21.2)return false;
+
+            let finish;
+            const get=getJSON;
+            getJSON=()=>new Promise(resolve=>finish=resolve);
+            Object.assign(WX,{loading:false,t:0,data:null,next:0});
+            const request=loadWx();
+            S.pos={lat:48.15,lon:17.11};
+            finish({ok:true,j:{current:{fixture:"old-location"}}});
+            await request;
+            getJSON=get;
+            return !WX.data&&!WX.loading;
+        }""")
+        assert page.evaluate("""async () => {
+            let requests=0;
+            const post=apiPost;
+            apiPost=async()=>{requests++;return {status:429,ok:false,headers:new Headers({"Retry-After":"120"})}};
+            LS.set("ctl_wq",[{d:dayKey(),owner:SOC.cid,b:{hex:"abcdef",t:Date.now(),type:"A320",try:5}}]);
+            await flushWq();
+            const saved=LS.get("ctl_wq",[])[0];
+            await flushWq();
+            apiPost=post;
+            LS.set("ctl_wq",[]);
+            return saved?.b.try===6&&saved.nextAt>Date.now()+110000&&requests===1;
+        }""")
+        assert page.evaluate("""async () => {
+            const post=apiPost,before=COL.pts,day=dayKey();
+            apiPost=async()=>({status:503,ok:false});
+            await joinMoment(day);
+            if(PUSH.joined===day||COL.pts!==before)return false;
+            apiPost=async()=>({status:200,ok:true,data:{ok:true,joined:true,n:1}});
+            await joinMoment(day);
+            await joinMoment(day);
+            apiPost=post;
+            return PUSH.joined===day&&COL.pts===before+5&&JSON.parse(localStorage.ctl_col).momentRewardDay===day;
+        }""")
+        assert page.evaluate("""async () => {
+            TR={cs:"RYR1234",disp:"FR1234",seen:Date.now()-1000,me:true};
+            Object.assign(TRK,{ac:{...S.pos,alt:9000,spd:800,trk:90},t:Date.now()-20*60000,next:0});
+            const lookup=trFetch;trFetch=async()=>undefined;await trPoll();trFetch=lookup;
+            return trGeom().g.dist===0&&$("trLine").textContent.includes("Posledná známa poloha")&&
+                !$("trEta").textContent&&TRK.next>Date.now();
+        }""")
+        page.wait_for_function("() => !SOC.busy")
+        assert page.evaluate("""async () => {
+            const originalFetch=window.fetch,originalTimer=window.setTimeout;
+            let requests=0,aborted=false;
+            window.setTimeout=(fn,delay,...args)=>originalTimer(fn,delay===11000?80:delay,...args);
+            window.fetch=(url,options)=>{
+                if(!String(url).endsWith("/api/sky")||++requests>1)return originalFetch(url,options);
+                return new Promise((resolve,reject)=>options.signal.addEventListener("abort",()=>{
+                    aborted=true;reject(options.signal.reason);
+                },{once:true}));
+            };
+            try{
+                await socPoll();await socPoll();
+                return aborted&&requests===2&&!SOC.busy;
+            }finally{
+                window.fetch=originalFetch;window.setTimeout=originalTimer;
+            }
+        }""")
+
+        page.evaluate("""() => {POSTQ.push({msg:0,nick:"Prvý"},{msg:1,nick:"Druhý"});showPost()}""")
+        page.locator("#postM").wait_for(state="visible")
+        page.keyboard.press("Escape")
+        page.wait_for_function("() => postCur?.nick === 'Druhý' && !POSTQ.length")
+        print("✓ regresie pozadia: dve karty, aktualizácia, GPS, počasie, fronta, Spoločný moment, sledovanie, timeout, Wake Lock a pozdravy")
     finally:
         ctx.close()
 
@@ -802,11 +942,11 @@ def main():
                 SOC.waveHex=body.hex;
                 LS.set("ctl_wq",[{d:dayKey(),b:body}]);
                 try{
-                    apiPost=async (path)=> {
-                        if(path!=="/api/wave")return realPost(path);
+                    apiPost=async (path, body, readJSON)=> {
+                        if(path!=="/api/wave")return realPost(path,body,readJSON);
                         if(!LS.get("ctl_wq",[]).some(x=>x.b.hex===body.hex))
                             throw Error("Fronta zmizla ešte pred odpoveďou");
-                        return new Response(JSON.stringify({ok:true,ver:0,why:"bez GPS"}));
+                        return {status:200,ok:true,data:{ok:true,ver:0,why:"bez GPS"}};
                     };
                     await flushWq();
                     if(LS.get("ctl_wq",[]).length||!$("firstWaveResult").textContent.includes("Neoverený úlovok: bez GPS"))
@@ -1163,6 +1303,7 @@ def main():
             print("✓ značka pri vstupe, profilová kartička, predvolené súkromie, PNG a detský režim")
             home_regressions(b, errs)
             collection_regressions(b, errs)
+            background_regressions(b, errs)
             b.close()
     finally:
         srv.terminate()

@@ -2,7 +2,7 @@ name: Strážca servera
 # Každých 30 minút skontroluje, či server beží. Ak nie, GitHub pošle e-mail o zlyhaní.
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 permissions:
   contents: read

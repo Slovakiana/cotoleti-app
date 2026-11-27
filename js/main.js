@@ -8,7 +8,8 @@ setTimeout(checkAch,4000);
 boot();if(S.lastKnown)setTimeout(()=>{if(S.lastKnown)setStatus(staleSkyLabel(),false)},50);
 setInterval(()=>{if(!document.hidden&&S.raw.length)tick(false)},1000);
 setInterval(()=>{if(!document.hidden)fetchPlanes()},15000);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)fetchPlanes()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){fetchPlanes();renderDaily()}});
+window.addEventListener?.("online",()=>{if(!document.hidden)fetchPlanes()});
 try{speechSynthesis.getVoices()}catch(e){}
 // Pri skrytej appke neprepočítavaj počasie ani satelity; po návrate sa cyklus obnoví.
 setInterval(()=>{if(document.hidden||S.view!=="now"||!S.pos)return;loadWx();if(Date.now()>(S.spNext||0)){S.spNext=Date.now()+60000;SPACE.init()}},5000);

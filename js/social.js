@@ -12,9 +12,16 @@ function newIdentity(){["ctl_cid","ctl_tok","ctl_pid","ctl_fk"].forEach(k=>LS.se
 // Overenie identity po štarte, návrate z pozadia a návrate internetu.
 // Neplatnosť účtu potvrdzuje výhradne server; výpadok siete nikdy nemaže zbierku.
 SOC.authVerified=false;SOC.authChecked=0;SOC.resetting=false;SOC.moved=false;
-async function apiRequest(url,options,timeout=11000){
+async function apiRequest(url,options,timeout=11000,readJSON=false){
   const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),timeout);
-  try{return await fetch(url,{...options,signal:ctl.signal})}finally{clearTimeout(timer)}
+  try{
+    const response=await fetch(url,{...options,signal:ctl.signal});
+    if(readJSON){
+      const data=response.ok?await response.json():readJSON==="all"?await response.json().catch(()=>null):null;
+      return {ok:response.ok,status:response.status,headers:response.headers,data};
+    }
+    return response;
+  }finally{clearTimeout(timer)}
 }
 async function ensureTok(force=false){
   if(!storageCurrent()||!SOC.api||SOC.resetting||SOC.moved||(!TOK&&!LS.get("ctl_onb",0)))return "";
@@ -59,10 +66,10 @@ async function ensureTok(force=false){
   })().finally(()=>{SOC.helloP=null});
   return SOC.helloP;
 }
-async function apiPost(path,obj){
+async function apiPost(path,obj,readJSON=false){
   const tok=await ensureTok();
   if(!tok||!SOC.authVerified||SOC.resetting||SOC.moved||!storageCurrent())throw Error("auth_pending");
-  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})},path==="/api/xfer"||path.startsWith("/api/account/")?30000:11000);
+  const r=await apiRequest(SOC.api+path,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...obj,id:SOC.cid,tok})},path==="/api/xfer"||path.startsWith("/api/account/")?30000:11000,readJSON&&"all");
   if(r.status===401){SOC.authVerified=false;SOC.authChecked=0;SOC.helloNext=0}
   return r;
 }
@@ -93,8 +100,9 @@ async function socPoll(){
     if(typeof TR!=="undefined"&&TR&&TR.hex&&!hs.includes(TR.hex))hs.push(TR.hex);
     await ensureTok();const pr=posR();
     // id a token v tele požiadavky, nie v adrese (nekončia v záznamoch)
-    const r=await fetch(`${SOC.api}/api/sky`,{method:"POST",cache:"no-store",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:TOK,...pr,hexes:hs.join(","),ad:LS.get("ctl_adopt","")||undefined})});
-    if(r.ok){SOC.data=await r.json();SOC.back=SOC.data.flags&&SOC.data.flags.social==="min"?4:1;socRender();if(SOC.data.myInvites>0)grantAch("recruit");
+    const r=await apiRequest(`${SOC.api}/api/sky`,{method:"POST",cache:"no-store",headers:{"Content-Type":"text/plain"},body:JSON.stringify({id:SOC.cid,tok:TOK,...pr,hexes:hs.join(","),ad:LS.get("ctl_adopt","")||undefined})},11000,true);
+    if(!storageCurrent()||SOC.resetting||SOC.moved)return;
+    if(r.ok){SOC.data=r.data;SOC.back=SOC.data.flags&&SOC.data.flags.social==="min"?4:1;socRender();if(SOC.data.myInvites>0)grantAch("recruit");
       // 👋 koľko ľudí prišlo cez tvoje odkazy (a ozvi sa, keď pribudne)
       {const n=SOC.data.myInvites|0,was=LS.get("ctl_inv",0)|0,el=$("invCount");if(el){el.hidden=!n;el.textContent=n?`👋 Cez tvoje odkazy ${n===1?"prišiel":n<5?"prišli":"prišlo"} ${n} ${ludia(n)}`:""}
         // 🎁 za každého nového spottera cez tvoj odkaz +100 míľ
@@ -102,7 +110,7 @@ async function socPoll(){
       const gk=dayKey()+SOC.data.goldMine;if(SOC.data.goldMine&&LS.get("ctl_goldWon","")!==gk&&typeof goldenWon==="function")goldenWon(null)}
     else if(r.status===429||r.status>=500)SOC.back=Math.min(8,(SOC.back||1)*2);
   }catch(e){SOC.back=Math.min(8,(SOC.back||1)*2)}
-  SOC.busy=false;
+  finally{SOC.busy=false}
 }
 function planeWaves(hex){
   const d=SOC.data&&SOC.data.planes&&SOC.data.planes[hex],l=SOC.local[hex];
@@ -356,7 +364,7 @@ HOOKS.live.push(()=>{const w=SOC.lowWatch;if(!w)return;if(Date.now()-w.t>20*60e3
   if(p.el>=10&&!COL.hex[p.hex]){SOC.lowWatch=null;S.pick=p.hex;try{tick(true)}catch(e){}toast("📈 "+(p.call||titleOf(p))+" je teraz "+Math.round(p.el)+"° nad tebou","Zamávaj – teraz už pôjde do zbierky 👋");haptic([40,40,40])}});
 // kam lietadlo doletí v najbližších 20 minútach (podľa kurzu a rýchlosti) → prvé veľké mesto pod ním
 // 🌙☁️ hlavné tlačidlo podľa podmienok: v noci svetlám, pri zamračenej oblohe tomu, čo počuješ (mávnutie platí rovnako)
-function waveMood(a){const c=typeof WX!=="undefined"&&WX.data&&WX.data.current,dark=typeof SPACE!=="undefined"?SPACE.sunAlt()<-6:c&&!c.is_day;
+function waveMood(a){const c=typeof weatherHere==="function"&&weatherHere()?.current,dark=typeof SPACE!=="undefined"?SPACE.sunAlt()<-6:c&&!c.is_day;
   if(dark)return "👋 Mávni svetlám";
   if(c&&a&&((c.cloud_cover_low>80&&(a.alt||0)>1500)||(c.cloud_cover_mid>80&&(a.alt||0)>5000)))return "👋 Mávni – počuješ ho?";
   return "👋 Mávni"}
@@ -416,12 +424,23 @@ async function doWave(e){
   if(SOC.inflight)return;
   if(typeof clearAtlasAward==="function")clearAtlasAward();
   if(!a.santa&&!a.emg)betaStep("wave");
-  const observation={time:Date.now(),pos:posR(),gps:!S.manual};
+  const observation={time:Date.now(),pos:posR(),gps:!S.manual&&!!S.gpsValid&&Date.now()-gpsSampleTime<=120e3};
   SOC.inflight=a.hex;SOC.waveHex=a.hex;
   renderHeroLive(a);
   $("waveResultCard").hidden=true;
   journalWaveReward();
-  try{return await doWave1(e,{...a},observation)}finally{
+  showFirstWaveResult("Spracúvam mávnutie…");
+  try{
+    return await withCollectionStorage(async()=>{
+      if(!storageCurrent()||!adoptCurrentCollection()){
+        showFirstWaveResult("Zbierka čaká na uloženie. Skús zamávať znova po uložení.");
+        return;
+      }
+      SOC.waved=LS.get("ctl_waved",{});
+      await doWave1(e,{...a},observation);
+      lsFlush();
+    });
+  }finally{
     SOC.inflight=null;renderHeroLive(S.top);
     if(typeof accountAfterWave==="function")accountAfterWave();
   }
@@ -485,7 +504,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
   }catch(err){ // bez internetu – mávnutie platí aspoň u teba a odošle sa neskôr
     const queued=wqPush(body);
     credit();const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};if(S.top?.hex===a.hex)waveInfo(S.top);
-    if(queued&&navigator.onLine)setTimeout(flushWq,15000);
+    if(queued&&navigator.onLine)scheduleWaveQueue(15000);
     fin(queued?"Čaká na overenie":"Uložené v tomto zariadení");return}
   if(j.error==="far"){showFirstWaveResult("Lietadlo je príliš ďaleko. Skús mávnuť bližšiemu.");toast("Toto lietadlo je od teba priďaleko","Mávať sa dá len lietadlám nad tebou");return}
   if(j.error==="rate"){showFirstWaveResult("Mávnuť môžeš znova o chvíľu.");toast("Spomaľ 🙂","Mávať môžeš znova o chvíľu");return}
@@ -495,7 +514,7 @@ async function doWave1(e,a,observation){LASTWAVE=null;
     // server nemáva? zbierka a body aspoň u teba, aby hra fungovala
     // prihlásenie/server zlyhali – mávnutie si odložíme a o chvíľu ho pošleme znova (overí sa, kým je lietadlo blízko)
     const queued=(r.status===401||r.status>=500||r.status===429)&&wqPush(body);
-    if(queued)setTimeout(flushWq,15000);
+    if(queued)scheduleWaveQueue(waveQueueDelay(r,1));
     showFirstWaveResult(queued?"Mávnutie čaká na overenie.":"Mávnutie sa nepodarilo overiť. Skús znova.");
     {const cur=planeWaves(a.hex),em={...cur.emoji};em[e]=(em[e]||0)+1;SOC.local[a.hex]={total:cur.total+1,emoji:em};if(S.top?.hex===a.hex)waveInfo(S.top)}
     LASTWAVE=null;credit();fin(queued?"Čaká na overenie":"Uložené v tomto zariadení");return}
@@ -609,13 +628,27 @@ document.addEventListener("click",async e=>{
 if($("friendsBox"))$("friendsBox").addEventListener("toggle",()=>{if($("friendsBox").open)friendsRender()});
 
 /* 📴 mávnutia bez internetu: odoslať, keď sa signál vráti (server má kontrolu duplicít) */
-// fronta odložených mávnutí: platí do 1 h po polnoci (mávnutie z 23:50 sa nestratí)
-const wqFresh=x=>x.d===dayKey()||Date.now()-(x.b&&x.b.t||0)<3600e3;
-function wqPush(b){
-  const q=LS.get("ctl_wq",[]).filter(wqFresh);
-  if(!b||q.length>=20)return false;
-  q.push({d:dayKey(),b});
-  return lsWrite("ctl_wq",JSON.stringify(q));
+// Čas platnosti zodpovedá oknu, v ktorom Worker vie použiť odloženú polohu.
+const WAVE_QUEUE_AGE=15*60e3;
+const wqFresh=x=>x?.b&&Number.isFinite(x.b.t)&&Date.now()-x.b.t<WAVE_QUEUE_AGE&&(!x.owner||x.owner===SOC.cid);
+let waveQueueTimer,waveQueueAt=0;
+function scheduleWaveQueue(delay){
+  const at=Date.now()+Math.max(0,delay);
+  if(waveQueueTimer&&waveQueueAt<=at)return;
+  clearTimeout(waveQueueTimer);waveQueueAt=at;
+  waveQueueTimer=setTimeout(()=>{waveQueueTimer=null;flushWq()},Math.max(0,at-Date.now()));
+}
+function wqPush(body){
+  if(!body||!storageCurrent()||SOC.resetting||SOC.moved)return false;
+  const queue=LS.get("ctl_wq",[]).filter(wqFresh);
+  if(queue.length>=20)return false;
+  queue.push({d:dayKey(),owner:SOC.cid,b:body});
+  return lsWrite("ctl_wq",JSON.stringify(queue));
+}
+function waveQueueDelay(response,attempt){
+  const header=response?.headers?.get("Retry-After"),seconds=Number(header);
+  const specified=header?(Number.isFinite(seconds)?seconds*1000:Date.parse(header)-Date.now()):0;
+  return Math.max(specified||0,Math.min(120e3,15000*2**Math.min(4,Math.max(0,attempt-1))));
 }
 function queuedWaveResult(j,type){
   if(j.ok&&type==="?")return UNKNOWN_TYPE_WAVE;
@@ -626,71 +659,79 @@ function queuedWaveResult(j,type){
 }
 
 async function flushWq(){
-  if(SOC.flushing||SOC.resetting||SOC.moved||!SOC.api||!navigator.onLine)return;
-  const queue=LS.get("ctl_wq",[]);
-  if(!queue.length)return;
+  if(SOC.flushing||SOC.resetting||SOC.moved||!SOC.api||!navigator.onLine||!storageCurrent())return;
+  if(!LS.get("ctl_wq",[]).length)return;
   SOC.flushing=true;
   const results=[];
-  let retry=false;
+  let retry=0;
   const update=(entry,replacement)=>{
     const items=LS.get("ctl_wq",[]);
     const index=items.findIndex(item=>item.b?.hex===entry.b?.hex&&item.b?.t===entry.b?.t);
     if(index<0)return;
     items.splice(index,1,...(replacement?[replacement]:[]));
-    LS.set("ctl_wq",items);
+    return lsWrite("ctl_wq",JSON.stringify(items));
   };
   try{
-    for(const entry of queue){
-      if(SOC.resetting||SOC.moved)break;
-      if(!wqFresh(entry)||!entry.b){
-        update(entry);
-        results.push({hex:entry.b?.hex,text:"Čas na overenie vypršal · mávnutie ostalo v zariadení"});
-        continue;
-      }
-      const b={...entry.b,try:(entry.b.try|0)+1};
-      let response,j={};
-      try{
-        response=await apiPost("/api/wave",b);
-        if(response.status===401)response=await apiPost("/api/wave",b);
-        j=await response.json().catch(()=>({}));
-      }catch(e){}
-      if(SOC.resetting||SOC.moved)break;
-      const temporary=!response||response.status===401||response.status===429||response.status>=500;
-      if(temporary&&b.try<6){
-        update(entry,{...entry,b});retry=true;continue;
-      }
+    await withCollectionStorage(async()=>{
+      if(!storageCurrent()||!adoptCurrentCollection()){retry=30000;return}
+      for(const entry of LS.get("ctl_wq",[])){
+        if(SOC.resetting||SOC.moved||!storageCurrent())break;
+        if(!wqFresh(entry)){
+          if(!update(entry)){retry=30000;break}
+          if(entry.owner&&entry.owner!==SOC.cid)continue;
+          results.push({hex:entry.b?.hex,text:"Čas na overenie vypršal · mávnutie ostalo v zariadení"});
+          continue;
+        }
+        const wait=Number(entry.nextAt)-Date.now();
+        if(wait>0){retry=wait;break}
+        const b={...entry.b,try:(entry.b.try|0)+1};
+        let response;
+        try{
+          response=await apiPost("/api/wave",b,true);
+          if(response.status===401)response=await apiPost("/api/wave",b,true);
+        }catch(e){}
+        if(SOC.resetting||SOC.moved||!storageCurrent())break;
+        const temporary=!response||response.status===401||response.status===429||response.status>=500;
+        if(temporary){
+          retry=Math.min(waveQueueDelay(response,b.try),Math.max(1000,b.t+WAVE_QUEUE_AGE-Date.now()));
+          update(entry,{...entry,b,nextAt:Date.now()+retry});
+          break;
+        }
 
-      let type=b.type||"?",special="";
-      if(response?.ok&&j.ok){
-        const verifiedType=normalizeType(j.type);
-        if(verifiedType&&missingTypeCatch(b.hex)){
-          const c=COL.cx[b.hex];
-          tryCatch({hex:b.hex,type:verifiedType,call:b.call,el:Math.max(10,c.el||0),mil:!!c.mil});
-          type=verifiedType;
-        }else if(verifiedType&&verifiedType===COL.cx?.[b.hex]?.ty){
-          type=verifiedType;
+        const j=response.data||{};
+        let type=b.type||"?",special="";
+        if(response?.ok&&j.ok){
+          const verifiedType=normalizeType(j.type);
+          if(verifiedType&&missingTypeCatch(b.hex)){
+            const c=COL.cx[b.hex];
+            tryCatch({hex:b.hex,type:verifiedType,call:b.call,el:Math.max(10,c.el||0),mil:!!c.mil});
+            type=verifiedType;
+          }else if(verifiedType&&verifiedType===COL.cx?.[b.hex]?.ty){
+            type=verifiedType;
+          }
+          const card=COL.types[type];
+          if(j.ver){
+            if(typeof showAtlasAward==="function")showAtlasAward(j);
+            betaStep("verified");
+            if(card&&verifiedType===type){card.ver=1;if(j.seq&&!card.seq)card.seq=j.seq}
+          }
+          if(card&&j.shiny&&!card.shiny){
+            card.shiny=Date.now();
+            if(card.n)special="Lesklá kartička";
+          }
+          if(j.ed&&edAdd(type,j.ed)&&card?.n)special=special||j.ed.n;
+          if(!j.dup)try{waveRewards(j,{hex:b.hex,type})}catch(e){}
+          LS.set("ctl_col",COL);
+          if(!lsFlush()){retry=30000;break}
         }
-        const card=COL.types[type];
-        if(j.ver){
-          if(typeof showAtlasAward==="function")showAtlasAward(j);
-          betaStep("verified");
-          if(card&&verifiedType===type){card.ver=1;if(j.seq&&!card.seq)card.seq=j.seq}
-        }
-        if(card&&j.shiny&&!card.shiny){
-          card.shiny=Date.now();
-          if(card.n)special="Lesklá kartička";
-        }
-        if(j.ed&&edAdd(type,j.ed)&&card?.n)special=special||j.ed.n;
-        if(!j.dup)try{waveRewards(j,{hex:b.hex,type})}catch(e){}
-        LS.set("ctl_col",COL);
-        lsFlush();
+        if(!update(entry)){retry=30000;break}
+        results.push({hex:b.hex,type,text:queuedWaveResult(j,type),special,verified:!!j.ver});
       }
-      update(entry);
-      results.push({hex:b.hex,type,text:queuedWaveResult(j,type),special,verified:!!j.ver});
-    }
-  }finally{SOC.flushing=false}
+    });
+  }catch(e){retry=30000}
+  finally{SOC.flushing=false}
 
-  if(retry)setTimeout(flushWq,30000);
+  if(retry)scheduleWaveQueue(retry);
   if(!results.length)return;
   if(SOC.data?.mission)setTimeout(socPoll,800);
   if(S.view==="col")renderCol();
@@ -703,7 +744,9 @@ async function flushWq(){
   if(others.length)toast("Výsledky odložených mávnutí",others.slice(0,3).map(item=>
     (item.type&&item.type!=="?"?catGuess(item.type).name+" · ":"")+item.text).join(" / ")+(others.length>3?" …":""));
 }
-addEventListener("online",()=>setTimeout(flushWq,1500));setTimeout(flushWq,5000);
+addEventListener("online",()=>scheduleWaveQueue(1500));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)scheduleWaveQueue(1500)});
+scheduleWaveQueue(5000);
 
 $("mayor").addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)});
 $("waveInfo").addEventListener("click",e=>{const b=e.target.closest("[data-rep]");if(b)reportName(b.dataset.rep,b)});

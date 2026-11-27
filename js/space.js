@@ -1,7 +1,7 @@
 "use strict";
 /* ============ Vesmír: ISS, Tiangong, Starlink a jasné satelity ============ */
 const SPACE=(()=>{
-  const st={sats:[],now:[],nowT:0,loading:false,seenIss:false};
+  const st={sats:[],now:[],nowT:0,loading:false,seenIss:false,tleAt:0};
   const D2R=Math.PI/180,R2D=180/Math.PI,RE=6371;
 
   function loadLib(){
@@ -42,16 +42,17 @@ const SPACE=(()=>{
   }
   const SHORT={iss:"ISS 🛰️",css:"Tiangong 🛰️"};
   async function init(){
-    if(st.loading||st.sats.length)return;
+    if(st.loading||st.sats.length&&Date.now()-st.tleAt<12*3600e3)return;
     st.loading=true;
     try{
       await loadLib();
       const c=await loadTLE();
-      const seen=new Set(),add=a=>a.forEach(s=>{if(!seen.has(s.id)){seen.add(s.id);st.sats.push(s)}});
+      const next=[],seen=new Set(),add=a=>a.forEach(s=>{if(!seen.has(s.id)){seen.add(s.id);next.push(s)}});
       add(parse(c.stations,n=>/^ISS \(ZARYA\)/.test(n)?"iss":/^CSS \(TIANHE\)/.test(n)?"css":null));
       add(parse(c.recent,()=>"starlink"));
       add(parse(c.visual,n=>/STARLINK/i.test(n)?"starlink":/ISS \(ZARYA\)/.test(n)?null:"sat"));
-      st.sats.forEach(s=>s.short=SHORT[s.kind]||s.name.replace(/\s*\(.*?\)\s*/g," ").trim().slice(0,22));
+      next.forEach(s=>s.short=SHORT[s.kind]||s.name.replace(/\s*\(.*?\)\s*/g," ").trim().slice(0,22));
+      if(next.length){st.sats=next;st.tleAt=c.t;st.nowT=0}
     }catch(e){}finally{st.loading=false}
   }
 

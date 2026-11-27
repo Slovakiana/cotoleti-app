@@ -126,6 +126,34 @@ const FORM_ART={
   h:{ink:"#daffbc",dark:"#102b26",metal:"#79a66d",mark:'<path d="m3 22 9-14 5 7 4-9 8 16H3Zm6-9 3 2 3-2"/>'},
   f:{ink:"#e0f9ff",dark:"#0d233d",metal:"#87bfdc",mark:'<path d="M16 3v22M6 8l20 12M6 20 26 8M12 5l4 4 4-4m-8 18 4-4 4 4"/>'}
 };
+const CARD_ILLUSTRATIONS={
+  "A318:":"a318",
+  "A319:":"a319",
+  "A320:":"a320",
+  "A321:":"a321",
+  "A20N:":"a20n",
+  "A21N:":"a21n",
+  "A388:":"a388",
+  "B737:":"b737",
+  "B738:":"b738",
+  "B739:":"b739",
+  "B39M:":"b39m",
+  "B38M:":"b38m",
+  "A388:n":"a388-n",
+  "AT76:":"at76",
+  "AT76:g":"at76-g",
+  "AT76:z":"at76-z",
+  "AT76:f":"at76-f",
+  "Z43:":"z43",
+  "Z43:h":"z43-h"
+};
+const FORM_POSES={
+  n:{x:226,y:266,size:260,angle:24,body:"#e6edff"},
+  g:{x:212,y:220,size:333,angle:-21,body:"#fff5d6"},
+  z:{x:210,y:245,size:335,angle:0,body:"#ecfffd"},
+  h:{x:220,y:206,size:278,angle:28,body:"#f6ffe9"},
+  f:{x:200,y:237,size:286,angle:-41,body:"#f0fcff"}
+};
 let cardRenderSerial=0;
 function hasCardForm(v,k){
   return !!(v?.n&&Object.hasOwn(FORM_ART,k)&&(v.forms?.[k]||(k==="n"&&v.night)));
@@ -137,11 +165,11 @@ function cardCoverForm(v){
     .sort(([a],[b])=>(v.forms?.[b]||(b==="n"&&v.night)||0)-(v.forms?.[a]||(a==="n"&&v.night)||0));
   return newest[0]?.[0]||"";
 }
-function cardArtURL(form){return "lib/card-art/"+(form||"classic")+".webp"+CARD_ART_REV}
+function cardArtURL(form,code){return "lib/card-art/"+(CARD_ILLUSTRATIONS[code+":"+form]||form||"classic")+".webp"+CARD_ART_REV}
 async function cardExportSVG(k,v,opt){
   let artHref="";
   try{
-    const response=await fetch(cardArtURL(cardCoverForm(v)),{signal:AbortSignal.timeout(3500)});
+    const response=await fetch(cardArtURL(cardCoverForm(v),catGuess(k).code),{signal:AbortSignal.timeout(3500)});
     if(response.ok){
       const blob=await response.blob();
       artHref=await new Promise((resolve,reject)=>{
@@ -197,27 +225,34 @@ function cardFoil(id,scene){
     <text x="51" y="351" fill="#fff0ff" font-size="18" font-weight="850" letter-spacing="2">LESKLÁ</text>`;
 }
 function cardScene(k,v,id,form,ink,dark,metal,href,locked){
-  const c=catGuess(k),angle=form==="z"?0:([-34,-24,23,34][hash(k)%4]);
-  const planes=svgDefs(id,locked?"#91a7c1":"#f8fcff",locked?"#374964":metal,locked?"#627c99":dark);
-  const art=locked?"":href===undefined?cardArtURL(form):href;
-  const mirrored=!form&&hash(k+"scene")%2===1;
+  const c=catGuess(k);
+  const art=locked?"":href===undefined?cardArtURL(form,k):href;
+  const illustrated=!!(art&&CARD_ILLUSTRATIONS[k+":"+form]);
+  const mirrored=!form&&!illustrated&&hash(k+"scene")%2===1;
+  const pose=FORM_POSES[form]||{x:210,y:245,size:328,angle:[-34,-24,23,34][hash(k)%4],body:"#f8fcff"};
+  const size=illustrated?220:pose.size,half=size/2;
+  const x=illustrated?210:pose.x,y=illustrated?245:pose.y;
+  const body=locked?"#aabdd5":pose.body,shade=locked?"#465f80":metal;
+  const silhouette=`<g opacity="${locked?.65:1}" transform="translate(${x-half} ${y-half}) rotate(${pose.angle} ${half} ${half})">${planeSVG(c,{box:size,id,acc:ink,body,shade})}</g>`;
+  const planes=svgDefs(id,body,shade,locked?"#627c99":dark);
   return `<defs>${planes}
     <clipPath id="scene${id}"><path d="M17 72H374L403 101V407L390 420H17Z"/></clipPath>
     <radialGradient id="sky${id}"><stop stop-color="${metal}"/><stop offset="1" stop-color="${dark}"/></radialGradient>
     <linearGradient id="shade${id}" x2="0" y2="1"><stop stop-color="${dark}" stop-opacity=".02"/><stop offset=".53" stop-color="${dark}" stop-opacity=".18"/><stop offset="1" stop-color="${dark}" stop-opacity=".82"/></linearGradient></defs>
-    <g clip-path="url(#scene${id})">
+    <g clip-path="url(#scene${id})" data-card-art="${illustrated?"illustration":locked?"locked":"silhouette"}">
     <rect x="17" y="72" width="386" height="348" fill="url(#sky${id})"/>
-    ${art?`<image href="${SVGE(art)}" x="17" y="72" width="386" height="348" preserveAspectRatio="xMidYMid slice"${mirrored?' transform="translate(420 0) scale(-1 1)"':""}/>`:""}
-    <rect x="17" y="72" width="386" height="348" fill="${dark}" opacity="${form?.10:.29}"/>
-    <rect x="17" y="72" width="386" height="348" fill="url(#shade${id})"/>
-    <g transform="translate(19 85) scale(.72 .93)">${collectorEditionArt(k,locked?null:v)}</g>
+    ${illustrated&&href===undefined?silhouette:""}
+    ${art?`<image href="${SVGE(art)}" x="17" y="72" width="386" height="348" preserveAspectRatio="xMidYMid ${illustrated?"meet":"slice"}"${mirrored?' transform="translate(420 0) scale(-1 1)"':""}/>`:""}
+    <rect x="17" y="72" width="386" height="348" fill="${dark}" opacity="${illustrated?0:form?.10:.29}"/>
+    <rect x="17" y="72" width="386" height="348" fill="url(#shade${id})" opacity="${illustrated ? .55 : 1}"/>
+    ${illustrated?"":`<g transform="translate(19 85) scale(.72 .93)">${collectorEditionArt(k,locked?null:v)}</g>`}
     <g fill="none" stroke="${ink}" stroke-opacity=".5">
       <path d="M31 129v-40h30m298 0h9l19 18v22M31 366v38h30m298 0h28v-38"/>
       <path d="M34 199v100m-4-90h8m-8 20h8m-8 20h12m-12 20h8m-8 20h8m352-90v100m-4-90h8m-8 20h8m-8 20h8m-8 20h8m-8 20h8"/>
       ${form==="z"||locked?'<circle cx="210" cy="245" r="105" stroke-dasharray="3 8"/><circle cx="210" cy="245" r="122"/><path d="M210 96v28m0 242v30M61 245h28m242 0h28"/>':""}
     </g>
     ${v.shiny?cardFoil(id,true):""}
-    <g opacity="${locked?.65:1}" transform="translate(46 83) rotate(${angle} 164 164)">${planeSVG(c,{box:328,id,acc:ink,body:locked?"#b0bfce":"#fff",shade:locked?"#465f80":metal})}</g>
+    ${illustrated?"":silhouette}
     </g><path d="M17 72H374L403 101V407L390 420H17Z" fill="none" stroke="${ink}" stroke-opacity=".57"/>
     ${locked?"":`<g fill="none" stroke="${COLLECTOR_TIER[typeTier(k)].hue}" stroke-opacity=".82">${TIER_ENGRAVING[typeTier(k)]}</g>`}`;
 }
@@ -384,7 +419,7 @@ const inSeries=k=>CAT[k]&&!TROPHY.has(k);
 function cardMini(k,v){return cardSVG(k,v,{id:"mini",mini:true})}
 function renderCards(){
   const root=$("c-types"),focused=root.contains(document.activeElement)?document.activeElement:null;
-  const choices=["data-k","data-m","data-alb","data-lk","data-hunt-open","data-hunt-clear","data-first-hunt","data-all"];
+  const choices=["data-k","data-m","data-alb","data-lk","data-hunt-open","data-hunt-clear","data-first-hunt","data-all","data-open-edition"];
   const attr=choices.find(key=>focused?.hasAttribute(key));
   const focusSelector=focused?.matches(".atlasMore > summary")?".atlasMore > summary":attr?`[${attr}="${CSS.escape(focused.getAttribute(attr))}"]`:
     (focused?.matches("summary")&&focused.parentElement.dataset.setId?`[data-set-id="${CSS.escape(focused.parentElement.dataset.setId)}"] > summary`:null);
@@ -428,6 +463,7 @@ $("c-types").onclick=e=>{
   const tb=e.target.closest("button[data-m]");if(tb){atlasMode=tb.dataset.m;atlasRare=false;renderCards();$("c-types").querySelector('.atTabs [data-m="'+atlasMode+'"]')?.focus({preventScroll:true});return}
   const ab=e.target.closest("[data-alb]");if(ab){albumSel=ab.dataset.alb;renderCards();$("c-types").querySelector('[data-alb="'+albumSel+'"]')?.focus({preventScroll:true});return}
   if(e.target.closest("[data-all]")){atlasOpen=true;renderCards();$("c-types").querySelectorAll(".mini")[6]?.focus();return}
+  const edition=e.target.closest("[data-open-edition]");if(edition){openEdition(edition.dataset.openEdition);return}
   const sl=e.target.closest("[data-lk]");if(sl){const k=sl.dataset.lk;if(COL.types[k]?.n){openCard(k)}else openLocked(k);return}
   const m=e.target.closest(".mini");if(!m)return;const k=m.dataset.k;
   if(!COL.types[k]){openLocked(k);haptic(20);return}
@@ -744,11 +780,30 @@ function setsHTML(){
   }).join("")}</div>`;
   return tabs+setRows(albumSel);
 }
+// Obálka používa reprezentanta danej typovej sady.
+const SET_COVERS={
+  a320:["A320","#6eeaca"],b737:["B738","#9ba9ff"],jumbo:["A388","#78c6ff"],dream:["B789","#d5b4ff"],
+  a330:["A333","#71d8e2"],b7x7:["B752","#edb66a"],baby:["CRJ9","#b3e887"],emb:["E190","#67e0b0"],
+  prop:["AT76","#e9d082"],heli:["B429","#ffad84"],biz:["GLF6","#e2d0ff"],tprop:["PC12","#91c6ec"],
+  heavy:["A400","#c0d3a2"],nato:["E3TF","#8fc9df"],guard:["EUFI","#f5b08e"],cssr:["L410","#feaa9f"],
+  para:["AN2","#e5ce91"],small:["C172","#a7def4"],whale:["A3ST","#a6a3fb"]
+};
+function setCover(set){
+  const [chosen,ink]=SET_COVERS[set.id]||[set.t[0],"#a6bfd9"];
+  const code=set.t.includes(chosen)?chosen:set.t[0];
+  const id="set-"+set.id;
+  const asset=CARD_ILLUSTRATIONS[code+":"];
+  const illustration=asset?`<img src="${cardArtURL("",code)}" alt="" loading="lazy" width="76" height="54">`:
+    `<svg viewBox="0 0 76 54" width="76" height="54" aria-hidden="true"><defs>${svgDefs(id,"#eff7ff",ink,"#acc9e5")}</defs>
+      <path d="M1 44 41 4m3 50 31-31" stroke="${ink}" stroke-opacity=".26"/><circle cx="39" cy="26" r="19" fill="none" stroke="${ink}" stroke-opacity=".34"/>
+      <g transform="translate(11 1) rotate(-31 26 26)">${planeSVG(CAT[code],{box:52,id,acc:ink})}</g></svg>`;
+  return `<span class="setCover" style="--set-ink:${ink}" aria-hidden="true">${illustration}</span>`;
+}
 function setRows(mode){
   const list=SETS.filter(s=>s.alb===mode);
   return `<div class="sets">${list.map(s=>{const pr=setProg(s),h=pr.filter(Boolean).length,dn=!!COL.sets?.[s.id],hid=s.alb==="hid"&&!dn&&h===0;
     const lab=(x,i)=>s.t?(CAT[s.t[i]]?CAT[s.t[i]].name:s.t[i]):s.slots[i].l;
-    return `<details class="setRow ${dn?"done":""}" data-set-id="${esc(s.id)}"><summary class="setSummary"><span class="si" aria-hidden="true">${hid?"✉️":s.i}</span><span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+"\u00a0b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} <span aria-hidden="true">›</span></span></summary>
+    return `<details class="setRow ${dn?"done":""}" data-set-id="${esc(s.id)}"><summary class="setSummary">${s.alb==="typ"?setCover(s):`<span class="si" aria-hidden="true">${hid?"✉️":s.i}</span>`}<span class="sn">${hid?"Skrytá sada":s.n}<small>${hid?"Hádanka: "+s.d:s.d} · ${dn?"hotovo ✅":"odmena +"+setReward(s)+"\u00a0b"}</small></span><span class="sp">${dn?"✅":h+"/"+pr.length} <span aria-hidden="true">›</span></span></summary>
       <div class="setSlots">${hid?"":pr.map((ok,i)=>s.t?`<button data-lk="${esc(s.t[i])}" class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</button>`:`<span class="${ok?"got":""}">${ok?"✅":"🔒"} ${esc(lab(ok,i))}</span>`).join("")}</div></details>`}).join("")}</div>`;
 }
 function setsCheck(a){
@@ -765,9 +820,62 @@ function edAdd(ty,ed){if(!ed||!ed.id)return false;COL.ed=COL.ed||{};if(COL.ed[ed
 function edNext(now=Date.now()){return EDS.find(e=>!e[0].startsWith("santa")&&Date.parse(e[5])>now)||null}
 function edCountdown(){const e=edNext();if(!e)return "";const now=Date.now(),f=Date.parse(e[4]),live=now>=f,dd=Math.ceil((f-now)/864e5),hh=Math.ceil((f-now)/36e5),g=(COL.ed||{})[e[0]];
   return `<div class="setRow ${live?"done":""}" style="grid-column:1/-1"><span class="si">${e[1]}</span><span class="sn">${live?(g?"Máš ju! Edícia "+e[2]+(g.no?" · č. "+g.no:""):"PRÁVE TERAZ: "+e[2]):"Najbližšia edícia: "+e[2]}<small>${live?(g?"Ďalšia edícia príde čoskoro":"Zamávaj ktorémukoľvek lietadlu nad tebou (GPS, aspoň 10°) a dostaneš číslovanú kartičku"):hh<=48?"začína o "+hh+" "+pl(hh,"hodinu","hodiny","hodín"):"o "+dd+" "+pl(dd,"deň","dni","dní")+" · "+e[3]}</small></span><span class="sp">${live?(g?"✅":"⏳"):"📅"}</span></div>`}
+// Každá edícia má vlastné farby a scénu. Ilustrované položky používajú samostatný WebP.
+const EDITION_DESIGN={
+  advent2026:["#fff1a3","#193c36","n",true],
+  mikulas2026:["#ffd0ce","#501936","f",true],
+  lucia2026:["#eef7ff","#324766","f",true],
+  zslnovrat2026:["#d5c4ff","#222656","n",true],
+  vianoce2026:["#ffe6a6","#142c46","n",true],
+  santa2026:["#ffd697","#523058","n",true],
+  silvester2026:["#fec9fa","#36245c","z"],
+  novyrok2027:["#ffecb4","#183c49","g"],
+  valentin2027:["#ffbad5","#63213d","g"],
+  rovnodennost2027:["#c9ffcf","#244c50","h"],
+  stefanik2027:["#ffd59e","#394650","classic"],
+  detom2027:["#9ef4ff","#224a73","classic"],
+  slnovrat2027:["#fff59b","#63521b","g"],
+  zatmenie2027:["#f3e4ff","#32253f","z"],
+  perzeidy2027:["#bacaff","#1f1d48","n"],
+  snp2027:["#e1f3bc","#42513b","h"],
+  halloween2027:["#ffd0a2","#4e2e55","n"]
+};
+function editionCard(edition,owned,preview=false){
+  const [id,icon,name,dateLabel]=edition;
+  const [ink,base,scene,illustrated]=EDITION_DESIGN[id]||["#b7d2ff","#27395c","classic"];
+  const art=illustrated?"lib/card-art/ed-"+id+".webp"+CARD_ART_REV:cardArtURL(scene);
+  const now=Date.now();
+  const status=owned?(owned.no>0?"Č. "+nf(owned.no):"Získaná"):now>=Date.parse(edition[5])?"Ukončená":now>=Date.parse(edition[4])?"Prebieha":"Pripravuje sa";
+  return `<div class="editionCard${preview?" editionCardDetail":""}" style="--ed-ink:${ink};--ed-base:${base}" data-edition-card="${id}">
+    <span class="editionLabel">BOL SOM PRI TOM</span>
+    <div class="editionArt${illustrated?" editionPainted":""}"><img src="${art}" alt="" loading="${preview?"eager":"lazy"}" width="386" height="310">
+      ${illustrated?"":`<span class="editionIcon" aria-hidden="true">${icon}</span>`}</div>
+    <div class="editionCaption"><strong>${esc(name)}</strong><small>${esc(status)} · ${esc(dateLabel.split(" · ")[0])}</small></div>
+  </div>`;
+}
+function openEdition(id){
+  const edition=EDS.find(e=>e[0]===id);
+  if(!edition)return;
+  const dialog=$("editionDetail"),owned=COL.ed?.[id];
+  $("editionDetailTitle").textContent=edition[2];
+  $("editionDetailFace").innerHTML=editionCard(edition,owned,true);
+  const caught=owned?.ty;
+  const aircraft=caught==="SLEIGH"?"Santove sane":caught&&caught!=="?"?catGuess(caught).name:"";
+  $("editionDetailProof").textContent=owned?(aircraft?"Získaná pri úlovku · "+aircraft:"Získaná edícia"):
+    Date.now()>=Date.parse(edition[5])?"Táto edícia sa už skončila.":
+    id==="santa2026"?"Získava sa pri úlovku Santových saní.":"Získava sa overeným mávnutím počas edície.";
+  if(!dialog.open)dialog.showModal();
+}
 function edHTML(){
-  const E=COL.ed||{},shN=Object.values(COL.types).filter(v=>v.shiny).length;
-  return `<div class="sets" style="grid-column:1/-1">${edCountdown()}</div><div class="lookSub" style="grid-column:1/-1">Kartičky „Bol som pri tom“: stačí v daný deň zamávať akémukoľvek lietadlu (overené mávnutie). Majú poradové číslo a zmeškané sa nedajú doplniť.</div><div class="sets" style="grid-column:1/-1">${EDS.map(([id,i,n,w])=>{const g=E[id];return `<div class="setRow ${g?"done":""}"><span class="si">${i}</span><span class="sn">${n}<small>${g?(g.no?"č. "+g.no+" · ":"")+new Date(g.t).toLocaleDateString("sk-SK"):w}</small></span><span class="sp">${g?"✅":"📅"}</span></div>`}).join("")}</div><div class="lookSub" style="grid-column:1/-1">✨ Lesklé kartičky: každý deň je asi 1 z 70 lietadiel lesklé – pre všetkých, čo mu zamávajú (vzácne typy častejšie, legendárne až 1 z 10). ${shN?"Máš "+shN+" "+pl(shN,"lesklú","lesklé","lesklých")+".":"Zatiaľ nemáš žiadnu – mávaj čo najviac rôznym lietadlám."}</div>`;
+  const owned=COL.ed||{};
+  const shinyCount=Object.values(COL.types).filter(card=>card.shiny).length;
+  return `<div class="sets">${edCountdown()}</div>
+    <div class="editionGrid">${EDS.map(edition=>{
+      const [id]=edition,record=owned[id];
+      return `<button class="editionTile" type="button" data-open-edition="${id}">${editionCard(edition,record)}</button>`;
+    }).join("")}</div>
+    <p class="lookSub" style="grid-column:1/-1">✨ Približne 1 zo 70 lietadiel je lesklé. Pri vzácnejších typoch je šanca vyššia, pri legendárnych až 1 z 10.
+      ${shinyCount?"Máš "+shinyCount+" "+pl(shinyCount,"lesklú","lesklé","lesklých")+".":"Zatiaľ nemáš žiadnu lesklú kartičku."}</p>`;
 }
 // pri otvorení appky: dnes je edícia → jedno upozornenie denne
 setTimeout(()=>{try{const e=edNext(),now=Date.now();if(!e||now<Date.parse(e[4])||(COL.ed||{})[e[0]]||LS.get("ctl_edHint","")===e[0])return;LS.set("ctl_edHint",e[0]);toast(e[1]+" Dnes je edícia: "+e[2],"Zamávaj ktorémukoľvek lietadlu a získaš číslovanú kartičku „Bol som pri tom“","#ffcf4f")}catch(x){}},9000);

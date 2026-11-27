@@ -5,7 +5,12 @@ const pushSupported=()=>"serviceWorker" in navigator&&"PushManager" in window&&"
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
 const isStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
 const u8=s=>{s=s.replace(/-/g,"+").replace(/_/g,"/");s+="===".slice((s.length+3)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
-async function swTell(){try{const r=await navigator.serviceWorker.ready;await ensureTok();(r.active||navigator.serviceWorker.controller)?.postMessage({cid:SOC.cid,api:SOC.api,tok:TOK})}catch(e){}}
+async function swTell(){
+  try{
+    const reg=await navigator.serviceWorker.ready,tok=await ensureTok();
+    if(tok&&PUSH.on&&!KID()&&storageCurrent())(reg.active||navigator.serviceWorker.controller)?.postMessage({cid:SOC.cid,tok});
+  }catch(e){}
+}
 async function enablePush(silent,options={}){
   if(!SOC.api||KID())return false;
   if(!pushSupported()){
@@ -93,22 +98,50 @@ $("pushYes").onclick=async()=>{LS.set("ctl_pushAsked",true);LS.set("ctl_streakp"
 $("pushNo").onclick=()=>{LS.set("ctl_pushAsked",true);$("pushAsk").classList.remove("on")};
 
 // spoločný moment v appke
-let momTimer=null;
+let momTimer=null,momentJoinPending=false,momentRetryAt=0;
+function stopMomentUI(){
+  $("momentBar").classList.remove("on");
+  const wasLive=document.body.classList.contains("moment");
+  document.body.classList.remove("moment");
+  if(momTimer){clearInterval(momTimer);momTimer=null}
+  if(wasLive&&!$("ar").classList.contains("on"))wakeOff();
+}
+async function joinMoment(day){
+  momentJoinPending=true;momentRetryAt=Date.now()+10000;
+  try{
+    const response=await apiPost("/api/moment",{},true),result=response.data;
+    if(!response.ok||result?.ok!==true||result.joined!==true||day!==dayKey()||!storageCurrent())return;
+    await withCollectionStorage(()=>{
+      if(!storageCurrent()||day!==dayKey()||!adoptCurrentCollection())return;
+      const rewarded=COL.momentRewardDay===day||LS.get("ctl_momPts","")===day;
+      if(!rewarded){
+        COL.pts+=5;COL.momentRewardDay=day;LS.set("ctl_col",COL);
+        if(!lsFlush())return;
+      }
+      PUSH.joined=day;LS.set("ctl_momJoined",day);
+      if(SOC.data?.moment&&result.n)SOC.data.moment.n=result.n;
+      if(rewarded)return;
+      grantAch("moment");if(typeof streakTouch==="function")streakTouch();
+      toast("👀 Si pri tom!",result.n>1?"Pozorovateľov spolu: "+nf(result.n):"Celé Slovensko sa teraz pozerá hore");
+      confetti(60);haptic([30,60,30]);
+    });
+  }catch(e){}
+  finally{momentJoinPending=false}
+}
 function momentUI(mo){
-  const bar=$("momentBar");
-  if(mo&&mo.live){
-    const left=Math.max(0,Math.round((mo.end-(Date.now()+(SOC.skew||0)))/1000));
-    if(!document.body.classList.contains("moment"))wakeOn();
-    bar.classList.add("on");document.body.classList.add("moment");
-    const mini=LS.get("ctl_momMini","")===dayKey();bar.classList.toggle("mini",mini);
-    bar.textContent=mini?`${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`:`Pozri hore · ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
-    const d=dayKey();
-    if(PUSH.joined!==d&&LS.get("ctl_onb",0)&&S.pos){PUSH.joined=d;LS.set("ctl_momJoined",d);
-      apiPost("/api/moment",{id:SOC.cid}).then(r=>r.json()).then(j=>{if(j.n)SOC.data.moment.n=j.n;const n=j.n||(SOC.data.moment&&SOC.data.moment.n)||0;toast("👀 Si pri tom!",n>1?"Spolu s tebou sa práve "+(n>=2&&n<=4?"pozerajú":"pozerá")+" hore "+nf(n)+" "+ludia(n):"Celé Slovensko sa teraz pozerá hore");confetti(60);haptic([30,60,30]);grantAch("moment");if(LS.get("ctl_momPts","")!==dayKey()){LS.set("ctl_momPts",dayKey());COL.pts+=5;LS.set("ctl_col",COL);if(typeof streakTouch==="function")streakTouch()}}).catch(()=>{});
-    }
-    if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data&&SOC.data.moment),1000);
-    if(left<=0){bar.classList.remove("on");document.body.classList.remove("moment");clearInterval(momTimer);momTimer=null;setTimeout(socPoll,1500);if(!$("ar").classList.contains("on"))wakeOff()}
-  }else{bar.classList.remove("on");document.body.classList.remove("moment");if(momTimer){clearInterval(momTimer);momTimer=null}}
+  const left=mo?.live?Math.ceil((mo.end-(Date.now()+(SOC.skew||0)))/1000):0;
+  if(left<=0){
+    if(mo?.live&&momTimer)setTimeout(socPoll,1500);
+    stopMomentUI();return;
+  }
+  const bar=$("momentBar"),day=dayKey();
+  if(!document.body.classList.contains("moment"))wakeOn();
+  bar.classList.add("on");document.body.classList.add("moment");
+  const mini=LS.get("ctl_momMini","")===day;bar.classList.toggle("mini",mini);
+  const time=`${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
+  bar.textContent=mini?time:"Pozri hore · "+time;
+  if(!document.hidden&&PUSH.joined!==day&&!momentJoinPending&&Date.now()>=momentRetryAt&&LS.get("ctl_onb",0)&&S.pos)joinMoment(day);
+  if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data?.moment),1000);
 }
 // ťuk na pás: najprv vysvetlenie, potom kamera alebo zmenšenie pásu (nezakrýva obsah)
 $("momentBar").onclick=()=>{haptic(10);const mo=SOC.data&&SOC.data.moment;$("momN").textContent=mo&&mo.n>1?"Práve sa hore pozerá "+nf(mo.n)+" "+ludia(mo.n)+" zo Slovenska.":"Celé Slovensko sa teraz na chvíľu pozerá hore.";$("momM").classList.add("on")};

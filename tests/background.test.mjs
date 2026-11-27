@@ -32,28 +32,68 @@ console.log("✓ počasie a satelity sa na pozadí pozastavia a po návrate obno
 
 const worker=readFileSync(new URL("../sw.js",import.meta.url),"utf8");
 const shell=worker.slice(0,worker.indexOf('self.addEventListener("pushsubscriptionchange"'));
-const listeners={},deleted=[];
-let network=0;
-const cached={text:()=>Promise.resolve("offline")};
+const version=worker.match(/cotoleti-v(\d+)/)[1];
+const scope="https://example.test/cotoleti-app/";
+const listeners={},deleted=[],paths=[];
+let network=0,skipped=0,claimed=0,complete=false,offline=true;
+const cached=new Response("offline");
 const storage={
-  open:async()=>({match:async(_req,opts)=>opts?.ignoreSearch?cached:null}),
-  keys:async()=>["cotoleti-v12","other-pwa-cache","ctl-id"],
+  open:async()=>({
+    async addAll(requests){
+      assert.ok(requests.some(req=>req.url.endsWith("/js/core.js")));
+      if(!complete)throw Error("precache incomplete");
+    },
+    async add(){},
+    async match(request,opts){
+      const url=request.url||request.href;
+      paths.push(url);
+      if(url?.endsWith("/index.html"))return new Response("js/core.js?v="+version);
+      if(url?.includes("/lib/leaflet.js"))return cached;
+      if(opts?.ignoreSearch&&url?.includes("/js/core.js"))return cached;
+    },
+  }),
+  keys:async()=>["cotoleti-v12","cotoleti-v"+(Number(version)-1),"other-pwa-cache","ctl-id"],
   delete:async key=>deleted.push(key)
 };
 vm.runInNewContext(shell,{
-  self:{registration:{scope:"https://example.test/cotoleti-app/"},clients:{claim(){}},addEventListener:(name,fn)=>listeners[name]=fn},
-  caches:storage,URL,Response,AbortController,clearTimeout,setTimeout,
-  fetch:async()=>{network++;throw Error("offline")}
+  self:{registration:{scope},skipWaiting(){skipped++},clients:{claim(){claimed++}},addEventListener:(name,fn)=>listeners[name]=fn},
+  caches:storage,URL,Request,Response,AbortController,clearTimeout,setTimeout,
+  fetch:async()=>{network++;if(offline)throw Error("offline");return new Response("unavailable",{status:503})}
 });
-let activation, response;
-listeners.activate({waitUntil:promise=>activation=promise});
-await activation;
+let work,response;
+listeners.install({waitUntil:promise=>work=promise});
+await assert.rejects(work,/precache incomplete/);
+assert.equal(skipped,0);
+complete=true;
+listeners.install({waitUntil:promise=>work=promise});
+await work;
+assert.equal(skipped,1);
+listeners.activate({waitUntil:promise=>work=promise});
+await work;
 assert.deepEqual(deleted,["cotoleti-v12"]);
-const version=worker.match(/cotoleti-v(\d+)/)[1];
-listeners.fetch({request:{method:"GET",url:"https://example.test/cotoleti-app/js/core.js?v="+version},respondWith:p=>response=p});
-assert.equal(await response,cached);
-assert.equal(network,0,"versioned cached assets must not start a network fetch");
-response=null;
-listeners.fetch({request:{method:"GET",url:"https://example.test/cotoleti-app/api/mycards"},respondWith:p=>response=p});
-assert.equal(response,null);
-console.log("✓ cache bez zbytočnej siete a so zachovaním úložísk iných appiek");
+assert.equal(claimed,1);
+const request=(path,mode="cors")=>{
+  response=null;
+  listeners.fetch({request:{method:"GET",url:scope+path,mode},respondWith:p=>response=p});
+  return response;
+};
+assert.equal(await request("js/core.js?v="+version),cached);
+assert.equal(await request("js/core.js?v="+(Number(version)-1)),cached);
+assert.equal(network,0,"verziované súbory má aj predchádzajúca cache");
+assert.equal(await request("lib/leaflet.js"),cached);
+assert.ok(paths.every(Boolean),"offline fallback musí dostať pôvodnú požiadavku");
+offline=false;
+assert.equal((await request("","navigate")).status,200,"HTTP 503 navigácie má použiť uložený shell");
+assert.equal(request("api/mycards"),null);
+console.log("✓ kompletný offline shell, predchádzajúca cache, odpojenie a HTTP 503");
+
+const core=readFileSync(new URL("../js/core.js",import.meta.url),"utf8");
+const mergeSource=core.slice(core.indexOf("const sameCollectionValue"),core.indexOf("function replaceCollectionModel"));
+const merge=vm.runInNewContext(mergeSource+"\nmergeCollectionValue");
+const base={pts:12,n:1,types:{A320:{n:1,first:100}},hex:{a:100}};
+const one={pts:17,n:2,types:{A320:{n:2,first:100}},hex:{a:100,b:200}};
+const two={pts:19,n:2,types:{A320:{n:1,first:100},B738:{n:1}},hex:{a:100,c:201}};
+assert.deepEqual(JSON.parse(JSON.stringify(merge(base,one,two))),{
+  pts:24,n:3,types:{A320:{n:2,first:100},B738:{n:1}},hex:{a:100,b:200,c:201}
+});
+console.log("✓ dve nezávislé zmeny zbierky zachovajú úlovky aj spoločné počítadlá");
