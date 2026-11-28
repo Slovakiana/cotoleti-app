@@ -1,7 +1,10 @@
 // Offline obal appky + upozornenia. Vždy najprv skúša sieť, aby si mal najnovšiu verziu.
-const V="cotoleti-v110";
+const V="cotoleti-v111";
 const SHELL=["./","index.html","privacy.html","rules.html","lib/legal.css","fonts/inter.woff","fonts/unbounded.woff","js/core.js","js/ui.js","js/ar.js","js/space.js","js/weather.js","js/extras.js","js/social.js","js/atlas.js","js/account.js","js/wrapped.js","js/push.js","js/track.js","js/towns.js","js/catalog.js","js/cards.js","lib/card-art/classic.webp","lib/card-art/n.webp","lib/card-art/g.webp","lib/card-art/z.webp","lib/card-art/h.webp","lib/card-art/f.webp","lib/card-art/a388.webp","lib/card-art/e190.webp","lib/card-art/b789.webp","lib/card-art/a333.webp","lib/card-art/b772.webp","lib/card-art/bcs3.webp","lib/card-art/c17.webp","lib/card-art/dv20.webp","lib/card-art/b763.webp","lib/card-art/pc12.webp","lib/card-art/bizjet.webp","lib/card-art/a343.webp","lib/card-art/c5m.webp","lib/card-art/il76.webp","lib/card-art/a388-n.webp","lib/card-art/at76.webp","lib/card-art/at76-g.webp","lib/card-art/at76-z.webp","lib/card-art/at76-f.webp","lib/card-art/z43.webp","lib/card-art/z43-h.webp","lib/card-art/a318.webp","lib/card-art/a319.webp","lib/card-art/a320.webp","lib/card-art/a321.webp","lib/card-art/a20n.webp","lib/card-art/a21n.webp","lib/card-art/b737.webp","lib/card-art/b738.webp","lib/card-art/b739.webp","lib/card-art/b38m.webp","lib/card-art/b39m.webp","lib/card-art/ed-advent2026.webp","lib/card-art/ed-mikulas2026.webp","lib/card-art/ed-lucia2026.webp","lib/card-art/ed-zslnovrat2026.webp","lib/card-art/ed-vianoce2026.webp","lib/card-art/ed-santa2026.webp","lib/card-art/a35k.webp","lib/card-art/b744.webp","lib/card-art/b748.webp","lib/card-art/b77w.webp","lib/card-art/ed-silvester2026.webp","lib/card-art/ed-novyrok2027.webp","lib/card-art/at43.webp","lib/card-art/at75.webp","lib/card-art/dh8d.webp","lib/card-art/ed-valentin2027.webp","lib/card-art/ed-rovnodennost2027.webp","js/journal.js","lib/journal.css","lib/experience.css","lib/brand.css","js/brand.js","lib/journal-world.json","lib/journal-brands.json","js/mail.js","js/golden.js","js/teams.js","js/duel.js","js/sound.js","js/santa.js","js/main.js","og/default.jpg","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 const REV=V.slice("cotoleti-v".length);
+// veľké súbory (ilustrácie, mapy) sa nesťahujú pri inštalácii, ale až keď ich appka prvý raz potrebuje
+const LAZY=path=>/^lib\/card-art\/(?!(classic|n|g|z|h|f)\.webp$)/.test(path)||/^lib\/(journal-world|journal-brands|map-base)\.json$/.test(path);
+const ART="ctl-art";
 const REQUIRED=SHELL.filter(path=>path==="index.html"||/^(js\/.*\.js|lib\/(experience|brand|journal)\.css)$/.test(path));
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{
@@ -10,12 +13,15 @@ self.addEventListener("install",event=>{
     await cache.addAll(requests);
     const index=await cache.match(new URL("index.html",self.registration.scope));
     if(!index||!(await index.text()).includes("js/core.js?v="+REV))throw Error("Neúplná verzia appky");
-    await Promise.allSettled(SHELL.filter(path=>!REQUIRED.includes(path)).map(path=>cache.add(path)));
+    await Promise.allSettled(SHELL.filter(path=>!REQUIRED.includes(path)&&!LAZY(path)).map(path=>cache.add(path)));
     await self.skipWaiting();
   })());
 });
 self.addEventListener("activate",event=>{
   event.waitUntil((async()=>{
+    // ilustrácie, ktoré už appka nepozná, z trvalej cache uprac
+    try{const art=await caches.open(ART),known=new Set(SHELL.filter(p=>p.startsWith("lib/card-art/")).map(p=>new URL(p,self.registration.scope).href));
+      for(const req of await art.keys())if(!known.has(req.url.split("?")[0]))await art.delete(req)}catch(e){}
     const older=(await caches.keys()).filter(key=>/^cotoleti-v\d+$/.test(key)&&key!==V)
       .sort((a,b)=>Number(b.slice(10))-Number(a.slice(10)));
     await Promise.all(older.slice(1).map(key=>caches.delete(key)));
@@ -27,6 +33,16 @@ self.addEventListener("fetch",event=>{
   if(request.method!=="GET"||url.origin!==scope.origin||!url.pathname.startsWith(scope.pathname))return;
   const path=url.pathname.slice(scope.pathname.length);
   if(/^(api|s|admin)(\/|$)/.test(path)||url.searchParams.has("url"))return;
+  // ilustrácie: vlastná trvalá cache naprieč verziami (rovnaký obrázok sa po aktualizácii nesťahuje znova), na pozadí sa overí
+  if(path.startsWith("lib/card-art/")){
+    event.respondWith((async()=>{
+      const art=await caches.open(ART),key=new Request(new URL(path,scope)),saved=await art.match(key);
+      const refresh=fetch(key,{cache:"no-cache"}).then(r=>{if(r.ok&&r.type==="basic")return art.put(key,r.clone()).then(()=>r);return r}).catch(()=>null);
+      if(saved){event.waitUntil(refresh);return saved}
+      return await refresh||Response.error();
+    })());
+    return;
+  }
   const navigation=request.mode==="navigate",revision=url.searchParams.get("v");
   const versioned=!navigation&&/^\d+$/.test(revision||"");
   event.respondWith((async()=>{

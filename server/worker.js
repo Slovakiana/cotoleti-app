@@ -161,7 +161,7 @@ function townOf(la, lo) {
 // prezývky a názvy tímov: bez neviditeľných znakov a vulgarizmov
 const BAD = ["cigan","zid","buzn","teplos","kunda","curak","mrd","sukat","suka","retardo","pice","jebat","prdel","skurv","debilko","onan","kurev","nahy","sex","drog","heroin","pervers","pedof","kokotin","kokot","pica","picus","jeb","kurv","kurw","debil","chuj","hovno","srack","fuck","shit","bitch","nigg","negr","hitler","nazi","buzer","zmrd","retard","whore","porn","penis","vagin","kreten","idiot","sieg"];
 function cleanName(v, max = 20) {
-  let s = String(v || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+  let s = String(v || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, "").replace(/[<>"`]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
   // azbuka a podobné znaky -> latinka, číslice -> písmená, zdvojené písmená zlúčiť (kooookot)
   const HG = {"а":"a","в":"b","с":"c","е":"e","н":"h","і":"i","ј":"j","к":"k","м":"m","о":"o","р":"p","т":"t","х":"x","у":"y","ѕ":"s","ԁ":"d","ɡ":"g","ո":"n","ս":"u","ν":"v","ο":"o","ρ":"p","τ":"t","α":"a","ε":"e","ι":"i","κ":"k","χ":"x","υ":"u","8":"b","6":"g","9":"g","2":"z"};
   // trieda a škola v mene (napr. „5.B ZŠ“, „3 B“, „gymnázium“) – chránime deti pred dohľadaním
@@ -444,6 +444,15 @@ export class Sky extends DurableObject {
         this.sql.exec("DELETE FROM subs WHERE t < ?", now - 90 * 86400e3);
         this.sql.exec("DELETE FROM seen WHERE day < ?", new Date(now - 35 * 86400e3).toISOString().slice(0, 10));
         this.sql.exec("DELETE FROM reports WHERE t < ?", now - 30 * 86400e3);
+  }
+  // 🔐 správca: po 8 zlých kľúčoch z jednej siete (alebo 300 zo všetkých) za 15 min sa ďalšie pokusy odmietnu – kľúč sa nedá hádať
+  adminGate(u, req, bodyKey, iph) {
+    const f = this.admFail || (this.admFail = new Map()), w = Math.floor(Date.now() / 900e3), key = (iph || "?") + ":" + w, all = "*:" + w;
+    if ((f.get(key) || 0) >= 8 || (f.get(all) || 0) >= 300) { this.bump("401admin"); return json({error: "locked", retry: 900}, 429, {"Retry-After": "900"}); }
+    if (this.admin(u, req, bodyKey)) return null;
+    if (f.size > 5000) f.clear();
+    f.set(key, (f.get(key) || 0) + 1); f.set(all, (f.get(all) || 0) + 1); this.bump("401admin");
+    return json({error: "auth", configured: !!this.env.ADMIN_KEY, keyReceived: !!((req.headers.get("x-admin-key")) || bodyKey)}, 401);
   }
   admin(u, req, bodyKey) { const k = this.env.ADMIN_KEY; return !!k && sameStr(k, (req && req.headers.get("x-admin-key")) || bodyKey || ""); }
   flags() { try { return {santaPush: true, sunWave: true, social: "full", hideMil: false, ...JSON.parse(this.getMeta("flags") || "{}")}; } catch (e) { return {santaPush: true, sunWave: true, social: "full"}; } }
@@ -1374,7 +1383,7 @@ export class Sky extends DurableObject {
     if (p === "/api/weekly") return json(JSON.parse(this.getMeta("weeklyData") || "null") || this.weekly(this.week()));
     if (p === "/api/tname") { const t = this.row("SELECT name FROM teams WHERE code=?", String(u.searchParams.get("c") || "").toUpperCase().slice(0, 6)); return json({name: t ? t.name : ""}); }
     if (p === "/api/stats") {
-      if (!this.admin(u, req, B && B.key)) { this.bump("401admin"); return json({error:"auth",configured:!!this.env.ADMIN_KEY,keyReceived:!!((req.headers.get("x-admin-key"))||(B&&B.key))},401); }
+      { const g = this.adminGate(u, req, B && B.key, iph); if (g) return g; }
       const days = [];
       for (let i = 0; i < 14; i++) {
         const dd = new Date(now - i * 86400e3).toISOString().slice(0, 10), prevD = new Date(now - (i + 1) * 86400e3).toISOString().slice(0, 10);
@@ -1445,7 +1454,7 @@ export class Sky extends DurableObject {
         const moved = distKm(+sp.la, +sp.lo, vp.lat, vp.lon), maxKm = (now - tw) / 3600e3 * 1100 + 10;
         if (moved <= maxKm) { vp.km = distKm(la, lo, +sp.la, +sp.lo); if (isFinite(sp.alt) && sp.alt > 0) vp.alt = Math.min(50000, +sp.alt); vp.late = 1; }
       }
-      if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
+      if (vp.found && (vp.ground || vp.km > (Number(this.env.CHEAT_FAR_KM) || 130))) return json({error: "far"}, 422);
       const pdx = await this.pid(id);
       // do súťaží sa ráta len poloha zo Slovenska, ktorá sedí s IP adresou, a nie z VPN/serverov
       const asn = Number(req.headers.get("x-cc-asn") || 0);
@@ -1456,7 +1465,7 @@ export class Sky extends DurableObject {
       if (b.gps !== true) fair = false;
       if (!dd && fair) { dd = {town: townOf(la, lo), k: krajOf(la, lo), n: 0, la, lo}; this.sql.exec("INSERT INTO idday(day, id, town, k, n, la, lo) VALUES(?, ?, ?, ?, 0, ?, ?)", d, id, dd.town, dd.k, la, lo); }
       // poloha je na deň zamknutá: ďalšie mávnutia sa rátajú len do 30 km od prvého (žiadne „teleportovanie“)
-      const near = dd && dd.la != null ? distKm(la, lo, dd.la, dd.lo) <= 30 : true;
+      const near = dd && dd.la != null ? distKm(la, lo, dd.la, dd.lo) <= (Number(this.env.CHEAT_NEAR_KM) || 30) : true;
       if (dd && !near) this.bump("teleport");
       // do líg sa ráta max 25 mávnutí na účet a 60 na sieť za deň a len overené lietadlo
       // ochrana ligy pred skriptami: účet mladší ako 10 min sa ráta len pri lietadle, ktoré appka naozaj ukazovala
@@ -1641,7 +1650,7 @@ export class Sky extends DurableObject {
     }
 
     if (p === "/api/admin" && req.method === "POST") {
-      const b = await body(); if (!this.admin(u, req, b.key)) { this.bump("401admin"); return json({error:"auth",configured:!!this.env.ADMIN_KEY,keyReceived:!!((req.headers.get("x-admin-key"))||b.key)},401); }
+      const b = await body(); { const g = this.adminGate(u, req, b.key, iph); if (g) return g; }
       if (b.resetAction) {
       if (b.resetAction === "prepare") {
         const nonce = crypto.randomUUID();
@@ -1765,7 +1774,7 @@ export class Sky extends DurableObject {
       if (id.length < 8 || !hex || la == null || lo == null) return json({error: "bad"}, 400);
       if (!this.rate("mail:" + iph, 600, 86400e3)) return json({error: "limit"}, 429);
       const vp = await this.verifyPlane(hex, la, lo);
-      if (vp.found && (vp.ground || vp.km > 130)) return json({error: "far"}, 422);
+      if (vp.found && (vp.ground || vp.km > (Number(this.env.CHEAT_FAR_KM) || 130))) return json({error: "far"}, 422);
       const fair = country === "SK" && !ipFar(la, lo);
       const cnt = (this.row("SELECT COUNT(*) AS c FROM mails WHERE day=? AND id=?", d, id) || {c: 0}).c;
       if (cnt >= 30) return json({error: "limit"}, 429);
@@ -2034,7 +2043,7 @@ export class Sky extends DurableObject {
   }
 }
 
-function adminPage() {
+function adminPage(asScript = false) {
   const html = `<!doctype html><html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Čo to letí? – správa</title>
 <style>body{font:16px system-ui;background:#0d1430;color:#fff;margin:0;padding:18px}input,button,select{font:inherit;padding:12px;border-radius:12px;border:0;margin:4px 0;width:100%;box-sizing:border-box}button{background:#6dffc7;font-weight:700}pre{white-space:pre-wrap;background:#ffffff14;padding:12px;border-radius:12px;font-size:13px}label{display:block;margin-top:10px}#statsSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:8px}#statsSummary div{background:#ffffff14;padding:12px;border-radius:12px}#statsSummary dd{margin:4px 0 0;font-size:22px;font-weight:700}#statsDetails{margin:14px 0 22px}#statsDetails summary{cursor:pointer;padding:10px 0}#statsStatus:empty,#o:empty{display:none}</style></head>
 <body><h2>✈️ Správa appky</h2><input id="k" type="password" placeholder="ADMIN_KEY" autocomplete="current-password">
@@ -2122,8 +2131,11 @@ $("wipeExecute").onclick=async()=>{
   }catch(e){$("wipeInfo").textContent="Reset zlyhal: "+e.message}finally{wipeNonce=""}
 };
 $("ov").onclick=async()=>{o.textContent="…";const j=await A({nick:$("nk").value});o.textContent=(j.overenie||[]).map(x=>"Overených typov: "+x.karticky+"\\n"+x.mavnutia.map(m=>new Date(m.t).toLocaleString("sk-SK")+" · "+(m.type||"?")+" · "+(m.el==null?"?":Math.round(m.el)+"°")+" · "+(m.ok?"✓ overené":"✗ "+m.why)).join("\\n")).join("\\n\\n")||"Hráč sa nenašiel."};</script></body></html>`;
-  return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
-    "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"}});
+  // 🔐 skript správy ako samostatný súbor – stránka nepovoľuje vložené skripty (ochrana admin kľúča pred XSS)
+  const i = html.indexOf("<script>"), j = html.indexOf("</script>", i);
+  if (asScript) return new Response(html.slice(i + 8, j), {headers: {"Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}});
+  return new Response(html.slice(0, i) + '<script src="/admin.js"></script>' + html.slice(j + 9), {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"}});
 }
 // jednoduchý limit v pamäti inštancie (prvá línia obrany pred zahltením)
 const ISO = new Map();
@@ -2179,8 +2191,29 @@ ${cardPreview ? "" : `<meta http-equiv="refresh" content="0;url=${he(to)}">`}<st
   return new Response(html, {headers: {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src https:"}});
 }
 
+// 🔐 CORS len pre vlastné adresy appky (iné weby nemôžu cez prehliadač čerpať naše API a limity)
+const ORIGINS = ["https://slovakiana.github.io", "https://cotoleti-app.radovan-kudela.workers.dev"];
+function corsOrigin(req, env) {
+  const o = req.headers.get("Origin") || "";
+  if (!o) return "";
+  if (ORIGINS.includes(o) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) return o;
+  return String(env.EXTRA_ORIGINS || "").split(/[\s,]+/).filter(Boolean).includes(o) ? o : "-";
+}
+function withCors(res, origin) {
+  if (!origin || !res || !res.headers.has("Access-Control-Allow-Origin")) return res;
+  try {
+    const out = new Response(res.body, res);
+    if (origin === "-") out.headers.delete("Access-Control-Allow-Origin"); else out.headers.set("Access-Control-Allow-Origin", origin);
+    out.headers.append("Vary", "Origin");
+    return out;
+  } catch (e) { return res; }
+}
 export default {
   async fetch(req, env, ctx) {
+    const origin = corsOrigin(req, env);
+    return withCors(await this.route(req, env, ctx), origin);
+  },
+  async route(req, env, ctx) {
     if (req.method === "OPTIONS") return new Response(null, {headers: CORS});
     const url = new URL(req.url);
     if (url.pathname.startsWith("/api/")) {
@@ -2222,6 +2255,7 @@ export default {
       catch (e) { return json({error: "busy"}, 503, {"Retry-After": "20"}); }
     }
     if (url.pathname === "/admin") return adminPage();
+    if (url.pathname === "/admin.js") return adminPage(true);
     if (url.pathname.startsWith("/s/")) {
       // náhľady pre WhatsApp/Facebook/Telegram chodia z mála IP – tie nebrzdíme (pri virálnej vlne by odkazy ostali bez obrázka)
       const bot = /facebookexternalhit|facebot|WhatsApp|Twitterbot|TelegramBot|Slackbot|Discordbot|LinkedInBot|Applebot|SkypeUriPreview|viber/i.test(req.headers.get("user-agent") || "");

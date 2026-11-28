@@ -720,7 +720,8 @@ await (async () => {
 await (async () => {
   // /admin: skript stránky musí byť platný JavaScript (\n v šablóne ho raz celý rozbil)
   const r = await W.fetch(new Request("https://x/admin"), env); const html = await r.text();
-  const js = html.split("<script>")[1].split("</script>")[0]; new Function(js);
+  assert.ok(!html.includes("<script>") && html.includes('<script src="/admin.js">') && !/unsafe-inline'; style/.test(r.headers.get("content-security-policy").replace("style-src 'unsafe-inline'", "")), "bez vloženého skriptu");
+  const js = await (await W.fetch(new Request("https://x/admin.js"), env)).text(); new Function(js);
   console.log("✓ /admin skript je platný");
 })();
 await (async () => {
@@ -943,3 +944,18 @@ await t("globálny reset vyžaduje správcu, nonce a dvojité potvrdenie", async
   assert.equal(await sky.authed("v2anotherresetgeneration00001",minted.tok),false,"každý ďalší reset zneplatní tokeny predošlej generácie");
   assert.equal(db.prepare("SELECT COUNT(*) AS c FROM ids").get().c,0);
 });
+await (async () => {
+  // SEC-01: hádanie admin kľúča – po 8 zlých pokusoch z jednej siete zámok aj pre správny kľúč
+  for (let i = 0; i < 8; i++) assert.equal((await call("/api/admin", {key: "zle" + i}, "6.6.6.6")).s, 401);
+  assert.equal((await call("/api/admin", {key: "tajne"}, "6.6.6.6")).s, 429);
+  assert.equal((await call("/api/admin", {key: "tajne"}, "1.2.3.9")).s, 200);
+  console.log("✓ zámok po opakovaných zlých admin kľúčoch");
+})();
+await (async () => {
+  // SEC-03: CORS len pre vlastné adresy
+  const ask = async o => (await W.fetch(new Request("https://x/api/health", {headers: o ? {Origin: o} : {}}), env)).headers.get("access-control-allow-origin");
+  assert.equal(await ask("https://slovakiana.github.io"), "https://slovakiana.github.io");
+  assert.equal(await ask("https://zly-web.example"), null);
+  assert.equal(await ask(""), "*");
+  console.log("✓ CORS len pre appku");
+})();

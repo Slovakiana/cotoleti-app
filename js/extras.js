@@ -417,7 +417,17 @@ let installEvt=null;
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 const visits=(LS.get("ctl_visits",0)|0)+1;LS.set("ctl_visits",visits);
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;if(!standalone()&&!LS.get("ctl_noinst",false)&&visits>=2){$("installBar").hidden=false;$("installTxt").textContent="📲 Pridať na plochu"}});
+// 🛟 iPhone v Safari: web, ktorý 7 dní neotvoríš, môže Safari zmazať aj so zbierkou – appka z plochy je v bezpečí
+function safariKeepHint(){
+  if(!isIOS()||standalone()||inApp)return;
+  const n=Object.values(COL.types||{}).filter(v=>v&&v.n>0).length;if(n<1)return;
+  const last=LS.get("ctl_keepHint",0)|0;if(Date.now()-last<3*86400e3)return;
+  LS.set("ctl_keepHint",Date.now());
+  setTimeout(()=>toast("🛟 Ochráň svoju zbierku ("+n+" "+pl(n,"kartička","kartičky","kartičiek")+")","iPhone môže stránku, ktorú 7 dní neotvoríš, zmazať aj so zbierkou. Pridaj si appku na plochu (Zdieľať ⬆️ → Pridať na plochu) – tam je v bezpečí.",null,9000),2500);
+  if(LS.get("ctl_noinst",false)&&Date.now()-(LS.get("ctl_noinstT",0)|0)>14*86400e3)LS.set("ctl_noinst",false);
+}
 function installHint(){
+  safariKeepHint();
   if(standalone()||LS.get("ctl_noinst",false)||inApp||(visits<2&&(LS.get("ctl_waveN",0)|0)<3))return;
   if(isIOS()){$("installBar").hidden=false;$("installTxt").textContent="📲 Na plochu"}
 }
@@ -425,7 +435,7 @@ $("installTxt").onclick=async()=>{
   if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;$("installBar").hidden=true}
   else installGuide();
 };
-$("b-installX").onclick=()=>{LS.set("ctl_noinst",true);$("installBar").hidden=true;$("b-track").focus({preventScroll:true})};
+$("b-installX").onclick=()=>{LS.set("ctl_noinst",true);LS.set("ctl_noinstT",Date.now());$("installBar").hidden=true;$("b-track").focus({preventScroll:true})};
 // 🔄 nová verzia: pri návrate do appky sa skontroluje a keď sa prevezme, appka sa potichu obnoví (keď ju práve nepoužívaš)
 function canReloadApp(){
   return !activeOverlay()&&!document.querySelector("dialog[open]")&&!WB&&!SOC.inflight&&!SOC.flushing&&
