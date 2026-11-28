@@ -127,6 +127,19 @@ const FORM_ART={
   f:{ink:"#e0f9ff",dark:"#0d233d",metal:"#87bfdc",mark:'<path d="M16 3v22M6 8l20 12M6 20 26 8M12 5l4 4 4-4m-8 18 4-4 4 4"/>'}
 };
 const CARD_ILLUSTRATIONS={
+  "F16:":"f16",
+  "F35:":"f35",
+  "GRIF:":"gripen",
+  "EUFI:":"gripen",
+  "C130:":"c130",
+  "C30J:":"c130",
+  "A139:":"aw139",
+  "A109:":"aw139",
+  "A169:":"aw139",
+  "A189:":"aw139",
+  "R22:":"robinson",
+  "R44:":"robinson",
+  "R66:":"robinson",
   "CRJ2:":"crj",
   "CRJ7:":"crj",
   "CRJ9:":"crj",
