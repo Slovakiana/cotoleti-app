@@ -156,7 +156,7 @@ const TX={
 const t=k=>TX[k][S.vych?1:0];
 
 /* ============ číselníky ============ */
-const TYPES={C140:"Cessna 140",D328:"Dornier 328",M600:"Piper M600",A319:"Airbus A319",A320:"Airbus A320",A20N:"Airbus A320neo",A321:"Airbus A321",A21N:"Airbus A321neo",A318:"Airbus A318",
+const TYPES={C25B:"Cessna Citation CJ3",C25C:"Cessna Citation CJ4",LJ60:"Learjet 60",LJ75:"Learjet 75",P46T:"Piper M500",PA46:"Piper Malibu",BE9L:"Beechcraft King Air 90",BE40:"Beechcraft Premier",C56X:"Cessna Citation Excel",C140:"Cessna 140",D328:"Dornier 328",M600:"Piper M600",A319:"Airbus A319",A320:"Airbus A320",A20N:"Airbus A320neo",A321:"Airbus A321",A21N:"Airbus A321neo",A318:"Airbus A318",
 A306:"Airbus A300",A310:"Airbus A310",A332:"Airbus A330-200",A333:"Airbus A330-300",A338:"Airbus A330-800neo",A339:"Airbus A330-900neo",A343:"Airbus A340-300",A346:"Airbus A340-600",A359:"Airbus A350-900",A35K:"Airbus A350-1000",A388:"Airbus A380",
 BCS1:"Airbus A220-100",BCS3:"Airbus A220-300",B733:"Boeing 737-300",B734:"Boeing 737-400",B737:"Boeing 737-700",B738:"Boeing 737-800",B739:"Boeing 737-900",B37M:"Boeing 737 MAX 7",B38M:"Boeing 737 MAX 8",B39M:"Boeing 737 MAX 9",B3XM:"Boeing 737 MAX 10",
 B742:"Boeing 747-200",B744:"Boeing 747-400",B748:"Boeing 747-8",B752:"Boeing 757-200",B753:"Boeing 757-300",B762:"Boeing 767-200",B763:"Boeing 767-300",B764:"Boeing 767-400",B772:"Boeing 777-200",B77W:"Boeing 777-300ER",B77L:"Boeing 777-200LR",B778:"Boeing 777-8",B779:"Boeing 777-9",B788:"Boeing 787-8",B789:"Boeing 787-9",B78X:"Boeing 787-10",

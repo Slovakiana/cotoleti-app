@@ -172,7 +172,9 @@ function cardCoverForm(v){
     .sort(([a],[b])=>(v.forms?.[b]||(b==="n"&&v.night)||0)-(v.forms?.[a]||(a==="n"&&v.night)||0));
   return newest[0]?.[0]||"";
 }
-function cardArtURL(form,code){return "lib/card-art/"+(CARD_ILLUSTRATIONS[code+":"+form]||form||"classic")+".webp"+CARD_ART_REV}
+// ilustrácia typu: vlastná pre formu, inak základná ilustrácia typu (forma sa naznačí tónom), až potom všeobecné pozadie formy
+function cardIllustration(code,form){return CARD_ILLUSTRATIONS[code+":"+form]||CARD_ILLUSTRATIONS[code+":"]||""}
+function cardArtURL(form,code){return "lib/card-art/"+(cardIllustration(code,form)||form||"classic")+".webp"+CARD_ART_REV}
 async function cardExportSVG(k,v,opt){
   let artHref="";
   try{
@@ -234,7 +236,8 @@ function cardFoil(id,scene){
 function cardScene(k,v,id,form,ink,dark,metal,href,locked){
   const c=catGuess(k);
   const art=locked?"":href===undefined?cardArtURL(form,k):href;
-  const illustrated=!!(art&&CARD_ILLUSTRATIONS[k+":"+form]);
+  const illustrated=!!(art&&cardIllustration(k,form));
+  const formTint=illustrated&&form&&!CARD_ILLUSTRATIONS[k+":"+form]?(FORM_ART[form]||{}).metal:"";
   const mirrored=!form&&!illustrated&&hash(k+"scene")%2===1;
   const pose=FORM_POSES[form]||{x:210,y:245,size:328,angle:[-34,-24,23,34][hash(k)%4],body:"#f8fcff"};
   const size=illustrated?220:pose.size,half=size/2;
@@ -251,6 +254,7 @@ function cardScene(k,v,id,form,ink,dark,metal,href,locked){
     ${illustrated&&href===undefined?silhouette:""}
     ${art?`<image href="${SVGE(art)}" x="17" y="72" width="386" height="348" preserveAspectRatio="xMidYMid ${illustrated?"meet":"slice"}"${mirrored?' transform="translate(420 0) scale(-1 1)"':""}/>`:""}
     <rect x="17" y="72" width="386" height="348" fill="${dark}" opacity="${illustrated?0:form?.10:.29}"/>
+    ${formTint?`<rect x="17" y="72" width="386" height="348" fill="${formTint}" opacity=".34" style="mix-blend-mode:color"/>`:""}
     <rect x="17" y="72" width="386" height="348" fill="url(#shade${id})" opacity="${illustrated ? .55 : 1}"/>
     ${illustrated?"":`<g transform="translate(19 85) scale(.72 .93)">${collectorEditionArt(k,locked?null:v)}</g>`}
     <g fill="none" stroke="${ink}" stroke-opacity=".5">

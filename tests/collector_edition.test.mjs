@@ -49,7 +49,9 @@ for(const [key,asset] of illustrations){
   assert.ok(sw.includes(`"${file}"`),`${file} je dostupné offline`);
   assert.equal(readFileSync(new URL("../"+file,import.meta.url)).toString("ascii",8,12),"WEBP");
 }
-assert.equal(vm.runInContext('cardArtURL("n","B738")',ctx),"lib/card-art/n.webp?v=test");
+// forma bez vlastnej ilustrácie: ilustrácia typu (forma sa naznačí tónom); typ bez ilustrácie: pozadie formy
+assert.equal(vm.runInContext('cardArtURL("n","B738")',ctx),"lib/card-art/b738.webp?v=test");
+assert.equal(vm.runInContext('cardArtURL("n","E190")',ctx),"lib/card-art/n.webp?v=test");
 const catalog=readFileSync(new URL("../js/catalog.js",import.meta.url),"utf8");
 ctx.TYPES={};
 vm.runInContext(catalog,ctx);
