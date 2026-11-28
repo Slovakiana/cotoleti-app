@@ -154,6 +154,9 @@ const CATALOG=[
 ["B779","Boeing 777-9","Boeing","twinW",76.7,71.8,905,13500,426,2020,"Najdlhšie dvojmotorové lietadlo sveta – konce krídel sa mu sklápajú."],
 ["AN30","Antonov An-30","Antonov","prop",24.3,29.2,430,2600,0,1967,"Lietajúci fotoaparát – fotí a mapuje krajinu zhora."],
 ["DC6","Douglas DC-6","Douglas","prop4",30.7,35.8,500,4800,68,1946,"Vrtuľová legenda – Flying Bulls ju ukazujú na leteckých dňoch."],
+["C25B","Cessna Citation CJ3","Cessna","rj",15.6,16.3,770,3800,9,2003,"Obľúbený biznis jet, ktorý zvládne riadiť jediný pilot."],
+["LJ60","Learjet 60","Learjet","rj",17.9,13.4,860,4500,8,1990,"Predĺžený Learjet s dlhším doletom."],
+["C5M","Lockheed C-5M Super Galaxy","Lockheed","quad",75.3,67.9,830,8900,0,1968,"Jedno z najväčších lietadiel sveta – nos sa mu otvára dohora."],
 ];
 const CAT={};
 // číslovanie po stupňoch vzácnosti: 001… bežné, potom nezvyčajné, vzácne, epické, legendárne; trofejné na koniec
