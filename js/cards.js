@@ -148,6 +148,13 @@ const CARD_ILLUSTRATIONS={
   "MI8:":"mi8",
   "H60:":"h60",
   "H47:":"chinook",
+  "DA42:":"twin",
+  "PA34:":"twin",
+  "PZ04:":"wilga",
+  "AN2:":"an2",
+  "P28A:":"p28a",
+  "SR22:":"p28a",
+  "C208:":"c208",
   "A3ST:":"beluga",
   "A337:":"beluga",
   "B779:":"b779",
@@ -352,7 +359,7 @@ function cardScene(k,v,id,form,ink,dark,metal,href,locked,small){
     <linearGradient id="shade${id}" x2="0" y2="1"><stop stop-color="${dark}" stop-opacity=".02"/><stop offset=".53" stop-color="${dark}" stop-opacity=".18"/><stop offset="1" stop-color="${dark}" stop-opacity=".82"/></linearGradient></defs>
     <g clip-path="url(#scene${id})" data-card-art="${illustrated?"illustration":locked?"locked":"silhouette"}">
     <rect x="17" y="72" width="386" height="348" fill="url(#sky${id})"/>
-    ${illustrated&&href===undefined?silhouette:""}
+    ${illustrated&&href===undefined?silhouette.replace("<g ","<g data-card-sil "):""}
     ${art?`<image href="${SVGE(art)}" x="17" y="72" width="386" height="348" preserveAspectRatio="xMidYMid ${illustrated?"meet":"slice"}"${mirrored?' transform="translate(420 0) scale(-1 1)"':""}/>`:""}
     <rect x="17" y="72" width="386" height="348" fill="${dark}" opacity="${illustrated?0:form?.10:.29}"/>
     ${formTint?`<rect data-card-tint="${form}" x="17" y="72" width="386" height="348" fill="${formTint}" opacity=".34" style="mix-blend-mode:color"/>`:""}
@@ -629,6 +636,25 @@ function cardFormPicker(v){
   return `<div class="cardFormPicker" role="group" aria-label="Vzhľad kartičky">${[["-","","Originál"],...owned].map(([key,icon,label])=>
     `<button type="button" data-card-form-choice="${key}" aria-pressed="${key===form}" style="--form-ink:${FORM_ART[key]?.ink||"#d5e6ff"}"><span aria-hidden="true">${icon||"◇"}</span> ${label}</button>`).join("")}</div>`;
 }
+// Ilustráciu si stiahni a dekóduj vopred. Kým nie je pripravená, náhradná kresba pod ňou je skrytá,
+// aby pri novej kartičke na chvíľu nezablikala pôvodná (vektorová) podoba.
+const CARD_ART_READY=new Map();
+function cardArtPreload(k,form){
+  const url=cardIllustration(k,form||"")?cardArtURL(form||"",k):"";
+  if(!url)return null;
+  if(CARD_ART_READY.has(url))return CARD_ART_READY.get(url);
+  const img=new Image();img.src=url;
+  const loaded=img.decode?img.decode():new Promise((ok,no)=>{img.onload=ok;img.onerror=no});
+  const entry={done:false,p:null};
+  entry.p=Promise.race([loaded.catch(()=>{}),new Promise(r=>setTimeout(r,4000))]).then(()=>{entry.done=true});
+  CARD_ART_READY.set(url,entry);
+  return entry;
+}
+function cardArtGate(wrap,entry){
+  if(!wrap||!entry||entry.done)return;
+  wrap.classList.add("artWait");
+  entry.p.then(()=>wrap.classList.remove("artWait"));
+}
 function shownCard(v){return {...v,coverForm:cardVisibleForm||"-"}}
 function openCard(k,reveal,form){
   const v=COL.types[k];if(!v)return;
@@ -645,6 +671,7 @@ function openCard(k,reveal,form){
   cardK=k;
   cardVisibleForm=hasCardForm(v,form)?form:cardCoverForm(v);
   modal.classList.remove("locked");
+  const art=cardArtPreload(k,cardVisibleForm);
   const face=()=>{
     const first=firstCatchNote(v),relay=cardRelay(k,v);
     root.innerHTML=`<h2 class="cardHeadline" tabindex="-1">${esc(catGuess(k).name)}</h2>
@@ -655,6 +682,7 @@ function openCard(k,reveal,form){
       <p class="cardIdentity">${v.ver?"✓ Overená":v.n?"Neoverená":"Darovaná kópia"}${v.n?" · "+esc(cardProgress(k,v)):""}</p>
       ${first&&v.n?`<p class="cardFirstCatch">${esc(first)}</p>`:""}
       <details class="cardDetails"><summary>Údaje o kartičke</summary>${collectorDossier(k,v)}${cardExtras(k,v)}</details>`;
+    cardArtGate(root.querySelector(".holoWrap"),art);
     share.style.visibility="";share.style.display=v.n?"":"none";
     video.hidden=!vidOK()||!v.n;
     cardStat(k);
@@ -666,9 +694,12 @@ function openCard(k,reveal,form){
   share.style.display="none";video.hidden=true;
   root.innerHTML=`<div class="revealScene ${r}"><button type="button" class="cardBack ${r}"><b aria-hidden="true">✈</b><span>Odhaliť kartičku</span></button></div>`;
   const back=root.querySelector(".cardBack");
-  back.onclick=face;
+  // otočenie počká na ilustráciu (najviac ~1,6 s), aby sa nová kartička ukázala hneď celá
+  const flip=()=>{if(modal.classList.contains("on")&&root.contains(back))face()};
+  const waitArt=()=>art&&!art.done?Promise.race([art.p,new Promise(r=>setTimeout(r,1600))]):Promise.resolve();
+  back.onclick=()=>waitArt().then(flip);
   back.focus({preventScroll:true});
-  setTimeout(()=>{if(modal.classList.contains("on")&&root.contains(back))face()},typeof reveal==="string"&&reveal.startsWith("Nová kartička")?450:800);
+  setTimeout(()=>waitArt().then(flip),typeof reveal==="string"&&reveal.startsWith("Nová kartička")?450:800);
 }
 function cardExtras(k,v){
   const r=typeTier(k),al=v.al?Object.keys(v.al):[];
@@ -706,6 +737,7 @@ $("cardBig").addEventListener("click",async e=>{
     const wrap=$("cardBig").querySelector(".holoWrap");
     wrap.classList.remove("reveal");
     wrap.innerHTML=cardSVG(cardK,v);
+    cardArtGate(wrap,cardArtPreload(cardK,cardVisibleForm));
     if(!RM())wrap.querySelector("svg").animate([{opacity:.55},{opacity:1}],{duration:240,easing:"ease-out"});
     for(const b of choice.parentElement.children)b.setAttribute("aria-pressed",String(b===choice));
     for(const tile of $("c-types").querySelectorAll(".mini[data-k]")){

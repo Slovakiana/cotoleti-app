@@ -119,6 +119,21 @@ function skySize(){const cv=$("sky");if(!cv)return;const d=Math.min(2,devicePixe
   SKY.bgKey="";SKY.sw=null;SKY.paintedT=0;
   if(!SKY.mq&&window.matchMedia)SKY.mq=matchMedia("(prefers-reduced-motion: reduce)");
   if(!SKY.io&&"IntersectionObserver" in window){SKY.io=new IntersectionObserver(e=>{SKY.vis=e[e.length-1].isIntersecting});SKY.io.observe(cv)}}
+// Pri prvom spustení z plochy iOS dopočíta výšku obrazovky, bezpečné okraje a písma až po štarte – bez udalosti „resize“.
+// Preto radar sleduje svoje rozmery sám, inak ostane prázdny alebo roztiahnutý a popisy mimo.
+function skyLayoutKey(){const cv=$("sky");if(!cv)return "";const r=cv.getBoundingClientRect(),h=document.querySelector(".stageTxt")?.getBoundingClientRect(),b=document.querySelector(".radarCaption")?.getBoundingClientRect();
+  return [r.width,r.height,h?h.bottom-r.top:0,b?b.top-r.top:0,devicePixelRatio||1].map(n=>Math.round(n)).join(":")}
+function skyRefit(){const key=skyLayoutKey();if(key&&key!==SKY.key){SKY.key=key;skySize()}}
+function skyWatchLayout(){
+  SKY.key=skyLayoutKey();
+  if("ResizeObserver" in window){const ro=new ResizeObserver(()=>skyRefit());for(const el of [$("stage"),document.querySelector(".stageTxt"),document.querySelector(".radarCaption")])if(el)ro.observe(el)}
+  window.visualViewport?.addEventListener("resize",skyRefit);
+  addEventListener("orientationchange",()=>setTimeout(skyRefit,250));
+  addEventListener("pageshow",skyRefit);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(skyRefit,60)});
+  document.fonts?.ready?.then(skyRefit).catch(()=>{});
+  for(const ms of [120,500,1200,2500])setTimeout(skyRefit,ms);
+}
 const skyRot=()=>S.heading!=null?-S.heading:0;
 function skyProj(az,el){const r=(90-Math.max(-2,el))/90*SKY.R,an=rad(az+skyRot());return {x:SKY.cx+r*Math.sin(an),y:SKY.cy-r*Math.cos(an)}}
 // bod v jednotkovom kotúči (bez otočenia) → obrazovka
@@ -188,8 +203,12 @@ function skySweep(){
 }
 function skyFrame(){
   SKY.raf=requestAnimationFrame(skyFrame);
-  if(S.view!=="now"||document.hidden||!SKY.vis||!SKY.c||!SKY.R)return;
-  const tNow=performance.now(),rm=skyRM();
+  if(S.view!=="now"||document.hidden||!SKY.c)return;
+  const tNow=performance.now();
+  // poistka: raz za sekundu over rozmery (lacné), prázdny radar skúšaj častejšie
+  if(tNow-(SKY.fitT||0)>(SKY.R?1000:250)){SKY.fitT=tNow;if(SKY.R)skyRefit();else skySize()}
+  if(!SKY.vis||!SKY.R)return;
+  const rm=skyRM();
   const stale=skyStale(),live=!stale&&S.loaded&&!S.failN&&S.raw.length>0;
   const iv=rm||!live?250:SKY.cost>7?66:33;
   if(tNow-SKY.last<iv)return;
@@ -769,10 +788,11 @@ function openCollectionSection(id){
 }
 $("streakChip").onclick=()=>openCollectionSection("dailyBox");
 async function boot(){
-  SKY.cv=$("sky");SKY.c=SKY.cv.getContext("2d");skySize();addEventListener("resize",()=>skySize());skyFrame();
+  SKY.cv=$("sky");SKY.c=SKY.cv.getContext("2d");skySize();addEventListener("resize",()=>skySize());skyWatchLayout();skyFrame();
   paintSky();
   let state="prompt";
-  try{if(navigator.permissions){const p=await navigator.permissions.query({name:"geolocation"});state=p.state}}catch(e){}
+  // iOS (appka z plochy) vie dotaz na povolenie nechať visieť – bez limitu by sa úvod ani radar nikdy neukázali
+  try{if(navigator.permissions){const p=await Promise.race([navigator.permissions.query({name:"geolocation"}),new Promise(r=>setTimeout(()=>r(null),1200))]);if(p&&p.state)state=p.state}}catch(e){}
   const manual=LS.get("ctl_manual",false)&&S.pos;
   if(manual){S.manual=true;showPos();fetchPlanes(true);bindOri()}
   else if(LS.get("ctl_onb",0)&&state==="granted"){startGps();if(S.pos)fetchPlanes(true);bindOri()}

@@ -26,6 +26,18 @@
 - znova spustiť test „každý klik“ a iPhone SE / slabý signál na v101 (v r4 im došiel limit).
 - Context7, Serena a Repomix tu nejdú nainštalovať (inštalácia balíkov je vypnutá); Context7 sa dá pripojiť ako konektor na claude.ai.
 
+
+## 🎨 Ilustrácie – čo ešte chýba (stav v119: 128/155 typov, 10/17 edícií)
+
+ChatGPT zvládne 6 obrázkov naraz. Prompty sú v štýle „classic aviation oil painting“, 1536×1024, bez log a textov.
+
+- **Dávka A:** An-124 (3. pokus – musí mať presne 4 motory a horné krídlo), Falcon 7X + 900 (falcon), Bell 206 + H125 (lahky vrtulník), Bell 429, H225, Mi-24
+- **Dávka B:** KC-135 + RC-135 (kc135), E-3 AWACS, An-12, A300-600F, C-390, Global Hawk (RQ-4, kód Q4)
+- **Dávka C:** Saab 340 + Dornier 328 (regio), An-30, Fokker 100, DC-6, Blaník L-13 + Vivat (blanik), Tecnam P2006T
+- **Dávka D:** UH-1Y, W-3 Sokół, M28 Skytruck, PC-7
+- **Edície 2027 (7):** stefanik, detom, slnovrat, zatmenie, perzeidy, snp, halloween → súbor `ed-<id>.webp`, zápis v EDITION_DESIGN
+- Pozor: test collector_edition používa Q4 ako typ bez ilustrácie – pri Global Hawku ho zmeniť na iný typ bez obrázka.
+
 ---
 
 
