@@ -443,11 +443,12 @@ await t("IPv6 z jedného bloku = jedna sieť", async () => {
   const codes = []; for (let i = 0; i < 42; i++) codes.push((await call("/api/hello", {id: "v2yyyyyyyyyyyyyyyyyyy" + String(i).padStart(2, "0")}, "2001:db8:1:2:" + (i % 9) + "::1")).s);
   assert.deepEqual(codes.slice(-2), [429, 429], codes.join(","));
 });
-await t("analytický lievik je vypnutý a diagnostika zapisuje len pevné kódy", async () => {
-  for (const step of ["open", "beta_open", "beta_verified"]) {
-    assert.equal((await call("/api/ev", {step, v: "A"})).s, 200);
+await t("anonymný lievik zapisuje len povolené kroky (bez ID) a diagnostika len pevné kódy", async () => {
+  for (const step of ["open", "beta_open", "beta_verified", "<script>"]) {
+    assert.equal((await call("/api/ev", {step, v: "A", id: "x"})).s, 200);
   }
-  assert.equal(db.prepare("SELECT COUNT(*) c FROM funnel").get().c, 0);
+  assert.deepEqual(db.prepare("SELECT step, n FROM funnel").all().map(r => r.step + ":" + r.n), ["open:1"]);
+  assert.deepEqual(db.prepare("PRAGMA table_info(funnel)").all().map(r => r.name), ["day", "step", "n"]);
   await call("/api/err", {m: "TypeError x at https://a.b/c.js"});
   await call("/api/err", {m: "wave fail 503/busy"});
   assert.deepEqual(db.prepare("SELECT msg FROM errs ORDER BY msg").all().map(r => r.msg), ["runtime", "wave"]);
@@ -562,7 +563,7 @@ await t("štatistiky len s kľúčom", async () => {
 
   const r = await W.fetch(new Request("https://x/api/stats", {headers: {"x-admin-key": "tajne"}}), env); const j = await r.json();
   assert.equal(r.status, 200); assert.ok(j.days.length === 14);
-  assert.deepEqual(j.lievik7dni, {});
+  assert.deepEqual(j.lievik7dni, {open: 1}); // anonymný lievik (PM-02)
   assert.equal((await call("/api/export")).s, 404); // export celej databázy je zrušený
 });
 await t("moje údaje sa dajú stiahnuť", async () => { const r = await call("/api/mydata", {id: C, tok: hc.tok}); assert.equal(r.s, 200); assert.ok(Array.isArray(r.j.wavelog)); assert.ok(!JSON.stringify(r.j).includes(C)); });

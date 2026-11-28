@@ -211,3 +211,15 @@ if($("b-year")){
   };
   yearInit();
 }
+
+// PM-04: v nedeľu večer pripomenúť zdieľanie týždňa (raz za týždeň, len keď je čo ukázať)
+function weekStoryNudge(){
+  try{
+    const now=new Date(),key=weekBounds(Date.now(),false).from;
+    if(now.getDay()!==0||now.getHours()<17||LS.get("ctl_weekNudge","")===key)return;
+    const m=weekModel(false);if((m.catches||[]).length<3)return;
+    LS.set("ctl_weekNudge",key);
+    toast("📸 Tvoj týždeň na oblohe je hotový",m.catches.length+" "+pl(m.catches.length,"lietadlo","lietadlá","lietadiel")+" – ťukni na „Môj týždeň na oblohe“ a pošli ho rodine");
+  }catch(e){}
+}
+setTimeout(weekStoryNudge,8000);

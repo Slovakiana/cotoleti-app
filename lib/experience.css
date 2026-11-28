@@ -244,3 +244,13 @@ button.collectionRow {
 .editionDetail h2{font-size:1.2rem;margin:2px 0 12px}
 .editionCardDetail .editionCaption{min-height:0}
 .editionDetail .lookSub{margin:12px 0 0;color:#d5e2f6}
+
+/* 🕯️ Adventný kalendár */
+.adventGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
+.adventGrid button{min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:inherit;font:700 15px/1 Inter,system-ui,sans-serif}
+.adventGrid button.open{background:rgba(255,207,79,.18);border-color:rgba(255,207,79,.5)}
+.adventGrid button.today{border-color:#6dffc7;box-shadow:0 0 0 2px rgba(109,255,199,.35)}
+.adventGrid button.ready{background:rgba(109,255,199,.2);animation:adv 1.6s ease-in-out infinite}
+.adventGrid button:disabled{opacity:.35}
+@keyframes adv{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.adventGrid button.ready{animation:none}}

@@ -495,3 +495,15 @@ HOOKS.heroStatic.push(a=>{const s=specialOf(a);if(s)setTimeout(()=>{if(S.top&&a&
 HOOKS.caught.push(a=>{const s=specialOf(a);if(!s)return;if(s.k==="lv")grantAch("livery");else grantAch("firstflight");toast(s.t,"Ulovil(a) si niečo výnimočné ✨")});
 ACH.push({id:"livery",i:"🎨",n:"Lovec náterov",h:"Zamávaj lietadlu so špeciálnym náterom (zoznam v appke sa priebežne dopĺňa)",c:()=>false},
   {id:"firstflight",i:"🥇",n:"Bol(a) som pri prvom lete",h:"Zamávaj lietadlu v deň prvého letu novej linky",c:()=>false});
+
+/* ============ 🤝 PM-05: Duo štart – kto prišiel na pozvánku, má cieľ na prvý týždeň ============ */
+function duoProgress(){return Object.values(COL.types||{}).filter(v=>v&&v.n>0).length}
+function duoCheck(){
+  if(!LS.get("ctl_ref","")||COL.ach?.duo||(typeof KID==="function"&&KID()))return;
+  const first=LS.get("ctl_first",0)||Date.now();if(Date.now()-first>7*86400e3)return;
+  const n=duoProgress();
+  if(n>=10){grantAch("duo");toast("🤝 Duo štart splnený!","10 kartičiek v prvom týždni – pošli kamarátovi, ktorý ťa pozval, že si to dal(a) 🎉");return}
+  const shown=LS.get("ctl_duoN",0)|0;if(n>shown&&[1,3,5,8].includes(n)){LS.set("ctl_duoN",n);toast("🤝 Duo štart: "+n+"/10","Chyť 10 rôznych lietadiel do 7 dní od pozvánky a získaš odznak")}
+}
+HOOKS.caught.push(()=>setTimeout(duoCheck,1500));
+ACH.push({id:"duo",i:"🤝",n:"Duo štart",h:"Prišiel(a) si na pozvánku? Chyť 10 rôznych lietadiel do 7 dní",pr:()=>[Math.min(10,duoProgress()),10],c:()=>false});

@@ -40,6 +40,8 @@ jobs:
         run: node tests/cid.test.mjs
       - name: Odznaky
         run: node tests/ach.test.mjs
+      - name: Dátumy (edície, advent, týždeň)
+        run: node tests/dates.test.mjs
       - name: Lesklé a edície
         run: node tests/shiny_ed.test.mjs
       - name: Rodinné profily (server)

@@ -46,3 +46,26 @@ $("santaChip").onclick=async()=>{
 santaChip();setInterval(santaChip,30000);
 // 24. 12.: keď sú sane nad obzorom, automaticky ich ukáž ako hlavné lietadlo (raz za prelet)
 HOOKS.live.push(()=>{const s=S.list&&S.list.find(a=>a.santa&&a.el>5);if(!s){SANTA._picked=false;return}if(SANTA._picked||S.pick)return;SANTA._picked=true;S.pick=s.hex;try{tick(true)}catch(e){}toast("🎅 Santa je nad tebou!","Zamávaj mu – kartička Santových saní je legendárna","#ff4f6d")});
+
+/* ============ 🕯️ Adventný kalendár (1.–24. 12.) – PM-03 ============ */
+const ADVENT_FACTS=["Najväčšie dopravné lietadlo sveta je Airbus A380 – má dve celé paluby.","Dopravné lietadlá letia väčšinou 10–12 km vysoko, nad väčšinou oblakov.","Kondenzačná čiara je zamrznutá vodná para z motorov – vzniká len v mraze vysoko na oblohe.","Milan Rastislav Štefánik bol letec, astronóm aj generál – po ňom sa volá letisko v Bratislave.","Lietadlá štartujú a pristávajú proti vetru – tak im stačí kratšia dráha.","Mikuláš! Nad Slovenskom preletia každý deň stovky lietadiel – koľko z nich máš?","Boeing 747 sa prezýva „Kráľovná oblohy“.","Pri rýchlosti 850 km/h by let z Bratislavy do Košíc trval asi 25 minút.","Piloti a dispečeri sa na celom svete rozprávajú po anglicky.","Slovenské lietadlá majú registráciu, ktorá začína na OM-.","V noci spoznáš lietadlo podľa svetiel: červené je na ľavom krídle, zelené na pravom.","Vrtuľník nepotrebuje dráhu – vzlietne kolmo hore.","Medzinárodná vesmírna stanica obletí Zem asi za 90 minút.","Čierna skrinka je v skutočnosti oranžová, aby sa dala ľahko nájsť.","Do lietadla občas udrie blesk – je na to stavané a cestujúcim sa nič nestane.","Volací znak RYR patrí Ryanairu, WZZ Wizz Airu a TVS Smartwings.","Krídla Boeingu 787 sa za letu ohýbajú nahor aj o niekoľko metrov.","An-225 Mrija bolo najťažšie lietadlo sveta – zničili ho v roku 2022.","Najrýchlejšie lietadlá letia rýchlejšie ako zvuk.","Letiská majú vlastných hasičov, ktorí sú pripravení za pár minút.","Na sever ukazuje červené S na radare v appke – otoč sa a hľadaj lietadlo.","Zimný slnovrat: najdlhšia noc roka – lietadlá dnes uvidíš hlavne podľa svetiel.","Zajtra lieta Santa! Od 15:00 ho v appke uvidíš nad svojím mestom.","Šťastné a veselé! Santa je dnes na oblohe – zamávaj mu 👋"];
+function adventOn(){const k=dayKey();return /-12-(0[1-9]|1\d|2[0-4])$/.test(k)||location.hash==="#adventtest"}
+function adventDay(){const k=dayKey();return location.hash==="#adventtest"&&!/-12-/.test(k)?24:Number(k.slice(8,10))}
+function renderAdvent(){
+  const box=$("adventCard");if(!box)return;if(!adventOn()){box.hidden=true;return}box.hidden=false;
+  const A=LS.get("ctl_advent",{}),today=adventDay(),waved=LS.get("ctl_adventWave","")===dayKey();
+  $("adventTxt").textContent=A[today]?"Dnešné okienko je otvorené. Zajtra ďalšie 🕯️":waved?"Zamávané! Ťukni na dnešné okienko.":"Zamávaj dnes lietadlu a otvor okienko č. "+today+".";
+  $("adventGrid").innerHTML=Array.from({length:24},(_,i)=>{const d=i+1,open=!!A[d],ready=!open&&d<=today&&waved;
+    return `<button type="button" data-adv="${d}" class="${open?"open":""}${d===today?" today":""}${ready?" ready":""}" ${d>today?"disabled":""} aria-label="Okienko ${d}${open?", otvorené":d>today?", zatiaľ zamknuté":""}">${open?"⭐":d}</button>`}).join("");
+}
+HOOKS.caught.push(()=>{if(!adventOn())return;if(LS.get("ctl_adventWave","")!==dayKey()){LS.set("ctl_adventWave",dayKey());renderAdvent();toast("🕯️ Adventné okienko je pripravené","Otvor ho na Love v Adventnom kalendári")}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-adv]");if(!b)return;
+  const d=Number(b.dataset.adv),A=LS.get("ctl_advent",{}),today=adventDay();haptic(8);
+  if(A[d]){toast("🕯️ Okienko "+d,ADVENT_FACTS[d-1]);return}
+  if(LS.get("ctl_adventWave","")!==dayKey()){toast("🕯️ Najprv zamávaj","Okienko sa otvorí po dnešnom mávnutí lietadlu");return}
+  if(d>today)return;
+  const pts=d===24?50:d===today?15:5;A[d]=Date.now();LS.set("ctl_advent",A);COL.pts+=pts;LS.set("ctl_col",COL);
+  if(Object.keys(A).length>=12)grantAch("advent12");
+  confetti(d===24?80:30);toast("🕯️ Okienko "+d+" · +"+pts+" b",ADVENT_FACTS[d-1]);renderAdvent();if(typeof renderCol==="function"&&S.view==="col")renderCol()});
+ACH.push({id:"advent12",i:"🕯️",n:"Adventník",h:"Otvor 12 okienok adventného kalendára (1.–24. 12.)",pr:()=>[Object.keys(LS.get("ctl_advent",0)||0).length,12],c:()=>false});
+renderAdvent();setInterval(renderAdvent,600000);

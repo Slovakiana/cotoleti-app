@@ -5,7 +5,7 @@ const ACCOUNT_BACKUP_KEYS = [
   "ctl_nick", "ctl_seen", "ctl_log", "ctl_famScore", "ctl_kdDone", "ctl_kdDay",
   "ctl_gstreak", "ctl_gday", "ctl_streakp", "ctl_adopt", "ctl_momJoined", "ctl_momPts",
   "ctl_goldWon", "ctl_mayor", "ctl_wanted", "ctl_wantedK", "ctl_inv", "ctl_invSeen",
-  "ctl_wpd", "ctl_mpd", "ctl_rival", "ctl_hidSeen", "ctl_guessed", "ctl_moment", "ctl_legp"
+  "ctl_wpd", "ctl_mpd", "ctl_rival", "ctl_hidSeen", "ctl_guessed", "ctl_moment", "ctl_legp", "ctl_advent"
 ];
 const accountDialog = $("accountDialog");
 let accountRollout = LS.get("ctl_account_rollout", "off"), accountStatusRequest, accountStatusUntil = 0;

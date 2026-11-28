@@ -134,6 +134,7 @@ async function liveFeed(url, timeout, token) {
   return {ac: ac.filter(currentAircraft), at: Math.min(Date.now(), at), bytes};
 }
 function elevDeg(km, altFt) { if (altFt == null || km == null) return null; const h = altFt * 0.3048, d = Math.max(km * 1000, 1); return Math.atan2(h - d * d / (2 * 6371e3), d) * 180 / Math.PI; }
+const EV_STEPS = new Set(["open", "onboard", "gps_ok", "gps_deny", "manual", "wave1", "catch1", "catch5", "day2", "day7", "install", "push_ok", "share", "ref_join", "verified"]);
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
 const cleanHex = h => String(h || "").toLowerCase().replace(/[^0-9a-f~]/g, "").slice(0, 8);
 const cleanCs = c => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
@@ -1263,7 +1264,12 @@ export class Sky extends DurableObject {
       return json({tok: await this.tok(id), pid: pd, fk: await this.fk(pd), epoch,
         nickname: {name: saved?.nick || "", managed: !!saved?.edited, kid}});
     }
-    if (p === "/api/ev" && req.method === "POST") return json({ok: true});
+    if (p === "/api/ev" && req.method === "POST") {
+      // PM-02: anonymný lievik – len názov kroku a deň, bez ID a IP v databáze
+      const step = String((await body()).step || "");
+      if (EV_STEPS.has(step) && this.rate("ev:" + iph, 60, 3600e3)) this.sql.exec("INSERT INTO funnel(day, step, n) VALUES(?, ?, 1) ON CONFLICT(day, step) DO UPDATE SET n = n + 1", d, step);
+      return json({ok: true});
+    }
     if (p === "/api/err" && req.method === "POST") {
       const message = (await body()).m;
       if (typeof message !== "string" || !message || !this.rate("err:" + iph, 20, 3600e3)) return json({ok: true});

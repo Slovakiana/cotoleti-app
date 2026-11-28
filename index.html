@@ -419,7 +419,7 @@ body.kid #friendsBox,body.kid #teamCard,body.kid #b-duel,body.kid #duel,body.kid
 .inappBar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:120;padding:12px 44px 12px 14px;border-radius:18px;font-size:calc(13px*var(--fs,1));line-height:1.4;display:flex;flex-direction:column;gap:2px}
 .inappBar b{font-size:calc(14px*var(--fs,1))}.inappBar{padding:14px 14px 12px;gap:8px;box-shadow:0 12px 38px #0008;max-width:560px;margin:auto}.inappBar span{display:block}.inappActions{display:flex;justify-content:space-between;align-items:center;gap:8px}.inappBar .inappCopy{position:static;width:auto;height:auto;min-height:44px;padding:10px 14px;border-radius:12px;background:#6dffc7;color:#0b1730;font-weight:750;font-size:14px;max-width:calc(100% - 56px)}.inappBar .inappClose{position:static;flex:0 0 44px;width:44px;height:44px;font-size:20px;color:var(--mut)}
 .instSteps{margin:14px 0 10px;padding-left:22px;line-height:1.6;font-size:calc(15px*var(--fs,1))}.instSteps li{margin-bottom:6px}
-.swap{margin-left:6px;font-size:calc(15px*var(--fs,1));min-width:36px;min-height:36px;opacity:.7}
+.swap{margin-left:6px;font-size:calc(15px*var(--fs,1));min-width:44px;min-height:44px;opacity:.7}
 .rep{font-size:calc(12px*var(--fs,1));opacity:.55;padding:2px 6px;min-width:28px;min-height:28px;color:var(--mut)}
 #friendsBox>.card{background:none;border:0;box-shadow:none;padding:14px 2px 4px}
 #friendsBox summary small{color:var(--mut);font-weight:500;margin-left:6px}
@@ -530,7 +530,7 @@ body.toastOn #fabWave{opacity:0;pointer-events:none}
 .seenBox{margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(5,10,30,.28);font-size:calc(13px*var(--fs,1));line-height:1.5;color:#fff}.seenBox small{color:rgba(255,255,255,.8)}
 .lockStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.lockStats div{background:rgba(255,255,255,.07);border-radius:12px;padding:8px;text-align:center}.lockStats b{display:block;font-size:calc(15px*var(--fs,1))}.lockStats small{color:#97a3c7;font-size:calc(11px*var(--fs,1))}
 .mayor{margin-top:12px;padding:10px 12px;border-radius:14px;background:linear-gradient(90deg,rgba(255,207,79,.16),rgba(255,207,79,.04));border:1px solid rgba(255,207,79,.25);font-size:calc(14px*var(--fs,1));line-height:1.45}.mayor small{color:#c9d3f0}
-#adopt{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}#adopt select{font:inherit;color:inherit;background:transparent;border:0;max-width:88%;min-height:36px}#adopt select option{color:#000}#adopt .linkBtn{display:inline;margin:0 0 0 6px}
+#adopt{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}#adopt select{font:inherit;color:inherit;background:transparent;border:0;max-width:88%;min-height:44px}#adopt select option{color:#000}#adopt .linkBtn{display:inline;margin:0 0 0 6px}
 #yearM .mcard{max-height:86vh;overflow-y:auto;background:#0e1430}#yearM .acts{position:sticky;bottom:-1px;background:#0e1430;padding:10px 0 4px}.yearBtn{margin-top:10px;background:linear-gradient(90deg,#0b4ea2,#ee1c25)}.yBig{font-size:calc(44px*var(--fs,1));font-weight:900;line-height:1.05;margin:6px 0}.yRow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}.yRow:last-child{border:0}.ySec{margin-top:14px;font-weight:800}
 .revealHd{text-align:center;font:900 calc(22px*var(--fs,1))/1.2 var(--disp);margin:0 0 12px}.revealHd small{display:block;font:500 calc(13px*var(--fs,1)) var(--body);color:var(--mut);margin-top:4px}
 .holoWrap.reveal{animation:cardIn .7s cubic-bezier(.2,1.4,.4,1) both}@keyframes cardIn{0%{transform:perspective(800px) rotateY(90deg) scale(.7);opacity:0}100%{transform:none;opacity:1}}
@@ -590,7 +590,7 @@ body:has(#fabWave.on) main.view{padding-bottom:calc(var(--bot) + 170px)}
 .holoWrap.shiny::before{inset:17% 6% 37% 6%;opacity:.18}
 @media (prefers-reduced-motion:reduce){.holoWrap.l::after,.cardBack{animation:none!important}}
 .shopRow .btn{flex:0 0 auto;min-width:86px;padding:8px 12px}
-.lgTabs button,.atTabs button{font-size:calc(13px*var(--fs,1))!important;padding:7px 11px!important;min-height:36px!important}
+.lgTabs button,.atTabs button{font-size:calc(13px*var(--fs,1))!important;padding:7px 11px!important;min-height:44px!important}
 .atTabs{display:flex;flex-wrap:wrap;gap:6px}.atTabs button{flex:1 1 auto}
 .verOk,.verNo{text-align:center;font-weight:800;font-size:calc(13.5px*var(--fs,1));padding:7px 10px;border-radius:12px;margin:8px 0}.verOk{background:rgba(109,255,199,.14);color:#9dffd9}.verNo{background:rgba(255,190,90,.12);color:#ffd59a;font-weight:600}
 .lgTabs .lgX{display:none}.lgTabs.more .lgX{display:inline-flex}
@@ -770,9 +770,9 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
 #firstWaveAction[data-primary="true"]{width:100%;min-height:44px;color:#131c24;background:#a9f0cc;font-weight:800}
 #b-wave[hidden],#b-ar[hidden],#fabWave[hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="lib/journal.css?v=111">
-<link rel="stylesheet" href="lib/experience.css?v=111">
-<link rel="stylesheet" href="lib/brand.css?v=111">
+<link rel="stylesheet" href="lib/journal.css?v=112">
+<link rel="stylesheet" href="lib/experience.css?v=112">
+<link rel="stylesheet" href="lib/brand.css?v=112">
 </head>
 <body>
 <div id="bg"></div>
@@ -922,6 +922,11 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
     <div class="huntHomeTitle" id="huntHomeTitle">Vyber si vysnívanú kartičku</div>
     <p class="huntHomeDetail" id="huntHomeDetail">V Atlase vyber typ lietadla, po ktorom pátraš.</p>
     <button class="huntHomeGo" type="button" id="huntHomeGo">🃏 Vyber v Atlase</button>
+  </section>
+  <section class="card glass adventCard" id="adventCard" hidden aria-labelledby="adventTitle">
+    <h2 class="compPulseTitle" id="adventTitle">🕯️ Adventný kalendár</h2>
+    <p class="compPulseDetail" id="adventTxt">Zamávaj dnes lietadlu a otvor okienko.</p>
+    <div class="adventGrid" id="adventGrid"></div>
   </section>
   <footer>Dáta: <a href="rules.html#zdroje">ADSB.lol (ODbL 1.0), Open‑Meteo a ďalšie zdroje</a>.<br>Orientačné údaje – nie na navigáciu. <a href="#" id="f-privacy">Súkromie</a> · <a href="rules.html">Pravidlá hry</a></footer>
 </main>
@@ -1315,29 +1320,29 @@ body.moment #top{opacity:1!important;pointer-events:auto!important}
   <p id="accountMessage" role="status"></p>
   <button class="btn ghost" type="button" id="accountClose">Zavrieť</button>
 </dialog>
-<script src="js/core.js?v=111"></script>
-<script src="js/ui.js?v=111"></script>
-<script src="js/ar.js?v=111"></script>
-<script src="js/space.js?v=111"></script>
-<script src="js/weather.js?v=111"></script>
-<script src="js/extras.js?v=111"></script>
-<script src="js/account.js?v=111"></script>
-<script src="js/social.js?v=111"></script>
-<script src="js/atlas.js?v=111"></script>
-<script src="js/wrapped.js?v=111"></script>
-<script src="js/push.js?v=111"></script>
-<script src="js/track.js?v=111"></script>
-<script src="js/towns.js?v=111"></script>
-<script src="js/catalog.js?v=111"></script>
-<script src="js/cards.js?v=111"></script>
-<script src="js/journal.js?v=111"></script>
-<script src="js/mail.js?v=111"></script>
-<script src="js/golden.js?v=111"></script>
-<script src="js/teams.js?v=111"></script>
-<script src="js/duel.js?v=111"></script>
-<script src="js/sound.js?v=111"></script>
-<script src="js/santa.js?v=111"></script>
-<script src="js/brand.js?v=111"></script>
-<script src="js/main.js?v=111"></script>
+<script src="js/core.js?v=112"></script>
+<script src="js/ui.js?v=112"></script>
+<script src="js/ar.js?v=112"></script>
+<script src="js/space.js?v=112"></script>
+<script src="js/weather.js?v=112"></script>
+<script src="js/extras.js?v=112"></script>
+<script src="js/account.js?v=112"></script>
+<script src="js/social.js?v=112"></script>
+<script src="js/atlas.js?v=112"></script>
+<script src="js/wrapped.js?v=112"></script>
+<script src="js/push.js?v=112"></script>
+<script src="js/track.js?v=112"></script>
+<script src="js/towns.js?v=112"></script>
+<script src="js/catalog.js?v=112"></script>
+<script src="js/cards.js?v=112"></script>
+<script src="js/journal.js?v=112"></script>
+<script src="js/mail.js?v=112"></script>
+<script src="js/golden.js?v=112"></script>
+<script src="js/teams.js?v=112"></script>
+<script src="js/duel.js?v=112"></script>
+<script src="js/sound.js?v=112"></script>
+<script src="js/santa.js?v=112"></script>
+<script src="js/brand.js?v=112"></script>
+<script src="js/main.js?v=112"></script>
 </body>
 </html>
