@@ -5,7 +5,7 @@
 import {readFileSync, readdirSync} from "node:fs";
 import assert from "node:assert/strict";
 
-const DEVICE = ["ctl_account_rollout", "ctl_arcal", "ctl_big", "ctl_edHint", "ctl_ev", "ctl_first", "ctl_guess", "ctl_inappX",
+const DEVICE = ["ctl_account_rollout", "ctl_arcal", "ctl_big", "ctl_edHint", "ctl_ev", "ctl_first", "ctl_guess", "ctl_guardReload", "ctl_inappX",
   "ctl_keepHint", "ctl_lastDay", "ctl_lastSky", "ctl_manual", "ctl_momMini", "ctl_night", "ctl_noinst", "ctl_noinstT", "ctl_onb",
   "ctl_onbT", "ctl_p", "ctl_pos", "ctl_profs", "ctl_radarTap", "ctl_radius", "ctl_recCel", "ctl_ref", "ctl_reset_epoch",
   "ctl_santatest", "ctl_spec", "ctl_storage_recovery", "ctl_storage_version", "ctl_tle", "ctl_transfer_pending", "ctl_vib",

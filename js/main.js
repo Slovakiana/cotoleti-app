@@ -5,7 +5,7 @@
 // zbierka sa vykreslí, až keď je chvíľa (pri veľkej zbierke to inak brzdí štart)
 applyTexts();syncToggles();showPos();if(S.view==="col")renderCol();renderHeroStatic(null);renderDaily();checkDuelLink();installHint();
 setTimeout(checkAch,4000);
-boot();if(S.lastKnown)setTimeout(()=>{if(S.lastKnown)setStatus(staleSkyLabel(),false)},50);
+window.__ctlBooted=1;boot();if(S.lastKnown)setTimeout(()=>{if(S.lastKnown)setStatus(staleSkyLabel(),false)},50);
 setInterval(()=>{if(!document.hidden&&S.raw.length)tick(false)},1000);
 setInterval(()=>{if(!document.hidden)fetchPlanes()},15000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){fetchPlanes();renderDaily()}});
