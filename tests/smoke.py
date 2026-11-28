@@ -501,8 +501,12 @@ def background_regressions(browser, errors):
             const refresh=fetchPlanes;fetchPlanes=()=>Promise.resolve();
             startGps();
             const sample=(latitude,longitude,timestamp)=>({coords:{latitude,longitude},timestamp});
-            watch(sample(48.7,21.2,Date.now()));
+            // iOS z plochy: sledovanie sa spustí až po prvej úspešnej polohe (v107)
+            if(watch)return false;
             old(sample(48.15,17.11,Date.now()-90000));
+            if(typeof watch!=="function")return false;
+            watch(sample(48.7,21.2,Date.now()));
+            old(sample(48.15,17.11,Date.now()-90000)); // staršia vzorka po novšej sa ignoruje
             fetchPlanes=refresh;
             if(S.pos.lat!==48.7||S.pos.lon!==21.2)return false;
 
@@ -874,7 +878,9 @@ def main():
                 golden.click();
                 if (form()!=="g" || golden.getAttribute("aria-pressed")!=="true"
                     || LS.get("ctl_col",{}).types.B738.coverForm!=="g"
-                    || !root.querySelector(".holoWrap image").getAttribute("href").includes("/g.webp"))
+                    // typ s ilustráciou: ilustrácia ostáva, forma sa prejaví tónom (v108)
+                    || !root.querySelector(".holoWrap image").getAttribute("href").includes("/b738.webp")
+                    || !root.querySelector('.holoWrap [data-card-tint="g"]'))
                     throw Error("Výber formy nezmenil ilustráciu alebo sa neuložil");
                 if (root.querySelector('[data-card-form-choice="z"]'))throw Error("Zamknutá forma sa dá vybrať");
                 openCard("B738");

@@ -301,7 +301,7 @@ function cardScene(k,v,id,form,ink,dark,metal,href,locked){
     ${illustrated&&href===undefined?silhouette:""}
     ${art?`<image href="${SVGE(art)}" x="17" y="72" width="386" height="348" preserveAspectRatio="xMidYMid ${illustrated?"meet":"slice"}"${mirrored?' transform="translate(420 0) scale(-1 1)"':""}/>`:""}
     <rect x="17" y="72" width="386" height="348" fill="${dark}" opacity="${illustrated?0:form?.10:.29}"/>
-    ${formTint?`<rect x="17" y="72" width="386" height="348" fill="${formTint}" opacity=".34" style="mix-blend-mode:color"/>`:""}
+    ${formTint?`<rect data-card-tint="${form}" x="17" y="72" width="386" height="348" fill="${formTint}" opacity=".34" style="mix-blend-mode:color"/>`:""}
     <rect x="17" y="72" width="386" height="348" fill="url(#shade${id})" opacity="${illustrated ? .55 : 1}"/>
     ${illustrated?"":`<g transform="translate(19 85) scale(.72 .93)">${collectorEditionArt(k,locked?null:v)}</g>`}
     <g fill="none" stroke="${ink}" stroke-opacity=".5">
