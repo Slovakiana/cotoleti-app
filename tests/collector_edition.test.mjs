@@ -82,3 +82,11 @@ console.log(`✓ Vlastné ilustrácie ${coverage[0]}/${coverage[1]} typov a ${co
 const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 assert.match(html,/Collector Edition v65/);
 console.log("✓ päť odlišných výtvarných motívov, poctivé odhalenia a osobný lov");
+// UX-04: ku každej ilustrácii existuje náhľad pre mriežku (lib/card-art/sm/)
+{
+  const {readdirSync} = await import("node:fs");
+  const big = readdirSync(new URL("../lib/card-art/", import.meta.url)).filter(f => f.endsWith(".webp"));
+  const small = new Set(readdirSync(new URL("../lib/card-art/sm/", import.meta.url)));
+  assert.deepEqual(big.filter(f => !small.has(f)), [], "chýba náhľad – spusti: python3 tests/make_thumbs.py");
+  console.log(`✓ ${big.length} ilustrácií má aj náhľad pre mriežku`);
+}

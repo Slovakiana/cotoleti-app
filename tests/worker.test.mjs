@@ -960,3 +960,12 @@ await (async () => {
   assert.equal(await ask(""), "*");
   console.log("✓ CORS len pre appku");
 })();
+await (async () => {
+  // QA-05: pád appky – len súbor:riadok nášho skriptu, nič iné
+  await call("/api/err", {m: "runtime cards.js:123"}, "4.4.4.4");
+  await call("/api/err", {m: "runtime evil.js:1"}, "4.4.4.4");
+  await call("/api/err", {m: "runtime cards.js:1 heslo"}, "4.4.4.4");
+  const kinds = db.prepare("SELECT msg FROM errs").all().map(r => r.msg);
+  assert.ok(kinds.includes("runtime:cards.js:123") && !kinds.some(k => /evil|heslo/.test(k)), kinds.join(","));
+  console.log("✓ hlásenie pádov bez voľného textu");
+})();

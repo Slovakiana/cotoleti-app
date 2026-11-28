@@ -585,7 +585,7 @@ def main():
     errs = []
     try:
         with sync_playwright() as p:
-            b = p.chromium.launch()
+            b = getattr(p, os.environ.get("BROWSER", "chromium")).launch()  # QA-02: v CI aj WebKit (jadro Safari na iPhone)
             ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
                                 geolocation={"latitude": 48.15, "longitude": 17.11}, permissions=["geolocation"])
             ctx.route("**/*", stub)

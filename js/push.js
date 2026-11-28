@@ -141,7 +141,7 @@ function momentUI(mo){
   const time=`${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
   bar.textContent=mini?time:"Pozri hore · "+time;
   if(!document.hidden&&PUSH.joined!==day&&!momentJoinPending&&Date.now()>=momentRetryAt&&LS.get("ctl_onb",0)&&S.pos)joinMoment(day);
-  if(!momTimer)momTimer=setInterval(()=>momentUI(SOC.data?.moment),1000);
+  if(!momTimer)momTimer=setInterval(()=>{if(!document.hidden)momentUI(SOC.data?.moment)},1000);
 }
 // ťuk na pás: najprv vysvetlenie, potom kamera alebo zmenšenie pásu (nezakrýva obsah)
 $("momentBar").onclick=()=>{haptic(10);const mo=SOC.data&&SOC.data.moment;$("momN").textContent=mo&&mo.n>1?"Práve sa hore pozerá "+nf(mo.n)+" "+ludia(mo.n)+" zo Slovenska.":"Celé Slovensko sa teraz na chvíľu pozerá hore.";$("momM").classList.add("on")};

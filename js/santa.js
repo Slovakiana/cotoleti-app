@@ -43,7 +43,7 @@ $("santaChip").onclick=async()=>{
   try{if(navigator.share){await navigator.share({title:"Santa nad Slovenskom",text,url});return}}catch(e){if(e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text+" "+url);toast("Odkaz skopírovaný 📋","Pošli ho rodine")}catch(e){}
 };
-santaChip();setInterval(santaChip,30000);
+santaChip();setInterval(()=>{if(!document.hidden)santaChip()},30000);
 // 24. 12.: keď sú sane nad obzorom, automaticky ich ukáž ako hlavné lietadlo (raz za prelet)
 HOOKS.live.push(()=>{const s=S.list&&S.list.find(a=>a.santa&&a.el>5);if(!s){SANTA._picked=false;return}if(SANTA._picked||S.pick)return;SANTA._picked=true;S.pick=s.hex;try{tick(true)}catch(e){}toast("🎅 Santa je nad tebou!","Zamávaj mu – kartička Santových saní je legendárna","#ff4f6d")});
 
@@ -68,4 +68,4 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-adv]");if(
   if(Object.keys(A).length>=12)grantAch("advent12");
   confetti(d===24?80:30);toast("🕯️ Okienko "+d+" · +"+pts+" b",ADVENT_FACTS[d-1]);renderAdvent();if(typeof renderCol==="function"&&S.view==="col")renderCol()});
 ACH.push({id:"advent12",i:"🕯️",n:"Adventník",h:"Otvor 12 okienok adventného kalendára (1.–24. 12.)",pr:()=>[Object.keys(LS.get("ctl_advent",0)||0).length,12],c:()=>false});
-renderAdvent();setInterval(renderAdvent,600000);
+renderAdvent();setInterval(()=>{if(!document.hidden)renderAdvent()},600000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderAdvent()});

@@ -80,7 +80,7 @@ function svgDefs(id,col,sh,acc){
 }
 const FRAME={c:["#e3e9f5","#8d9bb8"],u:["#a8f5c6","#1f9e5a"],r:["#a9d4ff","#2f6fd6"],e:["#e3a8ff","#7b3fe4"],l:["#fff1a8","#d9a000"]};
 // 🌙🌅🎯🏠❄️ formy kartičky – odomknú sa podmienkou pri úlovku (vedomosti o oblohe, nie náhoda)
-const FORMS=[["n","🌙","Noc","po zotmení, aspoň 20° nad obzorom"],["g","🌅","Zlatá hodinka","okolo východu alebo západu slnka"],["z","🎯","Zenit","priamo nad hlavou (80°+)"],["h","🏠","Domov","let na Slovensko"],["f","❄️","Mráz","keď je vonku pod 0 °C"]];
+const FORMS=[["n","🌙","Noc","po zotmení, aspoň 20° nad obzorom"],["g","🌅","Zlatá hodinka","okolo východu alebo západu slnka"],["z","🎯","Nad hlavou","priamo nad hlavou (80°+)"],["h","🏠","Domov","let na Slovensko"],["f","❄️","Mráz","keď je vonku pod 0 °C"]];
 const SEATSX={A306:48,E390:26,R135:0,AN30:0,A124:150,IL76:50,BLCF:113,A3ST:47,A337:51,K35R:90,E3TF:0,C17:77,A400:37,C130:20,C30J:20,AN12:20,MD11:90,B748:137,B744:120};
 const SVGE=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function wrapLines(s,n){const out=[];let l="";for(const w of String(s).replace(/(\d) (?=\d{3}\b)/g,"$1\u00a0").replace(/ (\d{1,4}[.,]?)$/,"\u00a0$1").split(" ")){if((l+" "+w).trim().length>n&&l){out.push(l);l=w}else l=(l+" "+w).trim()}if(l)out.push(l);return out}
@@ -221,7 +221,8 @@ function cardCoverForm(v){
 }
 // ilustrácia typu: vlastná pre formu, inak základná ilustrácia typu (forma sa naznačí tónom), až potom všeobecné pozadie formy
 function cardIllustration(code,form){return CARD_ILLUSTRATIONS[code+":"+form]||CARD_ILLUSTRATIONS[code+":"]||""}
-function cardArtURL(form,code){return "lib/card-art/"+(cardIllustration(code,form)||form||"classic")+".webp"+CARD_ART_REV}
+// UX-04: v mriežke zbierky stačí náhľad 480 px (4× menej dát), plná ilustrácia len v detaile
+function cardArtURL(form,code,small){return "lib/card-art/"+(small?"sm/":"")+(cardIllustration(code,form)||form||"classic")+".webp"+CARD_ART_REV}
 async function cardExportSVG(k,v,opt){
   let artHref="";
   try{
@@ -280,9 +281,9 @@ function cardFoil(id,scene){
     <path d="m34 335 2.7 7.3 7.3 2.7-7.3 2.7-2.7 7.3-2.7-7.3-7.3-2.7 7.3-2.7Z" fill="url(#foil${id})"/>
     <text x="51" y="351" fill="#fff0ff" font-size="18" font-weight="850" letter-spacing="2">LESKLÁ</text>`;
 }
-function cardScene(k,v,id,form,ink,dark,metal,href,locked){
+function cardScene(k,v,id,form,ink,dark,metal,href,locked,small){
   const c=catGuess(k);
-  const art=locked?"":href===undefined?cardArtURL(form,k):href;
+  const art=locked?"":href===undefined?cardArtURL(form,k,small):href;
   const illustrated=!!(art&&cardIllustration(k,form));
   const formTint=illustrated&&form&&!CARD_ILLUSTRATIONS[k+":"+form]?(FORM_ART[form]||{}).metal:"";
   const mirrored=!form&&!illustrated&&hash(k+"scene")%2===1;
@@ -349,7 +350,7 @@ function cardSVG(code,v,opt={}){
   <text x="27" y="60" fill="#f6f9ff" opacity=".8" font-size="13" font-weight="600" letter-spacing="1.5">${SVGE(number)}</text>
   <path d="M291 23h94l10 10v27H291Z" fill="#080d19" stroke="${edge}" stroke-opacity=".60"/>
   <text x="342" y="50" text-anchor="middle" fill="${ink}" font-size="23" letter-spacing="1.5" font-weight="800">${SVGE(key)}</text>
-  ${cardScene(key,v,id,form,ink,dark,metal,opt.artHref,locked)}
+  ${cardScene(key,v,id,form,ink,dark,metal,opt.artHref,locked,!!opt.mini)}
   ${form?`<path d="M17 372h32l17 17v31H17Z" fill="${dark}" stroke="${edge}"/>
   <g transform="translate(26 381)" fill="none" stroke="${edge}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">${edition.mark}</g>`:""}
   ${cardTierStamp(r,locked)}
@@ -791,7 +792,7 @@ const REC_SETS=[
   {id:"rc_hi",i:"🏔️",n:"Výškari",d:"Album Rekordy",alb:"rec",slots:[[11500,"nad 11 500 m"],[12500,"nad 12 500 m"],[13500,"nad 13 500 m"]].map(([h,l])=>({l,m:x=>x.alt>=h}))},
   {id:"rc_lo",i:"🛬",n:"Nízkoletci",d:"Album Rekordy",alb:"rec",slots:[[1500,"pod 1 500 m"],[800,"pod 800 m"],[400,"pod 400 m"]].map(([h,l])=>({l,m:x=>x.alt!=null&&x.alt<h}))},
   {id:"rc_sp",i:"⚡",n:"Rýchlici",d:"Album Rekordy",alb:"rec",slots:[[950,"nad 950 km/h"],[1050,"nad 1 050 km/h"],[1150,"nad 1 150 km/h"]].map(([v,l])=>({l,m:x=>x.spd>=v}))},
-  {id:"rc_ze",i:"🎯",n:"Zenit",d:"Album Rekordy",alb:"rec",slots:[[80,"80°+"],[85,"85°+"],[88,"88°+"]].map(([v,l])=>({l,m:x=>x.el>=v}))},
+  {id:"rc_ze",i:"🎯",n:"Priamo nad hlavou",d:"Album Rekordy",alb:"rec",slots:[[80,"80°+"],[85,"85°+"],[88,"88°+"]].map(([v,l])=>({l,m:x=>x.el>=v}))},
   {id:"rc_hr",i:"🕐",n:"Deň a noc",d:"Úlovok v každej hodine dňa",alb:"rec",slots:Array.from({length:24},(_,h)=>({l:h+" h",m:x=>new Date(x.t).getHours()===h}))},
 ];
 const HID_SETS=[

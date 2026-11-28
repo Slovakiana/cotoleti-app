@@ -838,7 +838,7 @@ function nightApply(){
 }
 $("nightSel").value=LS.get("ctl_night","auto");
 $("nightSel").onchange=()=>{LS.set("ctl_night",$("nightSel").value);nightApply();haptic(6)};
-setInterval(nightApply,60000);setTimeout(nightApply,3000);
+setInterval(()=>{if(!document.hidden)nightApply()},60000);setTimeout(nightApply,3000);
 const openFriends=()=>{if(/tim=|vyzva=/.test(location.hash))$("friendsBox").open=true};
 openFriends();addEventListener("hashchange",openFriends);
 
@@ -1331,7 +1331,7 @@ function planeFromHash(){const m=location.hash.match(/(?:^|[#&])p=([0-9a-f]{6})/
 planeFromHash();addEventListener("hashchange",planeFromHash);
 
 /* 👨‍👩‍👧 rodinné profily na jednom mobile: každý má vlastnú zbierku, sériu aj identitu na serveri */
-const PKEYS=["ctl_col","ctl_advent","ctl_adventWave","ctl_duoN","ctl_collectorHunt","ctl_account_rev","ctl_account_digest","ctl_account_guest","ctl_account_offer","ctl_account_pause","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_nick_prompt","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp","ctl_seenT","ctl_watchT","ctl_wrSeen","ctl_kid_pending","ctl_needPin",TRANSFER_STAGE];
+const PKEYS=["ctl_col","ctl_lgRank","ctl_relaySeen","ctl_welcome","ctl_advent","ctl_adventWave","ctl_duoN","ctl_collectorHunt","ctl_account_rev","ctl_account_digest","ctl_account_guest","ctl_account_offer","ctl_account_pause","ctl_daily","ctl_season","ctl_waved","ctl_waveN","ctl_nick","ctl_nick_prompt","ctl_kid","ctl_kpin","ctl_cid","ctl_tok","ctl_tok0","ctl_pid","ctl_fk","ctl_fkT","ctl_seen","ctl_log","ctl_wq","ctl_famScore","ctl_kdDone","ctl_kdDay","ctl_gstreak","ctl_gday","ctl_streakp","ctl_team","ctl_track","ctl_goldAlert","ctl_adopt","ctl_momJoined","ctl_momPts","ctl_goldWon","ctl_mayor","ctl_wanted","ctl_wantedK","ctl_inv","ctl_invSeen","ctl_wpd","ctl_mpd","ctl_rival","ctl_hidSeen","ctl_guessed","ctl_teamInvite","ctl_push","ctl_pushT","ctl_pushAsked","ctl_moment","ctl_legp","ctl_seenT","ctl_watchT","ctl_wrSeen","ctl_kid_pending","ctl_needPin",TRANSFER_STAGE];
 const PROF_IDS=["A","B","C"];
 function profState(){const P=LS.get("ctl_profs",{cur:"A",n:{}});P.n=Object.assign({A:"Ja",B:"Dieťa",C:"Dieťa 2"},P.n);return P}
 function profNext(P){return P.cur==="A"?"B":"A"}

@@ -1,4 +1,10 @@
 "use strict";
+// QA-05: prvý pád appky v relácii nahlás anonymne (len súbor a riadok nášho skriptu)
+{let sent=false;const rep=(file,line)=>{if(sent)return;const m=String(file||"").match(/\/js\/([a-z]{2,12})\.js/);if(!m)return;sent=true;
+  try{navigator.sendBeacon&&navigator.sendBeacon("https://cotoleti-app.radovan-kudela.workers.dev/api/err",JSON.stringify({m:"runtime "+m[1]+".js:"+(line|0)}))}catch(e){}};
+  addEventListener("error",e=>rep(e.filename,e.lineno));
+  addEventListener("unhandledrejection",e=>{const st=String(e.reason&&e.reason.stack||"");const m=st.match(/(\/js\/[a-z]{2,12}\.js)[^:]*:(\d+)/);if(m)rep(m[1],m[2])})}
+
 /* ============ základy ============ */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -472,6 +478,9 @@ collectionBase=JSON.parse(JSON.stringify(COL));
 try{for(const [o,nw] of Object.entries(T_ALIAS)){const v=COL.types&&COL.types[o];if(!v)continue;const t=COL.types[nw];
   if(t){if(!v.srv)t.n=(t.n|0)+(v.n|0);t.first=Math.min(t.first||Infinity,v.first||Infinity);if(t.first===Infinity)delete t.first;t.shiny=t.shiny||v.shiny;if(v.ver){t.ver=1;if(v.seq&&(!t.seq||v.seq<t.seq))t.seq=v.seq}}else COL.types[nw]=v;
   delete COL.types[o]}}catch(e){}
+// DEV-03: oprava počtov nafúknutých chybou aliasov (pred v60) – počet úlovkov typu nesmie byť vyšší než počet zaznamenaných lietadiel
+try{if(!COL.v7){const tg=new Set(Object.values(T_ALIAS)),cnt={};for(const c of Object.values(COL.cx||{})){const ty=T_ALIAS[c&&c.ty]||(c&&c.ty);if(ty)cnt[ty]=(cnt[ty]||0)+1}
+  for(const ty of tg){const v=COL.types&&COL.types[ty];if(v&&cnt[ty]&&v.n>cnt[ty])v.n=cnt[ty]}COL.v7=1;LS.set("ctl_col",COL)}}catch(e){}
 // iná karta/okno zmenilo zbierku -> načítaj, nech sa navzájom neprepisujú
 addEventListener("storage",e=>{if(e.key==="ctl_col"&&e.newValue){try{const v=JSON.parse(e.newValue);for(const k of ["hex","types","pts","ach","n","om","cx","albums","mi","ed","lvlB","lvlFloor","lvlSeen"])if(k in v)COL[k]=v[k];if(S.view==="col"&&typeof renderCol==="function")renderCol();if(S.view==="journal"&&typeof renderJournal==="function")renderJournal()}catch(x){}}});
 const ACH=[

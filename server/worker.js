@@ -134,6 +134,7 @@ async function liveFeed(url, timeout, token) {
   return {ac: ac.filter(currentAircraft), at: Math.min(Date.now(), at), bytes};
 }
 function elevDeg(km, altFt) { if (altFt == null || km == null) return null; const h = altFt * 0.3048, d = Math.max(km * 1000, 1); return Math.atan2(h - d * d / (2 * 6371e3), d) * 180 / Math.PI; }
+const APP_SCRIPTS = new Set(["core", "ui", "ar", "space", "weather", "extras", "account", "social", "atlas", "wrapped", "push", "track", "towns", "catalog", "cards", "journal", "mail", "golden", "teams", "duel", "sound", "santa", "brand", "main"]);
 const EV_STEPS = new Set(["open", "onboard", "gps_ok", "gps_deny", "manual", "wave1", "catch1", "catch5", "day2", "day7", "install", "push_ok", "share", "ref_join", "verified"]);
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), {status: s, headers: {...CORS, "Content-Type": "application/json", "Cache-Control": "no-store", ...h}});
 const cleanHex = h => String(h || "").toLowerCase().replace(/[^0-9a-f~]/g, "").slice(0, 8);
@@ -1277,6 +1278,9 @@ export class Sky extends DurableObject {
       if (/^hello\b/i.test(message)) kind = "hello";
       if (/^wave fail\b/i.test(message)) kind = "wave";
       if (/^quota\b/i.test(message)) kind = "storage";
+      // QA-05: pád appky – len názov nášho skriptu a riadok (žiadny voľný text ani údaje hráča)
+      const rt = message.match(/^runtime ([a-z]{2,12})\.js:(\d{1,5})$/);
+      if (rt && APP_SCRIPTS.has(rt[1])) kind = "runtime:" + rt[1] + ".js:" + rt[2];
       this.sql.exec("INSERT INTO errs(day, msg, n) VALUES(?, ?, 1) ON CONFLICT(day, msg) DO UPDATE SET n = n + 1", d, kind);
       return json({ok: true});
     }
@@ -1696,6 +1700,11 @@ export class Sky extends DurableObject {
         return json({ok: true, missionGoal: b.missionGoal, currentGoal: this.ensureMissionWeek(week)});
       }
       if (b.flags && typeof b.flags === "object") this.setMeta("flags", JSON.stringify({santaPush: b.flags.santaPush !== false, sunWave: b.flags.sunWave !== false, social: b.flags.social === "min" ? "min" : "full", hideMil: b.flags.hideMil === true}));
+      // OPS-05: záložka obnovy pred rizikovou zmenou (Durable Object vie obnoviť databázu k tomuto bodu)
+      if (b.bookmark === true && this.ctx.storage.getCurrentBookmark) {
+        const bm = await this.ctx.storage.getCurrentBookmark(), list = JSON.parse(this.getMeta("bookmarks") || "[]");
+        list.unshift({t: now, bm}); this.setMeta("bookmarks", JSON.stringify(list.slice(0, 20)));
+      }
       if (typeof b.specials === "string") {
         // 🎨 špeciálne nátery a 🥇 prvé lety – riadky „OM-ABC = Retro náter“ alebo „2026-12-15 WZZ1234 = Prvý let do Dubaja“
         const lv = {}, fi = [];
@@ -1717,7 +1726,7 @@ export class Sky extends DurableObject {
       let overenie = null;
       if (b.nick) { const ids = this.sql.exec("SELECT id FROM nicks WHERE lc=? LIMIT 3", lc(String(b.nick))).toArray().map(r => r.id);
         overenie = ids.map(i => ({karticky: (this.row("SELECT COUNT(*) AS c FROM typeseq WHERE id=?", i) || {c: 0}).c, mavnutia: this.sql.exec("SELECT t, type, el, ok, why FROM wavewhy WHERE id=? ORDER BY t DESC LIMIT 15", i).toArray()})); }
-      return json({flags: this.flags(), naKontrolu: fronta, podnety: pending, signaly: sig, overenie, specials: JSON.parse(this.getMeta("specials") || '{"lv":{},"fi":[]}')});
+      return json({flags: this.flags(), zalozky: JSON.parse(this.getMeta("bookmarks") || "[]").slice(0, 5), naKontrolu: fronta, podnety: pending, signaly: sig, overenie, specials: JSON.parse(this.getMeta("specials") || '{"lv":{},"fi":[]}')});
     }
     if (p === "/api/appeal" && req.method === "POST") {
       // ✋ odvolanie: hráč, ktorému sme skryli meno, požiada o ľudskú kontrolu (raz)
@@ -2079,7 +2088,7 @@ function adminPage(asScript = false) {
 <button id="wipePreview" style="background:#ffd9a8;color:#3b1f15">1. Skontrolovať rozsah resetu</button>
 <pre id="wipeInfo">Reset sa nespustil.</pre>
 <button id="wipeExecute" disabled style="background:#ff7183;color:#3a101a">2. Natrvalo vymazať všetkých hráčov</button>
-</section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><pre id="o" role="status"></pre>
+</section><label>🎨 Špeciálne nátery a 🥇 prvé lety (riadok: <i>OM-ABC = Retro náter</i> alebo <i>2026-12-15 WZZ1234 = Prvý let do Dubaja</i>)<textarea id="spx" rows="5" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;font:14px monospace"></textarea></label><button id="spb">💾 Uložiť nátery a prvé lety</button><button id="bmk">📌 Záložka obnovy databázy (pred veľkou zmenou)</button><button id="q">🚩 Skryté mená na kontrolu</button><div id="qb"></div><input id="nk" placeholder="Prezývka hráča (overenie kartičiek)"><button id="ov">🔎 Prečo nie sú kartičky overené</button><pre id="o" role="status"></pre>
 <script>const $=i=>document.getElementById(i),o=$("o"),H=()=>({"Content-Type":"application/json","x-admin-key":$("k").value});
 const bars=(t,rows,key,col)=>{const w=340,h=120,n=rows.length,mx=Math.max(1,...rows.map(r=>+r[key]||0)),bw=w/n;let sv="<svg viewBox='0 0 "+w+" "+(h+34)+"' style='width:100%;background:#ffffff0d;border-radius:12px'>";rows.forEach((r,i)=>{const v=+r[key]||0,bh=Math.round(v/mx*(h-18));sv+="<rect x='"+(i*bw+2)+"' y='"+(h-bh)+"' width='"+(bw-4)+"' height='"+bh+"' rx='3' fill='"+col+"'/><text x='"+(i*bw+bw/2)+"' y='"+(h-bh-4)+"' font-size='9' fill='#fff' text-anchor='middle'>"+v+"</text><text x='"+(i*bw+bw/2)+"' y='"+(h+14)+"' font-size='8' fill='#ffffffaa' text-anchor='middle'>"+r.day.slice(8)+"."+r.day.slice(5,7)+"</text>"});return "<h3 style='margin:14px 0 6px'>"+t+"</h3>"+sv+"</svg>"};
 $("s").onclick=async()=>{
@@ -2118,6 +2127,7 @@ $("missionSave").onclick=async()=>{
 };
 const Q=async x=>{const j=await A(x||{});const qb=$("qb");qb.innerHTML="";(j.naKontrolu||[]).forEach(z=>{const d=document.createElement("div");d.style.cssText="background:#ffffff14;border-radius:12px;padding:10px;margin:6px 0";d.textContent=z.name+" · "+z.why+" ";const ok=document.createElement("button");ok.textContent="✅ Ponechať zákaz";ok.onclick=()=>Q({confirm:z.name});const no=document.createElement("button");no.textContent="↩️ Meno je v poriadku";no.style.background="#ffcf4f";no.onclick=()=>Q({unban:z.name});d.append(ok,no);qb.append(d)});for(const z of j.podnety||[]){const d=document.createElement("div");d.style.padding="10px";d.textContent=z.name+" · nahlásenia: "+z.count+" ";const no=document.createElement("button");no.textContent="Uzavrieť podnet";no.onclick=()=>Q({dismissReport:z.name});const hide=document.createElement("button");hide.textContent="Skryť meno";hide.onclick=()=>Q({hideReport:z.name});d.append(hide,no);qb.append(d)}if(!qb.hasChildNodes())qb.textContent="Nič na kontrolu 👍"};
 $("q").onclick=()=>Q();
+$("bmk").onclick=async()=>{o.textContent="…";const j=await A({bookmark:true});o.textContent="Záložky obnovy (najnovšia hore):\\n"+(j.zalozky||[]).map(z=>new Date(z.t).toLocaleString("sk-SK")+"  "+z.bm).join("\\n")};
 $("spb").onclick=async()=>{o.textContent="…";const j=await A({specials:$("spx").value});const s=j.specials||{lv:{},fi:[]};o.textContent="Uložené: "+Object.keys(s.lv).length+" náterov, "+s.fi.length+" prvých letov"};
 let wipeNonce="";
 $("wipePreview").onclick=async()=>{
