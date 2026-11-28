@@ -624,10 +624,11 @@ function startGps(){
     gotPos(position,first);
   };
   const fail=error=>{if(generation===gpsGeneration)posErr(error)};
-  if(watchId!=null)navigator.geolocation.clearWatch(watchId);
-  navigator.geolocation.getCurrentPosition(position=>accept(position,true),fail,{enableHighAccuracy:false,maximumAge:600000,timeout:15000});
-  watchId=navigator.geolocation.watchPosition(position=>accept(position,!S.pos||!S.raw.length),fail,
-    {enableHighAccuracy:true,maximumAge:15000,timeout:30000});
+  if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}
+  // iPhone z plochy (iOS 26): dve súbežné žiadosti o polohu vedú k zamietnutiu – sledovanie spustíme až po prvej úspešnej polohe
+  const watch=()=>{if(generation!==gpsGeneration||watchId!=null)return;watchId=navigator.geolocation.watchPosition(position=>accept(position,!S.pos||!S.raw.length),fail,
+    {enableHighAccuracy:true,maximumAge:15000,timeout:30000})};
+  navigator.geolocation.getCurrentPosition(position=>{accept(position,true);watch()},error=>{fail(error);if(error.code!==1)watch()},{enableHighAccuracy:false,maximumAge:600000,timeout:15000});
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){gpsHiddenAt=Date.now();return}
@@ -645,14 +646,28 @@ function gotPos(p,first){
 function posErr(e){
   if(S.manual)return;
   if(e.code===1){S.gpsValid=false;ev("gps_deny")}
+  S.gpsErr={code:e.code,t:Date.now()};
   if(S.raw.length&&e.code!==1)return;
   $("posBtns").style.display="flex";
   if(!S.raw.length)$("h-type").textContent="Bez polohy to nepôjde 🙈";
-  if(e.code===1&&!S.raw.length){heroCities();$("err").innerHTML='<details><summary>Ako povoliť polohu?</summary>iPhone: Nastavenia → Súkromie → Polohové služby → Safari → „Pri používaní“. Android: ťukni na zámok vedľa adresy → Povolenia → Poloha. Potom stránku obnov.</details>';setStatus("Chýba poloha",false);$("b-man").className="solid";$("b-pos").className="ghost";return}
-  err(e.code===1?"Poloha je zablokovaná. iPhone: Nastavenia → Súkromie → Polohové služby → Safari → „Pri používaní“. Android: ťukni na zámok vedľa adresy → Povolenia → Poloha. Potom stránku obnov."
+  if(e.code===1&&!S.raw.length){heroCities();$("err").innerHTML=gpsHelpHTML();setStatus("Chýba poloha",false);$("b-man").className="solid";$("b-pos").className="ghost";return}
+  err(e.code===1?"Poloha je zablokovaná – návod je nižšie."
     :e.code===3?"Poloha sa ešte hľadá – si vnútri? Skúšam znova, alebo vyber mesto.":"Polohu sa nepodarilo zistiť. Skontroluj, či máš zapnutú polohu v mobile.");
   setStatus("Chýba poloha",false);
 }
+// návod na povolenie polohy podľa zariadenia + diagnostika (kamarát pošle screenshot)
+function gpsHelpHTML(){
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  const home=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+  const iosV=(navigator.userAgent.match(/OS (\d+)[_.](\d+)/)||[]).slice(1).join(".");
+  const steps=ios?`<ol style="margin:6px 0 0;padding-left:20px">
+    <li>Nastavenia → Súkromie a bezpečnosť → <b>Polohové služby</b> → zapnuté</li>
+    <li>V tom istom zozname nájdi <b>Webové stránky Safari</b> (Safari Websites) → <b>Pri používaní</b> a zapni <b>Presnú polohu</b></li>
+    <li>Nastavenia → Aplikácie → Safari → <b>Poloha</b> → „Opýtať sa“ alebo „Povoliť“</li>
+    <li>Appku úplne zavri (potiahni ju hore z prepínača appiek) a otvor znova</li></ol>
+    ${home?`<p style="margin:8px 0 0">Ak to z plochy stále nejde: niektoré verzie iOS majú chybu, kvôli ktorej appka pridaná na plochu nedostane polohu, hoci v Safari ide. Otvor appku <b>priamo v Safari</b> (rovnaká zbierka sa prenesie cez Ja → Prenos zbierky), alebo vyber mesto ručne nižšie.</p>`:""}`
+    :`Android: ťukni na zámok vedľa adresy → Povolenia → Poloha → Povoliť. Potom stránku obnov.`;
+  return `<details open><summary>Ako povoliť polohu?</summary>${steps}<small style="display:block;opacity:.6;margin-top:6px">diagnostika: ${ios?"iOS "+esc(iosV):"iné"} · ${home?"z plochy":"prehliadač"} · kód ${S.gpsErr?S.gpsErr.code:"–"}</small></details>`}
 function showPos(){if(S.pos){$("posTxt").textContent=(S.manual?"ručne · ":"GPS · ")+S.pos.lat.toFixed(3)+", "+S.pos.lon.toFixed(3);$("mlat").placeholder=S.pos.lat.toFixed(4);$("mlon").placeholder=S.pos.lon.toFixed(4)}}
 
 
