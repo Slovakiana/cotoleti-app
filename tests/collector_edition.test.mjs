@@ -51,7 +51,7 @@ for(const [key,asset] of illustrations){
 }
 // forma bez vlastnej ilustrácie: ilustrácia typu (forma sa naznačí tónom); typ bez ilustrácie: pozadie formy
 assert.equal(vm.runInContext('cardArtURL("n","B738")',ctx),"lib/card-art/b738.webp?v=test");
-assert.equal(vm.runInContext('cardArtURL("n","CRJ9")',ctx),"lib/card-art/n.webp?v=test");
+assert.equal(vm.runInContext('cardArtURL("n","Q4")',ctx),"lib/card-art/n.webp?v=test");
 const catalog=readFileSync(new URL("../js/catalog.js",import.meta.url),"utf8");
 ctx.TYPES={};
 vm.runInContext(catalog,ctx);
