@@ -1,4 +1,6 @@
-# Nedokončené odporúčania expertov (stav 27. 11. 2026, verzia 101)
+# Nedokončené odporúčania expertov (stav 28. 11. 2026, verzia 113)
+
+**Audit 28. 11. (38 bodov):** stav po bodoch je v dokumente „Audit appky Čo to letí? (v110)“ (https://claude.ai/artifact/JasfDa1wF8vcsiQuRhAEsY), kroky pre majiteľa v RUNBOOK.md (sekcia Audit 28. 11.). Odložené: ARCH-02 (rozdelenie servera), OPS-03 (zbalenie skriptov), OPS-06 (compatibility_date), UX-02 (všeobecné maľby rodín), PM-06 (školy, letiská).
 
 ## ▶ Stav 27. 11. 2026 – verzia 101 (prehľad pre ďalšiu prácu)
 
