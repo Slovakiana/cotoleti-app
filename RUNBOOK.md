@@ -77,3 +77,13 @@ Pilot je predvolene zapnutý. Vypína ho produkčná premenná `RELAY_PILOT=0`; 
 - `/api/account/status` má vrátiť `{"rollout":"pilot"}`. V pôvodnom prehliadači pripoj existujúcu dospelú zbierku, potom v druhom otvor zdieľaný odkaz a prihlás sa. Skontroluj kartičky, históriu, body, míle aj pôvodný prehliadač.
 - Pri súčasnej hre v dvoch prehliadačoch sa staršia záloha odmietne a lokálny pokrok zostane uložený. Pripájanie detských profilov k rodičovskému účtu a zlúčenie dvoch samostatných zbierok nie sú súčasťou pilotu.
 - Na pozastavenie nastav `ACCOUNT_ROLLOUT=off`. Pripojenia a uložené zálohy zostanú v databáze. Pred verejným otvorením over skutočné doručenie aj vstup z WhatsAppu na iPhone a Androide.
+
+## Audit 28. 11. 2026 – čo treba zapnúť ručne
+- **PM-01 záloha zbierok:** v Cloudflare nastav `ACCOUNT_ROLLOUT=public` (Resend kľúč a overená doména musia byť nastavené). Appka iPhone hráčom v Safari pripomína pridať appku na plochu.
+- **OPS-02 Santa:** Workers Paid (5 $/mes.) pred 1. 12. – pri stovkách hráčov bezplatný denný limit požiadaviek nestačí. Záťažový odhad: `node tests/load.mjs 100 5`.
+- **OPS-04 nasadenie servera po testoch:** návod v `.github/workflows/worker.yml` (token, premenná `WORKER_Z_TESTOV=1`, vypnúť Cloudflare Builds). Pre appku `PAGES_Z_TESTOV=1` (vyššie).
+- **OPS-05 záložka obnovy:** pred veľkou zmenou v /admin klikni „📌 Záložka obnovy databázy“. Obnovu z nej pripraví Claude.
+- **SEC-01:** `ADMIN_KEY` nech má aspoň 32 náhodných znakov. Po 8 zlých pokusoch z jednej siete sa správa na 15 min zamkne.
+- **SEC-03:** API odpovedá prehliadačom len z `slovakiana.github.io` a domény Workeru. Ďalšiu adresu (vlastná doména) pridaj do premennej `EXTRA_ORIGINS`.
+- **SEC-05:** prahy proti podvádzaniu: `CHEAT_NEAR_KM` (30), `CHEAT_FAR_KM` (130).
+- **Nová ilustrácia:** po pridaní do `lib/card-art/` spusti `python3 tests/make_thumbs.py` (náhľady pre mriežku).
